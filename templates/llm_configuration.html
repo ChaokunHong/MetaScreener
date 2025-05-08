@@ -6,9 +6,9 @@
 <div class="section-card">
     <h2>LLM Configuration</h2>
     <p class="api-key-info">
-        Select LLM and provide API key. We commit that API keys are only stored in your browser session for the current visit and are NOT recorded by our backend. Environment defaults are used if no key is provided here.
+        Select LLM and provide the required API key below. We commit that API keys are only stored in your browser session for the current visit and are NOT recorded by our backend.
     </p>
-    <form method="POST" action="{{ url_for('configure_llm') }}">
+    <form id="llm_config_form" method="POST" action="{{ url_for('configure_llm') }}">
         <div class="row">
             <div class="col-md-6"><div class="form-group">
                 <label for="llm_provider">LLM Provider:</label>
@@ -29,12 +29,26 @@
         <div class="form-group api-key-input" id="{{ provider_name_key.lower() }}_api_key_group" style="display: none;">
             <label for="{{ provider_name_key.lower() }}_api_key">{{ provider_name_key.replace('_', ' ') }} API Key:</label>
             <div class="input-group input-group-sm">
-                <input type="password" name="{{ provider_name_key.lower() }}_api_key" id="{{ provider_name_key.lower() }}_api_key" class="form-control form-control-sm" placeholder="Enter API Key (Optional)">
+                <input type="password" name="{{ provider_name_key.lower() }}_api_key" id="{{ provider_name_key.lower() }}_api_key" class="form-control form-control-sm" placeholder="API Key is required for screening">
                  <div class="input-group-append">
                     <button class="btn btn-outline-secondary btn-sm" type="button" onclick="toggleApiKeyVisibility('{{ provider_name_key.lower() }}_api_key')">Show</button>
                 </div>
             </div>
             <small class="form-text text-muted">Status: <span id="{{ provider_name_key.lower() }}_api_key_status_text">{{ api_key_status.get(provider_name_key, 'Not set') }}</span>.</small>
+            <small class="form-text text-muted mt-1">
+                {% if provider_name_key == 'DeepSeek' %}
+                    Get your DeepSeek API key from the <a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer">DeepSeek Platform</a>.
+                {% elif provider_name_key == 'OpenAI_ChatGPT' %}
+                    Get your OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI API Keys</a>.
+                {% elif provider_name_key == 'Google_Gemini' %}
+                    Get your Gemini API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>.
+                {% elif provider_name_key == 'Anthropic_Claude' %}
+                    Get your Anthropic API key from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Anthropic Console</a>.
+                {% else %}
+                    API key required. Please refer to the provider's documentation.
+                {% endif %}
+                This key is stored only in your browser session and is required to run screening.
+            </small>
         </div>
         {% endfor %}
         <button type="submit" class="btn btn-primary btn-sm">Save LLM Config</button>
@@ -98,6 +112,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         const providerSelect = document.getElementById('llm_provider');
+        const configForm = document.getElementById('llm_config_form'); // Get the form
 
         // Initial population of model options and API key field visibility
         if (currentProviderFromServer && llmProvidersData[currentProviderFromServer]) {
@@ -110,7 +125,6 @@
             updateApiKeyInputVisibility(firstProvider);
         }
 
-
         providerSelect.addEventListener('change', function() {
             updateModelOptions(this.value, null); // When provider changes, no specific model is pre-selected initially
             updateApiKeyInputVisibility(this.value);
@@ -122,6 +136,31 @@
                 }
             });
         });
+        
+        // --- ADDED: Form Submit Validation --- 
+        if (configForm) {
+            configForm.addEventListener('submit', function(event) {
+                // Get the currently selected provider
+                const selectedProvider = providerSelect.value;
+                if (!selectedProvider) {
+                    alert('Please select an LLM Provider.');
+                    event.preventDefault(); // Stop submission
+                    return;
+                }
+                
+                // Construct the ID of the API key input for the selected provider
+                const apiKeyInputId = selectedProvider.toLowerCase() + '_api_key';
+                const apiKeyInput = document.getElementById(apiKeyInputId);
+                
+                // Check if the visible API key input is empty
+                if (apiKeyInput && apiKeyInput.value.trim() === '') {
+                    alert(`API Key for ${selectedProvider.replace('_',' ')} is required. Please enter the key or obtain one from the provider.`);
+                    event.preventDefault(); // Stop form submission
+                    apiKeyInput.focus(); // Focus the empty field
+                } 
+                // If validation passes, the form submits normally
+            });
+        }
     });
 </script>
 {% endblock %} 
