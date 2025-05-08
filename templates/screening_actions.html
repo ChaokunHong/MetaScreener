@@ -47,7 +47,6 @@
             <input type="file" name="file" id="full_file_progress" class="form-control-file form-control-sm" required accept=".ris">
         </div>
         <button type="button" id="start_full_screen_button" class="btn btn-danger btn-sm">Screen Full File with Progress (SSE)</button>
-        <button type="submit" formaction="{{ url_for('screen_file') }}" formmethod="POST" id="start_full_screen_sync_button" class="btn btn-outline-secondary btn-sm ml-2" title="Use synchronous screening if progress version has issues">Screen Full File (Synchronous)</button>
     </form>
     <div id="progress_area" class="mt-3" style="display: none;">
         <h4>Screening Progress:</h4>
@@ -207,7 +206,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressLogContainer = document.getElementById('progress_log_container');
     const progressLog = document.getElementById('progress_log');
     const sseResultsLinkArea = document.getElementById('sse_results_link_area');
-    const syncScreenButton = document.getElementById('start_full_screen_sync_button');
     const MAX_LOG_ITEMS = 7; // Existing log limit
 
     if (startFullScreenButton) {
@@ -228,7 +226,6 @@ document.addEventListener('DOMContentLoaded', function() {
             sseResultsLinkArea.style.display = 'none'; 
 
             startFullScreenButton.disabled = true;
-            if(syncScreenButton) syncScreenButton.disabled = true;
 
             const formData = new FormData(); 
             formData.append('file', fileInput.files[0]);
@@ -319,8 +316,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function finalizeButtons() { // This should re-enable both SSE buttons
         if(startFullScreenButton) startFullScreenButton.disabled = false; 
-        if(syncScreenButton) syncScreenButton.disabled = false;
-        // We don't re-enable test button here, handled by finalizeTestButton
     }
 
 }); // end DOMContentLoaded
