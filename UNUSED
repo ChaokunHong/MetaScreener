@@ -1,0 +1,1 @@
+git commit -m "Fix PDF extraction by reading stream to bytes for PyMuPDF" 
