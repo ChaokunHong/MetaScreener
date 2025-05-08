@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}Screening Actions - AI Literature Screening Assistant{% endblock %}
+
+{% block content %}
+<div class="section-card">
+    <h2>Test Screening (Sample & Evaluate)</h2>
+    <p>Upload a .ris file to screen a small sample of abstracts. Progress will be shown below. You can then compare the AI's decisions with your own and view performance metrics.</p>
+    <form id="test_screen_form" enctype="multipart/form-data">
+        <div class="form-row">
+            <div class="form-group col-md-8">
+                <label for="test_file">Upload RIS File:</label>
+                <input type="file" name="file" id="test_file" class="form-control-file form-control-sm" required accept=".ris">
+            </div>
+            <div class="form-group col-md-4">
+                <label for="sample_size">Sample Size (5-50):</label>
+                <input type="number" name="sample_size" id="sample_size" class="form-control form-control-sm" value="10" min="5" max="50">
+            </div>
+        </div>
+        <button id="start_test_screen_button" type="button" class="btn btn-info btn-sm">
+            <span id="test_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+            Start Test Screening with Progress
+        </button>
+    </form>
+    <div id="test_progress_area" class="mt-3" style="display: none;">
+        <h4>Test Screening Progress:</h4>
+        <div class="progress mb-2">
+            <div id="test_progress_bar" class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+        </div>
+        <p id="test_progress_status" class="mt-1 small text-muted"></p>
+        <div id="test_progress_log_container" style="display:none;">
+            <strong>Live Log (Test):</strong>
+            <div id="test_progress_log" style="max-height: 100px; overflow-y: auto; font-size: 0.8em; background-color: #f0f0f0; padding: 8px; border: 1px solid #ccc; margin-top:8px; border-radius: 4px; white-space: pre-line;"></div>
+        </div>
+    </div>
+     <div id="test_results_link_area" class="mt-3" style="display:none;">
+        <a href="#" id="view_test_results_link" class="btn btn-primary">View Test Results & Assess</a>
+    </div>
+</div>
+
+<div class="section-card">
+    <h2>Screen Full Dataset (with Progress)</h2>
+    <p>Upload your .ris file to screen all entries using the currently configured LLM and screening criteria. Progress will be displayed live. It's recommended to perform a test screening first.</p>
+    <form id="full_screen_form_id" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="full_file_progress">Upload RIS File:</label>
+            <input type="file" name="file" id="full_file_progress" class="form-control-file form-control-sm" required accept=".ris">
+        </div>
+        <button type="button" id="start_full_screen_button" class="btn btn-danger btn-sm">Screen Full File with Progress (SSE)</button>
+        <button type="submit" formaction="{{ url_for('screen_file') }}" formmethod="POST" id="start_full_screen_sync_button" class="btn btn-outline-secondary btn-sm ml-2" title="Use synchronous screening if progress version has issues">Screen Full File (Synchronous)</button>
+    </form>
+    <div id="progress_area" class="mt-3" style="display: none;">
+        <h4>Screening Progress:</h4>
+        <div class="progress mb-2">
+            <div id="progress_bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+        </div>
+        <p id="progress_status" class="mt-1 small text-muted"></p>
+        <div id="progress_log_container" style="display:none;">
+            <strong>Live Log (last few items):</strong>
+            <div id="progress_log"></div>
+        </div>
+    </div>
+     <div id="sse_results_link_area" class="mt-3" style="display:none;">
+        <a href="#" id="view_full_results_link" class="btn btn-success">View Full Results from SSE Screening</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // --- Test Screening SSE Logic --- (NEW)
+    const testScreenForm = document.getElementById('test_screen_form');
+    const startTestScreenButton = document.getElementById('start_test_screen_button');
+    const testProgressArea = document.getElementById('test_progress_area');
+    const testProgressBar = document.getElementById('test_progress_bar');
+    const testProgressStatus = document.getElementById('test_progress_status');
+    const testProgressLogContainer = document.getElementById('test_progress_log_container');
+    const testProgressLog = document.getElementById('test_progress_log');
+    const testResultsLinkArea = document.getElementById('test_results_link_area');
+    const viewTestResultsLink = document.getElementById('view_test_results_link');
+    const MAX_TEST_LOG_ITEMS = 5;
+
+    if (startTestScreenButton) {
+        startTestScreenButton.addEventListener('click', function() {
+            const testFileInput = document.getElementById('test_file');
+            const sampleSizeInput = document.getElementById('sample_size');
+
+            if (!testFileInput.files || testFileInput.files.length === 0) {
+                alert('Please select a file for test screening.');
+                return;
+            }
+            const sampleSize = sampleSizeInput.value || 10;
+
+            testProgressArea.style.display = 'block';
+            testProgressLogContainer.style.display = 'block';
+            testProgressLog.innerHTML = '';
+            testProgressBar.style.width = '0%';
+            testProgressBar.textContent = '0%';
+            testProgressBar.classList.remove('bg-success', 'bg-danger');
+            testProgressBar.classList.add('bg-info');
+            testProgressStatus.textContent = 'Initializing test screening...';
+            testResultsLinkArea.style.display = 'none';
+            startTestScreenButton.disabled = true;
+            
+            // Hide spinner that might be left from previous sync logic if any
+            const testSpinner = document.getElementById('test_spinner');
+             if(testSpinner) testSpinner.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('file', testFileInput.files[0]);
+            formData.append('sample_size', sampleSize);
+
+            const xhrTest = new XMLHttpRequest();
+            xhrTest.open("POST", "{{ url_for('stream_test_screen_file') }}", true);
+            let lastTestCharIndex = 0;
+
+            xhrTest.onprogress = function() {
+                const newText = xhrTest.responseText.substring(lastTestCharIndex);
+                lastTestCharIndex = xhrTest.responseText.length;
+                const messages = newText.split('\n\n');
+
+                messages.forEach(message => {
+                    if (message.startsWith("data: ")) {
+                        try {
+                            const jsonData = JSON.parse(message.substring(6));
+                            if (jsonData.type === 'start') {
+                                testProgressStatus.textContent = `Starting test screening for ${jsonData.total} items...`;
+                                addTestLogItem(`[${new Date().toLocaleTimeString()}] Started. Total: ${jsonData.total}`);
+                            } else if (jsonData.type === 'progress') {
+                                testProgressBar.style.width = jsonData.percentage + '%';
+                                testProgressBar.textContent = jsonData.percentage + '%';
+                                testProgressStatus.textContent = `Processing ${jsonData.count}/${jsonData.total}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,40) : 'Item'}...`;
+                                let decisionClass = jsonData.decision ? 'log-decision-' + jsonData.decision.toUpperCase().replace('API_','').replace('HTTP_ERROR_','ERROR_') : '';
+                                addTestLogItem(`[${new Date().toLocaleTimeString()}] Item ${jsonData.count}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,30) : 'Item'}... <span class="log-item-decision ${decisionClass}">${jsonData.decision || ''}</span>`);
+                            } else if (jsonData.type === 'complete') {
+                                testProgressBar.style.width = '100%';
+                                testProgressBar.textContent = '100%';
+                                testProgressBar.classList.remove('bg-info');
+                                testProgressBar.classList.add('bg-success');
+                                testProgressStatus.textContent = jsonData.message;
+                                addTestLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message}`);
+                                if (jsonData.session_id) {
+                                    // Use url_for simulation for the base URL structure
+                                    let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
+                                    viewTestResultsLink.href = baseUrl.replace('__SESSION_ID__', jsonData.session_id);
+                                    testResultsLinkArea.style.display = 'block';
+                                } else {
+                                     addTestLogItem(`[${new Date().toLocaleTimeString()}] <span style="color:orange;">Warning: Could not get link to results.</span>`);
+                                }
+                                xhrTest.abort();
+                                finalizeTestButton();
+                            } else if (jsonData.type === 'error') {
+                                testProgressBar.classList.add('bg-danger');
+                                testProgressBar.textContent = 'Error';
+                                testProgressStatus.textContent = `Error: ${jsonData.message}`;
+                                addTestLogItem(`[${new Date().toLocaleTimeString()}] <span style="color:red;">Error: ${jsonData.message}</span>`);
+                                if (jsonData.needs_config) {
+                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] <span style="color:red;">Please check your LLM Configuration.</span> <a href="{{url_for('llm_config_page')}}">Go to LLM Config</a>`);
+                                }
+                                xhrTest.abort();
+                                finalizeTestButton();
+                            }
+                        } catch (e) { console.error("Test SSE Parse Error:", e, "Data:", message); }
+                    }
+                });
+            }; // end onprogress
+
+            xhrTest.onloadend = function() { finalizeTestButton(); };
+            xhrTest.onerror = function() {
+                testProgressBar.classList.add('bg-danger');
+                testProgressBar.textContent = 'Connection Error';
+                testProgressStatus.textContent = 'Connection error during test screening.';
+                addTestLogItem(`[${new Date().toLocaleTimeString()}] <span style="color:red;">XHR Connection Error. Ensure the server is running.</span>`);
+                finalizeTestButton();
+            };
+
+            xhrTest.send(formData);
+        }); // end button click listener
+    } // end if button exists
+
+    function addTestLogItem(message) {
+        const logItems = testProgressLog.children;
+        if (logItems.length >= MAX_TEST_LOG_ITEMS) {
+            testProgressLog.removeChild(logItems[0]);
+        }
+        const div = document.createElement('div');
+        div.innerHTML = message;
+        testProgressLog.appendChild(div);
+        testProgressLog.scrollTop = testProgressLog.scrollHeight;
+    }
+
+    function finalizeTestButton() {
+        if(startTestScreenButton) startTestScreenButton.disabled = false;
+        const testSpinner = document.getElementById('test_spinner');
+        if(testSpinner) testSpinner.style.display = 'none'; // Ensure spinner is hidden
+    }
+
+
+    // --- Full Screening SSE Logic (EXISTING - DO NOT REMOVE) ---
+    const fullScreenFormForSSE = document.getElementById('full_screen_form_id');
+    const startFullScreenButton = document.getElementById('start_full_screen_button');
+    const progressArea = document.getElementById('progress_area');
+    const progressBar = document.getElementById('progress_bar');
+    const progressStatus = document.getElementById('progress_status');
+    const progressLogContainer = document.getElementById('progress_log_container');
+    const progressLog = document.getElementById('progress_log');
+    const sseResultsLinkArea = document.getElementById('sse_results_link_area');
+    const syncScreenButton = document.getElementById('start_full_screen_sync_button');
+    const MAX_LOG_ITEMS = 7; // Existing log limit
+
+    if (startFullScreenButton) {
+        startFullScreenButton.addEventListener('click', function() {
+            const fileInput = document.getElementById('full_file_progress');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('Please select a file to screen.');
+                return;
+            }
+            
+            progressArea.style.display = 'block';
+            progressLogContainer.style.display = 'block'; 
+            progressLog.innerHTML = ''; 
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+            progressBar.classList.remove('bg-success', 'bg-danger');
+            progressStatus.textContent = 'Initializing...';
+            sseResultsLinkArea.style.display = 'none'; 
+
+            startFullScreenButton.disabled = true;
+            if(syncScreenButton) syncScreenButton.disabled = true;
+
+            const formData = new FormData(); 
+            formData.append('file', fileInput.files[0]);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "{{ url_for('stream_screen_file') }}", true);
+            let lastCharIndex = 0; 
+
+            xhr.onprogress = function() {
+                const newText = xhr.responseText.substring(lastCharIndex);
+                lastCharIndex = xhr.responseText.length;
+                const messages = newText.split('\n\n'); 
+
+                messages.forEach(message => {
+                    if (message.startsWith("data: ")) {
+                        try {
+                            const jsonData = JSON.parse(message.substring(6)); 
+                            if (jsonData.type === 'start') {
+                                progressStatus.textContent = `Screening ${jsonData.total} items...`;
+                                addLogItem(`[${new Date().toLocaleTimeString()}] Started. Total: ${jsonData.total}`);
+                            } else if (jsonData.type === 'progress') {
+                                progressBar.style.width = jsonData.percentage + '%';
+                                progressBar.textContent = jsonData.percentage + '%';
+                                progressStatus.textContent = `Processing ${jsonData.count}/${jsonData.total}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,40) : 'Item'}...`;
+                                let decisionClass = jsonData.decision ? 'log-decision-' + jsonData.decision.toUpperCase().replace('API_','').replace('HTTP_ERROR_','ERROR_') : '';
+                                addLogItem(`[${new Date().toLocaleTimeString()}] Item ${jsonData.count}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,30) : 'Item'}... <span class="log-item-decision ${decisionClass}">${jsonData.decision || ''}</span>`);
+                            } else if (jsonData.type === 'complete') {
+                                progressBar.style.width = '100%';
+                                progressBar.textContent = '100%';
+                                progressBar.classList.add('bg-success');
+                                progressStatus.textContent = jsonData.message;
+                                addLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message}`);
+                                
+                                // MODIFIED: Build link using screening_id
+                                if (jsonData.screening_id) {
+                                    let resultsLinkElement = sseResultsLinkArea.querySelector('a');
+                                    if (resultsLinkElement) {
+                                        let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
+                                        resultsLinkElement.href = baseUrl.replace('__SCREENING_ID__', jsonData.screening_id);
+                                        sseResultsLinkArea.style.display = 'block'; 
+                                    } else {
+                                         addLogItem(`[${new Date().toLocaleTimeString()}] <span style="color:orange;">Error: Could not find results link element.</span>`);
+                                    }
+                                } else {
+                                    addLogItem(`[${new Date().toLocaleTimeString()}] <span style="color:orange;">Warning: Could not get link to full results (missing ID).</span>`);
+                                }
+                                
+                                xhr.abort(); 
+                                finalizeButtons();
+                            } else if (jsonData.type === 'error') {
+                                progressBar.classList.add('bg-danger');
+                                progressBar.textContent = 'Error';
+                                progressStatus.textContent = `Error: ${jsonData.message}`;
+                                addLogItem(`[${new Date().toLocaleTimeString()}] <span style="color:red;">Error: ${jsonData.message}</span>`);
+                                if (jsonData.needs_config) {
+                                    addLogItem(`[${new Date().toLocaleTimeString()}] <span style="color:red;">Please check your LLM Configuration.</span> <a href="{{url_for('llm_config_page')}}">Go to LLM Config</a>`);
+                                }
+                                xhr.abort();
+                                finalizeButtons();
+                            }
+                        } catch (e) { console.error("Full SSE Parse Error:", e, "Data:", message); }
+                    }
+                });
+            };
+             xhr.onloadend = function() { finalizeButtons(); };
+            xhr.onerror = function() {
+                progressBar.classList.add('bg-danger');
+                progressBar.textContent = 'Connection Error';
+                progressStatus.textContent = 'Connection error during screening.';
+                addLogItem(`[${new Date().toLocaleTimeString()}] <span style="color:red;">XHR Connection Error. Ensure the server is running.</span>`);
+                finalizeButtons();
+            };
+            
+            xhr.send(formData);
+        }); // end button click listener
+    } // end if button exists
+
+    function addLogItem(message) { // Renamed from finalizeButtons in previous snippet
+        const logItems = progressLog.children;
+        if (logItems.length >= MAX_LOG_ITEMS) {
+            progressLog.removeChild(logItems[0]); 
+        }
+        const div = document.createElement('div');
+        div.innerHTML = message; 
+        progressLog.appendChild(div);
+        progressLog.scrollTop = progressLog.scrollHeight; 
+    }
+
+    function finalizeButtons() { // This should re-enable both SSE buttons
+        if(startFullScreenButton) startFullScreenButton.disabled = false; 
+        if(syncScreenButton) syncScreenButton.disabled = false;
+        // We don't re-enable test button here, handled by finalizeTestButton
+    }
+
+}); // end DOMContentLoaded
+</script>
+{% endblock %} 

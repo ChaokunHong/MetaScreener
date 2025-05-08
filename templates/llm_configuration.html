@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}LLM Configuration - AI Literature Screening Assistant{% endblock %}
+
+{% block content %}
+<div class="section-card">
+    <h2>LLM Configuration</h2>
+    <p class="api-key-info">
+        Select LLM and provide API key. We commit that API keys are only stored in your browser session for the current visit and are NOT recorded by our backend. Environment defaults are used if no key is provided here.
+    </p>
+    <form method="POST" action="{{ url_for('configure_llm') }}">
+        <div class="row">
+            <div class="col-md-6"><div class="form-group">
+                <label for="llm_provider">LLM Provider:</label>
+                <select name="llm_provider" id="llm_provider" class="form-control form-control-sm">
+                    {% for provider_name, provider_data in llm_providers_info.items() %}
+                        <option value="{{ provider_name }}" {% if provider_name == current_llm_provider %}selected{% endif %}>
+                            {{ provider_name.replace('_', ' ') }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div></div>
+            <div class="col-md-6"><div class="form-group">
+                <label for="llm_model_id">Model:</label>
+                <select name="llm_model_id" id="llm_model_id" class="form-control form-control-sm"></select>
+            </div></div>
+        </div>
+        {% for provider_name_key, provider_data_val in llm_providers_info.items() %}
+        <div class="form-group api-key-input" id="{{ provider_name_key.lower() }}_api_key_group" style="display: none;">
+            <label for="{{ provider_name_key.lower() }}_api_key">{{ provider_name_key.replace('_', ' ') }} API Key:</label>
+            <div class="input-group input-group-sm">
+                <input type="password" name="{{ provider_name_key.lower() }}_api_key" id="{{ provider_name_key.lower() }}_api_key" class="form-control form-control-sm" placeholder="Enter API Key (Optional)">
+                 <div class="input-group-append">
+                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="toggleApiKeyVisibility('{{ provider_name_key.lower() }}_api_key')">Show</button>
+                </div>
+            </div>
+            <small class="form-text text-muted">Status: <span id="{{ provider_name_key.lower() }}_api_key_status_text">{{ api_key_status.get(provider_name_key, 'Not set') }}</span>.</small>
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary btn-sm">Save LLM Config</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const llmProvidersData = {{ llm_providers_info | tojson }};
+    const currentProviderFromServer = "{{ current_llm_provider | default('', true) }}";
+    const currentModelIdFromServer = "{{ current_llm_model_id | default('', true) }}";
+    const apiKeyStatuses = {{ api_key_status | tojson }};
+
+    function updateModelOptions(selectedProvider, selectedModelId) {
+        const modelSelect = document.getElementById('llm_model_id');
+        modelSelect.innerHTML = ''; // Clear existing options
+        if (llmProvidersData[selectedProvider] && llmProvidersData[selectedProvider].models) {
+            llmProvidersData[selectedProvider].models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.id;
+                // Display model name and type (e.g., "GPT-4 (reasoning)")
+                option.textContent = `${model.display_name} (${model.type || 'N/A'})`;
+                if (model.id === selectedModelId) {
+                    option.selected = true;
+                }
+                modelSelect.appendChild(option);
+            });
+            // If no model was pre-selected (e.g. new provider selected), select the first one if available
+            if (modelSelect.selectedIndex === -1 && modelSelect.options.length > 0) {
+                modelSelect.options[0].selected = true;
+            }
+        }
+    }
+
+    function updateApiKeyInputVisibility(selectedProvider) {
+        document.querySelectorAll('.api-key-input').forEach(group => {
+            group.style.display = 'none';
+        });
+        const currentGroup = document.getElementById(selectedProvider.toLowerCase() + '_api_key_group');
+        if (currentGroup) {
+            currentGroup.style.display = 'block';
+            const statusTextElement = document.getElementById(selectedProvider.toLowerCase() + '_api_key_status_text');
+            if (statusTextElement) {
+                statusTextElement.textContent = apiKeyStatuses[selectedProvider] || 'Not set';
+            }
+        }
+    }
+
+    function toggleApiKeyVisibility(inputId) {
+        const input = document.getElementById(inputId);
+        const button = input.parentElement.querySelector('button');
+        if (input.type === "password") {
+            input.type = "text";
+            button.textContent = "Hide";
+        } else {
+            input.type = "password";
+            button.textContent = "Show";
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const providerSelect = document.getElementById('llm_provider');
+
+        // Initial population of model options and API key field visibility
+        if (currentProviderFromServer && llmProvidersData[currentProviderFromServer]) {
+            updateModelOptions(currentProviderFromServer, currentModelIdFromServer);
+            updateApiKeyInputVisibility(currentProviderFromServer);
+        } else if (providerSelect.options.length > 0) {
+            // Fallback if currentProviderFromServer is not set or invalid, use the first provider in the list
+            const firstProvider = providerSelect.options[0].value;
+            updateModelOptions(firstProvider, null); // Select the first model of the first provider
+            updateApiKeyInputVisibility(firstProvider);
+        }
+
+
+        providerSelect.addEventListener('change', function() {
+            updateModelOptions(this.value, null); // When provider changes, no specific model is pre-selected initially
+            updateApiKeyInputVisibility(this.value);
+            // Clear API key fields for other providers when switching
+            document.querySelectorAll('.api-key-input input[type="password"], .api-key-input input[type="text"]').forEach(inputField => {
+                // Check if the input field's group is for the currently selected provider
+                if (!inputField.closest('.api-key-input').id.startsWith(this.value.toLowerCase())) {
+                    inputField.value = ''; // Clear the value if it's not for the selected provider
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 

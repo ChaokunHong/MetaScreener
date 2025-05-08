@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Screening Criteria - AI Literature Screening Assistant{% endblock %}
+
+{% block content %}
+<div class="section-card">
+    <h2>Screening Criteria (PICOT)</h2>
+    <p>Define inclusion/exclusion criteria for your literature screening. Default examples are for medical research.</p>
+    <form method="POST" action="{{ url_for('set_criteria') }}">
+        {% set p_fields = [
+            ('population_criteria', 'P - Population/Patient/Problem'),
+            ('intervention_criteria', 'I - Intervention'), 
+            ('comparison_criteria', 'C - Comparison'),
+            ('outcome_criteria', 'O - Outcome'), 
+            ('time_criteria', 'T - Time Factors'),
+            ('other_inclusion_criteria', 'Other Specific Inclusion Criteria'), 
+            ('exclusion_criteria', 'Exclusion Criteria')
+        ] %}
+        {% for field_name, label_text in p_fields %}
+        <div class="form-group criteria-section">
+            <label for="{{ field_name }}">{{ label_text }}:</label>
+            <textarea name="{{ field_name }}" id="{{ field_name }}" class="form-control" rows="3">{{ criteria[field_name] if criteria and field_name in criteria else '' }}</textarea>
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-success btn-sm">Save Criteria</button>
+        <a href="{{ url_for('reset_criteria') }}" class="btn btn-warning btn-sm">Reset to Defaults</a>
+    </form>
+</div>
+{% endblock %} 

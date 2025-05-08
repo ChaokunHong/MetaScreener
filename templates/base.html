@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AI Literature Screening Assistant{% endblock %}</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body { padding-top: 70px; padding-bottom: 40px; } /* Adjusted padding for fixed-top navbar */
+        .container { max-width: 960px; }
+        .section-card { margin-bottom: 25px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .criteria-section { margin-bottom: 15px; background-color: #f9f9f9; padding:15px; border-radius:5px; }
+        .api-key-info { font-size: 0.85em; color: #555; margin-bottom:15px; }
+        textarea { min-height: 70px; font-size:0.95rem; }
+        .form-group label {font-weight: 500;}
+        .btn-group-sm > .btn, .btn-sm { padding: .25rem .5rem; font-size: .875rem; line-height: 1.5; border-radius: .2rem; }
+        .alert { margin-top: 15px;}
+        h1, h2 { margin-bottom: 0.8em; color: #333;}
+        h2 { font-size: 1.75rem; border-bottom: 1px solid #eee; padding-bottom: 0.3em;}
+        /* Add any other global styles from index.html that should be in base */
+        #progress_log {max-height: 150px; overflow-y: auto; font-size: 0.8em; background-color: #f0f0f0; padding: 8px; border: 1px solid #ccc; margin-top:8px; border-radius: 4px; white-space: pre-line;}
+        #progress_log div { padding: 2px 0; border-bottom: 1px dashed #e0e0e0; }
+        #progress_log div:last-child { border-bottom: none; }
+        .log-item-decision { font-weight: bold; margin-left: 5px; }
+        .log-decision-INCLUDE { color: green; }
+        .log-decision-EXCLUDE { color: red; }
+        .log-decision-MAYBE { color: orange; }
+        .log-decision-ERROR { color: purple; }
+        .log-decision-NO_ABSTRACT { color: #666; }
+        .log-decision-CONFIG_ERROR { color: darkred; font-weight: bold; }
+        .log-decision-PROMPT_ERROR { color: darkgoldenrod; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
+        <a class="navbar-brand" href="{{ url_for('index') }}">AI LitScreen</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item {% if request.endpoint == 'llm_config_page' %}active{% endif %}">
+                    <a class="nav-link" href="{{ url_for('llm_config_page') }}">LLM Configuration</a>
+                </li>
+                <li class="nav-item {% if request.endpoint == 'screening_criteria_page' %}active{% endif %}">
+                    <a class="nav-link" href="{{ url_for('screening_criteria_page') }}">Screening Criteria</a>
+                </li>
+                <li class="nav-item {% if request.endpoint == 'screening_actions_page' %}active{% endif %}">
+                    <a class="nav-link" href="{{ url_for('screening_actions_page') }}">Screening Actions</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+
+        <footer class="text-center mt-4 text-muted small">
+            <p>© {{ current_year if current_year else namespace(current_year=2024).current_year }} AI Literature Screening Tool. Use responsibly.</p>
+        </footer>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 

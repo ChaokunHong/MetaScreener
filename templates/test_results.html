@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Test Screening Results & Assessment - AI Literature Screening Assistant{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* .container-fluid in base.html is .container, adjust if full width is strictly needed */
+    /* body { padding-top: 20px; padding-bottom: 20px; } */ /* From base.html */
+    .container { max-width: 1200px; } /* Override base.html container width for this page if needed */
+    .abstract-text { font-size: 0.85rem; max-height: 150px; overflow-y: auto; background-color: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #eee; margin-top:5px;}
+    .ai-reasoning { font-size: 0.8rem; color: #555; white-space: pre-wrap; }
+    .table th, .table td { vertical-align: middle; font-size: 0.9rem;}
+    .decision-group label { margin-right: 10px; font-weight: normal; cursor:pointer;}
+    .decision-group .form-check-input {cursor:pointer;}
+    .badge-include { background-color: #28a745; color: white; }
+    .badge-exclude { background-color: #dc3545; color: white; }
+    .badge-maybe { background-color: #ffc107; color: black; }
+    .badge-error { background-color: #6c757d; color: white; } /* For unparsed/error AI decisions */
+    .table thead th { position: sticky; top: 0px; background-color: #343a40; color:white; z-index: 1;} /* Adjusted top for fixed navbar */
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Test Screening Sample Assessment</h1>
+        {# Consider making this button point to screening_actions_page #}
+        <div><a href="{{ url_for('screening_actions_page') }}" class="btn btn-secondary btn-sm">Back to Screening Actions</a></div> 
+    </div>
+
+    {% if test_items %}
+        <p>Review AI's decisions for <strong>{{ test_items|length }}</strong> sampled item(s) and provide your assessment. Then click "Calculate Metrics & Compare".</p>
+        <form method="POST" action="{{ url_for('calculate_metrics_route') }}">
+            <input type="hidden" name="test_session_id" value="{{ session_id }}">
+            <div class="table-responsive" style="max-height:calc(100vh - 250px);"> {# Adjusted max-height #}
+                <table class="table table-striped table-bordered table-hover">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>Title & Authors</th>
+                            <th>Abstract</th>
+                            <th>AI Decision & Reasoning</th>
+                            <th>Your Decision (Required)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in test_items %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                <strong>{{ item.title if item.title else 'N/A' }}</strong><br>
+                                <small>{{ item.authors if item.authors else 'N/A' }}</small>
+                            </td>
+                            <td>
+                                {% if item.abstract and item.abstract != "Abstract is missing or empty." and item.ai_decision != "NO_ABSTRACT" %}
+                                    <details>
+                                        <summary class="text-primary" style="cursor:pointer; font-size:0.85em;">Show/Hide Abstract</summary>
+                                        <div class="abstract-text">{{ item.abstract }}</div>
+                                    </details>
+                                {% else %}
+                                    <em class="text-muted small">No abstract or not applicable.</em>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.ai_decision == 'INCLUDE' %}<span class="badge badge-include">INCLUDE</span>
+                                {% elif item.ai_decision == 'EXCLUDE' %}<span class="badge badge-exclude">EXCLUDE</span>
+                                {% elif item.ai_decision == 'MAYBE' %}<span class="badge badge-maybe">MAYBE</span>
+                                {% else %}<span class="badge badge-error">{{ item.ai_decision | upper if item.ai_decision else 'ERROR' }}</span>
+                                {% endif %}
+                                <p class="ai-reasoning mt-1">{{ item.ai_reasoning }}</p>
+                            </td>
+                            <td>
+                                <div class="decision-group">
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="decision-{{ item.id }}" id="include-{{ item.id }}" value="INCLUDE" required>
+                                        <label class="form-check-label" for="include-{{ item.id }}">Include</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="decision-{{ item.id }}" id="maybe-{{ item.id }}" value="MAYBE">
+                                        <label class="form-check-label" for="maybe-{{ item.id }}">Maybe</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="decision-{{ item.id }}" id="exclude-{{ item.id }}" value="EXCLUDE">
+                                        <label class="form-check-label" for="exclude-{{ item.id }}">Exclude</label>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <button type="submit" class="btn btn-success mt-3">Calculate Metrics & Compare</button>
+        </form>
+    {% else %}
+        <div class="alert alert-warning">No test items to display. This can happen if the RIS file was empty or could not be processed.</div>
+    {% endif %}
+    {# Second "Back" button removed as one is at the top, consistent with other pages #}
+{% endblock %}

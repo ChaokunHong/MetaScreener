@@ -1,0 +1,219 @@
+import rispy
+import pandas as pd
+from typing import List, Dict, Optional, IO, Union
+import requests
+import json
+import re
+import traceback
+import io
+
+# For Gemini
+import google.generativeai as genai
+
+# For Anthropic
+from anthropic import Anthropic, APIStatusError, APIConnectionError, RateLimitError, APIError
+
+from config import SUPPORTED_LLM_PROVIDERS
+
+
+# --- Data Loading Functions ---
+def load_literature_ris(filepath_or_stream: Union[str, IO[bytes]]) -> Optional[pd.DataFrame]:
+    entries = None
+    source_description = ""
+    try:
+        if isinstance(filepath_or_stream, str):
+            source_description = filepath_or_stream
+            with open(filepath_or_stream, 'r', encoding='utf-8-sig') as bibliography_file:
+                entries = list(rispy.load(bibliography_file))
+        elif hasattr(filepath_or_stream, 'read'):
+            source_description = "uploaded file stream"
+            text_stream = io.TextIOWrapper(filepath_or_stream, encoding='utf-8-sig', errors='replace')
+            entries = list(rispy.load(text_stream))
+        else:
+            print("Error: Invalid input type for load_literature_ris.")
+            return None
+
+        if not entries:
+            return pd.DataFrame()
+
+        data_for_df = []
+        for entry_num, entry in enumerate(entries):
+            title = entry.get('title') or entry.get('primary_title') or \
+                    entry.get('TI') or entry.get('T1')
+            abstract = entry.get('abstract') or entry.get('AB') or entry.get('N2')
+            authors_raw = entry.get('authors') or entry.get('AU') or entry.get('A1')
+            authors = [a.strip() for a in authors_raw.split(';')] if isinstance(authors_raw, str) else (
+                authors_raw if isinstance(authors_raw, list) else [])
+            year = entry.get('year') or entry.get('PY') or entry.get('Y1')
+            doi = entry.get('doi') or entry.get('DO') or entry.get('DI')
+            data_for_df.append({
+                'id': entry.get('id', f"entry_{entry_num + 1}"), 'title': title,
+                'abstract': abstract, 'authors': authors, 'year': year, 'doi': doi,
+            })
+        df = pd.DataFrame(data_for_df)
+        for col in ['title', 'abstract', 'authors']:  # Ensure essential columns
+            if col not in df.columns:
+                df[col] = None if col != 'authors' else [[] for _ in range(len(df))]
+        return df
+    except FileNotFoundError:
+        print(f"Error: RIS file not found: {source_description}");
+        return None
+    except UnicodeDecodeError as e:
+        print(f"Error decoding RIS file {source_description}: {e}");
+        return None
+    except Exception as e:
+        print(f"Error reading/parsing RIS file {source_description}: {e}");
+        traceback.print_exc();
+        return None
+
+
+# --- LLM Prompt Construction ---
+def construct_llm_prompt(abstract: Optional[str], criteria_prompt_full_text: str) -> Optional[str]:
+    if not abstract or not isinstance(abstract, str) or abstract.strip() == "":
+        return None
+    prompt = f"""{criteria_prompt_full_text.strip()}
+
+# Screening Task:
+Based *only* on the abstract provided below, classify the study using ONE of the following labels: INCLUDE, EXCLUDE, or MAYBE.
+- Use INCLUDE if the abstract clearly meets all critical inclusion criteria and does not meet any exclusion criteria.
+- Use EXCLUDE if the abstract clearly meets one or more exclusion criteria, or fails to meet critical inclusion criteria.
+- Use MAYBE if the abstract suggests potential eligibility but requires full-text review to confirm specific criteria.
+
+Then, provide a brief justification for your decision (1-2 sentences). If MAYBE, specify what needs clarification.
+
+# Study Abstract:
+---
+{abstract.strip()}
+---
+
+# Your Classification:
+Format your response EXACTLY as follows (LABEL and Justification on separate lines):
+LABEL: [Your Decision - INCLUDE, EXCLUDE, or MAYBE]
+Justification: [Your Brief Justification. If MAYBE, state what needs clarification.]"""
+    return prompt
+
+
+# --- Unified API Calling Function ---
+def call_llm_api(prompt_text: str, provider_name: str, model_id: str, api_key: str, base_url: Optional[str] = None) -> \
+Dict[str, str]:
+    if not api_key:
+        return {"label": "CONFIG_ERROR", "justification": f"API Key for {provider_name} missing."}
+    print(f"   - Calling {provider_name} model: {model_id} (Base: {base_url or 'default'})")
+    if provider_name == "DeepSeek" or provider_name == "OpenAI_ChatGPT":
+        return _call_openai_compatible_api(prompt_text, model_id, api_key, base_url, provider_name)
+    elif provider_name == "Google_Gemini":
+        return _call_gemini_api(prompt_text, model_id, api_key)
+    elif provider_name == "Anthropic_Claude":
+        return _call_claude_api(prompt_text, model_id, api_key, base_url)
+    else:
+        return {"label": "CONFIG_ERROR", "justification": f"Unsupported provider: {provider_name}."}
+
+
+def _parse_llm_response(message_content: str) -> Dict[str, str]:
+    label, justification = "PARSE_ERROR", "Could not parse justification."
+    label_match = re.search(r"^\s*LABEL:\s*(INCLUDE|EXCLUDE|MAYBE)\s*$", message_content, re.I | re.M)
+    just_match = re.search(r"^\s*Justification:\s*(.*)$", message_content,
+                           re.I | re.M | re.S)  # re.S for multiline justification
+
+    if label_match:
+        label = label_match.group(1).upper()
+        if just_match:
+            justification = just_match.group(1).strip()
+        else:  # Try to grab text after label line if "Justification:" prefix is missing
+            lines = message_content.splitlines()
+            try:
+                label_line_idx = next(i for i, line in enumerate(lines) if re.match(r"^\s*LABEL:\s*", line, re.I))
+                just_lines = [line.strip() for line in lines[label_line_idx + 1:] if line.strip()]
+                if just_lines:
+                    justification = " ".join(just_lines)
+                else:
+                    justification = "Justification missing or not formatted after LABEL."
+            except StopIteration:  # Should not happen if label_match was successful
+                justification = "Justification format error after LABEL."
+    elif "INCLUDE" in message_content.upper():
+        label = "INCLUDE"  # Basic fallback
+    elif "EXCLUDE" in message_content.upper():
+        label = "EXCLUDE"
+    elif "MAYBE" in message_content.upper():
+        label = "MAYBE"
+
+    if label == "PARSE_ERROR":
+        print(f"   - Parse Error: Could not extract LABEL. Response snippet: '{message_content[:200]}...'")
+        justification = f"Original unparsed response: {message_content[:200]}..."
+    return {"label": label, "justification": justification}
+
+
+def _call_openai_compatible_api(prompt_text: str, model_id: str, api_key: str, base_url: str, provider_name: str) -> \
+Dict[str, str]:
+    api_endpoint = f"{base_url.rstrip('/')}/chat/completions"
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    messages = [{"role": "system",
+                 "content": "You are an AI assistant for medical literature screening. Provide output in 'LABEL: [Decision]' and 'Justification: [Reasoning]' format."},
+                {"role": "user", "content": prompt_text}]
+    data = {"model": model_id, "messages": messages, "temperature": 0.2, "max_tokens": 200, "top_p": 0.9}
+    try:
+        response = requests.post(api_endpoint, headers=headers, json=data, timeout=120)
+        response.raise_for_status()
+        res_json = response.json()
+        if res_json.get('choices') and res_json['choices'][0].get('message'):
+            content = res_json['choices'][0]['message'].get('content', '')
+            return _parse_llm_response(content)
+        error_msg = res_json.get('error', {}).get('message', str(res_json))
+        return {"label": "API_ERROR", "justification": f"{provider_name} API Error: {error_msg}"}
+    except requests.exceptions.Timeout:
+        return {"label": "API_TIMEOUT", "justification": f"{provider_name} request timed out."}
+    except requests.exceptions.RequestException as e:
+        status = e.response.status_code if e.response is not None else "N/A"
+        details = str(e.response.text[:200]) if e.response is not None else str(e)
+        return {"label": f"API_HTTP_ERROR_{status}", "justification": f"{provider_name} HTTP Error {status}: {details}"}
+    except Exception as e:
+        traceback.print_exc()
+        return {"label": "SCRIPT_ERROR", "justification": f"Script error ({provider_name}): {str(e)}"}
+
+
+def _call_gemini_api(prompt_text: str, model_id: str, api_key: str) -> Dict[str, str]:
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(model_id)  # system_instruction can be added here for newer models
+        config = genai.types.GenerationConfig(max_output_tokens=200, temperature=0.2, top_p=0.9)
+        safety = [{"category": c, "threshold": "BLOCK_NONE"} for c in
+                  ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                   "HARM_CATEGORY_DANGEROUS_CONTENT"]]
+        # For Gemini, user prompt should contain the full task.
+        # System prompt is good for overall role, but here user prompt has it all.
+        response = model.generate_content(contents=[{"role": "user", "parts": [{"text": prompt_text}]}],
+                                          generation_config=config, safety_settings=safety)
+        if response.parts:
+            content = "".join(part.text for part in response.parts if hasattr(part, 'text'))
+            return _parse_llm_response(content)
+        if response.prompt_feedback and response.prompt_feedback.block_reason:
+            return {"label": "API_BLOCKED",
+                    "justification": f"Gemini content blocked: {response.prompt_feedback.block_reason}"}
+        finish_reason = response.candidates[0].finish_reason.name if response.candidates and response.candidates[
+            0].finish_reason else "UNKNOWN"
+        return {"label": f"API_{finish_reason}",
+                "justification": f"Gemini API no content, reason: {finish_reason}. Details: {str(response)[:200]}"}
+    except Exception as e:
+        traceback.print_exc()
+        return {"label": "GEMINI_API_ERROR", "justification": f"Gemini API error: {str(e)}"}
+
+
+def _call_claude_api(prompt_text: str, model_id: str, api_key: str, base_url: Optional[str] = None) -> Dict[str, str]:
+    try:
+        client = Anthropic(api_key=api_key,
+                           base_url=base_url or SUPPORTED_LLM_PROVIDERS["Anthropic_Claude"]["default_base_url"])
+        system_prompt = "You are an AI assistant for medical literature screening. Your task is to classify studies based on abstracts and PICOT criteria. Output *only* in 'LABEL: [Decision]' and 'Justification: [Reasoning]' format."
+        response = client.messages.create(model=model_id, max_tokens=200, temperature=0.2, system=system_prompt,
+                                          messages=[{"role": "user", "content": prompt_text}])
+        if response.content and response.content[0].type == "text":
+            return _parse_llm_response(response.content[0].text)
+        reason = response.stop_reason or 'unknown_format'
+        if reason == "max_tokens": return {"label": "API_MAX_TOKENS",
+                                           "justification": "Claude output truncated (max_tokens)."}
+        return {"label": "API_ERROR", "justification": f"Claude API Error ({reason}): {str(response)[:200]}"}
+    except APIError as e:  # Catch specific Anthropic errors
+        return {"label": f"CLAUDE_API_ERROR_{e.status_code if hasattr(e, 'status_code') else 'GENERAL'}",
+                "justification": f"Claude API Error: {str(e)}"}
+    except Exception as e:
+        traceback.print_exc()
+        return {"label": "SCRIPT_ERROR", "justification": f"Script error (Claude): {str(e)}"}

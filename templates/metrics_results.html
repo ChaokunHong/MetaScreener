@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Performance Metrics Analysis - AI Literature Screening Assistant{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* body { padding-top: 20px; padding-bottom: 40px; } */ /* Already in base.html with adjustment */
+    .container { max-width: 1100px; } /* Can override base.html if needed, or use base setting */
+    .metric-card { margin-bottom: 15px; padding: 15px; border: 1px solid #eee; border-radius: 5px; background-color: #f9f9f9; height: 100%;}
+    .metric-value { font-size: 1.1em; font-weight: bold; }
+    .matrix-table td, .matrix-table th { text-align: center; vertical-align: middle; }
+    .table th, .table td { font-size: 0.9rem;}
+    .match-true strong { color: green; }
+    .match-false strong { color: red; }
+    h2, h3, h4 { margin-bottom: 0.75em; color: #333;}
+    h3 {font-size: 1.5rem;} h4 {font-size: 1.25rem;}
+    .explanation { font-size: 0.85em; color: #555; margin-top: 3px;}
+    .metric-group { margin-bottom: 30px; padding:15px; border: 1px solid #e7e7e7; border-radius: 5px; background-color: #fff;}
+    .dl-horizontal dt { white-space: normal; } /* Allow long dt terms to wrap */
+    .badge-include { background-color: #28a745; color: white; }
+    .badge-exclude { background-color: #dc3545; color: white; }
+    .badge-maybe { background-color: #ffc107; color: black; }
+    .badge-secondary { background-color: #6c757d; color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Performance Metrics & Analysis</h1>
+        <div>
+            {% if session_id %}
+            <a href="{{ url_for('screen_full_dataset', session_id=session_id) }}" class="btn btn-success btn-sm mr-2" title="Screen the full dataset from the test file using current criteria and LLM settings.">Screen Full Dataset (from Test)</a>
+            {% endif %}
+            {# The url_for('index') in base.html navbar already points to the main config page. #}
+            {# Consider changing this to screening_actions_page if that feels more like a 'back' destination from metrics #}
+            <a href="{{ url_for('screening_actions_page') }}" class="btn btn-primary btn-sm">Back to Screening Actions</a> 
+        </div>
+    </div>
+
+    {% if metrics and matrix_3x3 and matrix_3x3.matrix_data and class_metrics %}
+        <p>Analysis based on <strong>{{ total_samples }}</strong> samples where both AI and Human decisions (INCLUDE, MAYBE, EXCLUDE) were provided.</p>
+
+        <div class="metric-group">
+            <h3>Overall Performance</h3>
+            <div class="row">
+                <div class="col-md-4"><div class="metric-card"><strong>Overall Accuracy:</strong> <span class="metric-value">{{ "%.2f"|format(metrics.overall_accuracy * 100) }}%</span><p class="explanation">AI matched Human (I/M/E).</p></div></div>
+                <div class="col-md-4"><div class="metric-card"><strong>Cohen's Kappa:</strong> <span class="metric-value">{{ "%.2f"|format(metrics.cohens_kappa) }}</span><p class="explanation">AI-Human agreement (chance-corrected). >0.8 Exc, 0.6-0.8 Good. (Note: Result may be NaN or near 0 if there's little variation in ratings).</p></div></div>
+                <div class="col-md-4"><div class="metric-card"><strong>Discrepancy Rate:</strong> <span class="metric-value">{{ "%.1f"|format(metrics.discrepancy_rate) }}%</span><p class="explanation">AI-Human disagreements.</p></div></div>
+            </div>
+        </div>
+
+        <div class="metric-group">
+            <h3>3x3 Confusion Matrix (Human vs. AI)</h3>
+            <p class="explanation small">Rows: Human decisions, Columns: AI decisions.</p>
+            <table class="table table-bordered matrix-table table-sm">
+                <thead class="thead-light"><tr><th rowspan="2" class="align-middle">Actual (Human)</th><th colspan="3">AI Prediction</th></tr><tr>
+                    {% for label in labels_order %}<th>{{ label }}</th>{% endfor %}</tr></thead>
+                <tbody>{% for i in range(labels_order|length) %}<tr><th>{{ labels_order[i] }}</th>
+                    {% for j in range(labels_order|length) %}
+                    <td>{{ matrix_3x3.matrix_data[i][j] }}</td>
+                    {% endfor %}
+                    </tr>{% endfor %}</tbody></table></div>
+
+        <div class="metric-group">
+            <h3>Per-Class Metrics (for I, M, E)</h3>
+             <div class="row">
+                {% for label, c_metrics in class_metrics.items() %}
+                <div class="col-md-4"><div class="metric-card"><h4>Class: {{ label }}</h4>
+                    <strong>Precision:</strong> {{ "%.2f"|format(c_metrics.precision) }} <small class="explanation">Correctly AI-labeled '{{label}}' / Total AI-labeled '{{label}}'.</small><br>
+                    <strong>Recall (Sensitivity):</strong> {{ "%.2f"|format(c_metrics.recall) }} <small class="explanation">Correctly AI-labeled '{{label}}' / Total Human-labeled '{{label}}'.</small><br>
+                    <strong>F1-Score:</strong> {{ "%.2f"|format(c_metrics.f1_score) }} <small class="explanation">Balance of P & R for '{{label}}'.</small><br>
+                    <small class="explanation mt-1"><em>(TP:{{c_metrics.tp}},FP:{{c_metrics.fp}},FN:{{c_metrics.fn}})</em></small>
+                </div></div>{% endfor %}</div></div>
+
+        <div class="metric-group">
+            <h3>Binary Task Metrics (Focus: Identifying "INCLUDE")</h3>
+            <p class="explanation small">Evaluates AI for finding INCLUDEs (MAYBE/EXCLUDE are "Not Include").</p>
+             <div class="row">
+                <div class="col-lg-3 col-md-6"><div class="metric-card"><strong>Sensitivity (Recall) for INCLUDE:</strong> <span class="metric-value">{{ "%.2f"|format(metrics.sensitivity_include * 100) }}%</span><p class="explanation">AI found Human 'INCLUDE' as 'INCLUDE'.</p></div></div>
+                <div class="col-lg-3 col-md-6"><div class="metric-card"><strong>Precision for INCLUDE:</strong> <span class="metric-value">{{ "%.2f"|format(metrics.precision_include * 100) }}%</span><p class="explanation">AI 'INCLUDE' was Human 'INCLUDE'.</p></div></div>
+                <div class="col-lg-3 col-md-6"><div class="metric-card"><strong>F1-Score for INCLUDE:</strong> <span class="metric-value">{{ "%.2f"|format(metrics.f1_include) }}</span><p class="explanation">Balance for INCLUDE task.</p></div></div>
+                <div class="col-lg-3 col-md-6"><div class="metric-card"><strong>Specificity (for INCLUDE task):</strong> <span class="metric-value">{{ "%.2f"|format(metrics.specificity_for_include_task * 100) }}%</span><p class="explanation">AI found Human 'Not INCLUDE' as 'Not INCLUDE'.</p></div></div>
+            </div></div>
+
+        <div class="metric-group">
+            <h3>Workload & "MAYBE" Analysis</h3>
+            <div class="row">
+                <div class="col-md-4"><div class="metric-card"><strong>Workload Reduction:</strong> <span class="metric-value">{{ "%.1f"|format(metrics.workload_reduction) }}%</span><p class="explanation">% of total items AI correctly EXCLUDED (matching Human EXCLUDE).</p></div></div>
+                <div class="col-md-4"><div class="metric-card"><strong>AI MAYBE Rate:</strong> <span class="metric-value">{{ "%.1f"|format(metrics.ai_maybe_rate * 100) }}%</span><p class="explanation">% of items AI labeled 'MAYBE'.</p></div></div>
+                <div class="col-md-4"><div class="metric-card"><strong>Human MAYBE Rate:</strong> <span class="metric-value">{{ "%.1f"|format(metrics.human_maybe_rate * 100) }}%</span><p class="explanation">% of items Human labeled 'MAYBE'.</p></div></div>
+            </div>
+            {% if maybe_resolution %}
+            <h4 class="mt-3">"MAYBE" Resolution Counts:</h4>
+             <ul class="list-group list-group-flush small">
+                <li class="list-group-item">AI=MAYBE, Human=INCLUDE: <span class="badge badge-pill badge-info">{{ maybe_resolution.ai_maybe_to_human_include }}</span> (AI uncertain on relevant item)</li>
+                <li class="list-group-item">AI=MAYBE, Human=EXCLUDE: <span class="badge badge-pill badge-info">{{ maybe_resolution.ai_maybe_to_human_exclude }}</span> (AI uncertain on irrelevant item)</li>
+                <li class="list-group-item">AI=MAYBE, Human=MAYBE: <span class="badge badge-pill badge-success">{{ maybe_resolution.ai_maybe_to_human_maybe }}</span> (Both uncertain)</li>
+                <li class="list-group-item">Human=MAYBE, AI=INCLUDE: <span class="badge badge-pill badge-primary">{{ maybe_resolution.human_maybe_to_ai_include }}</span> (AI includes item Human was unsure of)</li>
+                <li class="list-group-item">Human=MAYBE, AI=EXCLUDE: <span class="badge badge-pill badge-primary">{{ maybe_resolution.human_maybe_to_ai_exclude }}</span> (AI excludes item Human was unsure of)</li>
+            </ul>{% endif %}</div>
+    {% else %}
+         <div class="alert alert-warning">Metrics calculation requires valid AI and Human decisions (INCLUDE, MAYBE, or EXCLUDE) for all test items. Please ensure selections were made.</div>
+    {% endif %}
+
+    {% if comparison %}
+        <div class="metric-group">
+            <h3 class="mt-4">Individual Item Comparison</h3>
+            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-striped table-sm table-hover">
+                    <thead class="thead-light" style="position: sticky; top: 0; background-color: white; z-index:1;">
+                        <tr><th>#</th><th>Title</th><th>AI Decision</th><th>Your Decision</th><th>Match?</th></tr></thead>
+                    <tbody>{% for item in comparison %}<tr><td>{{ loop.index }}</td><td>{{ item.title|truncate(60) if item.title else 'N/A' }}</td>
+                        <td>{%if item.ai_decision=='INCLUDE'%}<span class="badge badge-include">I</span>{%elif item.ai_decision=='EXCLUDE'%}<span class="badge badge-exclude">E</span>{%elif item.ai_decision=='MAYBE'%}<span class="badge badge-maybe">M</span>{%else%}<span class="badge badge-secondary">{{item.ai_decision}}</span>{%endif%}</td>
+                        <td>{%if item.human_decision=='INCLUDE'%}<span class="badge badge-include">I</span>{%elif item.human_decision=='EXCLUDE'%}<span class="badge badge-exclude">E</span>{%elif item.human_decision=='MAYBE'%}<span class="badge badge-maybe">M</span>{%else%}<span class="badge badge-secondary">{{item.human_decision}}</span>{%endif%}</td>
+                        <td class="{{'match-true' if item.match else 'match-false'}}"><strong>{{'Yes' if item.match else 'No'}}</strong></td>
+                    </tr>{% endfor %}</tbody></table></div></div>{% else %}
+        <p class="mt-3">No comparison data available.</p>{% endif %}
+    <hr>
+    <div class="metric-group">
+        <h3>Metric Definitions Guide</h3>
+        <dl class="row small"><dt class="col-sm-3">Overall Accuracy</dt><dd class="col-sm-9">Proportion of AI decisions (I/M/E) matching Human.</dd>
+            <dt class="col-sm-3">Cohen's Kappa</dt><dd class="col-sm-9">AI-Human agreement (chance-corrected). -1 (disagree) to 1 (perfect); >0.8 Exc, 0.6-0.8 Good.</dd>
+            <dt class="col-sm-3">3x3 Confusion Matrix</dt><dd class="col-sm-9">Breakdown of Human vs AI labels (I/M/E). Diagonal = agreement.</dd>
+            <dt class="col-sm-3">Per-Class Precision</dt><dd class="col-sm-9">For a class (e.g. INCLUDE): AI correctly ID'd / Total AI ID'd as this class.</dd>
+            <dt class="col-sm-3">Per-Class Recall</dt><dd class="col-sm-9">For a class: AI correctly ID'd / Total Human ID'd as this class.</dd>
+            <dt class="col-sm-3">Per-Class F1</dt><dd class="col-sm-9">Harmonic mean of Precision & Recall for a class.</dd>
+            <dt class="col-sm-3">Binary Sensitivity (INCLUDE)</dt><dd class="col-sm-9">Proportion of Human 'INCLUDE's AI found as 'INCLUDE'. (MAYBE/EXCLUDE are 'Not INCLUDE').</dd>
+            <dt class="col-sm-3">Binary Specificity (INCLUDE task)</dt><dd class="col-sm-9">Proportion of Human 'Not INCLUDE' (M or E) AI found as 'Not INCLUDE' (AI also M or E).</dd>
+            <dt class="col-sm-3">Workload Reduction</dt><dd class="col-sm-9">% of total studies AI correctly labeled 'EXCLUDE' matching Human 'EXCLUDE'.</dd>
+            <dt class="col-sm-3">AI/Human MAYBE Rate</dt><dd class="col-sm-9">% of studies labeled 'MAYBE' by AI/Human. High AI MAYBE may mean conservative AI/unclear criteria.</dd>
+            <dt class="col-sm-3">MAYBE Resolution</dt><dd class="col-sm-9">How 'MAYBE' by one party was classified by the other; shows nature of uncertainty.</dd>
+        </dl></div>
+    {# This button now points to screening_actions_page as a more logical return point #}
+    <a href="{{ url_for('screening_actions_page') }}" class="btn btn-secondary mt-4">Back to Screening Actions</a>
+{% endblock %}
