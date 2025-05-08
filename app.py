@@ -19,7 +19,9 @@ from config import (
     get_screening_criteria, set_user_criteria, reset_to_default_criteria,
     DEFAULT_EXAMPLE_CRITERIA, USER_CRITERIA,
     get_llm_providers_info, get_current_llm_config,
-    get_api_key_for_provider, get_base_url_for_provider
+    get_api_key_for_provider, get_base_url_for_provider,
+    DEFAULT_SYSTEM_PROMPT, DEFAULT_OUTPUT_INSTRUCTIONS,
+    get_current_criteria_object
 )
 
 app = Flask(__name__)
@@ -34,11 +36,6 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-def get_current_criteria_object():
-    from config import USER_CRITERIA, DEFAULT_EXAMPLE_CRITERIA
-    return USER_CRITERIA if USER_CRITERIA is not None else DEFAULT_EXAMPLE_CRITERIA
 
 
 # --- Route for LLM Configuration ---
@@ -137,12 +134,17 @@ def llm_config_page():
 
 @app.route('/criteria', methods=['GET'], endpoint='screening_criteria_page')
 def screening_criteria_page():
-    # This page will need criteria and current_year
     criteria = get_current_criteria_object()
     current_year = datetime.datetime.now().year
+    # Pass defaults for the template to use if user hasn't set custom ones
+    config_defaults = {
+        'DEFAULT_SYSTEM_PROMPT': DEFAULT_SYSTEM_PROMPT,
+        'DEFAULT_OUTPUT_INSTRUCTIONS': DEFAULT_OUTPUT_INSTRUCTIONS
+    }
     return render_template('screening_criteria.html', 
                            criteria=criteria, 
-                           current_year=current_year)
+                           current_year=current_year,
+                           config_defaults=config_defaults) # Pass defaults to template
 
 @app.route('/screening_actions', methods=['GET'], endpoint='screening_actions_page') # Corrected route name for consistency
 def screening_actions_page():
@@ -159,20 +161,42 @@ def screening_actions_page():
 @app.route('/set_criteria', methods=['POST'])
 def set_criteria():
     try:
+        # Get NEW structured criteria fields including _maybe
         criteria_dict = {
-            'population_criteria': request.form.get('population_criteria', ''),
-            'intervention_criteria': request.form.get('intervention_criteria', ''),
-            'comparison_criteria': request.form.get('comparison_criteria', ''),
-            'outcome_criteria': request.form.get('outcome_criteria', ''),
-            'time_criteria': request.form.get('time_criteria', ''),
-            'other_inclusion_criteria': request.form.get('other_inclusion_criteria', ''),
-            'exclusion_criteria': request.form.get('exclusion_criteria', '')
+            # PICOT Include/Exclude/Maybe
+            'p_include': request.form.get('p_include', ''),
+            'p_exclude': request.form.get('p_exclude', ''),
+            'p_maybe': request.form.get('p_maybe', ''), # Added
+            'i_include': request.form.get('i_include', ''),
+            'i_exclude': request.form.get('i_exclude', ''),
+            'i_maybe': request.form.get('i_maybe', ''), # Added
+            'c_include': request.form.get('c_include', ''),
+            'c_exclude': request.form.get('c_exclude', ''),
+            'c_maybe': request.form.get('c_maybe', ''), # Added
+            'o_include': request.form.get('o_include', ''),
+            'o_exclude': request.form.get('o_exclude', ''),
+            'o_maybe': request.form.get('o_maybe', ''), # Added
+            't_include': request.form.get('t_include', ''),
+            't_exclude': request.form.get('t_exclude', ''),
+            't_maybe': request.form.get('t_maybe', ''), # Added
+            # Other Criteria
+            'other_inclusion': request.form.get('other_inclusion', ''), 
+            'other_exclusion': request.form.get('other_exclusion', ''), 
+            # REMOVED: 'maybe_conditions': request.form.get('maybe_conditions', ''),
         }
-        set_user_criteria(criteria_dict)
-        flash('Screening criteria successfully saved!', 'success')
+        
+        # Get advanced settings (unchanged)
+        system_prompt = request.form.get('ai_system_prompt')
+        output_instructions = request.form.get('ai_output_format_instructions')
+        if system_prompt is not None: criteria_dict['ai_system_prompt'] = system_prompt
+        if output_instructions is not None: criteria_dict['ai_output_format_instructions'] = output_instructions
+
+        set_user_criteria(criteria_dict) # Update the global USER_CRITERIA
+        flash('Screening criteria and settings successfully saved!', 'success')
     except Exception as e:
         flash(f'Error saving screening criteria: {e}', 'error')
-    return redirect(url_for('screening_criteria_page')) # MODIFIED REDIRECT
+        traceback.print_exc()
+    return redirect(url_for('screening_criteria_page'))
 
 
 @app.route('/reset_criteria')
@@ -663,7 +687,8 @@ def stream_test_screen_file():
 
     try:
         sample_size = int(request.form.get('sample_size', 10))
-        sample_size = max(5, min(50, sample_size))
+        # Updated max value check
+        sample_size = max(5, min(9999, sample_size)) 
     except ValueError: sample_size = 10
 
     try:

@@ -2,28 +2,164 @@
 
 {% block title %}Screening Criteria - AI Literature Screening Assistant{% endblock %}
 
+{% block extra_head %}
+<style>
+    /* Basic/Advanced Toggle Styles */
+    .mode-toggle label { margin-right: 15px; font-weight: normal; cursor: pointer; }
+    .mode-toggle input[type="radio"] { margin-right: 5px; }
+    /* Hide advanced sections by default */
+    .advanced-settings { display: none; }
+    /* Styling for prompt setting textareas */
+    .prompt-textarea { 
+        font-family: monospace; 
+        font-size: 0.85rem; 
+        min-height: 100px; 
+        background-color: #e9ecef; 
+        border: 1px solid #ced4da;
+    }
+    .advanced-warning {
+        font-size: 0.9em;
+        color: #dc3545; /* Bootstrap danger color */
+        border-left: 3px solid #dc3545;
+        padding-left: 10px;
+        margin-top: 15px;
+    }
+    /* Keep other styles from base if needed, or add specific ones */
+    .criteria-section { margin-bottom: 15px; background-color: #f9f9f9; padding:15px; border-radius:5px; }
+    .form-group label {font-weight: 500;}
+    textarea { min-height: 70px; font-size:0.95rem; }
+    .criteria-subsection label { font-weight: 600; font-size: 0.9em; color: #444; margin-bottom: 0.2rem; display: block; }
+    .criteria-subsection textarea { min-height: 60px; margin-bottom: 15px; }
+    .criteria-subsection .form-text { font-size: 0.8em; margin-top: -10px; margin-bottom: 10px; }
+    .pico-label { font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem; }
+    .best-practices { background-color: #f0f8ff; border-left: 4px solid #17a2b8; padding: 15px; margin-bottom: 20px; font-size: 0.9em; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="section-card">
-    <h2>Screening Criteria (PICOT)</h2>
-    <p>Define inclusion/exclusion criteria for your literature screening. Default examples are for medical research.</p>
+    <h2>Screening Criteria & AI Settings</h2>
+    
+    <!-- Mode Toggle -->
+    <div class="form-group mode-toggle">
+        <label>
+            <input type="radio" name="criteria_mode" value="basic" checked> Basic Mode (Recommended)
+        </label>
+        <label>
+            <input type="radio" name="criteria_mode" value="advanced"> Advanced Mode
+        </label>
+        <p class="text-muted small">Basic mode provides guided input. Advanced mode allows customizing PICOT structure detail and AI prompt instructions (use with caution).</p>
+    </div>
+    <hr>
+
+    <!-- AI Best Practices Tips (Always Visible) -->
+    <div class="best-practices">
+        <h5>Tips for Effective Criteria:</h5>
+        <ul>
+            <li><strong>Be Specific:</strong> Use precise terms (e.g., "patients aged 18-65" instead of "adults").</li>
+            <li><strong>Be Clear:</strong> Use bullet points or short phrases. Define ambiguous terms if necessary.</li>
+            <li><strong>Focus on Abstract:</strong> Write criteria based on information typically found in an abstract.</li>
+            <li><strong>Be Consistent:</strong> Avoid contradictory statements between inclusion and exclusion fields.</li>
+        </ul>
+    </div>
+
     <form method="POST" action="{{ url_for('set_criteria') }}">
-        {% set p_fields = [
-            ('population_criteria', 'P - Population/Patient/Problem'),
-            ('intervention_criteria', 'I - Intervention'), 
-            ('comparison_criteria', 'C - Comparison'),
-            ('outcome_criteria', 'O - Outcome'), 
-            ('time_criteria', 'T - Time Factors'),
-            ('other_inclusion_criteria', 'Other Specific Inclusion Criteria'), 
-            ('exclusion_criteria', 'Exclusion Criteria')
-        ] %}
-        {% for field_name, label_text in p_fields %}
+        
+        {# --- PICOT Criteria Section --- #}
+        <h3 class="mt-4">PICOT Criteria</h3>
+        
+        {# Refactored Macro for Include/Exclude/Maybe #}
+        {% macro criteria_field(field_prefix, pico_element, pico_desc) %}
+            <div class="form-group criteria-section">
+                <strong class="pico-label">{{ pico_element }} - {{ pico_desc }}</strong>
+                <div class="criteria-subsection">
+                    <label for="{{ field_prefix }}_include">What characteristics related to {{ pico_desc.lower() }} *must* be present to INCLUDE?</label>
+                    <textarea name="{{ field_prefix }}_include" id="{{ field_prefix }}_include" class="form-control" rows="2" 
+                              placeholder="e.g., For Population: patients over 65 with confirmed diagnosis; For Intervention: use of specific drug dosage">{{ criteria[field_prefix+'_include'] if criteria and criteria[field_prefix+'_include'] else '' }}</textarea>
+                </div>
+                 <div class="criteria-subsection">
+                    <label for="{{ field_prefix }}_exclude">What characteristics related to {{ pico_desc.lower() }} *must NOT* be present (i.e., lead to EXCLUDE)?</label>
+                    <textarea name="{{ field_prefix }}_exclude" id="{{ field_prefix }}_exclude" class="form-control" rows="2" 
+                              placeholder="e.g., For Population: pediatric patients, animal studies; For Outcome: studies reporting only mortality">{{ criteria[field_prefix+'_exclude'] if criteria and criteria[field_prefix+'_exclude'] else '' }}</textarea>
+                </div>
+                 <div class="criteria-subsection">
+                    <label for="{{ field_prefix }}_maybe">What missing or unclear details about {{ pico_desc.lower() }} in the abstract would lead to a 'MAYBE' decision?</label>
+                    <textarea name="{{ field_prefix }}_maybe" id="{{ field_prefix }}_maybe" class="form-control" rows="2" 
+                              placeholder="e.g., For Population: specific age range unclear; For Intervention: dosage not mentioned; For Outcome: measurement scale ambiguous">{{ criteria[field_prefix+'_maybe'] if criteria and criteria[field_prefix+'_maybe'] else '' }}</textarea>
+                    <small class="form-text text-muted">Focus on information needed for a clear decision that might be missing in the abstract.</small>
+                </div>
+            </div>
+        {% endmacro %}
+
+        {{ criteria_field('p', 'P', 'Population/Patient/Problem') }}
+        {{ criteria_field('i', 'I', 'Intervention') }}
+        {{ criteria_field('c', 'C', 'Comparison') }}
+        {{ criteria_field('o', 'O', 'Outcome') }}
+        {{ criteria_field('t', 'T', 'Time / Study Type') }}
+
+        {# --- Other Criteria --- #}
+        <h3 class="mt-4">Other Criteria</h3>
         <div class="form-group criteria-section">
-            <label for="{{ field_name }}">{{ label_text }}:</label>
-            <textarea name="{{ field_name }}" id="{{ field_name }}" class="form-control" rows="3">{{ criteria[field_name] if criteria and field_name in criteria else '' }}</textarea>
+             <label for="other_inclusion">Other Specific Inclusion Criteria:</label>
+             <textarea name="other_inclusion" id="other_inclusion" class="form-control" rows="3" placeholder="List any other essential criteria for inclusion not covered by PICOT.">{{ criteria.other_inclusion if criteria and criteria.other_inclusion else '' }}</textarea>
         </div>
-        {% endfor %}
-        <button type="submit" class="btn btn-success btn-sm">Save Criteria</button>
-        <a href="{{ url_for('reset_criteria') }}" class="btn btn-warning btn-sm">Reset to Defaults</a>
+         <div class="form-group criteria-section">
+             <label for="other_exclusion">Other Specific Exclusion Criteria:</label>
+             <textarea name="other_exclusion" id="other_exclusion" class="form-control" rows="3" placeholder="List any other specific criteria for exclusion not covered by PICOT.">{{ criteria.other_exclusion if criteria and criteria.other_exclusion else '' }}</textarea>
+        </div>
+        
+        {# --- Advanced AI Prompt Settings Section --- #}
+        <div class="advanced-settings mt-4">
+            <hr>
+            <h3>Advanced AI Prompt Settings</h3>
+             <p class="text-muted">Modify how the AI is instructed. Changes can significantly impact performance and reliability.</p>
+            
+            <div class="form-group">
+                <label for="ai_system_prompt">AI System Prompt / Role:</label>
+                <textarea name="ai_system_prompt" id="ai_system_prompt" class="form-control prompt-textarea" rows="4">{{ criteria.ai_system_prompt if criteria and criteria.ai_system_prompt else config_defaults.DEFAULT_SYSTEM_PROMPT }}</textarea> {# Assuming defaults passed from backend #}
+                 <small class="form-text text-muted">Define the overall role or persona for the AI assistant (e.g., "You are an AI assistant for medical literature screening...").</small>
+            </div>
+
+            <div class="form-group">
+                <label for="ai_output_format_instructions">AI Output Format Instructions:</label>
+                <textarea name="ai_output_format_instructions" id="ai_output_format_instructions" class="form-control prompt-textarea" rows="5">{{ criteria.ai_output_format_instructions if criteria and criteria.ai_output_format_instructions else config_defaults.DEFAULT_OUTPUT_INSTRUCTIONS }}</textarea> {# Assuming defaults passed #}
+                <small class="form-text text-muted">Instruct the AI on how exactly to format its response (e.g., the LABEL: and Justification: structure). Use {abstract} and {criteria} placeholders where needed within the main prompt structure this instruction is part of.</small>
+            </div>
+            
+             <div class="advanced-warning">
+                <strong>Warning:</strong> Modifying these prompts incorrectly can lead to unpredictable AI behavior, poor screening results, or errors. Proceed with caution and test thoroughly after changes.
+            </div>
+        </div>
+        
+        {# --- Buttons --- #}
+        <div class="mt-4">
+            <button type="submit" class="btn btn-success btn-sm">Save Criteria & Settings</button>
+            <a href="{{ url_for('reset_criteria') }}" class="btn btn-warning btn-sm">Reset to Defaults</a>
+        </div>
     </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modeRadios = document.querySelectorAll('input[name="criteria_mode"]');
+    const advancedSettingsDiv = document.querySelector('.advanced-settings');
+
+    function toggleAdvancedSettings() {
+        if (document.querySelector('input[name="criteria_mode"]:checked').value === 'advanced') {
+            advancedSettingsDiv.style.display = 'block';
+        } else {
+            advancedSettingsDiv.style.display = 'none';
+        }
+    }
+
+    modeRadios.forEach(radio => {
+        radio.addEventListener('change', toggleAdvancedSettings);
+    });
+
+    // Initial check in case the page loads with advanced selected (e.g., after validation error)
+    toggleAdvancedSettings(); 
+});
+</script>
 {% endblock %} 

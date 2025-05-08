@@ -13,7 +13,12 @@ import google.generativeai as genai
 # For Anthropic
 from anthropic import Anthropic, APIStatusError, APIConnectionError, RateLimitError, APIError
 
-from config import SUPPORTED_LLM_PROVIDERS
+# Import necessary items from config
+from config import (
+    SUPPORTED_LLM_PROVIDERS, PICOT_TEMPLATE, 
+    DEFAULT_SYSTEM_PROMPT, DEFAULT_OUTPUT_INSTRUCTIONS, # Import defaults
+    get_screening_criteria, get_current_criteria_object # Import necessary getters
+)
 
 
 # --- Data Loading Functions ---
@@ -67,44 +72,45 @@ def load_literature_ris(filepath_or_stream: Union[str, IO[bytes]]) -> Optional[p
         return None
 
 
-# --- LLM Prompt Construction ---
-def construct_llm_prompt(abstract: Optional[str], criteria_prompt_full_text: str) -> Optional[str]:
+# --- LLM Prompt Construction (Refactored) ---
+def construct_llm_prompt(abstract: Optional[str], criteria_full_text: str) -> Optional[Dict[str, str]]:
     if not abstract or not isinstance(abstract, str) or abstract.strip() == "":
-        return None
-    prompt = f"""{criteria_prompt_full_text.strip()}
+        return None # No abstract, cannot proceed
 
-# Screening Task:
-Based *only* on the abstract provided below, classify the study using ONE of the following labels: INCLUDE, EXCLUDE, or MAYBE.
-- Use INCLUDE if the abstract clearly meets all critical inclusion criteria and does not meet any exclusion criteria.
-- Use EXCLUDE if the abstract clearly meets one or more exclusion criteria, or fails to meet critical inclusion criteria.
-- Use MAYBE if the abstract suggests potential eligibility but requires full-text review to confirm specific criteria.
+    user_criteria = get_current_criteria_object()
+    system_prompt = user_criteria.get('ai_system_prompt', DEFAULT_SYSTEM_PROMPT)
+    # Assuming output instructions template contains {abstract} but not {criteria}
+    output_instructions_template = user_criteria.get('ai_output_format_instructions', DEFAULT_OUTPUT_INSTRUCTIONS)
 
-Then, provide a brief justification for your decision (1-2 sentences). If MAYBE, specify what needs clarification.
+    # Construct the main body, placing criteria first, then the instructions referencing the abstract
+    prompt_body = f"""{criteria_full_text.strip()}
 
-# Study Abstract:
----
-{abstract.strip()}
----
+{output_instructions_template.format(abstract=abstract.strip())}"""
 
-# Your Classification:
-Format your response EXACTLY as follows (LABEL and Justification on separate lines):
-LABEL: [Your Decision - INCLUDE, EXCLUDE, or MAYBE]
-Justification: [Your Brief Justification. If MAYBE, state what needs clarification.]"""
-    return prompt
+    return {
+        "system_prompt": system_prompt.strip(),
+        "main_prompt": prompt_body
+     }
 
 
-# --- Unified API Calling Function ---
-def call_llm_api(prompt_text: str, provider_name: str, model_id: str, api_key: str, base_url: Optional[str] = None) -> \
-Dict[str, str]:
-    if not api_key:
-        return {"label": "CONFIG_ERROR", "justification": f"API Key for {provider_name} missing."}
+# --- Unified API Calling Function (Adjusted) ---
+def call_llm_api(prompt_data: Dict[str, str], provider_name: str, model_id: str, api_key: str, base_url: Optional[str] = None) -> Dict[str, str]:
+    system_prompt = prompt_data.get("system_prompt")
+    main_prompt = prompt_data.get("main_prompt")
+
+    if not api_key: return {"label": "CONFIG_ERROR", "justification": f"API Key for {provider_name} missing."}
+    if not main_prompt: return {"label": "PROMPT_ERROR", "justification": "Main prompt body is missing."}
+
     print(f"   - Calling {provider_name} model: {model_id} (Base: {base_url or 'default'})")
+
     if provider_name == "DeepSeek" or provider_name == "OpenAI_ChatGPT":
-        return _call_openai_compatible_api(prompt_text, model_id, api_key, base_url, provider_name)
+        return _call_openai_compatible_api(main_prompt, system_prompt, model_id, api_key, base_url, provider_name)
     elif provider_name == "Google_Gemini":
-        return _call_gemini_api(prompt_text, model_id, api_key)
+        # Prepend system prompt for Gemini compatibility
+        full_prompt_for_gemini = f"{system_prompt}\n\n{main_prompt}" if system_prompt else main_prompt
+        return _call_gemini_api(full_prompt_for_gemini, model_id, api_key)
     elif provider_name == "Anthropic_Claude":
-        return _call_claude_api(prompt_text, model_id, api_key, base_url)
+        return _call_claude_api(main_prompt, system_prompt, model_id, api_key, base_url)
     else:
         return {"label": "CONFIG_ERROR", "justification": f"Unsupported provider: {provider_name}."}
 
@@ -143,13 +149,16 @@ def _parse_llm_response(message_content: str) -> Dict[str, str]:
     return {"label": label, "justification": justification}
 
 
-def _call_openai_compatible_api(prompt_text: str, model_id: str, api_key: str, base_url: str, provider_name: str) -> \
+def _call_openai_compatible_api(main_prompt: str, system_prompt: Optional[str], model_id: str, api_key: str, base_url: str, provider_name: str) -> \
 Dict[str, str]:
     api_endpoint = f"{base_url.rstrip('/')}/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    messages = [{"role": "system",
-                 "content": "You are an AI assistant for medical literature screening. Provide output in 'LABEL: [Decision]' and 'Justification: [Reasoning]' format."},
-                {"role": "user", "content": prompt_text}]
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    else: # Add a default minimal system message if none provided
+         messages.append({"role": "system", "content": "You are a helpful assistant performing literature screening."}) # Slightly more specific default
+    messages.append({"role": "user", "content": main_prompt}) # Main prompt as user message
     data = {"model": model_id, "messages": messages, "temperature": 0.2, "max_tokens": 200, "top_p": 0.9}
     try:
         response = requests.post(api_endpoint, headers=headers, json=data, timeout=120)
@@ -171,17 +180,15 @@ Dict[str, str]:
         return {"label": "SCRIPT_ERROR", "justification": f"Script error ({provider_name}): {str(e)}"}
 
 
-def _call_gemini_api(prompt_text: str, model_id: str, api_key: str) -> Dict[str, str]:
+def _call_gemini_api(full_prompt: str, model_id: str, api_key: str) -> Dict[str, str]:
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(model_id)  # system_instruction can be added here for newer models
+        model = genai.GenerativeModel(model_id)
         config = genai.types.GenerationConfig(max_output_tokens=200, temperature=0.2, top_p=0.9)
         safety = [{"category": c, "threshold": "BLOCK_NONE"} for c in
                   ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT",
                    "HARM_CATEGORY_DANGEROUS_CONTENT"]]
-        # For Gemini, user prompt should contain the full task.
-        # System prompt is good for overall role, but here user prompt has it all.
-        response = model.generate_content(contents=[{"role": "user", "parts": [{"text": prompt_text}]}],
+        response = model.generate_content(contents=[{"role": "user", "parts": [{"text": full_prompt}]}],
                                           generation_config=config, safety_settings=safety)
         if response.parts:
             content = "".join(part.text for part in response.parts if hasattr(part, 'text'))
@@ -198,13 +205,16 @@ def _call_gemini_api(prompt_text: str, model_id: str, api_key: str) -> Dict[str,
         return {"label": "GEMINI_API_ERROR", "justification": f"Gemini API error: {str(e)}"}
 
 
-def _call_claude_api(prompt_text: str, model_id: str, api_key: str, base_url: Optional[str] = None) -> Dict[str, str]:
+def _call_claude_api(main_prompt: str, system_prompt: Optional[str], model_id: str, api_key: str, base_url: Optional[str] = None) -> Dict[str, str]:
     try:
         client = Anthropic(api_key=api_key,
                            base_url=base_url or SUPPORTED_LLM_PROVIDERS["Anthropic_Claude"]["default_base_url"])
-        system_prompt = "You are an AI assistant for medical literature screening. Your task is to classify studies based on abstracts and PICOT criteria. Output *only* in 'LABEL: [Decision]' and 'Justification: [Reasoning]' format."
-        response = client.messages.create(model=model_id, max_tokens=200, temperature=0.2, system=system_prompt,
-                                          messages=[{"role": "user", "content": prompt_text}])
+        effective_system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT # Use default if none provided
+        response = client.messages.create(
+             model=model_id, max_tokens=200, temperature=0.2,
+             system=effective_system_prompt, # Pass system prompt here
+             messages=[{"role": "user", "content": main_prompt}]
+         )
         if response.content and response.content[0].type == "text":
             return _parse_llm_response(response.content[0].text)
         reason = response.stop_reason or 'unknown_format'
