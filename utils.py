@@ -1,6 +1,6 @@
 import rispy
 import pandas as pd
-from typing import List, Dict, Optional, IO, Union
+from typing import List, Dict, Optional, IO, Union, Any
 import requests
 import json
 import re
@@ -247,3 +247,88 @@ def _call_claude_api(main_prompt: str, system_prompt: Optional[str], model_id: s
     except Exception as e:
         traceback.print_exc()
         return {"label": "SCRIPT_ERROR", "justification": f"Script error (Claude): {str(e)}"}
+
+
+# --- ADDED/REFINED: LLM API Call for Raw Content ---
+def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, model_id: str, api_key: str, base_url: Optional[str] = None, max_tokens_override: Optional[int] = None) -> Optional[str]:
+    """Calls the appropriate LLM API and attempts to return the raw text content.
+       Handles different provider specifics for system prompts and parameters.
+    """
+    system_prompt = prompt_data.get("system_prompt")
+    main_prompt = prompt_data.get("main_prompt")
+    # Use a default max_tokens suitable for potentially larger JSON outputs
+    max_tokens = max_tokens_override or 1024 
+    # Use lower temperature for more deterministic extraction
+    temperature = 0.1 
+
+    if not api_key: return "API_ERROR: API Key missing in call."
+    if not main_prompt: return "API_ERROR: Main prompt body is missing."
+
+    print(f"   - Calling {provider_name} (Raw Content) model: {model_id}, Max Tokens: {max_tokens}")
+
+    raw_content = None
+    error_info = None
+
+    try:
+        if provider_name == "DeepSeek" or provider_name == "OpenAI_ChatGPT":
+            api_endpoint = f"{base_url.rstrip('/')}/chat/completions"
+            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            messages = []
+            if system_prompt: messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": main_prompt})
+            data: Dict[str, Any] = {"model": model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+            # Check if model supports JSON mode (heuristic)
+            if "1106" in model_id or "gpt-4" in model_id or "preview" in model_id or "-o" in model_id: 
+                 data["response_format"] = { "type": "json_object" }
+                 print("   - Requesting JSON mode from OpenAI compatible API.")
+
+            response = requests.post(api_endpoint, headers=headers, json=data, timeout=180)
+            response.raise_for_status()
+            res_json = response.json()
+            if res_json.get('choices') and res_json['choices'][0].get('message'):
+                raw_content = res_json['choices'][0]['message'].get('content')
+            else: error_info = f"No choices/message in response: {res_json}"
+
+        elif provider_name == "Google_Gemini":
+            genai.configure(api_key=api_key)
+            # Newer Gemini models might support JSON mode via GenerationConfig
+            # Check documentation for specific model_id capabilities.
+            # For now, rely on prompt instructions.
+            model = genai.GenerativeModel(model_id)
+            config = genai.types.GenerationConfig(max_output_tokens=max_tokens, temperature=temperature)
+            safety = [{"category": c, "threshold": "BLOCK_NONE"} for c in ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"]]
+            full_prompt = f"{system_prompt}\n\n{main_prompt}" if system_prompt else main_prompt
+            response = model.generate_content(contents=[{"role": "user", "parts": [{"text": full_prompt}]}], generation_config=config, safety_settings=safety)
+            if response.parts: raw_content = "".join(part.text for part in response.parts if hasattr(part, 'text'))
+            else: error_info = f"No parts in response. Finish Reason: {response.candidates[0].finish_reason.name if response.candidates else 'Unknown'}"
+            if response.prompt_feedback and response.prompt_feedback.block_reason: error_info = f"Prompt blocked: {response.prompt_feedback.block_reason}"
+
+        elif provider_name == "Anthropic_Claude":
+            client = Anthropic(api_key=api_key, base_url=base_url or SUPPORTED_LLM_PROVIDERS["Anthropic_Claude"]["default_base_url"])
+            # Claude doesn't have explicit JSON mode via API param AFAIK, rely on prompt.
+            response = client.messages.create(
+                 model=model_id, max_tokens=max_tokens, temperature=temperature,
+                 system=system_prompt or DEFAULT_SYSTEM_PROMPT, 
+                 messages=[{"role": "user", "content": main_prompt}]
+             )
+            if response.content and response.content[0].type == "text": raw_content = response.content[0].text
+            else: error_info = f"No text content. Stop reason: {response.stop_reason}"
+        
+        else:
+            error_info = f"Unsupported provider for raw content: {provider_name}"
+
+    except requests.exceptions.Timeout: error_info = f"{provider_name} request timed out."
+    except requests.exceptions.RequestException as e: status = e.response.status_code if e.response is not None else 'N/A'; details = str(e.response.text[:200]) if e.response is not None else str(e); error_info = f"{provider_name} HTTP Error {status}: {details}"
+    except APIError as e: error_info = f"Claude API Error: {str(e)}" # Specific Claude error
+    except Exception as e:
+        error_info = f"Generic API call error ({provider_name}): {str(e)}"
+        print(f"Error in raw API call ({provider_name}): {e}")
+        traceback.print_exc()
+
+    if error_info:
+        print(f"   - API Call Error: {error_info}")
+        # Return the error message itself? Or None? Returning error helps debug.
+        return f"API_ERROR: {error_info}"
+        
+    # print(f"   - Raw LLM Output: {raw_content[:200]}...") # Debugging
+    return raw_content

@@ -13,9 +13,11 @@ import traceback
 import json  # For SSE
 import sys # For printing to stderr
 import io # For creating in-memory files
+import re
+from typing import Dict, Optional # ADDED Import for type hints
 
 # Import functions from our utils and config
-from utils import load_literature_ris, extract_text_from_pdf, construct_llm_prompt, call_llm_api
+from utils import load_literature_ris, extract_text_from_pdf, construct_llm_prompt, call_llm_api, call_llm_api_raw_content, _parse_llm_response
 from config import (
     get_screening_criteria, set_user_criteria, reset_to_default_criteria,
     DEFAULT_EXAMPLE_CRITERIA, USER_CRITERIA,
@@ -33,6 +35,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 test_sessions = {} # For holding test screening data + results before metrics
 full_screening_sessions = {} # ADDED: For holding full screening results temporarily
 pdf_screening_results = {} # ADDED: Global dict for PDF results
+pdf_extraction_results = {} # ADDED: For extraction results
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
@@ -156,7 +159,6 @@ def abstract_screening_page():
 @app.route('/full_text_screening', methods=['GET'], endpoint='full_text_screening_page')
 def full_text_screening_page():
     current_year = datetime.datetime.now().year
-    # Pass any needed config? Maybe not for initial view.
     return render_template('full_text_screening.html', current_year=current_year)
 
 @app.route('/screening_actions', methods=['GET'], endpoint='screening_actions_page') # Corrected route name for consistency
@@ -923,8 +925,8 @@ def download_results(screening_id, format):
 
 # --- Full-Text PDF Screening Routes --- 
 
-@app.route('/screen_full_text_pdf', methods=['POST'], endpoint='screen_full_text_pdf')
-def screen_full_text_pdf():
+@app.route('/screen_pdf_decision', methods=['POST'], endpoint='screen_pdf_decision')
+def screen_pdf_decision():
     if 'pdf_file' not in request.files: flash('No PDF file part...', 'error'); return redirect(url_for('full_text_screening_page'))
     file = request.files['pdf_file']
     if file.filename == '': flash('No PDF file selected.', 'error'); return redirect(url_for('full_text_screening_page'))
@@ -995,6 +997,142 @@ def show_pdf_result(pdf_screening_id):
                            reasoning=result_data.get('reasoning'),
                            extracted_text_preview=result_data.get('extracted_text_preview'),
                            current_year=current_year)
+
+
+# --- ADDED: Data Extraction Routes ---
+@app.route('/data_extraction', methods=['GET'], endpoint='data_extraction_page')
+def data_extraction_page():
+    current_year = datetime.datetime.now().year
+    return render_template('data_extraction.html', current_year=current_year)
+
+@app.route('/extract_data_pdf', methods=['POST'], endpoint='extract_data_pdf')
+def extract_data_pdf():
+    if 'pdf_extract_file' not in request.files:
+        flash('No PDF file part in the request.', 'error')
+        return redirect(url_for('data_extraction_page'))
+
+    file = request.files['pdf_extract_file']
+    if file.filename == '':
+        flash('No PDF file selected.', 'error')
+        return redirect(url_for('data_extraction_page'))
+
+    if file and file.filename.lower().endswith('.pdf'):
+        filename = secure_filename(file.filename)
+        print(f"Starting data extraction for PDF: {filename}")
+        try:
+            full_text = extract_text_from_pdf(file.stream)
+            if full_text is None:
+                flash(f"Could not extract text from PDF: {filename}.", "error")
+                return redirect(url_for('data_extraction_page'))
+            
+            print(f"Extracted {len(full_text)} characters. Preparing extraction prompt...")
+            
+            # --- Gather User-Defined Extraction Fields --- 
+            extraction_fields = {}
+            field_index = 0
+            while True:
+                field_name = request.form.get(f'field_name_{field_index}')
+                instruction = request.form.get(f'instruction_{field_index}')
+                example = request.form.get(f'example_{field_index}', '') # Example is optional
+                if field_name and instruction: # Only process if name and instruction exist
+                    # Basic validation/sanitization for field name (key)
+                    field_key = re.sub(r'\W|\s+', '_', field_name).strip('_').lower()
+                    if not field_key: field_key = f"field_{field_index}" # Fallback key
+                    extraction_fields[field_key] = {"instruction": instruction, "example": example}
+                    field_index += 1
+                else:
+                    break # Stop when fields are no longer found
+            if not extraction_fields:
+                flash("No valid data extraction fields were defined.", "error")
+                return redirect(url_for('data_extraction_page'))
+
+            # --- Build Dynamic Extraction Prompt --- 
+            output_format_instruction = "Provide the extracted information in a JSON format where keys are the field names ({field_names}) and values are the extracted data. If data for a field is not found, use null or an empty string for its value. ONLY output the JSON object.".format(
+                field_names=", ".join(extraction_fields.keys())
+            )
+            extraction_prompt = f"""You are an AI assistant specialized in extracting specific information from medical research papers.
+Task: Extract the following data points from the provided text based on the instructions for each field. 
+{output_format_instruction}
+
+Fields to Extract (with instructions and examples):
+"""
+            for key, data in extraction_fields.items():
+                extraction_prompt += f"- Field Name (JSON Key): '{key}'\n"
+                extraction_prompt += f"  Instruction/Question: {data['instruction']}\n"
+                if data['example']:
+                    extraction_prompt += f"  Example Desired Output: '{data['example']}'\n"
+            # Aggressively truncate input text (Adjust MAX_INPUT_CHARS as needed)
+            MAX_INPUT_CHARS = 30000 
+            truncated_text = full_text[:MAX_INPUT_CHARS]
+            if len(full_text) > MAX_INPUT_CHARS: print(f"Warning: Truncated PDF text from {len(full_text)} to {MAX_INPUT_CHARS} chars.")
+            extraction_prompt += f"\n--- Full Text (potentially truncated) ---\n{truncated_text}\n--- End of Text ---\n\nExtracted JSON data:"""
+
+            # --- Get LLM Config --- 
+            current_llm_config_data = get_current_llm_config(session)
+            provider_name = current_llm_config_data['provider_name']
+            model_id = current_llm_config_data['model_id']
+            base_url = get_base_url_for_provider(provider_name)
+            provider_info = get_llm_providers_info().get(provider_name, {})
+            session_key_name = provider_info.get("api_key_session_key")
+            api_key = session.get(session_key_name) if session_key_name else None
+            if not api_key: flash(f"API Key for {provider_name} must be provided...", "error"); return redirect(url_for('llm_config_page'))
+
+            # --- Call LLM for Raw Content --- 
+            print(f"Sending extraction prompt to {provider_name}...")
+            llm_response_raw = call_llm_api_raw_content(
+                 {
+                    "system_prompt": "You are an AI assistant performing data extraction. Output ONLY the requested JSON object, enclosed in ```json ... ``` if possible.", 
+                    "main_prompt": extraction_prompt
+                 }, 
+                 provider_name, model_id, api_key, base_url, 
+                 max_tokens_override=1500 
+             )
+            
+            # --- Parse JSON Response --- 
+            extracted_data = None
+            if llm_response_raw and isinstance(llm_response_raw, str):
+                if llm_response_raw.startswith("API_ERROR:"):
+                    extracted_data = {"error": llm_response_raw}
+                else:
+                    try:
+                        json_block_match = re.search(r'```json\s*(\{.*?\})\s*```', llm_response_raw, re.DOTALL)
+                        json_str_to_parse = None
+                        if json_block_match:
+                            json_str_to_parse = json_block_match.group(1)
+                        else:
+                            json_obj_match = re.search(r'\{\s*\".*?\":.*?\}', llm_response_raw, re.DOTALL)
+                            if json_obj_match:
+                                json_str_to_parse = json_obj_match.group()
+                        
+                        if json_str_to_parse:
+                            extracted_data = json.loads(json_str_to_parse)
+                            print("Successfully parsed JSON from LLM output.")
+                        else:
+                            print("Could not find valid JSON structure in LLM output.")
+                            extracted_data = {"error": "LLM did not return expected JSON structure.", "raw_output": llm_response_raw[:500]}
+                    except json.JSONDecodeError:
+                        print(f"Failed to decode JSON from LLM output: {llm_response_raw}")
+                        extracted_data = {"error": "LLM output was not valid JSON.", "raw_output": llm_response_raw[:500]}
+                    except Exception as parse_err:
+                        print(f"Unexpected error parsing LLM output: {parse_err}")
+                        extracted_data = {"error": f"Unexpected error parsing output: {parse_err}", "raw_output": llm_response_raw[:500]}
+            else:
+                print("LLM call returned no content or unexpected type.")
+                extracted_data = {"error": "LLM call returned no content or failed."}
+
+            current_year = datetime.datetime.now().year
+            return render_template('extraction_result.html',
+                                   filename=filename,
+                                   extraction_data=extracted_data,
+                                   current_year=current_year)
+
+        except Exception as e:
+            flash(f"An error occurred during data extraction for {filename}: {e}", "error")
+            traceback.print_exc()
+            return redirect(url_for('data_extraction_page'))
+    else:
+        flash('Invalid file type. Please upload a PDF file.', 'error')
+        return redirect(url_for('data_extraction_page'))
 
 
 # --- Run App ---

@@ -10,7 +10,7 @@
     <div class="alert alert-warning small">
         <strong>Warning:</strong> Screening full text can be slow, costly (uses many API tokens), and may exceed LLM context limits, potentially leading to errors or incomplete analysis. Use judiciously.
     </div>
-    <form method="POST" action="{{ url_for('screen_full_text_pdf') }}" enctype="multipart/form-data" id="pdf_screen_form">
+    <form method="POST" action="{{ url_for('screen_pdf_decision') }}" enctype="multipart/form-data" id="pdf_screen_form">
         <div class="form-group">
             <label for="pdf_file">Upload PDF File:</label>
             <input type="file" name="pdf_file" id="pdf_file" class="form-control-file form-control-sm" required accept=".pdf">

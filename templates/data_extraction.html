@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Data Extraction - AI Literature Screening Assistant{% endblock %}
+
+{% block extra_head %}
+<style>
+    .field-group { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 5px; background-color: #fdfdfd; }
+    .field-group label { font-weight: 600; font-size: 0.9em; }
+    .field-group input, .field-group textarea { margin-bottom: 5px; }
+    .delete-field-btn { font-size: 0.8em; }
+    .best-practices { background-color: #f0f8ff; border-left: 4px solid #17a2b8; padding: 15px; margin-bottom: 20px; font-size: 0.9em; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="section-card">
+    <h2>Data Extraction (from Single PDF - Beta)</h2>
+    <p>Define the data points you want to extract, then upload a PDF document.</p>
+    
+    {# --- Tips --- #}
+    <div class="best-practices">
+        <h5>Tips for Effective Extraction Instructions:</h5>
+        <ul>
+            <li><strong>Be Specific:</strong> Ask for exactly what you need (e.g., 'mean age in years', 'sample size for intervention group'). Use the 'Field Name' as a unique key.</li>
+            <li><strong>Request Format:</strong> Clearly specify units or desired format if needed (e.g., 'Report number only', 'Include 95% CI').</li>
+            <li><strong>Use Examples:</strong> Providing an example in the 'Expected Format' field helps the AI greatly.</li>
+            <li><strong>One Point per Field:</strong> Avoid asking for multiple unrelated pieces of data in a single field instruction.</li>
+            <li><strong>Focus on Text:</strong> The AI reads the text. Ensure the information is likely present in the document text.</li>
+        </ul>
+    </div>
+
+    {# --- Extraction Form --- #}
+    <form method="POST" action="{{ url_for('extract_data_pdf') }}" enctype="multipart/form-data" id="extract_form">
+        
+        {# --- Dynamic Field Definitions --- #}
+        <h3>Define Data Fields to Extract</h3>
+        <div id="extraction-fields-container">
+            {# Initial Field Group (Example) - Can be added dynamically #}
+            <div class="field-group">
+                <div class="form-row">
+                    <div class="form-group col-md-3">
+                        <label for="field_name_0">Field Name (Key)</label>
+                        <input type="text" name="field_name_0" class="form-control form-control-sm" placeholder="e.g., sample_size" required>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="instruction_0">Extraction Instruction / Question</label>
+                        <input type="text" name="instruction_0" class="form-control form-control-sm" placeholder="e.g., What was the total sample size?" required>
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label for="example_0">Expected Format / Example</label>
+                        <input type="text" name="example_0" class="form-control form-control-sm" placeholder="e.g., 123">
+                    </div>
+                </div>
+                <button type="button" class="btn btn-danger btn-sm delete-field-btn" onclick="removeField(this)">Remove Field</button>
+            </div>
+        </div>
+        <button type="button" id="add-field-btn" class="btn btn-secondary btn-sm mt-2">+ Add Another Field</button>
+        <hr>
+
+        {# --- File Upload --- #}
+        <h3>Upload PDF for Extraction</h3>
+        <div class="alert alert-warning small">
+            <strong>Warning:</strong> Data extraction is experimental. Always verify results. Processing can be slow and costly.
+        </div>
+        <div class="form-group mt-3">
+            <label for="pdf_extract_file">Upload PDF File:</label>
+            <input type="file" name="pdf_extract_file" id="pdf_extract_file" class="form-control-file form-control-sm" required accept=".pdf">
+        </div>
+        
+        {# --- Submit Button --- #}
+         <button id="start_extract_button" type="submit" class="btn btn-success btn-sm mt-3">
+            <span id="extract_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+            Extract Data from PDF
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let fieldCounter = 1; // Start counter for unique IDs/names
+
+function addField() {
+    const container = document.getElementById('extraction-fields-container');
+    const newFieldGroup = document.createElement('div');
+    newFieldGroup.classList.add('field-group');
+    newFieldGroup.innerHTML = `
+        <div class="form-row">
+            <div class="form-group col-md-3">
+                <label for="field_name_${fieldCounter}">Field Name (Key)</label>
+                <input type="text" name="field_name_${fieldCounter}" class="form-control form-control-sm" placeholder="e.g., study_design" required>
+            </div>
+            <div class="form-group col-md-6">
+                <label for="instruction_${fieldCounter}">Extraction Instruction / Question</label>
+                <input type="text" name="instruction_${fieldCounter}" class="form-control form-control-sm" placeholder="e.g., What study design was used?" required>
+            </div>
+            <div class="form-group col-md-3">
+                <label for="example_${fieldCounter}">Expected Format / Example</label>
+                <input type="text" name="example_${fieldCounter}" class="form-control form-control-sm" placeholder="e.g., RCT">
+            </div>
+        </div>
+        <button type="button" class="btn btn-danger btn-sm delete-field-btn" onclick="removeField(this)">Remove Field</button>
+    `;
+    container.appendChild(newFieldGroup);
+    fieldCounter++;
+}
+
+function removeField(button) {
+    const fieldGroup = button.closest('.field-group');
+    // Prevent removing the very last field if desired (optional)
+    // const container = document.getElementById('extraction-fields-container');
+    // if (container.children.length > 1) { 
+         fieldGroup.remove();
+    // } else {
+    //    alert("At least one field is required.");
+    // }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('add-field-btn').addEventListener('click', addField);
+
+    // Spinner Logic (unchanged)
+    const extractForm = document.getElementById('extract_form');
+    const extractButton = document.getElementById('start_extract_button');
+    const extractSpinner = document.getElementById('extract_spinner');
+    if (extractForm && extractButton && extractSpinner) {
+        extractForm.addEventListener('submit', function(event) { // Added event param
+            const pdfFileInput = document.getElementById('pdf_extract_file');
+            if (pdfFileInput && pdfFileInput.files.length > 0) {
+                // Check if at least one field group exists
+                const container = document.getElementById('extraction-fields-container');
+                if (container.children.length === 0) {
+                     alert("Please define at least one data field to extract.");
+                     event.preventDefault(); // Stop submission
+                     return;
+                }
+                extractSpinner.style.display = 'inline-block';
+                extractButton.disabled = true;
+            } else {
+                 // This case should be caught by the 'required' attribute on file input
+                 // If not, uncomment below
+                 // alert('Please select a PDF file.'); 
+                 // event.preventDefault();
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 
