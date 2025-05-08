@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Data Extraction Result - {{ filename }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .result-table th { text-align: left; width: 25%; background-color: #f1f1f1; }
+    .result-table td { white-space: pre-wrap; word-wrap: break-word; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Data Extraction Result</h1>
+        <a href="{{ url_for('data_extraction_page') }}" class="btn btn-secondary btn-sm">Back to Data Extraction</a>
+    </div>
+
+    <div class="section-card">
+        <p><strong>Source File:</strong> {{ filename }}</p>
+        <p class="small text-muted">Extracted data based on predefined fields. Please verify accuracy.</p>
+
+        {% if extraction_data %}
+            <table class="table table-bordered table-sm result-table mt-3">
+                <tbody>
+                    {% for key, value in extraction_data.items() %}
+                    <tr>
+                        <th scope="row">{{ key.replace('_', ' ').title() }}</th>
+                        <td>{{ value if value else '-' }}</td> {# Display dash if value is empty/None #}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {# Optional: Add Download Button for extracted data here later #}
+        {% else %}
+             <div class="alert alert-warning">Could not extract data or no data was found based on predefined fields.</div>
+        {% endif %}
+    </div>
+
+{% endblock %} 
