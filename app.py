@@ -370,6 +370,7 @@ def calculate_performance_metrics(ai_decisions, human_decisions, labels_order=['
     cm_3x3_dict = {"labels": labels_order, "matrix_data": cm_3x3.tolist()}
 
     kappa = cohen_kappa_score(y_true, y_pred, labels=labels_order)
+    if pd and pd.isna(kappa): kappa = 0.0
 
     correct_predictions = (y_true == y_pred).sum()
     total_predictions = len(y_true)
@@ -430,8 +431,23 @@ def calculate_performance_metrics(ai_decisions, human_decisions, labels_order=['
             1 for ai, h in zip(ai_decisions, human_decisions) if h == 'MAYBE' and ai == 'EXCLUDE'),
     }
 
+    # --- ADDED: Critical Error Rate (I -> E) Calculation --- 
+    critical_errors_count = 0
+    try:
+        # Find indices for INCLUDE and EXCLUDE in labels_order
+        idx_include = labels_order.index('INCLUDE')
+        idx_exclude = labels_order.index('EXCLUDE')
+        # Get count from confusion matrix where Human=INCLUDE (row idx_include) and AI=EXCLUDE (column idx_exclude)
+        critical_errors_count = cm_3x3[idx_include, idx_exclude]
+    except (ValueError, IndexError) as e:
+        print(f"Error calculating critical error count: {e}")
+        critical_errors_count = 0 # Default to 0 if labels not found or matrix issue
+        
+    critical_error_rate = (critical_errors_count / total_predictions) * 100 if total_predictions > 0 else 0
+    # --- End Critical Error Rate Calculation --- 
+
     summary_metrics = {
-        'cohens_kappa': kappa, # Pass the original kappa value
+        'cohens_kappa': kappa, 
         'overall_accuracy': overall_accuracy,
         'workload_reduction': workload_reduction, 
         'discrepancy_rate': discrepancy_rate,
@@ -441,6 +457,7 @@ def calculate_performance_metrics(ai_decisions, human_decisions, labels_order=['
         'specificity_for_include_task': specificity_for_include_task,
         'ai_maybe_rate': ai_maybe_rate, 
         'human_maybe_rate': human_maybe_rate,
+        'critical_error_rate_ie': critical_error_rate, # ADDED
         'total_compared': total_predictions
     }
     return {

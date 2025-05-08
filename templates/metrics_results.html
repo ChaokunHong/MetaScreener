@@ -65,6 +65,11 @@
     /* Style for collapsible definition header button */
     #definitionsHeader .btn-link { color: #333; text-decoration: none; }
     #definitionsHeader .btn-link:hover { color: #0056b3; }
+    .metric-value-card.critical-error { background-color: #f8d7da; border-color: #f5c6cb; } /* Light red background for critical error */
+    .metric-value-card.critical-error strong, 
+    .metric-value-card.critical-error .metric-value {
+        color: #721c24; /* Darker red text */
+    }
 </style>
 {% endblock %}
 
@@ -109,6 +114,13 @@
                             <strong>Discrepancy Rate</strong>
                             <span class="metric-value">{{ "%.1f"|format(metrics.discrepancy_rate) }}%</span>
                             <p class="explanation">AI-Human disagreements.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                         <div class="metric-value-card critical-error">
+                            <strong>Critical Error Rate (I<i class="fas fa-arrow-right"></i>E)</strong>
+                            <span class="metric-value">{{ "%.2f"|format(metrics.critical_error_rate_ie) }}%</span>
+                            <p class="explanation">% of total items where Human=INCLUDE but AI=EXCLUDE.</p>
                         </div>
                     </div>
                 </div>
@@ -197,7 +209,7 @@
                          <div class="metric-value-card">
                              <strong>Specificity</strong> 
                              <span class="metric-value">{{ "%.2f"|format(metrics.specificity_for_include_task * 100) }}%</span>
-                             <p class="explanation">AI found Human 'Not INCLUDE' as 'Not INCLUDE'.</p>
+                             <p class="explanation">AI found Human 'Not INCLUDE' (M or E) as 'Not INCLUDE' (M or E).</p>
                         </div>
                     </div>
                 </div>
@@ -214,7 +226,7 @@
                           <div class="metric-value-card">
                              <strong>Workload Reduction</strong> 
                              <span class="metric-value">{{ "%.1f"|format(metrics.workload_reduction) }}%</span>
-                             <p class="explanation">% of total items AI correctly EXCLUDED (matching Human EXCLUDE).</p>
+                             <p class="explanation">% of total items where both Human and AI agreed on EXCLUDE.</p>
                          </div>
                      </div>
                      <div class="col-md-4">
@@ -292,10 +304,11 @@
                      <dt class="col-sm-3">Per-Class F1</dt><dd class="col-sm-9">Harmonic mean of Precision & Recall for a class. Good balance measure.</dd>
                      <dt class="col-sm-3">Per-Class Specificity</dt><dd class="col-sm-9">For a class: True Negatives / (True Negatives + False Positives). Of all actual Not Class X, how many did AI correctly label as Not Class X?</dd>
                      <dt class="col-sm-3">Binary Sensitivity (INCLUDE)</dt><dd class="col-sm-9">Recall for the INCLUDE class when M/E are grouped as 'Not Include'.</dd>
-                     <dt class="col-sm-3">Binary Specificity (INCLUDE task)</dt><dd class="col-sm-9">Proportion of Human 'Not INCLUDE' (M or E) AI found as 'Not INCLUDE' (AI also M or E).</dd>
-                     <dt class="col-sm-3">Workload Reduction</dt><dd class="col-sm-9">% of total studies AI correctly labeled 'EXCLUDE' matching Human 'EXCLUDE'.</dd>
+                     <dt class="col-sm-3">Binary Specificity (INCLUDE task)</dt><dd class="col-sm-9">Of studies Human labeled Maybe/Exclude, % AI also labeled Maybe/Exclude.</dd>
+                     <dt class="col-sm-3">Workload Reduction</dt><dd class="col-sm-9">% of total studies where both Human and AI agreed on EXCLUDE.</dd>
                      <dt class="col-sm-3">AI/Human MAYBE Rate</dt><dd class="col-sm-9">% of studies labeled 'MAYBE' by AI/Human. High AI MAYBE may mean conservative AI/unclear criteria.</dd>
                      <dt class="col-sm-3">MAYBE Resolution</dt><dd class="col-sm-9">How 'MAYBE' by one party was classified by the other; shows nature of uncertainty.</dd>
+                     <dt class="col-sm-3">Critical Error Rate (I<i class="fas fa-arrow-right"></i>E)</dt><dd class="col-sm-9">% of total studies where Human=INCLUDE but AI=EXCLUDE. High value indicates potentially missed relevant studies.</dd>
                  </dl>
              </div>
         </div>
