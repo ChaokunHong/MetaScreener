@@ -1,12 +1,13 @@
 # MetaScreener: AI-Assisted Literature Screening
 
-MetaScreener is a web application designed to streamline the literature screening process for systematic reviews, particularly in the medical field, using Large Language Models (LLMs). It helps researchers efficiently filter large volumes of abstracts based on predefined inclusion and exclusion criteria.
+MetaScreener is a web application designed to streamline the literature screening process for systematic reviews, particularly in the medical field, using Large Language Models (LLMs). It helps researchers efficiently filter large volumes of abstracts based on predefined inclusion and exclusion criteria, and extract key data points from full-text documents.
 
 **Live Application:** [https://metascreener.onrender.com](https://metascreener.onrender.com)
 
 ## ✨ Features
 
-*   **RIS File Upload**: Supports uploading citation library files in `.ris` format.
+*   **RIS File Upload**: Supports uploading citation library files in `.ris` format for abstract screening.
+*   **PDF Upload**: Supports uploading single PDF documents for full-text screening and data extraction.
 *   **Configurable LLM**: Choose from major LLM providers and models:
     *   DeepSeek (Chat, Reasoner)
     *   OpenAI (GPT-3.5 Turbo, GPT-4, GPT-4 Turbo, GPT-4o)
@@ -16,15 +17,16 @@ MetaScreener is a web application designed to streamline the literature screenin
 *   **Structured Screening Criteria**: Define detailed criteria using the PICOT framework, with specific fields for **Include**, **Exclude**, and **Maybe** conditions for each element (Population, Intervention, Comparison, Outcome, Time/Type).
 *   **AI Prompt Customization (Advanced)**: Advanced users can modify the underlying System Prompt and Output Format Instructions sent to the LLM.
 *   **Guided Input**: Hints and placeholders guide users in formulating effective criteria.
-*   **Test Screening**: Screen a sample of the uploaded file (up to 9999 items) with real-time progress updates (SSE) to evaluate criteria and AI performance before full screening.
-*   **Performance Metrics**: After manually assessing the test sample, view detailed performance metrics including:
-    *   Overall Accuracy, Cohen's Kappa, Discrepancy Rate
-    *   3x3 Confusion Matrix (Include/Exclude/Maybe) with color highlighting
-    *   Per-Class Precision, Recall, F1, Specificity
-    *   Binary task metrics (Sensitivity, Precision, F1, Specificity for Include vs. Not Include)
-    *   Workload Reduction (%)
-    *   Maybe Rate Analysis
-*   **Full Dataset Screening**: Process the entire RIS file with real-time progress updates (SSE).
+*   **Abstract Screening**:
+    *   **Test Screening**: Screen a sample of the uploaded file (up to 9999 items) with real-time progress updates (SSE) to evaluate criteria and AI performance before full screening.
+    *   **Performance Metrics**: After manually assessing the test sample, view detailed performance metrics including Accuracy, Kappa, Confusion Matrix, etc.
+    *   **Full Dataset Screening**: Process all abstracts in an RIS file with real-time progress updates (SSE).
+*   **Data Extraction (Beta)**:
+    *   **User-Defined Fields**: Dynamically define the specific data points (Field Name, Instruction/Question, Example Format) you want to extract from full text.
+    *   **Single PDF Processing**: Upload a PDF and instruct the LLM to extract the defined data points.
+    *   **JSON Output Focused**: Prompts are designed to encourage JSON output from the LLM.
+    *   *(Experimental: Accuracy depends heavily on source document and LLM)*
+*   **Result Download**: Download abstract screening results in CSV, Excel, or JSON format.
 *   **Parallel Processing**: Utilizes threading for faster screening by making concurrent calls to the LLM API.
 
 ## 💻 Technology Stack
@@ -33,6 +35,7 @@ MetaScreener is a web application designed to streamline the literature screenin
 *   **Frontend**: HTML, CSS (Bootstrap), JavaScript
 *   **LLM Integration**: `requests`, `google-generativeai`, `anthropic`
 *   **Data Handling**: `pandas`, `rispy`
+*   **PDF Text Extraction**: `PyMuPDF` (fitz)
 *   **Metrics**: `scikit-learn`
 *   **WSGI Server (Deployment)**: Gunicorn
 *   **Deployment Platform**: Render
@@ -108,27 +111,21 @@ Follow these instructions to set up and run the project locally for development 
     *   **(Advanced Only)**: Optionally adjust the AI System Prompt and Output Format Instructions. Use caution.
     *   Click "Save Criteria & Settings".
 
-3.  **Screening Actions**:
-    *   Navigate to the "Screening Actions" page.
-    *   **Test Screening**:
-        *   Upload your `.ris` file.
-        *   Set the desired sample size (5-9999).
-        *   Click "Start Test Screening with Progress".
-        *   Monitor the progress bar and log.
-        *   Once complete, click the "View Test Results & Assess" link.
-    *   **Assess Test Results (on `test_results.html`)**:
-        *   Review the AI's decision and reasoning for each sample item.
-        *   Provide your own assessment (Include/Exclude/Maybe) using the radio buttons for each item.
-        *   Click "Calculate Metrics & Compare".
-    *   **View Metrics (on `metrics_results.html`)**:
-        *   Analyze the performance metrics and confusion matrix.
-        *   Review the individual item comparison.
-        *   Optionally, click "Screen Full Dataset (from Test)" to start processing the entire file using the same settings (requires API key in session).
-    *   **Full Dataset Screening**:
-        *   Upload your `.ris` file.
-        *   Click "Screen Full File with Progress (SSE)".
-        *   Monitor the progress bar and log.
-        *   Once complete, click the "View Full Results from SSE Screening" link to see the results on the `results.html` page.
+3.  **Abstract Screening**:
+    *   Navigate to "Abstract Screening".
+    *   **Test**: Upload RIS, set sample size, click "Start Test Screening...". Monitor progress. Click link to view/assess results (`test_results.html`). Calculate metrics.
+    *   **Full**: Upload RIS, click "Screen Full File...". Monitor progress. Click link to view results (`results.html`). Download results if needed.
+
+4.  **Data Extraction (Beta)**:
+    *   Navigate to "Data Extraction".
+    *   Click "+ Add Another Field" to define each data point you want to extract.
+        *   **Field Name:** A short key (e.g., `sample_size`).
+        *   **Instruction/Question:** Clear question for the AI (e.g., "What was the total sample size?").
+        *   **Example Format (Optional):** An example of the desired output (e.g., `150`).
+    *   Use the "Tips for Effective Extraction Instructions".
+    *   Upload the **single PDF** document you want to extract data from.
+    *   Click "Extract Data from PDF". This is a synchronous process; wait for the result page.
+    *   Review the extracted data on the results page (`extraction_result.html`). Verify accuracy carefully.
 
 ## ⚙️ Configuration
 
