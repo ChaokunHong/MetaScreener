@@ -1,1 +1,2 @@
-git commit -m "Fix(utils): Ensure PDF stream is read to bytes before passing to PyMuPDF" 
+git commit -m "Fix(utils): Ensure PDF stream is read to bytes before passing to PyMuPDF"
+git commit -m "Add Critical Error Rate metric and clarify explanations" 
