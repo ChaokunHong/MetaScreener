@@ -6,6 +6,7 @@ import json
 import re
 import traceback
 import io
+import fitz # PyMuPDF
 
 # For Gemini
 import google.generativeai as genai
@@ -70,6 +71,25 @@ def load_literature_ris(filepath_or_stream: Union[str, IO[bytes]]) -> Optional[p
         print(f"Error reading/parsing RIS file {source_description}: {e}");
         traceback.print_exc();
         return None
+
+
+# --- ADDED: PDF Text Extraction --- 
+def extract_text_from_pdf(file_stream: IO[bytes]) -> Optional[str]:
+    """Extracts text content from a PDF file stream."""
+    text = None
+    try:
+        # Open the PDF from the stream
+        with fitz.open(stream=file_stream, filetype="pdf") as doc:
+            all_text = []
+            for page in doc:
+                all_text.append(page.get_text("text"))
+            text = "\n".join(all_text) # Join pages with newline
+        print(f"   - Extracted approx {len(text)} characters from PDF.")
+    except Exception as e:
+        print(f"Error extracting text from PDF: {e}")
+        traceback.print_exc()
+        text = None # Ensure None is returned on error
+    return text
 
 
 # --- LLM Prompt Construction (Refactored) ---

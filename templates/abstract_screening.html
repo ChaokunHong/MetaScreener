@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Abstract Screening Actions - AI Literature Screening Assistant{% endblock %}
+
+{% block content %}
+{# --- Test Screening Section --- #}
+<div class="section-card">
+    <h2>Test Screening (Sampled Abstracts)</h2>
+    <p>Upload a .ris file to screen a sample of abstracts with progress updates. Compare AI decisions and view metrics.</p>
+    <form id="test_screen_form" enctype="multipart/form-data"> 
+        <div class="form-row">
+            <div class="form-group col-md-8">
+                <label for="test_file">Upload RIS File:</label>
+                <input type="file" name="file" id="test_file" class="form-control-file form-control-sm" required accept=".ris">
+            </div>
+            <div class="form-group col-md-4">
+                <label for="sample_size">Sample Size (5-9999):</label> 
+                <input type="number" name="sample_size" id="sample_size" class="form-control form-control-sm" value="10" min="5" max="9999">
+            </div>
+        </div>
+        <button id="start_test_screen_button" type="button" class="btn btn-info btn-sm">
+            <span id="test_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+            Start Test Screening with Progress
+        </button>
+    </form>
+    {# ... Test progress area ... #}
+    <div id="test_progress_area" class="mt-3" style="display: none;"> ... </div>
+     <div id="test_results_link_area" class="mt-3" style="display:none;">
+        <a href="#" id="view_test_results_link" class="btn btn-primary">View Test Results & Assess</a>
+    </div>
+</div>
+
+{# --- Full Dataset (Abstracts) Screening Section --- #}
+<div class="section-card">
+    <h2>Screen Full Dataset (Abstracts)</h2>
+    <p>Upload your .ris file to screen all entries based on abstracts using the current settings. Progress is displayed live.</p>
+    <form id="full_screen_form_id" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="full_file_progress">Upload RIS File:</label>
+            <input type="file" name="file" id="full_file_progress" class="form-control-file form-control-sm" required accept=".ris">
+        </div>
+        <button type="button" id="start_full_screen_button" class="btn btn-danger btn-sm">Screen Full File with Progress (SSE)</button>
+    </form>
+    {# ... Full progress area ... #}
+     <div id="progress_area" class="mt-3" style="display: none;"> ... </div>
+     <div id="sse_results_link_area" class="mt-3" style="display:none;">
+        <a href="#" id="view_full_results_link" class="btn btn-success">View Full Results from SSE Screening</a> 
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Test Screening SSE Logic --- 
+    // ... (existing JS for test SSE) ...
+
+    // --- Full Screening SSE Logic ---
+    // ... (existing JS for full SSE) ...
+
+}); // end DOMContentLoaded
+</script>
+{% endblock %} 

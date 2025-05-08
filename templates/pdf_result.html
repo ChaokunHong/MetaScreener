@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}PDF Screening Result - {{ filename }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .result-box { padding: 15px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; margin-bottom: 15px; }
+    .result-box strong { display: inline-block; min-width: 80px; }
+    .decision-badge { padding: .3em .6em; font-size: .9em; border-radius: .2rem; color: white; }
+    .decision-badge-INCLUDE { background-color: #28a745; }
+    .decision-badge-EXCLUDE { background-color: #dc3545; }
+    .decision-badge-MAYBE { background-color: #ffc107; color: black; }
+    .decision-badge-ERROR { background-color: #6c757d; }
+    .text-preview { 
+        font-family: monospace; 
+        font-size: 0.8rem; 
+        max-height: 300px; 
+        overflow-y: auto; 
+        background-color: #eee; 
+        border: 1px solid #ddd; 
+        padding: 10px; 
+        white-space: pre-wrap; 
+        word-wrap: break-word;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>PDF Screening Result</h1>
+        <a href="{{ url_for('full_text_screening_page') }}" class="btn btn-secondary btn-sm">Back to Full-Text Screening</a>
+    </div>
+
+    <div class="result-box">
+        <p><strong>File:</strong> {{ filename }}</p>
+        <p><strong>Decision:</strong> 
+            <span class="decision-badge decision-badge-{{ decision }}">
+                {{ decision }}
+            </span>
+        </p>
+        <p><strong>Reasoning:</strong></p>
+        <p style="white-space: pre-wrap;">{{ reasoning }}</p>
+    </div>
+
+    <h4>Extracted Text Preview:</h4>
+    <div class="text-preview">
+        {{ extracted_text_preview }}
+    </div>
+
+{% endblock %} 

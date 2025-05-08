@@ -48,8 +48,11 @@
                 <li class="nav-item {% if request.endpoint == 'screening_criteria_page' %}active{% endif %}">
                     <a class="nav-link" href="{{ url_for('screening_criteria_page') }}">Screening Criteria</a>
                 </li>
-                <li class="nav-item {% if request.endpoint == 'screening_actions_page' %}active{% endif %}">
-                    <a class="nav-link" href="{{ url_for('screening_actions_page') }}">Screening Actions</a>
+                <li class="nav-item {% if request.endpoint == 'abstract_screening_page' %}active{% endif %}">
+                    <a class="nav-link" href="{{ url_for('abstract_screening_page') }}">Abstract Screening</a>
+                </li>
+                <li class="nav-item {% if request.endpoint == 'full_text_screening_page' %}active{% endif %}">
+                    <a class="nav-link" href="{{ url_for('full_text_screening_page') }}">Full-Text Screening</a>
                 </li>
             </ul>
         </div>
