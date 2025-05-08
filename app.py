@@ -7,11 +7,12 @@ import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from sklearn.metrics import confusion_matrix, cohen_kappa_score, f1_score, precision_score, recall_score, \
     multilabel_confusion_matrix
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, Response, send_file
 from werkzeug.utils import secure_filename
 import traceback
 import json  # For SSE
 import sys # For printing to stderr
+import io # For creating in-memory files
 
 # Import functions from our utils and config
 from utils import load_literature_ris, construct_llm_prompt, call_llm_api
@@ -656,22 +657,21 @@ def stream_screen_file():
 
 @app.route('/show_screening_results/<screening_id>', endpoint='show_screening_results') 
 def show_screening_results(screening_id):
-    # Retrieve results from global dict using pop (removes after retrieval)
-    session_data = full_screening_sessions.pop(screening_id, None)
+    session_data = full_screening_sessions.get(screening_id)
     
     if not session_data:
-        flash("Screening results not found or already viewed.", "warning")
+        flash("Screening results not found or may have expired.", "warning")
         return redirect(url_for('screening_actions_page')) 
         
     results = session_data.get('results', [])
     filename = session_data.get('filename', 'Screened File')
-    
-    # The current_year needed by base.html should be added
     current_year = datetime.datetime.now().year
+    
     return render_template('results.html', 
                            results=results, 
                            filename=filename,
-                           current_year=current_year # Pass current_year
+                           screening_id=screening_id, 
+                           current_year=current_year
                           )
 
 
@@ -824,6 +824,89 @@ def show_test_results(session_id):
                            test_items=test_items,
                            session_id=session_id, # Pass session_id for the metrics form
                            current_year=current_year)
+
+
+# --- New Download Route --- 
+@app.route('/download_results/<screening_id>/<format>', endpoint='download_results')
+def download_results(screening_id, format):
+    session_data = full_screening_sessions.get(screening_id)
+    
+    if not session_data:
+        flash("Could not find screening results data to download (it might have expired or been viewed already without download).", "error")
+        return redirect(request.referrer or url_for('screening_actions_page')) 
+        
+    results_list = session_data.get('results', [])
+    filename_base = session_data.get('filename', 'screening_results')
+    # Clean filename slightly
+    filename_base = filename_base.replace('.ris', '').replace('.txt', '')
+    
+    if not results_list:
+         flash("No results found within the screening data to download.", "warning")
+         return redirect(request.referrer or url_for('screening_actions_page'))
+         
+    # Convert list of dicts to DataFrame for easier export
+    try:
+        df = pd.DataFrame(results_list)
+        # Select/rename columns if desired for export
+        # df_export = df[['index', 'title', 'authors', 'decision', 'reasoning']] 
+    except Exception as e:
+         flash(f"Error converting results to DataFrame: {e}", "error")
+         return redirect(request.referrer or url_for('screening_actions_page'))
+
+    # Prepare file in memory
+    output_buffer = None
+    mimetype = None
+    download_filename = None
+
+    try:
+        if format == 'csv':
+            output_buffer = io.StringIO()
+            df.to_csv(output_buffer, index=False, encoding='utf-8-sig')
+            mimetype = 'text/csv'
+            download_filename = f"{filename_base}_results.csv"
+            output_buffer.seek(0)
+            # For CSV from StringIO, we need BytesIO wrapper for send_file
+            bytes_buffer = io.BytesIO(output_buffer.getvalue().encode('utf-8-sig'))
+            bytes_buffer.seek(0)
+            output_buffer = bytes_buffer # Use the BytesIO buffer
+            
+        elif format == 'xlsx':
+            output_buffer = io.BytesIO()
+            with pd.ExcelWriter(output_buffer, engine='openpyxl') as writer:
+                df.to_excel(writer, index=False, sheet_name='Screening Results')
+            mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            download_filename = f"{filename_base}_results.xlsx"
+            output_buffer.seek(0)
+            
+        elif format == 'json':
+            output_buffer = io.StringIO()
+            df.to_json(output_buffer, orient='records', indent=4)
+            mimetype = 'application/json'
+            download_filename = f"{filename_base}_results.json"
+            output_buffer.seek(0)
+             # For JSON from StringIO, we need BytesIO wrapper for send_file
+            bytes_buffer = io.BytesIO(output_buffer.getvalue().encode('utf-8'))
+            bytes_buffer.seek(0)
+            output_buffer = bytes_buffer # Use the BytesIO buffer
+        else:
+            flash(f"Unsupported download format: {format}", "error")
+            return redirect(request.referrer or url_for('screening_actions_page'))
+
+        # Clean up the data from the global dictionary after preparing download
+        # We poped it in show_screening_results, so it should be gone here anyway
+        # full_screening_sessions.pop(screening_id, None) 
+            
+        return send_file(
+            output_buffer,
+            mimetype=mimetype,
+            as_attachment=True,
+            download_name=download_filename
+        )
+
+    except Exception as e:
+        flash(f"Error generating download file ({format}): {e}", "error")
+        traceback.print_exc()
+        return redirect(request.referrer or url_for('screening_actions_page'))
 
 
 # --- Run App ---
