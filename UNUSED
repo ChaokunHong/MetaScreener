@@ -1,2 +1,3 @@
 git commit -m "Refactor criteria input with per-PICOT include/exclude/maybe fields and guides"
-git commit -m "Increase max sample size for test screening to 9999" 
+git commit -m "Increase max sample size for test screening to 9999"
+git commit -m "Add result download functionality (CSV, Excel, JSON)" 
