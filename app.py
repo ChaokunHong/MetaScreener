@@ -4,12 +4,14 @@ import time
 import datetime  # Explicitly import datetime for current year
 import uuid
 import numpy as np
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from sklearn.metrics import confusion_matrix, cohen_kappa_score, f1_score, precision_score, recall_score, \
     multilabel_confusion_matrix
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, Response
 from werkzeug.utils import secure_filename
 import traceback
 import json  # For SSE
+import sys # For printing to stderr
 
 # Import functions from our utils and config
 from utils import load_literature_ris, construct_llm_prompt, call_llm_api
@@ -42,8 +44,10 @@ def get_current_criteria_object():
 # --- Route for LLM Configuration ---
 @app.route('/configure_llm', methods=['POST'])
 def configure_llm():
+    print("--- Entering configure_llm --- ", file=sys.stderr)
     selected_provider = request.form.get('llm_provider')
     selected_model_id = request.form.get('llm_model_id')
+    print(f"Provider: {selected_provider}, Model: {selected_model_id}", file=sys.stderr)
 
     providers_info = get_llm_providers_info()
     if selected_provider not in providers_info:
@@ -57,18 +61,30 @@ def configure_llm():
 
     api_key_form_field = f"{selected_provider.lower()}_api_key"
     user_api_key = request.form.get(api_key_form_field)
+    print(f"Form field for key: '{api_key_form_field}'", file=sys.stderr)
+    print(f"Submitted key value: '{user_api_key}' (Type: {type(user_api_key)})", file=sys.stderr)
 
     if user_api_key:
+        print("User API key is truthy, attempting to save...", file=sys.stderr)
         session_key_for_api = provider_config.get("api_key_session_key")
+        print(f"Session key name from config: '{session_key_for_api}'", file=sys.stderr)
         if session_key_for_api:
             session[session_key_for_api] = user_api_key
+            print(f"Saved '{user_api_key[:5]}...' to session['{session_key_for_api}']", file=sys.stderr)
             flash(f'API Key for {selected_provider} updated in session.', 'info')
-    elif not user_api_key and request.form.get(f'clear_{api_key_form_field}'):
-        session_key_for_api = provider_config.get("api_key_session_key")
-        if session_key_for_api and session_key_for_api in session:
-            session.pop(session_key_for_api)
-            flash(f'API Key for {selected_provider} cleared from session.', 'info')
+        else:
+             print("ERROR: Could not find api_key_session_key in provider config!", file=sys.stderr)
+    else:
+        print("User API key is FALSY (empty or None), NOT saving to session.", file=sys.stderr)
+        # Check if maybe clear was intended (less likely if user typed something)
+        if not user_api_key and request.form.get(f'clear_{api_key_form_field}'):
+             session_key_for_api = provider_config.get("api_key_session_key")
+             if session_key_for_api and session_key_for_api in session:
+                 session.pop(session_key_for_api)
+                 print(f"Cleared key for {selected_provider} from session.", file=sys.stderr)
+                 flash(f'API Key for {selected_provider} cleared from session.', 'info')
 
+    print(f"Session contents after configure_llm: {session}", file=sys.stderr)
     flash(f'LLM configuration updated to {selected_provider} - Model: {selected_model_id}.', 'success')
     return redirect(url_for('llm_config_page'))
 
@@ -210,64 +226,72 @@ def test_screening():
 
 @app.route('/screen_full_dataset/<session_id>')
 def screen_full_dataset(session_id):
-    if not session_id or session_id not in test_sessions: 
-        flash('Test session not found or expired. Please start a new test.', 'error')
-        return redirect(url_for('screening_actions_page'))
+    if not session_id or session_id not in test_sessions: flash('Test session not found or expired.', 'error'); return redirect(url_for('screening_actions_page'))
     session_data = test_sessions.get(session_id)
-    if not session_data: 
-         flash('Test session data missing.', 'error')
-         return redirect(url_for('screening_actions_page'))
-         
-    df = session_data['df']
-    filename = session_data['file_name']
+    if not session_data: flash('Test session data missing.', 'error'); return redirect(url_for('screening_actions_page'))
+    df = session_data['df']; filename = session_data['file_name']
     results_list = []
     try:
         criteria_prompt_text = get_screening_criteria()
-        
-        # --- Get LLM Config BEFORE loop --- 
         current_llm_config_data = get_current_llm_config(session)
         provider_name = current_llm_config_data['provider_name']
         model_id = current_llm_config_data['model_id']
-        api_key = get_api_key_for_provider(provider_name, session)
         base_url = get_base_url_for_provider(provider_name)
-        # --- End LLM Config Fetch --- 
+        provider_info = get_llm_providers_info().get(provider_name, {})
+        session_key_name = provider_info.get("api_key_session_key")
+        api_key = session.get(session_key_name) if session_key_name else None
+        if not api_key: flash(f"API Key for {provider_name} must be provided via the configuration form for this session.", "error"); return redirect(url_for('llm_config_page'))
 
-        if not api_key:
-            flash(f"API Key for {provider_name} not set.", "error")
-            return redirect(url_for('llm_config_page'))
+        results_map = {} # To store results keyed by index
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            future_to_index = {}
+            futures = []
+            for index, row in df.iterrows():
+                abstract = row.get('abstract')
+                future = executor.submit(
+                     _perform_screening_on_abstract,
+                     abstract, criteria_prompt_text,
+                     provider_name, model_id, api_key, base_url
+                 )
+                futures.append(future)
+                future_to_index[future] = index # Map future back to original index
 
+            # Process as completed to handle errors gracefully
+            for future in as_completed(futures):
+                index = future_to_index[future]
+                try:
+                    screening_result = future.result()
+                    if screening_result['decision'] == "CONFIG_ERROR":
+                         flash(f"Config error for item at index {index}: {screening_result['reasoning']}", "error")
+                         if session_id in test_sessions: del test_sessions[session_id]
+                         return redirect(url_for('llm_config_page'))
+                    results_map[index] = screening_result # Store result associated with its original index
+                except Exception as exc:
+                     print(f"Error processing item (index {index}) in sync route: {exc}")
+                     traceback.print_exc()
+                     results_map[index] = {'decision': 'WORKER_ERROR', 'reasoning': str(exc)} # Store an error result
+
+        # Reconstruct results_list in original order
         for index, row in df.iterrows():
-            abstract = row.get('abstract')
-            title = row.get('title', "N/A")
-            authors_list = row.get('authors', [])
-            authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
-            
-            # MODIFIED: Pass config to helper function
-            screening_result = _perform_screening_on_abstract(
-                abstract, criteria_prompt_text, 
-                provider_name, model_id, api_key, base_url # Pass fetched config
-            )
-            
-            if screening_result['decision'] == "CONFIG_ERROR":
-                # This implies the api_key became invalid mid-way, or another config issue
-                flash(screening_result['reasoning'], "error")
-                # Don't delete session here, user might want to fix config and retry?
-                return redirect(url_for('llm_config_page')) 
-            
-            results_list.append({
-                'index': row.name + 1, 'title': title, 'authors': authors_str,
-                'decision': screening_result['decision'], 'reasoning': screening_result['reasoning']
-            })
-        
-        # Clean up test session data after successful full run initiated from it
-        if session_id in test_sessions: del test_sessions[session_id] 
-        return render_template('results.html', results=results_list, filename=filename)
-    
+             result_data = results_map.get(index)
+             if result_data:
+                  results_list.append({
+                      'index': index + 1,
+                      'title': row.get('title', "N/A"),
+                      'authors': ", ".join(row.get('authors', [])) if row.get('authors') else "Authors Not Found",
+                      'decision': result_data['decision'],
+                      'reasoning': result_data['reasoning']
+                  })
+
+        if session_id in test_sessions: del test_sessions[session_id]
+        current_year = datetime.datetime.now().year
+        return render_template('results.html', results=results_list, filename=filename, current_year=current_year)
+
     except Exception as e:
         traceback.print_exc()
         flash(f"Error during full screening: {e}.", 'error')
-        # Clean up session if error occurs during processing
-        if session_id in test_sessions: del test_sessions[session_id]
+        if session_id in test_sessions:
+            del test_sessions[session_id]
         return redirect(url_for('screening_actions_page'))
 
 
@@ -515,80 +539,91 @@ def stream_screen_file():
 
         criteria_prompt_text = get_screening_criteria()
         total_entries = len(df)
-
-        # --- Get LLM Config BEFORE generator starts --- 
         current_llm_config_data = get_current_llm_config(session)
         provider_name = current_llm_config_data['provider_name']
         model_id = current_llm_config_data['model_id']
-        api_key = get_api_key_for_provider(provider_name, session)
         base_url = get_base_url_for_provider(provider_name)
-        # --- End LLM Config Fetch --- 
-
+        provider_info = get_llm_providers_info().get(provider_name, {})
+        session_key_name = provider_info.get("api_key_session_key")
+        api_key = session.get(session_key_name) if session_key_name else None
         if not api_key:
-            error_message = f"API Key for {provider_name} not set. Please configure it."
+            error_message = f"API Key for {provider_name} must be provided via the configuration form for this session."
             return Response(f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\n\n", mimetype='text/event-stream')
 
-        # Generate a unique ID for this screening task
         screening_id = str(uuid.uuid4())
-        original_filename = file.filename # Store filename before starting generator
+        original_filename = file.filename
 
-        def screening_item_processor_sse(): # Now uses config variables from outer scope
-            temp_results = []
-            processed_count = 0 
-            try:
+        # --- Refactored generator for Full Screening SSE --- 
+        def generate_full_screening_progress():
+            processed_count = 0
+            yield f"data: {json.dumps({'type': 'start', 'total': total_entries})}\n\n"
+            temp_results_list = []
+            futures_map = {}
+
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                # Submit all tasks
                 for index, row in df.iterrows():
                     abstract = row.get('abstract')
+                    future = executor.submit(
+                        _perform_screening_on_abstract,
+                        abstract, criteria_prompt_text,
+                        provider_name, model_id, api_key, base_url
+                    )
+                    futures_map[future] = {'index': index, 'row': row}
+
+                # Process futures as they complete
+                for future in as_completed(futures_map):
+                    original_data = futures_map[future]
+                    index = original_data['index']
+                    row = original_data['row']
                     title = row.get('title', "N/A")
                     authors_list = row.get('authors', [])
                     authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
-                    screening_result = _perform_screening_on_abstract(
-                        abstract, criteria_prompt_text, 
-                        provider_name, model_id, api_key, base_url
-                    )
-                    if screening_result['decision'] == "CONFIG_ERROR":
-                        raise Exception(f"CONFIG_ERROR: {screening_result['reasoning']}")
-                    
-                    processed_count += 1
-                    progress_percentage = int((processed_count / total_entries) * 100)
-                    output_data = {
-                        'index': index + 1, 'title': title, 'authors': authors_str,
-                        'decision': screening_result['decision'], 'reasoning': screening_result['reasoning']
-                    }
-                    temp_results.append(output_data)
-                    progress_event = {
-                         'type': 'progress', 'count': processed_count, 'total': total_entries,
-                         'percentage': progress_percentage, 'current_item_title': title,
-                         'decision': screening_result['decision']
-                     }
-                    yield f"data: {json.dumps(progress_event)}\n\n"
-                    time.sleep(0.02)
 
-                # Store final results in the global dict, not session
-                full_screening_sessions[screening_id] = {
-                    'filename': original_filename, 
-                    'results': temp_results
-                }
-                
-                # Send completion event with the screening_id
-                yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id})}\n\n"
+                    try:
+                        screening_result = future.result()
+                        if screening_result['decision'] == "CONFIG_ERROR":
+                            raise Exception(f"CONFIG_ERROR from worker: {screening_result['reasoning']}")
 
-            except Exception as e:
-                 error_type = 'error'
-                 error_message = f"Error during full screening: {str(e)}"
-                 needs_config = "CONFIG_ERROR" in str(e)
-                 if needs_config:
-                     reason = str(e).split("CONFIG_ERROR: ")[-1] if "CONFIG_ERROR: " in str(e) else "Unknown config issue"
-                     error_message = reason + " Please check LLM Configuration."
-                 yield f"data: {json.dumps({'type': error_type, 'message': error_message, 'needs_config': needs_config})}\n\n"
-                 traceback.print_exc()
-                 # Remove potential entry from global dict on error
-                 full_screening_sessions.pop(screening_id, None)
-        
-        def combined_stream():
-             yield f"data: {json.dumps({'type': 'start', 'total': total_entries})}\n\n"
-             yield from screening_item_processor_sse()
-        
-        return Response(combined_stream(), mimetype='text/event-stream')
+                        processed_count += 1
+                        progress_percentage = int((processed_count / total_entries) * 100)
+                        output_data = {
+                            'index': index + 1, 'title': title, 'authors': authors_str,
+                            'decision': screening_result['decision'], 'reasoning': screening_result['reasoning']
+                        }
+                        temp_results_list.append(output_data)
+                        progress_event = {
+                            'type': 'progress', 'count': processed_count, 'total': total_entries,
+                            'percentage': progress_percentage, 'current_item_title': title,
+                            'decision': screening_result['decision']
+                        }
+                        yield f"data: {json.dumps(progress_event)}\n\n"
+
+                    except Exception as e:
+                        processed_count += 1
+                        progress_percentage = int((processed_count / total_entries) * 100)
+                        error_message = f"Error processing item '{title[:30]}...': {e}"
+                        print(f"Error processing item (index {index}): {e}")
+                        traceback.print_exc()
+                        progress_event = {
+                            'type': 'progress', 'count': processed_count, 'total': total_entries,
+                            'percentage': progress_percentage, 'current_item_title': title,
+                            'decision': 'THREAD_ERROR'
+                        }
+                        yield f"data: {json.dumps(progress_event)}\n\n"
+
+            # After loop, store results in global dict
+            temp_results_list.sort(key=lambda x: x.get('index', float('inf'))) # Sort by index (row.name + 1)
+            full_screening_sessions[screening_id] = {
+                'filename': original_filename, 
+                'results': temp_results_list
+            }
+            
+            # Send completion event
+            yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id})}\n\n"
+
+        # Return the Response using the new generator    
+        return Response(generate_full_screening_progress(), mimetype='text/event-stream')
     
     except Exception as e:
         traceback.print_exc()
@@ -635,45 +670,59 @@ def screen_file():
             else: df['authors'] = df['authors'].apply(lambda x: x if isinstance(x, list) else [])
             
             criteria_prompt_text = get_screening_criteria()
-            
-            # --- Get LLM Config BEFORE loop --- 
             current_llm_config_data = get_current_llm_config(session)
             provider_name = current_llm_config_data['provider_name']
             model_id = current_llm_config_data['model_id']
-            api_key = get_api_key_for_provider(provider_name, session)
             base_url = get_base_url_for_provider(provider_name)
-            # --- End LLM Config Fetch --- 
-            
-            if not api_key:
-                flash(f"API Key for {provider_name} not set.", "error")
-                return redirect(url_for('llm_config_page'))
+            provider_info = get_llm_providers_info().get(provider_name, {})
+            session_key_name = provider_info.get("api_key_session_key")
+            api_key = session.get(session_key_name) if session_key_name else None
+            if not api_key: flash(f"API Key for {provider_name} must be provided via the configuration form for this session.", "error"); return redirect(url_for('llm_config_page'))
 
+            results_map = {}
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                future_to_index = {}
+                futures = []
+                for index, row in df.iterrows():
+                    abstract = row.get('abstract')
+                    future = executor.submit(
+                         _perform_screening_on_abstract,
+                         abstract, criteria_prompt_text,
+                         provider_name, model_id, api_key, base_url
+                     )
+                    futures.append(future)
+                    future_to_index[future] = index
+
+                for future in as_completed(futures):
+                    index = future_to_index[future]
+                    try:
+                        screening_result = future.result()
+                        if screening_result['decision'] == "CONFIG_ERROR":
+                             flash(f"Config error for item at index {index}: {screening_result['reasoning']}", "error")
+                             return redirect(url_for('llm_config_page'))
+                        results_map[index] = screening_result
+                    except Exception as exc:
+                         print(f"Error processing item (index {index}) in sync route: {exc}")
+                         traceback.print_exc()
+                         results_map[index] = {'decision': 'WORKER_ERROR', 'reasoning': str(exc)}
+
+            # Reconstruct results_list in original order
             for index, row in df.iterrows():
-                abstract = row.get('abstract')
-                title = row.get('title', "N/A")
-                authors_list = row.get('authors', [])
-                authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
+                result_data = results_map.get(index)
+                if result_data:
+                     results_list.append({
+                         'index': index + 1,
+                         'title': row.get('title', "N/A"),
+                         'authors': ", ".join(row.get('authors', [])) if row.get('authors') else "Authors Not Found",
+                         'decision': result_data['decision'],
+                         'reasoning': result_data['reasoning']
+                     })
 
-                # MODIFIED: Pass config to helper function
-                screening_result = _perform_screening_on_abstract(
-                    abstract, criteria_prompt_text, 
-                    provider_name, model_id, api_key, base_url # Pass fetched config
-                )
-                
-                if screening_result['decision'] == "CONFIG_ERROR":
-                    flash(screening_result['reasoning'], "error");
-                    return redirect(url_for('llm_config_page'))
+            current_year = datetime.datetime.now().year
+            return render_template('results.html', results=results_list, filename=file.filename, current_year=current_year)
 
-                results_list.append({
-                    'index': index + 1, 'title': title, 'authors': authors_str,
-                    'decision': screening_result['decision'], 'reasoning': screening_result['reasoning']
-                })
-                
-            return render_template('results.html', results=results_list, filename=file.filename)
-            
         except Exception as e:
-            traceback.print_exc()
-            flash(f"Error during direct screening: {e}", 'error')
+            traceback.print_exc(); flash(f"Error during direct screening: {e}", 'error')
             return redirect(url_for('screening_actions_page'))
     else:
         flash('Invalid file type.', 'error');
@@ -711,17 +760,20 @@ def stream_test_screen_file():
 
         criteria_prompt_text = get_screening_criteria()
         
-        # --- Get LLM Config BEFORE generator starts --- 
         current_llm_config_data = get_current_llm_config(session)
         provider_name = current_llm_config_data['provider_name']
         model_id = current_llm_config_data['model_id']
-        api_key = get_api_key_for_provider(provider_name, session)
         base_url = get_base_url_for_provider(provider_name)
-        # --- End LLM Config Fetch --- 
+        
+        # --- ADDED: Explicit check for API Key in session --- 
+        provider_info = get_llm_providers_info().get(provider_name, {})
+        session_key_name = provider_info.get("api_key_session_key")
+        api_key = session.get(session_key_name) if session_key_name else None
 
-        if not api_key:
-            error_message = f"API Key for {provider_name} not set. Please configure it."
+        if not api_key: # Checks if key is None or empty string
+            error_message = f"API Key for {provider_name} must be provided via the configuration form for this session."
             return Response(f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\n\n", mimetype='text/event-stream')
+        # --- End Session Key Check ---
 
         session_id = str(uuid.uuid4())
         test_sessions[session_id] = {
@@ -730,60 +782,69 @@ def stream_test_screen_file():
              'test_items_data': []
          }
 
-        def generate_test_progress():
+        def generate_test_progress(): # Refactored with ThreadPoolExecutor
             processed_count = 0
             yield f"data: {json.dumps({'type': 'start', 'total': actual_sample_size})}\n\n"
             temp_results_list = []
-            try:
+            futures_map = {}
+            
+            with ThreadPoolExecutor(max_workers=8) as executor:
                 for index, row in sample_df.iterrows():
                     abstract = row.get('abstract')
+                    future = executor.submit(
+                        _perform_screening_on_abstract,
+                        abstract, criteria_prompt_text,
+                        provider_name, model_id, api_key, base_url
+                    )
+                    futures_map[future] = {'index': index, 'row': row}
+
+                for future in as_completed(futures_map):
+                    original_data = futures_map[future]
+                    index = original_data['index']
+                    row = original_data['row']
                     title = row.get('title', "N/A")
+                    abstract_text = row.get('abstract') # Needed for storing result
                     authors_list = row.get('authors', [])
                     authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
 
-                    screening_result = _perform_screening_on_abstract(
-                        abstract, criteria_prompt_text, 
-                        provider_name, model_id, api_key, base_url
-                    )
+                    try:
+                        screening_result = future.result()
+                        if screening_result['decision'] == "CONFIG_ERROR":
+                            raise Exception(f"CONFIG_ERROR from worker: {screening_result['reasoning']}")
 
-                    if screening_result['decision'] == "CONFIG_ERROR":
-                        raise Exception(f"CONFIG_ERROR: {screening_result['reasoning']}")
+                        processed_count += 1
+                        progress_percentage = int((processed_count / actual_sample_size) * 100)
+                        item_id = str(uuid.uuid4())
+                        test_item_template_data = {
+                            'id': item_id, 'original_index': index, 'title': title,
+                            'authors': authors_str, 'abstract': abstract_text,
+                            'ai_decision': screening_result['decision'], 'ai_reasoning': screening_result['reasoning']
+                        }
+                        temp_results_list.append(test_item_template_data)
+                        progress_data = {
+                            'type': 'progress', 'count': processed_count, 'total': actual_sample_size,
+                            'percentage': progress_percentage, 'current_item_title': title,
+                            'decision': screening_result['decision']
+                        }
+                        yield f"data: {json.dumps(progress_data)}\n\n"
 
-                    processed_count += 1
-                    progress_percentage = int((processed_count / actual_sample_size) * 100)
-                    item_id = str(uuid.uuid4())
-                    test_item_template_data = {
-                        'id': item_id, 'original_index': index, 'title': title,
-                        'authors': authors_str, 'abstract': abstract,
-                        'ai_decision': screening_result['decision'], 'ai_reasoning': screening_result['reasoning']
-                    }
-                    temp_results_list.append(test_item_template_data)
-                    progress_data = {
-                        'type': 'progress', 'count': processed_count, 'total': actual_sample_size,
-                        'percentage': progress_percentage, 'current_item_title': title,
-                        'decision': screening_result['decision']
-                    }
-                    yield f"data: {json.dumps(progress_data)}\n\n"
-                    time.sleep(0.05)
-
-                if session_id in test_sessions:
-                     test_sessions[session_id]['test_items_data'] = temp_results_list
-                     # REMOVED: session.modified = True # This caused context error
-                     # session.modified = True 
-
-                # Yield completion message including session_id for the results link
-                yield f"data: {json.dumps({'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id})}\n\n"
-
-            except Exception as e:
-                 error_type = 'error'
-                 error_message = f"Error during test screening: {str(e)}"
-                 needs_config = "CONFIG_ERROR" in str(e)
-                 if needs_config:
-                     reason = str(e).split("CONFIG_ERROR: ")[-1] if "CONFIG_ERROR: " in str(e) else screening_result.get('reasoning', 'Unknown config issue')
-                     error_message = reason + " Please check LLM Configuration."
-                 yield f"data: {json.dumps({'type': error_type, 'message': error_message, 'needs_config': needs_config})}\n\n"
-                 traceback.print_exc()
-                 if session_id in test_sessions: del test_sessions[session_id]
+                    except Exception as e:
+                        processed_count += 1
+                        progress_percentage = int((processed_count / actual_sample_size) * 100)
+                        error_message = f"Error processing item '{title[:30]}...': {e}"
+                        print(f"Error processing item (index {index}): {e}")
+                        traceback.print_exc()
+                        progress_data = {
+                             'type': 'progress', 'count': processed_count, 'total': actual_sample_size,
+                             'percentage': progress_percentage, 'current_item_title': title,
+                             'decision': 'THREAD_ERROR' 
+                         }
+                        yield f"data: {json.dumps(progress_data)}\n\n"
+            
+            temp_results_list.sort(key=lambda x: x.get('original_index', float('inf')))
+            if session_id in test_sessions:
+                 test_sessions[session_id]['test_items_data'] = temp_results_list
+            yield f"data: {json.dumps({'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id})}\n\n"
 
         return Response(generate_test_progress(), mimetype='text/event-stream')
 
