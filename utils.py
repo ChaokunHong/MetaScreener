@@ -73,7 +73,7 @@ def load_literature_ris(filepath_or_stream: Union[str, IO[bytes]]) -> Optional[p
         return None
 
 
-# --- PDF Text Extraction (MODIFIED) --- 
+# --- PDF Text Extraction (Re-applying fix) --- 
 def extract_text_from_pdf(file_stream: IO[bytes]) -> Optional[str]:
     """Extracts text content from a PDF file stream."""
     text = None
@@ -88,9 +88,8 @@ def extract_text_from_pdf(file_stream: IO[bytes]) -> Optional[str]:
         print(f"   - Read {len(pdf_data)} bytes. Opening with PyMuPDF...")
         
         # Open the PDF from the bytes data
-        with fitz.open(stream=pdf_data, filetype="pdf") as doc: # Use bytes data
+        with fitz.open(stream=pdf_data, filetype="pdf") as doc: # Pass BYTES here
             all_text = []
-            # Check if document is actually openable / has pages
             if doc.page_count == 0:
                 print("   - Error: PDF has 0 pages or could not be parsed correctly.")
                 return None
@@ -98,20 +97,19 @@ def extract_text_from_pdf(file_stream: IO[bytes]) -> Optional[str]:
             for page_num, page in enumerate(doc):
                 page_text = page.get_text("text")
                 all_text.append(page_text)
-                # Optional: Log progress for large PDFs
-                # if (page_num + 1) % 10 == 0: print(f"     - Extracted page {page_num + 1}...")
             text = "\n".join(all_text) 
         print(f"   - Successfully extracted approx {len(text)} characters from PDF.")
     except Exception as e:
         print(f"Error extracting text from PDF: {e}")
         if pdf_data is not None:
-             print(f"   - Attempted to open data of type: {type(pdf_data)}")
-        # More specific error check for PyMuPDF common issues
+             print(f"   - Attempted to open data of type: {type(pdf_data)}") # Should be <class 'bytes'>
         if "cannot open broken document" in str(e) or "syntax error" in str(e).lower():
              print("   - Hint: The PDF file might be corrupted or not a standard PDF.")
         elif "permission error" in str(e).lower():
              print("   - Hint: The PDF file might be password protected or have extraction restrictions.")
-             
+        elif isinstance(e, TypeError) and "bad stream" in str(e):
+             # Log the type we actually tried to pass if it was a stream error
+             print(f"   - Type passed to fitz.open(stream=...) was: {type(pdf_data)}") 
         traceback.print_exc()
         text = None 
     return text
