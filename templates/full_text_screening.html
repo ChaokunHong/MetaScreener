@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Full-Text Screening - AI Literature Screening Assistant{% endblock %}
+
+{% block content %}
+{# --- Full-Text Screening Section --- #}
+<div class="section-card">
+    <h2>Screen Full Text (Single PDF)</h2>
+    <p>Upload a single PDF document to screen its full text against the current criteria.</p>
+    <div class="alert alert-warning small">
+        <strong>Warning:</strong> Screening full text can be slow, costly (uses many API tokens), and may exceed LLM context limits, potentially leading to errors or incomplete analysis. Use judiciously.
+    </div>
+    <form method="POST" action="{{ url_for('screen_full_text_pdf') }}" enctype="multipart/form-data" id="pdf_screen_form">
+        <div class="form-group">
+            <label for="pdf_file">Upload PDF File:</label>
+            <input type="file" name="pdf_file" id="pdf_file" class="form-control-file form-control-sm" required accept=".pdf">
+        </div>
+         <button id="start_pdf_screen_button" type="submit" class="btn btn-warning btn-sm">
+            <span id="pdf_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+            Screen PDF Full Text
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- PDF Screening Spinner Logic --- 
+    const pdfScreenForm = document.getElementById('pdf_screen_form');
+    const pdfScreenButton = document.getElementById('start_pdf_screen_button');
+    const pdfSpinner = document.getElementById('pdf_spinner');
+    if (pdfScreenForm && pdfScreenButton && pdfSpinner) {
+        pdfScreenForm.addEventListener('submit', function() {
+            const pdfFileInput = document.getElementById('pdf_file');
+            if (pdfFileInput && pdfFileInput.files.length > 0) {
+                pdfSpinner.style.display = 'inline-block';
+                pdfScreenButton.disabled = true;
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 

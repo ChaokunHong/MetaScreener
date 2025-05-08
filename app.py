@@ -15,7 +15,7 @@ import sys # For printing to stderr
 import io # For creating in-memory files
 
 # Import functions from our utils and config
-from utils import load_literature_ris, construct_llm_prompt, call_llm_api
+from utils import load_literature_ris, extract_text_from_pdf, construct_llm_prompt, call_llm_api
 from config import (
     get_screening_criteria, set_user_criteria, reset_to_default_criteria,
     DEFAULT_EXAMPLE_CRITERIA, USER_CRITERIA,
@@ -32,6 +32,7 @@ ALLOWED_EXTENSIONS = {'ris'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 test_sessions = {} # For holding test screening data + results before metrics
 full_screening_sessions = {} # ADDED: For holding full screening results temporarily
+pdf_screening_results = {} # ADDED: Global dict for PDF results
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
@@ -147,6 +148,17 @@ def screening_criteria_page():
                            current_year=current_year,
                            config_defaults=config_defaults) # Pass defaults to template
 
+@app.route('/abstract_screening', methods=['GET'], endpoint='abstract_screening_page')
+def abstract_screening_page():
+    current_year = datetime.datetime.now().year
+    return render_template('abstract_screening.html', current_year=current_year)
+
+@app.route('/full_text_screening', methods=['GET'], endpoint='full_text_screening_page')
+def full_text_screening_page():
+    current_year = datetime.datetime.now().year
+    # Pass any needed config? Maybe not for initial view.
+    return render_template('full_text_screening.html', current_year=current_year)
+
 @app.route('/screening_actions', methods=['GET'], endpoint='screening_actions_page') # Corrected route name for consistency
 def screening_actions_page():
     # This page will need current_year and potentially LLM info if displayed directly
@@ -244,16 +256,16 @@ def _perform_screening_on_abstract(abstract_text, criteria_prompt_text, provider
 def test_screening():
     # Option 1: Disable this route completely
     flash("Test screening is now handled via the progress button.", "info")
-    return redirect(url_for('screening_actions_page'))
+    return redirect(url_for('abstract_screening_page'))
     # Option 2: Keep it as a non-SSE fallback (less ideal now)
     # Option 3: Remove it entirely if the button is gone / SSE is stable
 
 
 @app.route('/screen_full_dataset/<session_id>')
 def screen_full_dataset(session_id):
-    if not session_id or session_id not in test_sessions: flash('Test session not found or expired.', 'error'); return redirect(url_for('screening_actions_page'))
+    if not session_id or session_id not in test_sessions: flash('Test session not found or expired.', 'error'); return redirect(url_for('abstract_screening_page'))
     session_data = test_sessions.get(session_id)
-    if not session_data: flash('Test session data missing.', 'error'); return redirect(url_for('screening_actions_page'))
+    if not session_data: flash('Test session data missing.', 'error'); return redirect(url_for('abstract_screening_page'))
     df = session_data['df']; filename = session_data['file_name']
     results_list = []
     try:
@@ -317,7 +329,7 @@ def screen_full_dataset(session_id):
         flash(f"Error during full screening: {e}.", 'error')
         if session_id in test_sessions:
             del test_sessions[session_id]
-        return redirect(url_for('screening_actions_page'))
+        return redirect(url_for('abstract_screening_page'))
 
 
 # --- Metrics Calculation (Updated) ---
@@ -442,11 +454,11 @@ def calculate_metrics_route():
     session_id = request.form.get('test_session_id')
     if not session_id or session_id not in test_sessions:
         flash('Test session not found.', 'error');
-        return redirect(url_for('screening_actions_page')) # MODIFIED REDIRECT (or a specific results page if one exists beyond test_results)
+        return redirect(url_for('abstract_screening_page')) # CORRECTED
     session_data = test_sessions.get(session_id)
     if not session_data:
         flash('Test session data missing.', 'error');
-        return redirect(url_for('screening_actions_page')) # MODIFIED REDIRECT
+        return redirect(url_for('abstract_screening_page')) # CORRECTED
 
     stored_test_items = session_data.get('test_items_data', [])
     ai_decisions_all, human_decisions_all, comparison_display_list = [], [], []
@@ -661,7 +673,7 @@ def show_screening_results(screening_id):
     
     if not session_data:
         flash("Screening results not found or may have expired.", "warning")
-        return redirect(url_for('screening_actions_page')) 
+        return redirect(url_for('abstract_screening_page')) 
         
     results = session_data.get('results', [])
     filename = session_data.get('filename', 'Screened File')
@@ -805,7 +817,7 @@ def stream_test_screen_file():
 def show_test_results(session_id):
     if not session_id or session_id not in test_sessions:
         flash('Test session not found or expired. Please start a new test.', 'error')
-        return redirect(url_for('screening_actions_page'))
+        return redirect(url_for('abstract_screening_page'))
 
     session_data = test_sessions.get(session_id)
     test_items = session_data.get('test_items_data')
@@ -813,7 +825,7 @@ def show_test_results(session_id):
     if not test_items: # If empty list or key missing
          flash('No test items found in session for display.', 'warning')
          # Maybe don't delete session here, let user try again?
-         return redirect(url_for('screening_actions_page'))
+         return redirect(url_for('abstract_screening_page'))
 
     # We don't delete the session data here, because the user needs it
     # again potentially if they submit for metric calculation from test_results.html
@@ -833,7 +845,7 @@ def download_results(screening_id, format):
     
     if not session_data:
         flash("Could not find screening results data to download (it might have expired or been viewed already without download).", "error")
-        return redirect(request.referrer or url_for('screening_actions_page')) 
+        return redirect(request.referrer or url_for('abstract_screening_page')) 
         
     results_list = session_data.get('results', [])
     filename_base = session_data.get('filename', 'screening_results')
@@ -842,7 +854,7 @@ def download_results(screening_id, format):
     
     if not results_list:
          flash("No results found within the screening data to download.", "warning")
-         return redirect(request.referrer or url_for('screening_actions_page'))
+         return redirect(request.referrer or url_for('abstract_screening_page'))
          
     # Convert list of dicts to DataFrame for easier export
     try:
@@ -851,7 +863,7 @@ def download_results(screening_id, format):
         # df_export = df[['index', 'title', 'authors', 'decision', 'reasoning']] 
     except Exception as e:
          flash(f"Error converting results to DataFrame: {e}", "error")
-         return redirect(request.referrer or url_for('screening_actions_page'))
+         return redirect(request.referrer or url_for('abstract_screening_page'))
 
     # Prepare file in memory
     output_buffer = None
@@ -890,7 +902,7 @@ def download_results(screening_id, format):
             output_buffer = bytes_buffer # Use the BytesIO buffer
         else:
             flash(f"Unsupported download format: {format}", "error")
-            return redirect(request.referrer or url_for('screening_actions_page'))
+            return redirect(request.referrer or url_for('abstract_screening_page'))
 
         # Clean up the data from the global dictionary after preparing download
         # We poped it in show_screening_results, so it should be gone here anyway
@@ -906,7 +918,83 @@ def download_results(screening_id, format):
     except Exception as e:
         flash(f"Error generating download file ({format}): {e}", "error")
         traceback.print_exc()
-        return redirect(request.referrer or url_for('screening_actions_page'))
+        return redirect(request.referrer or url_for('abstract_screening_page'))
+
+
+# --- Full-Text PDF Screening Routes --- 
+
+@app.route('/screen_full_text_pdf', methods=['POST'], endpoint='screen_full_text_pdf')
+def screen_full_text_pdf():
+    if 'pdf_file' not in request.files: flash('No PDF file part...', 'error'); return redirect(url_for('full_text_screening_page'))
+    file = request.files['pdf_file']
+    if file.filename == '': flash('No PDF file selected.', 'error'); return redirect(url_for('full_text_screening_page'))
+
+    if file and file.filename.lower().endswith('.pdf'):
+        filename = secure_filename(file.filename)
+        try:
+            full_text = extract_text_from_pdf(file.stream)
+            if full_text is None: flash(f"Could not extract text from PDF: {filename}.", "error"); return redirect(url_for('full_text_screening_page'))
+            
+            # Get criteria and LLM config
+            criteria_full_text = get_screening_criteria()
+            current_llm_config_data = get_current_llm_config(session)
+            provider_name = current_llm_config_data['provider_name']
+            model_id = current_llm_config_data['model_id']
+            base_url = get_base_url_for_provider(provider_name)
+            provider_info = get_llm_providers_info().get(provider_name, {})
+            session_key_name = provider_info.get("api_key_session_key")
+            api_key = session.get(session_key_name) if session_key_name else None
+
+            if not api_key:
+                flash(f"API Key for {provider_name} must be provided via the configuration form for this session.", "error")
+                return redirect(url_for('llm_config_page'))
+            
+            # Construct prompt (using existing logic, but might need adjustment for "full text")
+            # Maybe add a prefix to criteria or modify output instructions slightly? 
+            # For now, use existing prompt structure but pass full_text as if it were abstract.
+            # We might need a construct_fulltext_prompt later.
+            prompt_data = construct_llm_prompt(full_text, criteria_full_text)
+            if not prompt_data:
+                flash("Failed to construct prompt...", "error")
+                return redirect(url_for('full_text_screening_page'))
+
+            # Call LLM (Synchronous)
+            screening_result = call_llm_api(prompt_data, provider_name, model_id, api_key, base_url)
+            
+            # Generate ID and store result
+            pdf_screening_id = str(uuid.uuid4())
+            pdf_screening_results[pdf_screening_id] = {
+                'filename': filename,
+                'decision': screening_result.get('label', 'ERROR'),
+                'reasoning': screening_result.get('justification', '-'),
+                'extracted_text_preview': full_text[:2000] + ("... (truncated)" if len(full_text) > 2000 else "")
+            }
+
+            # Redirect to the results display route
+            return redirect(url_for('show_pdf_result', pdf_screening_id=pdf_screening_id))
+
+        except Exception as e:
+            flash(f"An error occurred processing PDF {filename}: {e}", "error")
+            traceback.print_exc()
+            return redirect(url_for('full_text_screening_page'))
+    else:
+        flash('Invalid file type. Please upload a PDF file.', 'error')
+        return redirect(url_for('full_text_screening_page'))
+
+@app.route('/show_pdf_result/<pdf_screening_id>', endpoint='show_pdf_result')
+def show_pdf_result(pdf_screening_id):
+    result_data = pdf_screening_results.pop(pdf_screening_id, None) # Pop to clean up
+    if not result_data:
+        flash("PDF screening result not found or already viewed.", "warning")
+        return redirect(url_for('full_text_screening_page'))
+        
+    current_year = datetime.datetime.now().year
+    return render_template('pdf_result.html',
+                           filename=result_data.get('filename'),
+                           decision=result_data.get('decision'),
+                           reasoning=result_data.get('reasoning'),
+                           extracted_text_preview=result_data.get('extracted_text_preview'),
+                           current_year=current_year)
 
 
 # --- Run App ---
