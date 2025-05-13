@@ -1413,7 +1413,7 @@ def batch_screen_pdfs_stream():
                 'file_storage': file_storage_object, 
                 'saved_path': None 
             })
-    
+            
     if not initial_manifest:
         app_logger.warning("Batch PDF Stream: No valid files found in upload.")
         error_message_text = 'No valid PDF files found in upload.'
@@ -1435,7 +1435,8 @@ def batch_screen_pdfs_stream():
         applied_title_filter = True
         if not files_to_process_manifest:
             app_logger.info(f"Batch PDF Stream: No files matched title filter '{title_filter_input}'.")
-            error_message_text = f'No PDF files found matching filename filter: "{title_filter_input}"'
+            # THIS IS THE LINE FROM THE LOG - ENSURING IT'S CORRECTED
+            error_message_text = f'No PDF files found matching filename filter: "{title_filter_input}"' 
             return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
             
     if not applied_title_filter and order_filter_input: 
@@ -1471,14 +1472,12 @@ def batch_screen_pdfs_stream():
     selected_filenames_log = [item['original_filename'] for item in files_to_process_manifest]
     app_logger.info(f"Batch PDF Stream: Selected files for processing: {selected_filenames_log}")
 
-    # --- Get LLM and Criteria Config ONCE before starting threads ---
     try:
         criteria_prompt_text = get_screening_criteria()
         current_llm_config_data = get_current_llm_config(session)
         llm_provider_name = current_llm_config_data['provider_name']
         llm_model_id = current_llm_config_data['model_id']
         llm_base_url = get_base_url_for_provider(llm_provider_name)
-        
         provider_info = get_llm_providers_info().get(llm_provider_name, {})
         session_key_name = provider_info.get("api_key_session_key")
         llm_api_key = session.get(session_key_name) if session_key_name else None
@@ -1495,34 +1494,28 @@ def batch_screen_pdfs_stream():
             error_message_text = f'Error fetching LLM/Criteria configuration: {str(e_config)}'
             yield f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n"
         return Response(sse_config_error_gen(), mimetype='text/event-stream')
-    # --- END Config Fetch ---
-
+    
     upload_folder_path = app.config['UPLOAD_FOLDER']
-
-    # --- Pre-save files that need processing to unique temp paths ---
     files_ready_for_threads = []
+    # ... (pre-save files logic) ...
     for item_manifest in files_to_process_manifest:
         file_storage = item_manifest['file_storage']
         original_filename = item_manifest['original_filename']
         try:
-            file_storage.seek(0) # Reset stream before saving
+            file_storage.seek(0)
             temp_file_id = str(uuid.uuid4())
-            # Save with a name that indicates it's a temporary file for this batch operation
             processing_filename = f"batch_processing_{temp_file_id}_{original_filename}"
             processing_file_path = os.path.join(upload_folder_path, processing_filename)
             file_storage.save(processing_file_path)
             app_logger.info(f"Batch PDF: Pre-saved '{original_filename}' to '{processing_file_path}' for thread processing.")
             files_ready_for_threads.append({
                 'original_filename': original_filename,
-                'processing_file_path': processing_file_path # Pass the path to the thread
+                'processing_file_path': processing_file_path
             })
         except Exception as e_save:
             app_logger.error(f"Batch PDF: Failed to pre-save file '{original_filename}' for processing: {e_save}")
-            # Optionally, send an immediate SSE error for this file or collect errors
-            # For now, this file will be skipped by the threads if it's not in files_ready_for_threads
-            pass # Or append an error marker to files_ready_for_threads to report it
-    # --- End Pre-save ---
-
+            pass 
+            
     if not files_ready_for_threads:
         app_logger.warning("Batch PDF Stream: No files were successfully pre-saved for processing.")
         def sse_presave_error_gen():
@@ -1530,48 +1523,41 @@ def batch_screen_pdfs_stream():
             yield f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n"
         return Response(sse_presave_error_gen(), mimetype='text/event-stream')
 
-    # Update total_files_to_process to reflect only successfully pre-saved files
     total_files_to_process = len(files_ready_for_threads) 
-
+    # ... (generate_processing_progress function definition and its content remains the same) ...
     def generate_processing_progress():
         yield f"data: {json.dumps({'type': 'start', 'total_uploaded': len(initial_manifest), 'total_to_process': total_files_to_process, 'filter_info': filter_description})}\n\n"
-        
         processed_files_results = []
         futures_map = {}
-
         with ThreadPoolExecutor(max_workers=4) as executor:
-            for thread_item_manifest in files_ready_for_threads: # Iterate over pre-saved file manifests
+            for thread_item_manifest in files_ready_for_threads:
                 future = executor.submit(
                     _perform_batch_pdf_screening_for_file, 
-                    thread_item_manifest, # This now contains 'processing_file_path'
+                    thread_item_manifest, 
                     criteria_prompt_text, 
                     llm_provider_name, 
                     llm_model_id, 
                     llm_api_key, 
                     llm_base_url
-                    # upload_folder is no longer needed by the helper as it gets a full path
                 )
-                futures_map[future] = thread_item_manifest['original_filename'] # For logging upon completion/error
-
+                futures_map[future] = thread_item_manifest['original_filename']
             processed_count = 0
-            # ... (as_completed loop remains similar, but _perform_batch_pdf_screening_for_file now takes different manifest) ...
             for future in as_completed(futures_map):
                 original_filename_for_log = futures_map[future]
                 try:
-                    screening_result = future.result() # This is the dict returned by our helper
+                    screening_result = future.result()
                     processed_files_results.append(screening_result)
                     processed_count += 1
-                    yield f"data: {json.dumps({                        'type': 'progress',                         'count': processed_count,                         'total_to_process': total_files_to_process,                        'percentage': int((processed_count / total_files_to_process) * 100),                        'current_file_name': screening_result.get('filename', original_filename_for_log),                        'decision': screening_result.get('decision', 'ERROR')                     })}\n\n"
+                    yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total_to_process': total_files_to_process, 'percentage': int((processed_count / total_files_to_process) * 100), 'current_file_name': screening_result.get('filename', original_filename_for_log), 'decision': screening_result.get('decision', 'ERROR')})}\n\n"
                 except Exception as e_future:
-                    processed_count += 1 # Still count it as processed (with error)
+                    processed_count += 1 
                     app_logger.error(f"Batch PDF: Exception processing future for {original_filename_for_log}: {e_future}")
                     processed_files_results.append({
                         'filename': original_filename_for_log, 
-                        'decision': 'WORKER_ERROR', 
+                        'decision': 'WORKER_THREAD_ERROR',
                         'reasoning': str(e_future)
                     })
-                    yield f"data: {json.dumps({                        'type': 'progress',                         'count': processed_count,                        'total_to_process': total_files_to_process,                        'percentage': int((processed_count / total_files_to_process) * 100),                        'current_file_name': original_filename_for_log,                        'decision': 'WORKER_ERROR'                     })}\n\n"
-
+                    yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total_to_process': total_files_to_process, 'percentage': int((processed_count / total_files_to_process) * 100), 'current_file_name': original_filename_for_log, 'decision': 'WORKER_THREAD_ERROR'})}\n\n"
         batch_session_id = str(uuid.uuid4())
         if processed_files_results: 
             full_screening_sessions[batch_session_id] = { 
@@ -1583,11 +1569,11 @@ def batch_screen_pdfs_stream():
             app_logger.info(f"Batch PDF Stream: Stored {len(processed_files_results)} results under batch ID {batch_session_id}")
         else:
             app_logger.warning("Batch PDF Stream: No results were processed or collected.")
-
         yield f"data: {json.dumps({'type': 'complete', 'message': 'Batch PDF processing finished.', 'batch_session_id': batch_session_id if processed_files_results else None})}\n\n"
         app_logger.info(f"Batch PDF stream: Processing SSE finished. Batch ID: {batch_session_id if processed_files_results else 'N/A'}")
-
     return Response(generate_processing_progress(), mimetype='text/event-stream')
+
+# --- END NEW Batch PDF Results Route ---
 
 
 # --- NEW Helper for processing a single PDF in batch ---
