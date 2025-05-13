@@ -7,6 +7,8 @@ import re
 import traceback
 import io
 import fitz # PyMuPDF
+import pytesseract # <--- 新增导入
+from PIL import Image # <--- 新增导入
 
 # For Gemini
 import google.generativeai as genai
@@ -91,13 +93,16 @@ def load_literature_ris(filepath_or_stream: Union[str, IO[bytes]]) -> Optional[p
         return None
 
 
-# --- PDF Text Extraction (Re-applying fix) --- 
-def extract_text_from_pdf(file_stream: IO[bytes]) -> Optional[str]:
-    """Extracts text content from a PDF file stream."""
-    text = None
-    pdf_data = None # Variable to hold bytes
+# --- PDF Text Extraction (Enhanced with OCR Fallback) --- 
+def extract_text_from_pdf(file_stream: IO[bytes], ocr_language: str = 'eng') -> Optional[str]: # Added ocr_language
+    """Extracts text content from a PDF file stream.
+    Uses PyMuPDF for direct text extraction and falls back to Tesseract OCR for image-based pages.
+    """
+    text_parts = []
+    pdf_data = None
+    MIN_TEXT_LENGTH_PER_PAGE_TO_SKIP_OCR = 50 # Heuristic: if less than this, consider OCR
+
     try:
-        # Read the entire stream into bytes FIRST
         print("   - Reading PDF file stream into bytes...")
         pdf_data = file_stream.read()
         if not pdf_data:
@@ -105,32 +110,54 @@ def extract_text_from_pdf(file_stream: IO[bytes]) -> Optional[str]:
              return None
         print(f"   - Read {len(pdf_data)} bytes. Opening with PyMuPDF...")
         
-        # Open the PDF from the bytes data
-        with fitz.open(stream=pdf_data, filetype="pdf") as doc: # Pass BYTES here
-            all_text = []
+        with fitz.open(stream=pdf_data, filetype="pdf") as doc:
             if doc.page_count == 0:
                 print("   - Error: PDF has 0 pages or could not be parsed correctly.")
                 return None
-            print(f"   - PDF has {doc.page_count} pages. Extracting text...")
+            print(f"   - PDF has {doc.page_count} pages. Extracting text with OCR fallback...")
+
             for page_num, page in enumerate(doc):
-                page_text = page.get_text("text")
-                all_text.append(page_text)
-            text = "\n".join(all_text) 
-        print(f"   - Successfully extracted approx {len(text)} characters from PDF.")
+                page_text_direct = page.get_text("text", sort=True).strip() 
+                current_page_text = page_text_direct
+
+                if len(page_text_direct) < MIN_TEXT_LENGTH_PER_PAGE_TO_SKIP_OCR:
+                    print(f"   - Page {page_num + 1}: Direct text short ({len(page_text_direct)} chars). Attempting OCR.")
+                    try:
+                        pix = page.get_pixmap(dpi=300) 
+                        img_bytes = pix.tobytes("png")
+                        pil_image = Image.open(io.BytesIO(img_bytes))
+                        # Ensure tesseract_cmd is configured if necessary, e.g.:
+                        # pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract' 
+                        ocr_text = pytesseract.image_to_string(pil_image, lang=ocr_language).strip()
+                        
+                        if ocr_text:
+                            print(f"   - Page {page_num + 1}: OCR successful (extracted {len(ocr_text)} chars).")
+                            if len(ocr_text) > len(page_text_direct) + MIN_TEXT_LENGTH_PER_PAGE_TO_SKIP_OCR or (not page_text_direct and ocr_text):
+                                current_page_text = ocr_text
+                        else:
+                            print(f"   - Page {page_num + 1}: OCR did not yield text.")
+                    except Exception as e_ocr:
+                        print(f"   - Page {page_num + 1}: OCR attempt failed: {e_ocr}")
+                        # Fallback to direct text if OCR fails
+                
+                text_parts.append(current_page_text)
+            
+            final_text = "\n\n--- Page Break ---\n\n".join(text_parts) # Join pages with a clear separator
+        print(f"   - Successfully extracted approx {len(final_text)} characters from PDF (with OCR attempts).")
+        return final_text
+
     except Exception as e:
         print(f"Error extracting text from PDF: {e}")
         if pdf_data is not None:
-             print(f"   - Attempted to open data of type: {type(pdf_data)}") # Should be <class 'bytes'>
+             print(f"   - Attempted to open data of type: {type(pdf_data)}")
         if "cannot open broken document" in str(e) or "syntax error" in str(e).lower():
              print("   - Hint: The PDF file might be corrupted or not a standard PDF.")
         elif "permission error" in str(e).lower():
              print("   - Hint: The PDF file might be password protected or have extraction restrictions.")
         elif isinstance(e, TypeError) and "bad stream" in str(e):
-             # Log the type we actually tried to pass if it was a stream error
              print(f"   - Type passed to fitz.open(stream=...) was: {type(pdf_data)}") 
         traceback.print_exc()
-        text = None 
-    return text
+        return None
 
 
 # --- LLM Prompt Construction (Refactored) ---
