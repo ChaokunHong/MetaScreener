@@ -18,6 +18,8 @@ from typing import Dict, Optional # ADDED Import for type hints
 from cachetools import TTLCache # <-- Import TTLCache
 import logging # <-- Import logging
 import fitz # PyMuPDF - ADDED for metadata title extraction
+from apscheduler.schedulers.background import BackgroundScheduler # <-- Import APScheduler
+import atexit # <-- To shut down scheduler gracefully
 
 # --- Configure logging ---
 logging.basicConfig(
@@ -187,10 +189,11 @@ def get_models_for_provider_route(provider_name):
     return jsonify([])
 
 
-# --- Main Route ---
+# --- Main Route --- (This is typically where the index route is)
 @app.route('/')
 def index():
-    return redirect(url_for('llm_config_page'))
+    # return redirect(url_for('llm_config_page')) # Old: Redirect to LLM config
+    return render_template('index.html', current_year=datetime.datetime.now().year) # New: Render the new landing page
 
 
 # --- New Page Routes ---
@@ -1787,6 +1790,99 @@ def download_batch_pdf_results(batch_session_id, format):
         flash(f"Error generating download file ({format}): {e}", "error")
         return redirect(request.referrer or url_for('full_text_screening_page'))
 # --- END NEW Batch PDF Download Route ---
+
+# --- Scheduled Cleanup Task for Expired PDFs ---
+def cleanup_expired_pdf_files():
+    app_logger.info("Scheduler: Running cleanup job for single-preview PDF files...")
+    upload_dir = app.config.get('UPLOAD_FOLDER', 'uploads') # Get upload folder from app config
+    if not os.path.isdir(upload_dir):
+        app_logger.error(f"Scheduler: Upload directory '{upload_dir}' not found. Cleanup job aborted.")
+        return
+
+    count_deleted = 0
+    count_checked = 0
+    current_time = time.time()
+    # Define a grace period for files, e.g., older than cache TTL + some buffer, or a fixed duration like 7 days
+    # For TTLCache based on access, checking against the cache is more direct.
+    # Files are named <uuid>_<original_filename>.pdf
+
+    for filename in os.listdir(upload_dir):
+        # Identify files potentially saved by screen_pdf_decision (single PDF preview)
+        # These have a UUIDHoffentlich at the start of their name, then an underscore, then the original filename.
+        # Batch processing files are named `batch_processing_<uuid>_<original_filename>.pdf` and are cleaned by their threads.
+        if not filename.startswith("batch_processing_") and "_" in filename and filename.lower().endswith(".pdf"):
+            count_checked += 1
+            try:
+                # Extract the UUID part (pdf_screening_id) from the filename
+                # Example: a84dace3-4f7b-4ce2-8da2-571fbddce432_my_document.pdf
+                # We need to be careful if original_filename itself contains underscores.
+                # A safer way would be to ensure saved_pdf_filename in screen_pdf_decision strictly uses ONLY UUID + .pdf, 
+                # and original filename is only stored in metadata.
+                # For now, let's assume the first part before the first underscore after 36 chars (UUID length) is the ID.
+                # This is a bit fragile. A better naming convention would be <UUID>.pdf for these files.
+                
+                # Attempt to extract UUID: UUIDs are 36 characters long (32 hex + 4 hyphens)
+                potential_uuid = filename[:36]
+                is_valid_uuid = False
+                try:
+                    uuid.UUID(potential_uuid, version=4)
+                    is_valid_uuid = True
+                except ValueError:
+                    is_valid_uuid = False
+                
+                if is_valid_uuid and filename[36] == '_':
+                    pdf_id_from_filename = potential_uuid
+                    
+                    # Check if this ID is still in our TTLCache
+                    # The TTLCache automatically handles expiration.
+                    # If pdf_id_from_filename is NOT in pdf_screening_results, it means the entry has expired.
+                    if pdf_id_from_filename not in pdf_screening_results:
+                        file_path_to_delete = os.path.join(upload_dir, filename)
+                        try:
+                            os.remove(file_path_to_delete)
+                            count_deleted += 1
+                            app_logger.info(f"Scheduler: Deleted expired PDF: {file_path_to_delete} (ID: {pdf_id_from_filename} not in active cache)")
+                        except OSError as e_remove:
+                            app_logger.error(f"Scheduler: Error deleting file {file_path_to_delete}: {e_remove}")
+                    else:
+                        app_logger.debug(f"Scheduler: PDF {filename} (ID: {pdf_id_from_filename}) still active in cache, not deleting.")
+                else:
+                    app_logger.debug(f"Scheduler: Filename '{filename}' does not match expected single-preview PDF pattern for cleanup.")
+
+            except Exception as e_file_loop:
+                app_logger.error(f"Scheduler: Error processing file '{filename}' for cleanup: {e_file_loop}")
+    
+    app_logger.info(f"Scheduler: Cleanup job finished. Checked {count_checked} potential single-preview files, deleted {count_deleted} expired files.")
+
+# --- Initialize and start APScheduler ---
+# We only want the scheduler to run in the main Gunicorn process, not in reloader or multiple workers if not careful.
+# Gunicorn typically runs multiple worker processes. The scheduler should ideally run in only one process
+# or be managed by a central service if you have multiple app instances.
+# For a simple setup with Gunicorn, running it in the main process before workers are forked, or
+# ensuring only one worker runs it, can be tricky. A common approach for Gunicorn is to run the scheduler
+# in a separate process or use a Gunicorn-specific mechanism if available.
+
+# Simplest approach for now (might run per Gunicorn worker if not managed carefully, or use a lock file):
+# For Render.com or similar PaaS with single instance type, this might be okay.
+# If running multiple Gunicorn workers, this job will be scheduled by each worker independently.
+# This isn't ideal for a cleanup task that acts on a shared resource like the filesystem.
+# A better solution for multi-worker Gunicorn involves a lock or a dedicated scheduler process.
+
+# Let's assume for now a simpler scenario or that Gunicorn is run with 1 worker for this scheduler.
+if os.environ.get('WERKZEUG_RUN_MAIN') != 'true': # Avoid running in Flask reloader sub-process
+    scheduler = BackgroundScheduler(daemon=True)
+    # Run cleanup job daily at, for example, 2:30 AM server time
+    scheduler.add_job(cleanup_expired_pdf_files, 'cron', hour=2, minute=30)
+    try:
+        scheduler.start()
+        app_logger.info("APScheduler started for PDF cleanup.")
+        # Shut down the scheduler when exiting the app
+        atexit.register(lambda: scheduler.shutdown())
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown()
+        app_logger.info("APScheduler shutdown due to interrupt.")
+    except Exception as e_scheduler_start:
+        app_logger.error(f"Error starting APScheduler: {e_scheduler_start}")
 
 # --- Run App ---
 if __name__ == '__main__':
