@@ -26,6 +26,18 @@
     .clear-input-btn:hover {
         opacity: 1;
     }
+    #batch_selected_files_list .list-group-item .file-item-number {
+        min-width: 2.5em; /* Allocate space for up to 3-digit numbers comfortably */
+        text-align: right;
+        margin-right: 0.75em;
+        color: #6c757d; /* Muted color for number */
+    }
+    #batch_selected_files_list .list-group-item .file-item-name {
+        overflow: hidden; /* For long filenames if we want to truncate with ellipsis */
+        text-overflow: ellipsis;
+        white-space: nowrap; /* Prevent wrapping for name, rely on truncation */
+        flex-grow: 1; /* Allow filename to take available space */
+    }
 </style>
 {% endblock %}
 
@@ -153,16 +165,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 const listItem = document.createElement('li');
                 listItem.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
                 
-                // Create a span for the file name and number
-                const fileInfoSpan = document.createElement('span');
-                fileInfoSpan.textContent = (index + 1) + ". " + file.name; // Add 1-based index
-                listItem.appendChild(fileInfoSpan);
+                // Container for number and name to manage their layout
+                const fileInfoContainer = document.createElement('div');
+                fileInfoContainer.classList.add('d-flex', 'align-items-center', 'flex-grow-1'); // Allow this to grow
+                fileInfoContainer.style.overflow = 'hidden'; // Needed for text-overflow on child
+
+                const fileNumberSpan = document.createElement('span');
+                fileNumberSpan.classList.add('file-item-number');
+                fileNumberSpan.textContent = (index + 1) + ".";
+                
+                const fileNameSpan = document.createElement('span');
+                fileNameSpan.classList.add('file-item-name');
+                fileNameSpan.textContent = file.name;
+                fileNameSpan.title = file.name; // Show full name on hover if truncated
+
+                fileInfoContainer.appendChild(fileNumberSpan);
+                fileInfoContainer.appendChild(fileNameSpan);
+                listItem.appendChild(fileInfoContainer);
                 
                 const removeButton = document.createElement('button');
                 removeButton.classList.add('btn', 'btn-outline-danger', 'btn-sm', 'remove-file-btn');
                 removeButton.innerHTML = '&times;';
                 removeButton.type = 'button';
                 removeButton.title = 'Remove file';
+                removeButton.style.marginLeft = '10px'; // Add some space before remove button
 
                 removeButton.addEventListener('click', function() {
                     currentBatchFiles.splice(index, 1); 
