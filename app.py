@@ -17,6 +17,7 @@ import re
 from typing import Dict, Optional # ADDED Import for type hints
 from cachetools import TTLCache # <-- Import TTLCache
 import logging # <-- Import logging
+import fitz # PyMuPDF - ADDED for metadata title extraction
 
 # --- Configure logging ---
 logging.basicConfig(
@@ -1586,33 +1587,52 @@ def batch_screen_pdfs_stream():
 # --- NEW Helper for processing a single PDF in batch ---
 def _perform_batch_pdf_screening_for_file(item_manifest_with_path, criteria_prompt_text, llm_provider_name, llm_model_id, llm_api_key, llm_base_url):
     original_filename = item_manifest_with_path['original_filename']
-    processing_file_path = item_manifest_with_path['processing_file_path'] # This is the FULL path
+    processing_file_path = item_manifest_with_path['processing_file_path']
+    
+    display_title = original_filename # Default to filename
 
     try:
         app_logger.info(f"Batch PDF Thread: Processing '{original_filename}' from path '{processing_file_path}'.")
+        
+        # Attempt to get title from PDF metadata using PyMuPDF
+        try:
+            doc = fitz.open(processing_file_path)
+            metadata = doc.metadata
+            pdf_title_from_meta = metadata.get('title')
+            if pdf_title_from_meta and isinstance(pdf_title_from_meta, str) and pdf_title_from_meta.strip():
+                display_title = pdf_title_from_meta.strip()
+                app_logger.info(f"Batch PDF Thread: Extracted title '{display_title}' from metadata for '{original_filename}'.")
+            else:
+                app_logger.info(f"Batch PDF Thread: No usable title in metadata for '{original_filename}', using filename as display title.")
+            doc.close()
+        except Exception as e_meta:
+            app_logger.warning(f"Batch PDF Thread: Could not read metadata for title from '{original_filename}': {e_meta}. Using filename as display title.")
+            # display_title remains original_filename in case of error
+
         with open(processing_file_path, 'rb') as saved_file_stream:
             full_text = extract_text_from_pdf(saved_file_stream, ocr_language='eng') 
         
         if full_text is None:
             app_logger.error(f"Batch PDF Thread: Failed to extract text from '{original_filename}'.")
-            return {'filename': original_filename, 'decision': 'TEXT_EXTRACT_ERROR', 'reasoning': 'Failed to extract text from PDF.'}
+            return {'filename': original_filename, 'title_for_display': display_title, 'decision': 'TEXT_EXTRACT_ERROR', 'reasoning': 'Failed to extract text from PDF.'}
         
         prompt_data = construct_llm_prompt(full_text, criteria_prompt_text)
         if not prompt_data:
             app_logger.error(f"Batch PDF Thread: Failed to construct LLM prompt for '{original_filename}'.")
-            return {'filename': original_filename, 'decision': 'PROMPT_ERROR', 'reasoning': 'Failed to construct LLM prompt.'}
+            return {'filename': original_filename, 'title_for_display': display_title, 'decision': 'PROMPT_ERROR', 'reasoning': 'Failed to construct LLM prompt.'}
         
         api_result = call_llm_api(prompt_data, llm_provider_name, llm_model_id, llm_api_key, llm_base_url)
         
         return {
-            'filename': original_filename,
+            'filename': original_filename, 
+            'title_for_display': display_title, 
             'decision': api_result.get('label', 'API_ERROR'),
             'reasoning': api_result.get('justification', 'API call failed or returned invalid data.')
         }
 
     except Exception as e_process:
         app_logger.exception(f"Batch PDF Thread: Error processing file '{original_filename}': {e_process}")
-        return {'filename': original_filename, 'decision': 'FILE_PROCESSING_ERROR', 'reasoning': str(e_process)}
+        return {'filename': original_filename, 'title_for_display': display_title, 'decision': 'FILE_PROCESSING_ERROR', 'reasoning': str(e_process)}
     finally:
         if os.path.exists(processing_file_path):
             try:
