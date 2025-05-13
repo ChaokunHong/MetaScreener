@@ -14,6 +14,18 @@
         line-height: 1;
         padding: 0.1rem 0.3rem;
     }
+    .input-group-append .btn {
+        padding-top: 0.25rem; /* Align clear button better */
+        padding-bottom: 0.25rem;
+    }
+    .clear-input-btn {
+        font-size: 0.8em;
+        line-height: 1;
+        opacity: 0.6;
+    }
+    .clear-input-btn:hover {
+        opacity: 1;
+    }
 </style>
 {% endblock %}
 
@@ -63,16 +75,26 @@
         <div class="form-row">
             <div class="form-group col-md-6">
                 <label for="batch_pdf_title_filter">Filter by Filename (Optional):</label>
-                <input type="text" id="batch_pdf_title_filter" name="batch_pdf_title_filter" class="form-control form-control-sm" placeholder="Enter keywords from filename">
+                <div class="input-group input-group-sm">
+                    <input type="text" id="batch_pdf_title_filter" name="batch_pdf_title_filter" class="form-control form-control-sm" placeholder="Enter keywords from filename">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-secondary clear-input-btn" type="button" onclick="clearInput('batch_pdf_title_filter')">&times;</button>
+                    </div>
+                </div>
             </div>
             <div class="form-group col-md-6">
                 <label for="batch_pdf_order_filter">Filter by Upload Order (Optional, 1-based):</label>
-                <input type="text" id="batch_pdf_order_filter" name="batch_pdf_order_filter" class="form-control form-control-sm" placeholder="e.g., 1-5, 7, 10-">
+                <div class="input-group input-group-sm">
+                    <input type="text" id="batch_pdf_order_filter" name="batch_pdf_order_filter" class="form-control form-control-sm" placeholder="e.g., 1-5, 7, 10-">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-secondary clear-input-btn" type="button" onclick="clearInput('batch_pdf_order_filter')">&times;</button>
+                    </div>
+                </div>
             </div>
         </div>
         <small class="form-text text-muted mb-2">If both filename and order filters are filled, filename filter will take precedence.</small>
 
-        <button id="start_batch_pdf_screen_button" type="button" class="btn btn-danger btn-sm">
+        <button id="start_batch_pdf_screen_button" type="button" class="btn btn-primary btn-sm">
             <span id="batch_pdf_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
             Start Batch PDF Screening
         </button>
@@ -275,5 +297,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+function clearInput(inputId) {
+    const inputElement = document.getElementById(inputId);
+    if (inputElement) {
+        inputElement.value = '';
+    }
+}
 </script>
 {% endblock %} 
