@@ -658,12 +658,13 @@ def stream_screen_file():
         else: df['authors'] = df['authors'].apply(lambda x: x if isinstance(x, list) else [])
 
         # --- NEW: Apply filters ---
-        df_for_screening = df.copy() # Operate on a copy
+        df_for_screening = df.copy()  # Operate on a copy
         original_df_count = len(df)
-        filter_description = "all entries" # For logging or user feedback
+        filter_description = "all entries"
 
         if title_filter_input:
-            df_for_screening = df_for_screening[df_for_screening['title'].str.contains(title_filter_input, case=False, na=False)]
+            df_for_screening = df_for_screening[
+                df_for_screening['title'].str.contains(title_filter_input, case=False, na=False)]
             filter_description = f"entries matching title '{title_filter_input}'"
             if df_for_screening.empty:
                 message = f'No articles found matching title: "{title_filter_input}"'
@@ -671,22 +672,37 @@ def stream_screen_file():
                     f"data: {json.dumps({'type': 'error', 'message': message})}\n\n",
                     mimetype='text/event-stream'
                 )
-        
-        elif line_range_input: # Else if, so title takes precedence if both are filled (though UI should ideally prevent this)
+
+        elif line_range_input:
             try:
                 start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
-                if start_idx >= end_idx :
-                     return Response(f"data: {json.dumps({'type': 'error', 'message': f'The range "{line_range_input}" is invalid or results in no articles.'})}\n\n", mimetype='text/event-stream')
+                if start_idx >= end_idx:
+                    message = f'The range "{line_range_input}" is invalid or results in no articles.'
+                    return Response(
+                        f"data: {json.dumps({'type': 'error', 'message': message})}\n\n",
+                        mimetype='text/event-stream'
+                    )
                 df_for_screening = df_for_screening.iloc[start_idx:end_idx]
-                filter_description = f"entries in 1-based range [{start_idx+1}-{end_idx}]"
+                filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
                 if df_for_screening.empty:
-                     return Response(f"data: {json.dumps({'type': 'error', 'message': f'The range "{line_range_input}" resulted in no articles to screen.'})}\n\n", mimetype='text/event-stream')
+                    message = f'The range "{line_range_input}" resulted in no articles to screen.'
+                    return Response(
+                        f"data: {json.dumps({'type': 'error', 'message': message})}\n\n",
+                        mimetype='text/event-stream'
+                    )
             except ValueError as e:
-                return Response(f"data: {json.dumps({'type': 'error', 'message': f'Invalid range format for "{line_range_input}": {str(e)}'})}\n\n", mimetype='text/event-stream')
-        
+                message = f'Invalid range format for "{line_range_input}": {str(e)}'
+                return Response(
+                    f"data: {json.dumps({'type': 'error', 'message': message})}\n\n",
+                    mimetype='text/event-stream'
+                )
+
         total_entries_to_screen = len(df_for_screening)
         if total_entries_to_screen == 0:
-            return Response(f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\n\n", mimetype='text/event-stream')
+            return Response(
+                f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\n\n",
+                mimetype='text/event-stream'
+            )
         # --- END NEW ---
 
         criteria_prompt_text = get_screening_criteria()
