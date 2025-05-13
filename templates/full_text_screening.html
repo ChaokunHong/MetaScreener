@@ -146,13 +146,17 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentBatchFiles = [];
 
     function updateSelectedFilesUI() {
-        selectedFilesList.innerHTML = ''; // Clear previous list
+        selectedFilesList.innerHTML = ''; 
         if (currentBatchFiles.length > 0) {
             selectedFilesPreviewArea.style.display = 'block';
             currentBatchFiles.forEach((file, index) => {
                 const listItem = document.createElement('li');
                 listItem.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
-                listItem.textContent = file.name;
+                
+                // Create a span for the file name and number
+                const fileInfoSpan = document.createElement('span');
+                fileInfoSpan.textContent = (index + 1) + ". " + file.name; // Add 1-based index
+                listItem.appendChild(fileInfoSpan);
                 
                 const removeButton = document.createElement('button');
                 removeButton.classList.add('btn', 'btn-outline-danger', 'btn-sm', 'remove-file-btn');
@@ -161,8 +165,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 removeButton.title = 'Remove file';
 
                 removeButton.addEventListener('click', function() {
-                    currentBatchFiles.splice(index, 1); // Remove file from array by index
-                    updateSelectedFilesUI(); // Re-render the list
+                    currentBatchFiles.splice(index, 1); 
+                    updateSelectedFilesUI(); 
                 });
                 
                 listItem.appendChild(removeButton);
@@ -172,8 +176,6 @@ document.addEventListener('DOMContentLoaded', function() {
             selectedFilesPreviewArea.style.display = 'none';
         }
         selectedFilesCountSpan.textContent = currentBatchFiles.length;
-        // Reset the actual file input so if user re-selects, 'change' event fires correctly.
-        // This is important if user clears all and then wants to select the same set of files again.
         batchPdfFilesInputControl.value = ""; 
     }
 
