@@ -1604,6 +1604,32 @@ def _perform_batch_pdf_screening_for_file(item_manifest, criteria_prompt_text, l
 # --- END NEW Helper ---
 
 
+# --- NEW: Route to show Batch PDF Screening Results (Skeleton) ---
+@app.route('/show_batch_pdf_results/<batch_session_id>', methods=['GET'], endpoint='show_batch_pdf_results_placeholder')
+def show_batch_pdf_results(batch_session_id):
+    app_logger.info(f"Request to show batch PDF results for ID: {batch_session_id}")
+    batch_data = full_screening_sessions.get(batch_session_id)
+
+    if not batch_data or not batch_data.get('is_batch_pdf_result', False):
+        app_logger.warning(f"Batch PDF results not found or invalid for ID: {batch_session_id}")
+        flash("Batch PDF screening results not found or may have expired.", "warning")
+        return redirect(url_for('full_text_screening_page')) # Redirect to where batch jobs are initiated
+    
+    # For now, just log that we found it. Later, render a template.
+    app_logger.info(f"Found batch data for {batch_session_id}. Contains {len(batch_data.get('results', []))} items.")
+    app_logger.debug(f"Batch data content: {batch_data}")
+
+    # TODO: Create and use a new template 'batch_pdf_results.html'
+    # return render_template('batch_pdf_results.html', 
+    #                        batch_info=batch_data, 
+    #                        batch_id=batch_session_id,
+    #                        current_year=datetime.datetime.now().year)
+    
+    # Placeholder response until template is created
+    return f"Placeholder for Batch PDF Results. Batch ID: {batch_session_id}. Results count: {len(batch_data.get('results', []))}" 
+# --- END NEW Batch PDF Results Route ---
+
+
 # --- Run App ---
 if __name__ == '__main__':
     app_logger.info("Starting Flask app in debug mode...") # Example for __main__
