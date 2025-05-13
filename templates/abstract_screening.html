@@ -2,6 +2,23 @@
 
 {% block title %}Abstract Screening Actions - AI Literature Screening Assistant{% endblock %}
 
+{% block extra_head %}
+<style>
+    .input-group-append .btn {
+        padding-top: 0.25rem; /* Align clear button better */
+        padding-bottom: 0.25rem;
+    }
+    .clear-input-btn {
+        font-size: 0.8em;
+        line-height: 1;
+        opacity: 0.6;
+    }
+    .clear-input-btn:hover {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 {# --- Test Screening Section --- #}
 <div class="section-card">
@@ -22,11 +39,21 @@
         <div class="form-row">
             <div class="form-group col-md-6">
                 <label for="test_title_text_filter">Filter by Title (Optional):</label>
-                <input type="text" id="test_title_text_filter" name="title_text_filter" class="form-control form-control-sm" placeholder="Enter keywords from title">
+                <div class="input-group input-group-sm">
+                    <input type="text" id="test_title_text_filter" name="title_text_filter" class="form-control form-control-sm" placeholder="Enter keywords from title">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-secondary clear-input-btn" type="button" onclick="clearInput('test_title_text_filter')">&times;</button>
+                    </div>
+                </div>
             </div>
             <div class="form-group col-md-6">
                 <label for="test_line_range_filter">Filter by Line Numbers (Optional, 1-based):</label>
-                <input type="text" id="test_line_range_filter" name="line_range_filter" class="form-control form-control-sm" placeholder="e.g., 5-10, 7, 1-20, 50-">
+                <div class="input-group input-group-sm">
+                    <input type="text" id="test_line_range_filter" name="line_range_filter" class="form-control form-control-sm" placeholder="e.g., 5-10, 7, 1-20, 50-">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-secondary clear-input-btn" type="button" onclick="clearInput('test_line_range_filter')">&times;</button>
+                    </div>
+                </div>
             </div>
         </div>
         <small class="form-text text-muted mb-2">Filters are applied *before* sampling. If both title and line numbers are filled, title filter takes precedence.</small>
@@ -68,17 +95,27 @@
         <div class="form-row">
             <div class="form-group col-md-6">
                 <label for="title_text_filter">Filter by Title (Optional):</label>
-                <input type="text" id="title_text_filter" name="title_text_filter" class="form-control form-control-sm" placeholder="Enter keywords from title">
+                <div class="input-group input-group-sm">
+                    <input type="text" id="title_text_filter" name="title_text_filter" class="form-control form-control-sm" placeholder="Enter keywords from title">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-secondary clear-input-btn" type="button" onclick="clearInput('title_text_filter')">&times;</button>
+                    </div>
+                </div>
             </div>
             <div class="form-group col-md-6">
                 <label for="line_range_filter">Filter by Line Numbers (Optional, 1-based):</label>
-                <input type="text" id="line_range_filter" name="line_range_filter" class="form-control form-control-sm" placeholder="e.g., 5-10, 7, 1-20, 50-">
+                <div class="input-group input-group-sm">
+                    <input type="text" id="line_range_filter" name="line_range_filter" class="form-control form-control-sm" placeholder="e.g., 5-10, 7, 1-20, 50-">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-secondary clear-input-btn" type="button" onclick="clearInput('line_range_filter')">&times;</button>
+                    </div>
+                </div>
             </div>
         </div>
         <small class="form-text text-muted mb-2">If both title and line numbers are filled, title filter will take precedence.</small>
         <!-- END NEW FILTER FIELDS -->
 
-        <button type="button" id="start_full_screen_button" class="btn btn-danger btn-sm">Screen Full File with Progress (SSE)</button>
+        <button type="button" id="start_full_screen_button" class="btn btn-primary btn-sm">Screen Full File with Progress (SSE)</button>
     </form>
     {# RESTORED: Detailed HTML for Full progress area #}
      <div id="progress_area" class="mt-3" style="display: none;">
@@ -146,6 +183,12 @@ function finalizeButtons() {
     // finalizeTestButton(); // Maybe call this too if test button might also be disabled?
 }
 
+function clearInput(inputId) {
+    const inputElement = document.getElementById(inputId);
+    if (inputElement) {
+        inputElement.value = '';
+    }
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM loaded. Finding trigger elements...");

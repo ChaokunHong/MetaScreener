@@ -14,11 +14,33 @@
     .badge-error, .log-decision-ERROR { background-color: #6c757d; color: white; }
     .table-responsive {max-height: 70vh; overflow-y: auto;} /* Scrollable table for many results */
     .table thead th { position: sticky; top: 0; background-color: #343a40; color: white; z-index: 1;}
-    .reasoning-text { font-size: 0.8em; color: #555; white-space: pre-wrap; }
+    .reasoning-text { font-size: 0.85rem; color: #555; max-width: 350px; white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word; }
     .decision-INCLUDE { color: green; font-weight: bold; }
     .decision-EXCLUDE { color: red; font-weight: bold; }
     .decision-MAYBE { color: orange; font-weight: bold; }
     .decision-ERROR { color: purple; }
+    .abstract-cell-content {
+        max-height: 4.5em; /* Approx 3 lines, assuming line-height is around 1.5em */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        /* white-space: nowrap;  Might be too restrictive, let's see how it behaves with block display */
+        display: -webkit-box; /* Required for multi-line ellipsis */
+        -webkit-line-clamp: 3; /* Number of lines to show */
+        -webkit-box-orient: vertical;
+        position: relative; /* For a "Read more" absolutely positioned if needed, or just a link below */
+    }
+    .abstract-cell-content.expanded {
+        max-height: none;
+        -webkit-line-clamp: unset;
+    }
+    .toggle-abstract-link {
+        font-size: 0.8em;
+        cursor: pointer;
+        color: #007bff;
+        text-decoration: underline;
+        display: block; /* Make it appear on its own line */
+        margin-top: 5px;
+    }
     /* Add other decision type styles as needed */
 </style>
 {% endblock %}
@@ -64,6 +86,7 @@
                             <th>#</th>
                             <th>Title</th>
                             <th>Authors</th>
+                            <th>Abstract</th>
                             <th>Decision</th>
                             <th>Reasoning</th>
                         </tr>
@@ -71,9 +94,19 @@
                     <tbody>
                         {% for result in results %}
                         <tr>
-                            <td>{{ result.index }}</td>
+                            <td>{{ result.index if result.index else loop.index }}</td>
                             <td>{{ result.title }}</td>
                             <td>{{ result.authors }}</td>
+                            <td>
+                                {% if result.abstract and result.abstract|length > 200 %}
+                                    <div class="abstract-cell-content" data-fulltext="{{ result.abstract|e }}">
+                                        {{ result.abstract|truncate(200, true, '...') }}
+                                    </div>
+                                    <a href="javascript:void(0);" class="toggle-abstract-link">Read more</a>
+                                {% else %}
+                                    <div class="abstract-cell-content expanded">{{ result.abstract }}</div>
+                                {% endif %}
+                            </td>
                             <td><span class="decision-{{ result.decision }}">{{ result.decision }}</span></td>
                             <td><span class="reasoning-text">{{ result.reasoning }}</span></td>
                         </tr>
@@ -118,6 +151,20 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = downloadUrl;
         });
     }
+
+    document.querySelectorAll('.toggle-abstract-link').forEach(link => {
+        link.addEventListener('click', function(event) {
+            event.preventDefault();
+            const contentDiv = this.previousElementSibling;
+            if (contentDiv.classList.contains('expanded')) {
+                contentDiv.classList.remove('expanded');
+                this.textContent = 'Read more';
+            } else {
+                contentDiv.classList.add('expanded');
+                this.textContent = 'Show less';
+            }
+        });
+    });
 });
 </script>
 {% endblock %}
