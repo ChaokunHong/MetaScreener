@@ -1433,37 +1433,37 @@ def batch_screen_pdfs_stream():
         applied_title_filter = True
         if not files_to_process_manifest:
             app_logger.info(f"Batch PDF Stream: No files matched title filter '{title_filter_input}'.")
-            return Response(f"data: {json.dumps({'type': 'error', 'message': f'No PDF files found matching filename filter: "{title_filter_input}"'})}\n\n", mimetype='text/event-stream')
+            message_text = f'No PDF files found matching filename filter: "{title_filter_input}"' # Corrected
+            return Response(f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n", mimetype='text/event-stream')
             
-    # Apply order filter if title filter was NOT applied, or if it was applied and order filter is also present (meaning order applies to the title-filtered list)
-    # The UI note says: "If both filename and order filters are filled, filename filter will take precedence."
-    # This means if title_filter_input is present, order_filter_input is IGNORED.
     if not applied_title_filter and order_filter_input: 
         try:
-            num_items_for_order_filter = len(files_to_process_manifest) # Should be len(initial_manifest) here if title filter wasn't applied
+            num_items_for_order_filter = len(files_to_process_manifest)
             start_idx_0_based, end_idx_0_based_exclusive = parse_line_range(order_filter_input, num_items_for_order_filter)
             
             if start_idx_0_based >= end_idx_0_based_exclusive:
                 app_logger.info(f"Batch PDF Stream: Order filter range '{order_filter_input}' is invalid or results in no files.")
-                return Response(f"data: {json.dumps({'type': 'error', 'message': f'The order filter range "{order_filter_input}" is invalid or results in no files.'})}\n\n", mimetype='text/event-stream')
+                message_text = f'The order filter range "{order_filter_input}" is invalid or results in no files.' # Corrected
+                return Response(f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n", mimetype='text/event-stream')
 
             files_to_process_manifest = files_to_process_manifest[start_idx_0_based:end_idx_0_based_exclusive]
             filter_description = f"files by order range [{start_idx_0_based+1}-{end_idx_0_based_exclusive}]"
             
             if not files_to_process_manifest:
                 app_logger.info(f"Batch PDF Stream: No files matched order filter '{order_filter_input}'.")
-                return Response(f"data: {json.dumps({'type': 'error', 'message': 'No PDF files found for the specified order range.'})}\n\n", mimetype='text/event-stream')
+                message_text = 'No PDF files found for the specified order range.' # Corrected
+                return Response(f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n", mimetype='text/event-stream')
         
         except ValueError as e:
             app_logger.warning(f"Batch PDF Stream: Invalid order filter format '{order_filter_input}': {e}")
-            return Response(f"data: {json.dumps({'type': 'error', 'message': f'Invalid format for order filter "{order_filter_input}": {str(e)}'})}\n\n", mimetype='text/event-stream')
+            message_text = f'Invalid format for order filter "{order_filter_input}": {str(e)}' # Corrected
+            return Response(f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n", mimetype='text/event-stream')
 
     total_files_to_process = len(files_to_process_manifest)
     if total_files_to_process == 0 and (title_filter_input or order_filter_input):
-         # This case means filters were applied but resulted in zero files. 
-         # If no filters were applied and still zero, initial_manifest check would have caught it.
         app_logger.info("Batch PDF Stream: No files selected for processing after filters.")
-        return Response(f"data: {json.dumps({'type': 'error', 'message': 'No PDF files selected for processing after applying filters.'})}\n\n", mimetype='text/event-stream')
+        message_text = 'No PDF files selected for processing after applying filters.' # Corrected
+        return Response(f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n", mimetype='text/event-stream')
 
     app_logger.info(f"Batch PDF Stream: {total_files_to_process} file(s) selected. Filter applied: {filter_description}")
     selected_filenames_log = [item['original_filename'] for item in files_to_process_manifest]
@@ -1486,12 +1486,14 @@ def batch_screen_pdfs_stream():
             # Send an error event and stop
             # This error needs to be sent via SSE if we reach here after initial connection.
             def sse_error_gen():
-                yield f"data: {json.dumps({'type': 'error', 'message': f'API Key for {llm_provider_name} must be provided via configuration.', 'needs_config': True})}\n\n"
+                message_text = f'API Key for {llm_provider_name} must be provided via configuration.'
+                yield f"data: {json.dumps({'type': 'error', 'message': message_text, 'needs_config': True})}\n\n"
             return Response(sse_error_gen(), mimetype='text/event-stream')
     except Exception as e_config:
         app_logger.exception("Batch PDF Stream: Error fetching LLM/Criteria configuration.")
         def sse_config_error_gen():
-            yield f"data: {json.dumps({'type': 'error', 'message': f'Error fetching LLM/Criteria configuration: {str(e_config)}'})}\n\n"
+            message_text = f'Error fetching LLM/Criteria configuration: {str(e_config)}'
+            yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
         return Response(sse_config_error_gen(), mimetype='text/event-stream')
     # --- END Config Fetch ---
 
