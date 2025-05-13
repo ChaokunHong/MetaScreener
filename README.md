@@ -235,6 +235,11 @@ MetaScreener was developed by:
 *   chaokun.hong@ndm.ox.ac.uk
 *   Centre for Tropical Medicine and Global Health, Nuffield Department of Medicine, University of Oxford, UK.
 
+
+*   **Thao Phuong Nguyen**
+*   ngthao.20107@gmail.com
+*   Oxford University Clinical Research Unit， National Hospital for Tropical Diseases， Hanoi, Vietnam
+
 We welcome feedback, bug reports, and especially data on the performance (e.g., sensitivity, specificity, time saved) of MetaScreener in your literature screening workflows. Your real-world usage data is invaluable for improving this tool!
 
 Please report issues or provide feedback via [GitHub Issues](https://github.com/ChaokunHong/MetaScreener/issues) (replace with your actual repository URL if different) or by contacting the author directly.
