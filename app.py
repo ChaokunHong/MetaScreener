@@ -39,6 +39,63 @@ pdf_extraction_results = {} # ADDED: For extraction results
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
+# --- ADDED: Helper function to parse line ranges ---
+def parse_line_range(range_str: str, max_items: int) -> tuple[int, int]:
+    """
+    Parses a 1-based range string (e.g., "5-10", "7", "5-", "-10") 
+    into 0-based start (inclusive) and end (exclusive) indices for DataFrame iloc.
+    max_items is the total number of items in the DataFrame.
+    """
+    if not range_str:
+        raise ValueError("Range string cannot be empty.")
+
+    range_str = range_str.strip()
+    start_1_based_str, end_1_based_str = "", ""
+
+    if '-' in range_str:
+        parts = range_str.split('-', 1)
+        start_1_based_str = parts[0].strip()
+        end_1_based_str = parts[1].strip()
+
+        if not start_1_based_str and not end_1_based_str: # User typed just "-"
+            raise ValueError("Invalid range format '-'. Use 'N-M', 'N-', '-M', or 'N'.")
+    else: # Single number
+        start_1_based_str = range_str
+        end_1_based_str = range_str # screen only this single line
+
+    try:
+        if not start_1_based_str: # Format like "-10"
+            start_1_based = 1
+        else:
+            start_1_based = int(start_1_based_str)
+
+        if not end_1_based_str: # Format like "5-"
+            end_1_based = max_items
+        else:
+            end_1_based = int(end_1_based_str)
+    except ValueError:
+        raise ValueError("Invalid number in range. Please use digits (e.g., '5-10' or '7').")
+
+    if start_1_based <= 0 or end_1_based <= 0:
+        raise ValueError("Line numbers must be positive.")
+    if start_1_based > end_1_based:
+        raise ValueError(f"Start of range ({start_1_based}) cannot be after end ({end_1_based}).")
+    
+    # Cap end_1_based at max_items, but ensure start is not beyond max_items already
+    if start_1_based > max_items:
+        raise ValueError(f"Start of range ({start_1_based}) is beyond the total number of available items ({max_items}).")
+    
+    end_1_based = min(end_1_based, max_items)
+
+    # Convert to 0-based for iloc: start is inclusive, end is exclusive
+    # User "1" (item 1) is df.iloc[0]. User "1-3" (items 1,2,3) is df.iloc[0:3]
+    start_0_based = start_1_based - 1
+    end_0_based_exclusive = end_1_based 
+
+    return start_0_based, end_0_based_exclusive
+# --- END Helper function ---
+
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -584,24 +641,61 @@ def stream_screen_file():
     file = request.files['file']
     if file.filename == '' or not allowed_file(file.filename): return Response(f"data: {json.dumps({'type': 'error', 'message': 'No selected/invalid file.'})}\n\n", mimetype='text/event-stream')
 
+    # --- NEW: Get filter inputs from form ---
+    line_range_input = request.form.get('line_range_filter', '').strip()
+    title_filter_input = request.form.get('title_text_filter', '').strip()
+    # --- END NEW ---
+
     try:
         df = load_literature_ris(file.stream)
         if df is None or df.empty: return Response(f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\n\n", mimetype='text/event-stream')
+        
+        # Ensure essential columns exist, and fill if not
         if 'abstract' not in df.columns: return Response(f"data: {json.dumps({'type': 'error', 'message': 'RIS missing abstract.'})}\n\n", mimetype='text/event-stream')
         if 'title' not in df.columns: df['title'] = pd.Series(["Title Not Found"] * len(df))
         else: df['title'] = df['title'].fillna("Title Not Found")
         if 'authors' not in df.columns: df['authors'] = pd.Series([[] for _ in range(len(df))])
         else: df['authors'] = df['authors'].apply(lambda x: x if isinstance(x, list) else [])
 
+        # --- NEW: Apply filters ---
+        df_for_screening = df.copy() # Operate on a copy
+        original_df_count = len(df)
+        filter_description = "all entries" # For logging or user feedback
+
+        if title_filter_input:
+            df_for_screening = df_for_screening[df_for_screening['title'].str.contains(title_filter_input, case=False, na=False)]
+            filter_description = f"entries matching title '{title_filter_input}'"
+            if df_for_screening.empty:
+                return Response(f"data: {json.dumps({'type': 'error', 'message': f'No articles found matching title: "{title_filter_input}"'})}\n\n", mimetype='text/event-stream')
+        
+        elif line_range_input: # Else if, so title takes precedence if both are filled (though UI should ideally prevent this)
+            try:
+                start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
+                if start_idx >= end_idx :
+                     return Response(f"data: {json.dumps({'type': 'error', 'message': f'The range "{line_range_input}" is invalid or results in no articles.'})}\n\n", mimetype='text/event-stream')
+                df_for_screening = df_for_screening.iloc[start_idx:end_idx]
+                filter_description = f"entries in 1-based range [{start_idx+1}-{end_idx}]"
+                if df_for_screening.empty:
+                     return Response(f"data: {json.dumps({'type': 'error', 'message': f'The range "{line_range_input}" resulted in no articles to screen.'})}\n\n", mimetype='text/event-stream')
+            except ValueError as e:
+                return Response(f"data: {json.dumps({'type': 'error', 'message': f'Invalid range format for "{line_range_input}": {str(e)}'})}\n\n", mimetype='text/event-stream')
+        
+        total_entries_to_screen = len(df_for_screening)
+        if total_entries_to_screen == 0:
+            return Response(f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\n\n", mimetype='text/event-stream')
+        # --- END NEW ---
+
         criteria_prompt_text = get_screening_criteria()
-        total_entries = len(df)
+        # total_entries = len(df) # OLD, using total_entries_to_screen now
         current_llm_config_data = get_current_llm_config(session)
         provider_name = current_llm_config_data['provider_name']
         model_id = current_llm_config_data['model_id']
-        base_url = get_base_url_for_provider(provider_name)
+        base_url = get_base_url_for_provider(provider_name) # Ensure base_url is fetched
         provider_info = get_llm_providers_info().get(provider_name, {})
-        session_key_name = provider_info.get("api_key_session_key")
+        # Corrected access to api_key_session_key based on actual structure from config.py
+        session_key_name = provider_info.get("api_key_session_key") 
         api_key = session.get(session_key_name) if session_key_name else None
+
         if not api_key:
             error_message = f"API Key for {provider_name} must be provided via the configuration form for this session."
             return Response(f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\n\n", mimetype='text/event-stream')
@@ -610,15 +704,17 @@ def stream_screen_file():
         original_filename = file.filename
 
         # --- Refactored generator for Full Screening SSE --- 
-        def generate_full_screening_progress():
+        # MODIFIED: Pass df_for_screening and total_entries_to_screen to the generator
+        def generate_full_screening_progress(df_to_process, num_total_items, current_filter_desc):
             processed_count = 0
-            yield f"data: {json.dumps({'type': 'start', 'total': total_entries})}\n\n"
+            # SSE 'start' event with the count of items TO BE SCREENED
+            yield f"data: {json.dumps({'type': 'start', 'total': num_total_items, 'filter_info': current_filter_desc})}\n\n"
             temp_results_list = []
             futures_map = {}
 
             with ThreadPoolExecutor(max_workers=8) as executor:
-                # Submit all tasks
-                for index, row in df.iterrows():
+                # Iterate over the (potentially filtered) DataFrame
+                for index, row in df_to_process.iterrows(): # MODIFIED: use df_to_process
                     abstract = row.get('abstract')
                     future = executor.submit(
                         _perform_screening_on_abstract,
@@ -642,47 +738,56 @@ def stream_screen_file():
                             raise Exception(f"CONFIG_ERROR from worker: {screening_result['reasoning']}")
 
                         processed_count += 1
-                        progress_percentage = int((processed_count / total_entries) * 100)
+                        progress_percentage = int((processed_count / num_total_items) * 100) if num_total_items > 0 else 0
                         output_data = {
                             'index': index + 1, 'title': title, 'authors': authors_str,
                             'decision': screening_result['decision'], 'reasoning': screening_result['reasoning']
                         }
                         temp_results_list.append(output_data)
                         progress_event = {
-                            'type': 'progress', 'count': processed_count, 'total': total_entries,
+                            'type': 'progress', 'count': processed_count, 'total': num_total_items,
                             'percentage': progress_percentage, 'current_item_title': title,
                             'decision': screening_result['decision']
                         }
                         yield f"data: {json.dumps(progress_event)}\n\n"
 
                     except Exception as e:
-                        processed_count += 1
-                        progress_percentage = int((processed_count / total_entries) * 100)
-                        error_message = f"Error processing item '{title[:30]}...': {e}"
-                        print(f"Error processing item (index {index}): {e}")
+                        processed_count += 1 # Still increment for progress tracking
+                        progress_percentage = int((processed_count / num_total_items) * 100) if num_total_items > 0 else 0
+                        error_message_item = f"Error processing item '{title[:30]}...': {e}"
+                        print(f"Error processing item (original index {index}): {e}")
                         traceback.print_exc()
+                        # Send progress event even for error, but with an error decision
                         progress_event = {
-                            'type': 'progress', 'count': processed_count, 'total': total_entries,
+                            'type': 'progress', 'count': processed_count, 'total': num_total_items,
                             'percentage': progress_percentage, 'current_item_title': title,
-                            'decision': 'THREAD_ERROR'
+                            'decision': 'ITEM_ERROR' # Specific marker for item processing error
                         }
                         yield f"data: {json.dumps(progress_event)}\n\n"
+                        # Optionally, add a placeholder to temp_results_list for this error
+                        temp_results_list.append({
+                            'index': index + 1, 'title': title, 'authors': authors_str,
+                            'decision': 'ITEM_ERROR', 'reasoning': str(e)
+                        })
 
             # After loop, store results in global dict
-            temp_results_list.sort(key=lambda x: x.get('index', float('inf'))) # Sort by index (row.name + 1)
+            temp_results_list.sort(key=lambda x: x.get('index', float('inf')))
             full_screening_sessions[screening_id] = {
                 'filename': original_filename, 
-                'results': temp_results_list
+                'results': temp_results_list,
+                'filter_applied': current_filter_desc # Store filter info with results
             }
             
             # Send completion event
             yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id})}\n\n"
 
         # Return the Response using the new generator    
-        return Response(generate_full_screening_progress(), mimetype='text/event-stream')
+        # MODIFIED: Pass df_for_screening, total_entries_to_screen, and filter_description
+        return Response(generate_full_screening_progress(df_for_screening, total_entries_to_screen, filter_description), mimetype='text/event-stream')
     
     except Exception as e:
         traceback.print_exc()
+        # Make sure base_url is defined or handled. Here, it might not be if error is early.
         return Response(f"data: {json.dumps({'type': 'error', 'message': f'Server error before full streaming: {str(e)}'})}\n\n", mimetype='text/event-stream')
 
 
@@ -702,7 +807,8 @@ def show_screening_results(screening_id):
                            results=results, 
                            filename=filename,
                            screening_id=screening_id, 
-                           current_year=current_year
+                           current_year=current_year,
+                           filter_applied=session_data.get('filter_applied', 'all entries') # Pass filter info to results page
                           )
 
 
@@ -718,9 +824,13 @@ def stream_test_screen_file():
 
     try:
         sample_size = int(request.form.get('sample_size', 10))
-        # Updated max value check
         sample_size = max(5, min(9999, sample_size)) 
     except ValueError: sample_size = 10
+
+    # --- NEW: Get filter inputs from form for Test Screening ---
+    line_range_input = request.form.get('line_range_filter', '').strip()
+    title_filter_input = request.form.get('title_text_filter', '').strip()
+    # --- END NEW ---
 
     try:
         df = load_literature_ris(file.stream)
@@ -731,49 +841,80 @@ def stream_test_screen_file():
         df['title'] = df.get('title', pd.Series(["Title Not Found"] * len(df))).fillna("Title Not Found")
         df['authors'] = df.get('authors', pd.Series([[] for _ in range(len(df))]))
         df['authors'] = df['authors'].apply(lambda x: x if isinstance(x, list) else [])
-        sample_df = df.head(min(sample_size, len(df)))
+
+        # --- NEW: Apply filters before sampling for Test Screening ---
+        df_for_sampling = df.copy()
+        original_df_count = len(df)
+        filter_description = "all entries"
+
+        if title_filter_input:
+            df_for_sampling = df_for_sampling[df_for_sampling['title'].str.contains(title_filter_input, case=False, na=False)]
+            filter_description = f"entries matching title '{title_filter_input}'"
+            if df_for_sampling.empty:
+                return Response(f"data: {json.dumps({'type': 'error', 'message': f'No articles found matching title: "{title_filter_input}" to sample from.'})}\n\n", mimetype='text/event-stream')
+        
+        elif line_range_input:
+            try:
+                start_idx, end_idx = parse_line_range(line_range_input, original_df_count) # Use original_df_count for range parsing against the whole file
+                if start_idx >= end_idx:
+                    return Response(f"data: {json.dumps({'type': 'error', 'message': f'The range "{line_range_input}" is invalid or results in no articles to sample from.'})}\n\n", mimetype='text/event-stream')
+                df_for_sampling = df_for_sampling.iloc[start_idx:end_idx]
+                filter_description = f"entries in 1-based range [{start_idx+1}-{end_idx}]"
+                if df_for_sampling.empty:
+                    return Response(f"data: {json.dumps({'type': 'error', 'message': f'The range "{line_range_input}" resulted in no articles to sample from.'})}\n\n", mimetype='text/event-stream')
+            except ValueError as e:
+                return Response(f"data: {json.dumps({'type': 'error', 'message': f'Invalid range format for "{line_range_input}": {str(e)}'})}\n\n", mimetype='text/event-stream')
+        
+        # Now, take the sample from the (potentially filtered) df_for_sampling
+        if df_for_sampling.empty: # If original df was not empty, but filtering made it empty
+             return Response(f"data: {json.dumps({'type': 'error', 'message': 'No articles found after applying filters to sample from.'})}\n\n", mimetype='text/event-stream')
+
+        sample_df = df_for_sampling.head(min(sample_size, len(df_for_sampling)))
         actual_sample_size = len(sample_df)
+        # --- END NEW ---
+
         if actual_sample_size == 0:
-             return Response(f"data: {json.dumps({'type': 'error', 'message': 'No entries found in the file to sample.'})}\n\n", mimetype='text/event-stream')
+             return Response(f"data: {json.dumps({'type': 'error', 'message': 'No entries found in the file to sample (after filters if any).'})}\n\n", mimetype='text/event-stream')
 
         criteria_prompt_text = get_screening_criteria()
-        
         current_llm_config_data = get_current_llm_config(session)
         provider_name = current_llm_config_data['provider_name']
         model_id = current_llm_config_data['model_id']
         base_url = get_base_url_for_provider(provider_name)
         
-        # --- ADDED: Explicit check for API Key in session --- 
         provider_info = get_llm_providers_info().get(provider_name, {})
         session_key_name = provider_info.get("api_key_session_key")
         api_key = session.get(session_key_name) if session_key_name else None
 
-        if not api_key: # Checks if key is None or empty string
+        if not api_key:
             error_message = f"API Key for {provider_name} must be provided via the configuration form for this session."
             return Response(f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\n\n", mimetype='text/event-stream')
-        # --- End Session Key Check ---
 
         session_id = str(uuid.uuid4())
         test_sessions[session_id] = {
              'file_name': file.filename,
-             'sample_size': actual_sample_size,
-             'test_items_data': []
+             'sample_size': actual_sample_size, # Store the actual number of items being screened
+             'test_items_data': [],
+             'filter_applied': filter_description # Store filter info
          }
 
-        def generate_test_progress(): # Refactored with ThreadPoolExecutor
+        # MODIFIED: Pass actual_sample_size and filter_description to generator
+        def generate_test_progress(current_sample_df, num_actual_sample_items, current_filter_desc):
             processed_count = 0
-            yield f"data: {json.dumps({'type': 'start', 'total': actual_sample_size})}\n\n"
+            # SSE 'start' event with the actual count of items TO BE SCREENED and filter info
+            yield f"data: {json.dumps({'type': 'start', 'total': num_actual_sample_items, 'filter_info': current_filter_desc})}\n\n"
             temp_results_list = []
             futures_map = {}
             
             with ThreadPoolExecutor(max_workers=8) as executor:
-                for index, row in sample_df.iterrows():
+                for index, row in current_sample_df.iterrows(): # Use current_sample_df
                     abstract = row.get('abstract')
                     future = executor.submit(
                         _perform_screening_on_abstract,
                         abstract, criteria_prompt_text,
                         provider_name, model_id, api_key, base_url
                     )
+                    # index here is the original index from the loaded RIS, which is correct
                     futures_map[future] = {'index': index, 'row': row}
 
                 for future in as_completed(futures_map):
@@ -781,7 +922,7 @@ def stream_test_screen_file():
                     index = original_data['index']
                     row = original_data['row']
                     title = row.get('title', "N/A")
-                    abstract_text = row.get('abstract') # Needed for storing result
+                    abstract_text = row.get('abstract')
                     authors_list = row.get('authors', [])
                     authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
 
@@ -791,7 +932,7 @@ def stream_test_screen_file():
                             raise Exception(f"CONFIG_ERROR from worker: {screening_result['reasoning']}")
 
                         processed_count += 1
-                        progress_percentage = int((processed_count / actual_sample_size) * 100)
+                        progress_percentage = int((processed_count / num_actual_sample_items) * 100) if num_actual_sample_items > 0 else 0
                         item_id = str(uuid.uuid4())
                         test_item_template_data = {
                             'id': item_id, 'original_index': index, 'title': title,
@@ -800,7 +941,7 @@ def stream_test_screen_file():
                         }
                         temp_results_list.append(test_item_template_data)
                         progress_data = {
-                            'type': 'progress', 'count': processed_count, 'total': actual_sample_size,
+                            'type': 'progress', 'count': processed_count, 'total': num_actual_sample_items,
                             'percentage': progress_percentage, 'current_item_title': title,
                             'decision': screening_result['decision']
                         }
@@ -808,23 +949,29 @@ def stream_test_screen_file():
 
                     except Exception as e:
                         processed_count += 1
-                        progress_percentage = int((processed_count / actual_sample_size) * 100)
-                        error_message = f"Error processing item '{title[:30]}...': {e}"
-                        print(f"Error processing item (index {index}): {e}")
+                        progress_percentage = int((processed_count / num_actual_sample_items) * 100) if num_actual_sample_items > 0 else 0
+                        error_message_item = f"Error processing item '{title[:30]}...': {e}"
+                        print(f"Error processing item (original index {index}): {e}")
                         traceback.print_exc()
                         progress_data = {
-                             'type': 'progress', 'count': processed_count, 'total': actual_sample_size,
+                             'type': 'progress', 'count': processed_count, 'total': num_actual_sample_items,
                              'percentage': progress_percentage, 'current_item_title': title,
-                             'decision': 'THREAD_ERROR' 
+                             'decision': 'ITEM_ERROR' 
                          }
                         yield f"data: {json.dumps(progress_data)}\n\n"
+                        temp_results_list.append({
+                            'id': str(uuid.uuid4()), 'original_index': index, 'title': title,
+                            'authors': authors_str, 'abstract': abstract_text,
+                            'ai_decision': 'ITEM_ERROR', 'ai_reasoning': str(e)
+                        })
             
             temp_results_list.sort(key=lambda x: x.get('original_index', float('inf')))
             if session_id in test_sessions:
                  test_sessions[session_id]['test_items_data'] = temp_results_list
             yield f"data: {json.dumps({'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id})}\n\n"
 
-        return Response(generate_test_progress(), mimetype='text/event-stream')
+        # MODIFIED: Pass sample_df, actual_sample_size, and filter_description
+        return Response(generate_test_progress(sample_df, actual_sample_size, filter_description), mimetype='text/event-stream')
 
     except Exception as e:
         traceback.print_exc()
@@ -843,18 +990,15 @@ def show_test_results(session_id):
 
     if not test_items: # If empty list or key missing
          flash('No test items found in session for display.', 'warning')
-         # Maybe don't delete session here, let user try again?
          return redirect(url_for('abstract_screening_page'))
-
-    # We don't delete the session data here, because the user needs it
-    # again potentially if they submit for metric calculation from test_results.html
-    # Session data will be cleaned up eventually or when metrics are calculated/full screen started
 
     current_year = datetime.datetime.now().year
     return render_template('test_results.html',
                            test_items=test_items,
-                           session_id=session_id, # Pass session_id for the metrics form
-                           current_year=current_year)
+                           session_id=session_id,
+                           current_year=current_year,
+                           # --- ADDED: Pass filter_applied to test_results.html ---
+                           filter_applied=session_data.get('filter_applied', 'all entries'))
 
 
 # --- New Download Route --- 
