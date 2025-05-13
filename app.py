@@ -647,6 +647,18 @@ def stream_screen_file():
     # --- END NEW ---
 
     try:
+        # --- Debug Prints for file stream (Full Screening) ---
+        print(f"--- Debug Full Screening: Before load_literature_ris ---")
+        print(f"Filename: {file.filename}")
+        print(f"Content Type: {file.content_type}")
+        print(f"Stream type: {type(file.stream)}")
+        if hasattr(file.stream, 'tell'):
+            try:
+                print(f"Stream initial position: {file.stream.tell()}")
+            except Exception as e:
+                print(f"Error getting stream position: {e}")
+        # --- End Debug Prints ---
+
         df = load_literature_ris(file.stream)
         if df is None or df.empty: return Response(f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\n\n", mimetype='text/event-stream')
         
@@ -843,16 +855,18 @@ def stream_test_screen_file():
         return Response(f"data: {json.dumps({'type': 'error', 'message': 'No selected/invalid file.'})}\n\n", mimetype='text/event-stream')
 
     try:
-        sample_size = int(request.form.get('sample_size', 10))
-        sample_size = max(5, min(9999, sample_size)) 
-    except ValueError: sample_size = 10
+        # --- Debug Prints for file stream (Test Screening) ---
+        print(f"--- Debug Test Screening: Before load_literature_ris ---")
+        print(f"Filename: {file.filename}")
+        print(f"Content Type: {file.content_type}")
+        print(f"Stream type: {type(file.stream)}")
+        if hasattr(file.stream, 'tell'):
+            try:
+                print(f"Stream initial position: {file.stream.tell()}")
+            except Exception as e:
+                print(f"Error getting stream position: {e}")
+        # --- End Debug Prints ---
 
-    # --- NEW: Get filter inputs from form for Test Screening ---
-    line_range_input = request.form.get('line_range_filter', '').strip()
-    title_filter_input = request.form.get('title_text_filter', '').strip()
-    # --- END NEW ---
-
-    try:
         df = load_literature_ris(file.stream)
         if df is None or df.empty:
             return Response(f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\n\n", mimetype='text/event-stream')
