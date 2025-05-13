@@ -4,12 +4,31 @@
 
 {% block extra_head %}
 <style>
-    .table th, .table td { vertical-align: middle; font-size: 0.9rem;}
-    .reasoning-text { font-size: 0.85rem; color: #555; max-width: 400px; white-space: pre-wrap; word-break: break-word;}
+    .table th, .table td {
+        vertical-align: middle; 
+        font-size: 0.9rem;
+    }
+    /* Styling for the Filename column (2nd child in the table row) */
+    .table td:nth-child(2),
+    .table th:nth-child(2) {
+        max-width: 300px; /* Adjust as needed */
+        word-wrap: break-word; /* Allows breaking long words */
+        white-space: normal; /* Ensures text wraps normally */
+        overflow-wrap: break-word; /* More robust word breaking */
+    }
+
+    .reasoning-text { 
+        font-size: 0.85rem; 
+        color: #555; 
+        max-width: 350px; /* Adjust as needed */
+        white-space: pre-wrap; /* Keep for reasoning to preserve formatting from LLM */
+        word-break: break-word;
+        overflow-wrap: break-word;
+    }
     .decision-INCLUDE { color: green; font-weight: bold; }
     .decision-EXCLUDE { color: red; font-weight: bold; }
     .decision-MAYBE { color: orange; font-weight: bold; }
-    .decision-ERROR, .decision-TEXT_EXTRACT_ERROR, .decision-PROMPT_ERROR, .decision-PROCESSING_ERROR, .decision-WORKER_ERROR, .decision-API_ERROR {
+    .decision-ERROR, .decision-TEXT_EXTRACT_ERROR, .decision-PROMPT_ERROR, .decision-PROCESSING_ERROR, .decision-WORKER_ERROR, .decision-API_ERROR, .decision-WORKER_THREAD_ERROR, .decision-FILE_PROCESSING_ERROR {
         color: purple; font-weight: bold;
     }
     .table-responsive {max-height: 70vh; overflow-y: auto;}
