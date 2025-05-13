@@ -2,6 +2,21 @@
 
 {% block title %}Full-Text Screening - AI Literature Screening Assistant{% endblock %}
 
+{% block extra_head %}
+<style>
+    /* Add some specific styles for the file list */
+    #batch_selected_files_list .list-group-item {
+        font-size: 0.85em; /* Smaller font for file list items */
+        padding: 0.5rem 0.75rem; /* Adjust padding */
+    }
+    #batch_selected_files_list .remove-file-btn {
+        font-size: 1.1em; /* Make remove button slightly larger */
+        line-height: 1;
+        padding: 0.1rem 0.3rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 {# --- Full-Text Screening Section (Single PDF) --- #}
 <div class="section-card">
@@ -31,18 +46,19 @@
     </div>
     <form id="batch_pdf_screen_form" enctype="multipart/form-data">
         <div class="form-group">
-            <label for="batch_pdf_files">Upload PDF Files (select multiple):</label>
+            <label for="batch_pdf_files_input_control">Upload PDF Files (select multiple):</label>
             <input type="file" name="batch_pdf_files_input_control" id="batch_pdf_files_input_control" class="form-control-file form-control-sm" required accept=".pdf" multiple>
         </div>
 
-        <!-- Added section to display selected files and allow removal -->
         <div id="batch_selected_files_preview_area" class="mb-2" style="display: none;">
-            <strong>Selected files:</strong>
-            <ul id="batch_selected_files_list" class="list-group list-group-flush" style="max-height: 150px; overflow-y: auto; font-size: 0.9em;">
-                <!-- Selected files will be listed here by JavaScript -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong>Selected files (<span id="batch_selected_files_count">0</span>):</strong>
+                <button type="button" id="batch_clear_all_files_button" class="btn btn-outline-secondary btn-sm">Clear All</button>
+            </div>
+            <ul id="batch_selected_files_list" class="list-group list-group-flush border rounded" style="max-height: 180px; overflow-y: auto;">
+                <!-- Selected files will be listed here -->
             </ul>
         </div>
-        <!-- End selected files preview -->
 
         <div class="form-row">
             <div class="form-group col-md-6">
@@ -101,52 +117,55 @@ document.addEventListener('DOMContentLoaded', function() {
     const batchPdfFilesInputControl = document.getElementById('batch_pdf_files_input_control');
     const selectedFilesPreviewArea = document.getElementById('batch_selected_files_preview_area');
     const selectedFilesList = document.getElementById('batch_selected_files_list');
+    const selectedFilesCountSpan = document.getElementById('batch_selected_files_count');
+    const clearAllFilesButton = document.getElementById('batch_clear_all_files_button');
     const startBatchPdfScreenButton = document.getElementById('start_batch_pdf_screen_button');
     
-    let currentBatchFiles = []; // Array to hold the File objects that are currently selected
+    let currentBatchFiles = [];
+
+    function updateSelectedFilesUI() {
+        selectedFilesList.innerHTML = ''; // Clear previous list
+        if (currentBatchFiles.length > 0) {
+            selectedFilesPreviewArea.style.display = 'block';
+            currentBatchFiles.forEach((file, index) => {
+                const listItem = document.createElement('li');
+                listItem.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+                listItem.textContent = file.name;
+                
+                const removeButton = document.createElement('button');
+                removeButton.classList.add('btn', 'btn-outline-danger', 'btn-sm', 'remove-file-btn');
+                removeButton.innerHTML = '&times;';
+                removeButton.type = 'button';
+                removeButton.title = 'Remove file';
+
+                removeButton.addEventListener('click', function() {
+                    currentBatchFiles.splice(index, 1); // Remove file from array by index
+                    updateSelectedFilesUI(); // Re-render the list
+                });
+                
+                listItem.appendChild(removeButton);
+                selectedFilesList.appendChild(listItem);
+            });
+        } else {
+            selectedFilesPreviewArea.style.display = 'none';
+        }
+        selectedFilesCountSpan.textContent = currentBatchFiles.length;
+        // Reset the actual file input so if user re-selects, 'change' event fires correctly.
+        // This is important if user clears all and then wants to select the same set of files again.
+        batchPdfFilesInputControl.value = ""; 
+    }
 
     if (batchPdfFilesInputControl) {
         batchPdfFilesInputControl.addEventListener('change', function(event) {
-            selectedFilesList.innerHTML = ''; // Clear previous list
-            currentBatchFiles = Array.from(event.target.files); // Store File objects
-            
-            if (currentBatchFiles.length > 0) {
-                selectedFilesPreviewArea.style.display = 'block';
-                currentBatchFiles.forEach((file, index) => {
-                    const listItem = document.createElement('li');
-                    listItem.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'py-1', 'px-2');
-                    listItem.textContent = file.name;
-                    
-                    const removeButton = document.createElement('button');
-                    removeButton.classList.add('btn', 'btn-outline-danger', 'btn-sm');
-                    removeButton.innerHTML = '&times;'; // Multiplication sign for 'x'
-                    removeButton.type = 'button'; // Important for forms
-                    removeButton.title = 'Remove file';
-                    removeButton.dataset.fileIndex = index; // Store original index if needed, though direct array ops are better
+            currentBatchFiles = Array.from(event.target.files); 
+            updateSelectedFilesUI();
+        });
+    }
 
-                    removeButton.addEventListener('click', function() {
-                        // Find file by name in currentBatchFiles and remove it
-                        // This is safer if list reordering occurs, but direct index is fine if list isn't reordered by user.
-                        // For simplicity, let's assume we can find it by name or we can regenerate the array.
-                        const fileNameToRemove = file.name; // or use an ID if files can have same name
-                        currentBatchFiles = currentBatchFiles.filter(f => f.name !== fileNameToRemove || f !== file); // Filter out the file
-                        
-                        // Re-render the list (or just remove the listItem)
-                        listItem.remove(); 
-                        if (currentBatchFiles.length === 0) {
-                            selectedFilesPreviewArea.style.display = 'none';
-                        }
-                        // Important: If you clear the input control's value, it forgets all files.
-                        // We manage the list in `currentBatchFiles` instead.
-                        // batchPdfFilesInputControl.value = ""; // DO NOT DO THIS unless you have a way to repopulate it
-                    });
-                    
-                    listItem.appendChild(removeButton);
-                    selectedFilesList.appendChild(listItem);
-                });
-            } else {
-                selectedFilesPreviewArea.style.display = 'none';
-            }
+    if (clearAllFilesButton) {
+        clearAllFilesButton.addEventListener('click', function() {
+            currentBatchFiles = [];
+            updateSelectedFilesUI();
         });
     }
 

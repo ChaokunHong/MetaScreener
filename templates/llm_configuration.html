@@ -2,11 +2,30 @@
 
 {% block title %}LLM Configuration - AI Literature Screening Assistant{% endblock %}
 
+{% block extra_head %}
+<style>
+    .api-key-status-badge {
+        padding: 0.2em 0.5em;
+        border-radius: 0.2rem;
+        font-size: 0.8em;
+        margin-left: 5px;
+    }
+    .status-set-in-session { background-color: #28a745; color: white; }
+    .status-env-default { background-color: #17a2b8; color: white; }
+    .status-not-set { background-color: #dc3545; color: white; }
+    .clear-key-btn {
+        margin-left: 10px;
+        font-size: 0.8em;
+        padding: 0.1rem 0.3rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="section-card">
     <h2>LLM Configuration</h2>
     <p class="api-key-info">
-        Select LLM and provide the required API key below. We commit that API keys are only stored in your browser session for the current visit and are NOT recorded by our backend.
+        Select LLM and provide/manage API keys below. API keys are stored only in your browser session for the current visit.
     </p>
     <form id="llm_config_form" method="POST" action="{{ url_for('configure_llm') }}">
         <div class="row">
@@ -26,17 +45,32 @@
             </div></div>
         </div>
         {% for provider_name_key, provider_data_val in llm_providers_info.items() %}
-        <div class="form-group api-key-input" id="{{ provider_name_key.lower() }}_api_key_group" style="display: none;">
+        <div class="form-group api-key-input-group" id="{{ provider_name_key.lower() }}_api_key_group" style="display: none;">
             <label for="{{ provider_name_key.lower() }}_api_key">{{ provider_name_key.replace('_', ' ') }} API Key:</label>
             <div class="input-group input-group-sm">
-                <input type="password" name="{{ provider_name_key.lower() }}_api_key" id="{{ provider_name_key.lower() }}_api_key" class="form-control form-control-sm" placeholder="API Key is required for screening">
+                <input type="password" name="{{ provider_name_key.lower() }}_api_key" id="{{ provider_name_key.lower() }}_api_key" class="form-control form-control-sm" placeholder="Enter API Key here">
                  <div class="input-group-append">
                     <button class="btn btn-outline-secondary btn-sm" type="button" onclick="toggleApiKeyVisibility('{{ provider_name_key.lower() }}_api_key')">Show</button>
                 </div>
             </div>
-            <small class="form-text text-muted">Status: <span id="{{ provider_name_key.lower() }}_api_key_status_text">{{ api_key_status.get(provider_name_key, 'Not set') }}</span>.</small>
+            <div class="mt-1">
+                <small class="form-text text-muted d-inline">Status: </small>
+                <span id="{{ provider_name_key.lower() }}_api_key_status_badge" class="api-key-status-badge">
+                    <!-- Status text will be populated by JS -->
+                </span>
+                <button type="submit" name="clear_api_key" value="{{ provider_name_key }}" 
+                        id="clear_{{ provider_name_key.lower() }}_api_key_btn" 
+                        class="btn btn-outline-danger btn-sm clear-key-btn" 
+                        style="display: none;" 
+                        title="Clear API Key from session for {{ provider_name_key.replace('_', ' ') }}">
+                    Clear Key
+                </button>
+                <span id="{{ provider_name_key.lower() }}_tooltip_icon" class="text-info" style="cursor:pointer; display:none;" title="This key is set via environment variables. Keys set in session take precedence.">&#9432;</span>
+            </div>
             <small class="form-text text-muted mt-1">
-                {% if provider_name_key == 'DeepSeek' %}
+                {% if provider_data_val.api_key_info_url %}
+                    Get your {{ provider_name_key.replace('_', ' ') }} API key from <a href="{{ provider_data_val.api_key_info_url }}" target="_blank" rel="noopener noreferrer">their platform</a>.
+                {% elif provider_name_key == 'DeepSeek' %}
                     Get your DeepSeek API key from the <a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer">DeepSeek Platform</a>.
                 {% elif provider_name_key == 'OpenAI_ChatGPT' %}
                     Get your OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI API Keys</a>.
@@ -47,53 +81,74 @@
                 {% else %}
                     API key required. Please refer to the provider's documentation.
                 {% endif %}
-                This key is stored only in your browser session and is required to run screening.
             </small>
         </div>
         {% endfor %}
-        <button type="submit" class="btn btn-primary btn-sm">Save LLM Config</button>
+        <button type="submit" name="save_llm_config" value="true" class="btn btn-primary btn-sm">Save LLM Config & API Key</button>
     </form>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    const llmProvidersData = {{ llm_providers_info | tojson }};
+    // Get the JSON string from Jinja2, ensuring it's treated as a JS string
+    const llmProvidersDataJSON = '{{ llm_providers_info | tojson | safe }}'; 
+    const apiKeyStatusesJSON = '{{ api_key_status | tojson | safe }}';
+
+    // Parse the JSON strings into JavaScript objects
+    const llmProvidersData = JSON.parse(llmProvidersDataJSON);
+    const apiKeyStatuses = JSON.parse(apiKeyStatusesJSON);
+
     const currentProviderFromServer = "{{ current_llm_provider | default('', true) }}";
     const currentModelIdFromServer = "{{ current_llm_model_id | default('', true) }}";
-    const apiKeyStatuses = {{ api_key_status | tojson }};
 
     function updateModelOptions(selectedProvider, selectedModelId) {
         const modelSelect = document.getElementById('llm_model_id');
-        modelSelect.innerHTML = ''; // Clear existing options
+        modelSelect.innerHTML = ''; 
         if (llmProvidersData[selectedProvider] && llmProvidersData[selectedProvider].models) {
             llmProvidersData[selectedProvider].models.forEach(model => {
                 const option = document.createElement('option');
                 option.value = model.id;
-                // Display model name and type (e.g., "GPT-4 (reasoning)")
-                option.textContent = `${model.display_name} (${model.type || 'N/A'})`;
+                option.textContent = model.display_name + " (" + (model.type || 'N/A') + ")"; 
                 if (model.id === selectedModelId) {
                     option.selected = true;
                 }
                 modelSelect.appendChild(option);
             });
-            // If no model was pre-selected (e.g. new provider selected), select the first one if available
             if (modelSelect.selectedIndex === -1 && modelSelect.options.length > 0) {
                 modelSelect.options[0].selected = true;
             }
         }
     }
 
-    function updateApiKeyInputVisibility(selectedProvider) {
-        document.querySelectorAll('.api-key-input').forEach(group => {
+    function updateApiKeyDisplay(selectedProvider) {
+        document.querySelectorAll('.api-key-input-group').forEach(group => {
             group.style.display = 'none';
         });
         const currentGroup = document.getElementById(selectedProvider.toLowerCase() + '_api_key_group');
         if (currentGroup) {
             currentGroup.style.display = 'block';
-            const statusTextElement = document.getElementById(selectedProvider.toLowerCase() + '_api_key_status_text');
-            if (statusTextElement) {
-                statusTextElement.textContent = apiKeyStatuses[selectedProvider] || 'Not set';
+            const statusBadge = document.getElementById(selectedProvider.toLowerCase() + '_api_key_status_badge');
+            const clearButton = document.getElementById('clear_' + selectedProvider.toLowerCase() + '_api_key_btn');
+            const tooltipIcon = document.getElementById(selectedProvider.toLowerCase() + '_tooltip_icon');
+
+            const status = apiKeyStatuses[selectedProvider] || 'Not set';
+            if (statusBadge) {
+                statusBadge.textContent = status;
+                statusBadge.className = 'api-key-status-badge'; 
+                if (status === 'Set in session') {
+                    statusBadge.classList.add('status-set-in-session');
+                    if (clearButton) clearButton.style.display = 'inline-block';
+                    if (tooltipIcon) tooltipIcon.style.display = 'none';
+                } else if (status === 'Using environment default') {
+                    statusBadge.classList.add('status-env-default');
+                    if (clearButton) clearButton.style.display = 'none'; 
+                    if (tooltipIcon) tooltipIcon.style.display = 'inline-block';
+                } else { 
+                    statusBadge.classList.add('status-not-set');
+                    if (clearButton) clearButton.style.display = 'none';
+                    if (tooltipIcon) tooltipIcon.style.display = 'none';
+                }
             }
         }
     }
@@ -112,55 +167,54 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         const providerSelect = document.getElementById('llm_provider');
-        const configForm = document.getElementById('llm_config_form'); // Get the form
+        const configForm = document.getElementById('llm_config_form');
 
-        // Initial population of model options and API key field visibility
         if (currentProviderFromServer && llmProvidersData[currentProviderFromServer]) {
             updateModelOptions(currentProviderFromServer, currentModelIdFromServer);
-            updateApiKeyInputVisibility(currentProviderFromServer);
+            updateApiKeyDisplay(currentProviderFromServer);
         } else if (providerSelect.options.length > 0) {
-            // Fallback if currentProviderFromServer is not set or invalid, use the first provider in the list
             const firstProvider = providerSelect.options[0].value;
-            updateModelOptions(firstProvider, null); // Select the first model of the first provider
-            updateApiKeyInputVisibility(firstProvider);
+            updateModelOptions(firstProvider, null);
+            updateApiKeyDisplay(firstProvider);
         }
 
         providerSelect.addEventListener('change', function() {
-            updateModelOptions(this.value, null); // When provider changes, no specific model is pre-selected initially
-            updateApiKeyInputVisibility(this.value);
-            // Clear API key fields for other providers when switching
-            document.querySelectorAll('.api-key-input input[type="password"], .api-key-input input[type="text"]').forEach(inputField => {
-                // Check if the input field's group is for the currently selected provider
-                if (!inputField.closest('.api-key-input').id.startsWith(this.value.toLowerCase())) {
-                    inputField.value = ''; // Clear the value if it's not for the selected provider
+            updateModelOptions(this.value, null);
+            updateApiKeyDisplay(this.value);
+            document.querySelectorAll('.api-key-input-group input[type="password"], .api-key-input-group input[type="text"]').forEach(inputField => {
+                if (!inputField.closest('.api-key-input-group').id.startsWith(this.value.toLowerCase())) {
+                    inputField.value = '';
                 }
             });
         });
         
-        // --- ADDED: Form Submit Validation --- 
         if (configForm) {
             configForm.addEventListener('submit', function(event) {
-                // Get the currently selected provider
-                const selectedProvider = providerSelect.value;
-                if (!selectedProvider) {
-                    alert('Please select an LLM Provider.');
-                    event.preventDefault(); // Stop submission
-                    return;
+                const clickedButton = event.submitter;
+                if (clickedButton && clickedButton.name === 'clear_api_key') {
+                    return; 
                 }
-                
-                // Construct the ID of the API key input for the selected provider
+
+                const selectedProvider = providerSelect.value;
+                if (!selectedProvider) { 
+                    alert('Please select an LLM Provider.'); 
+                    event.preventDefault(); 
+                    return; 
+                }
                 const apiKeyInputId = selectedProvider.toLowerCase() + '_api_key';
                 const apiKeyInput = document.getElementById(apiKeyInputId);
                 
-                // Check if the visible API key input is empty
-                if (apiKeyInput && apiKeyInput.value.trim() === '') {
-                    alert(`API Key for ${selectedProvider.replace('_',' ')} is required. Please enter the key or obtain one from the provider.`);
-                    event.preventDefault(); // Stop form submission
-                    apiKeyInput.focus(); // Focus the empty field
+                const currentStatus = apiKeyStatuses[selectedProvider] || 'Not set';
+                if (currentStatus === 'Not set' && apiKeyInput && apiKeyInput.value.trim() === '') {
+                    alert("API Key for " + selectedProvider.replace('_',' ') + " is required if not already set. Please enter the key or obtain one from the provider.");
+                    event.preventDefault(); 
+                    apiKeyInput.focus(); 
                 } 
-                // If validation passes, the form submits normally
             });
         }
+        
+        // Re-attach onclick for any dynamically created elements if needed, or ensure direct binding like above.
+        // The existing `onclick="toggleApiKeyVisibility(...)"` in the HTML should work directly.
     });
 </script>
 {% endblock %} 
