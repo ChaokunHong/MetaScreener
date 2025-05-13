@@ -1623,16 +1623,20 @@ def _perform_batch_pdf_screening_for_file(item_manifest_with_path, criteria_prom
         
         api_result = call_llm_api(prompt_data, llm_provider_name, llm_model_id, llm_api_key, llm_base_url)
         
-        return {
+        result_to_return = {
             'filename': original_filename, 
             'title_for_display': display_title, 
             'decision': api_result.get('label', 'API_ERROR'),
             'reasoning': api_result.get('justification', 'API call failed or returned invalid data.')
         }
+        app_logger.info(f"Batch PDF Thread: Returning result for '{original_filename}': {result_to_return}") # Log the entire result
+        return result_to_return
 
     except Exception as e_process:
         app_logger.exception(f"Batch PDF Thread: Error processing file '{original_filename}': {e_process}")
-        return {'filename': original_filename, 'title_for_display': display_title, 'decision': 'FILE_PROCESSING_ERROR', 'reasoning': str(e_process)}
+        error_result = {'filename': original_filename, 'title_for_display': display_title, 'decision': 'FILE_PROCESSING_ERROR', 'reasoning': str(e_process)}
+        app_logger.info(f"Batch PDF Thread: Returning error result for '{original_filename}': {error_result}")
+        return error_result
     finally:
         if os.path.exists(processing_file_path):
             try:
