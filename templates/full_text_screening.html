@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if(batchLog) batchLog.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${jsonData.message}</div>`;
                                 if (jsonData.batch_session_id && batchResultsLinkArea) {
                                     // IMPORTANT: Replace with actual results page URL
-                                    let baseUrl = "{{ url_for('show_batch_pdf_results_placeholder', batch_id='__BATCH_ID__') }}";
+                                    let baseUrl = "{{ url_for('show_batch_pdf_results_placeholder', batch_session_id='__BATCH_ID__') }}";
                                     document.getElementById('view_batch_pdf_results_link').href = baseUrl.replace('__BATCH_ID__', jsonData.batch_session_id);
                                     batchResultsLinkArea.style.display = 'block';
                                 }
