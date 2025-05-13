@@ -22,7 +22,12 @@
         white-space: pre-wrap; 
         word-wrap: break-word;
     }
+    #pdf-viewer-container { margin-top: 20px; border: 1px solid #ccc; display: none; }
+    #pdf-canvas { border: 1px solid black; direction: ltr; width: 100%; /* Let JS control height or use aspect ratio */ }
+    #pdf-controls { margin-bottom: 10px; text-align: center; }
 </style>
+<!-- PDF.js via CDN -->
+<script src="//mozilla.github.io/pdf.js/build/pdf.mjs" type="module"></script>
 {% endblock %}
 
 {% block content %}
@@ -43,8 +48,111 @@
     </div>
 
     <h4>Extracted Text Preview:</h4>
-    <div class="text-preview">
+    <div class="text-preview mb-3">
         {{ extracted_text_preview }}
     </div>
 
+    <!-- PDF Preview Section -->
+    <button id="toggle-pdf-preview" class="btn btn-info btn-sm mb-2">Show Original PDF Preview</button>
+    <div id="pdf-viewer-container">
+        <div id="pdf-controls">
+            <button id="pdf-prev" class="btn btn-light btn-sm">Previous</button>
+            <span>Page: <span id="pdf-page-num"></span> / <span id="pdf-page-count"></span></span>
+            <button id="pdf-next" class="btn btn-light btn-sm">Next</button>
+        </div>
+        <canvas id="pdf-canvas"></canvas>
+    </div>
+    <!-- End PDF Preview Section -->
+
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+    // Ensure this runs after DOM is loaded, though extra_js is usually at the end.
+    // Alternatively, wrap in document.addEventListener('DOMContentLoaded', function() { ... });
+
+    const pdfId = "{{ pdf_id }}";
+    const originalFilename = "{{ filename }}"; // Assuming filename is the original, sanitized filename
+    const toggleButton = document.getElementById('toggle-pdf-preview');
+    const pdfViewerContainer = document.getElementById('pdf-viewer-container');
+    const pdfCanvas = document.getElementById('pdf-canvas');
+    const pageNumSpan = document.getElementById('pdf-page-num');
+    const pageCountSpan = document.getElementById('pdf-page-count');
+    const prevButton = document.getElementById('pdf-prev');
+    const nextButton = document.getElementById('pdf-next');
+
+    let pdfDoc = null;
+    let pageNum = 1;
+    let pageRendering = false;
+    let pageNumPending = null;
+    const scale = 1.5;
+    const { pdfjsLib } = globalThis;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '//mozilla.github.io/pdf.js/build/pdf.worker.mjs';
+
+    async function renderPage(num) {
+        pageRendering = true;
+        const page = await pdfDoc.getPage(num);
+        const viewport = page.getViewport({ scale: scale });
+        const canvasContext = pdfCanvas.getContext('2d');
+        pdfCanvas.height = viewport.height;
+        pdfCanvas.width = viewport.width;
+
+        const renderContext = {
+            canvasContext: canvasContext,
+            viewport: viewport
+        };
+        await page.render(renderContext).promise;
+        pageRendering = false;
+        if (pageNumPending !== null) {
+            renderPage(pageNumPending);
+            pageNumPending = null;
+        }
+        pageNumSpan.textContent = num;
+    }
+
+    function queueRenderPage(num) {
+        if (pageRendering) {
+            pageNumPending = num;
+        } else {
+            renderPage(num);
+        }
+    }
+
+    prevButton.addEventListener('click', () => {
+        if (pageNum <= 1) return;
+        pageNum--;
+        queueRenderPage(pageNum);
+    });
+
+    nextButton.addEventListener('click', () => {
+        if (pageNum >= pdfDoc.numPages) return;
+        pageNum++;
+        queueRenderPage(pageNum);
+    });
+
+    toggleButton.addEventListener('click', async () => {
+        if (pdfViewerContainer.style.display === 'none') {
+            pdfViewerContainer.style.display = 'block';
+            toggleButton.textContent = 'Hide Original PDF Preview';
+            if (!pdfDoc) { // Load PDF only once
+                const pdfUrl = `{{ url_for('serve_pdf_file', pdf_id='__PDF_ID__', original_filename='__FILENAME__') }}`
+                                .replace('__PDF_ID__', pdfId)
+                                .replace('__FILENAME__', encodeURIComponent(originalFilename));
+                try {
+                    const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                    pdfDoc = await loadingTask.promise;
+                    pageCountSpan.textContent = pdfDoc.numPages;
+                    renderPage(pageNum);
+                } catch (reason) {
+                    console.error("Error loading PDF:", reason);
+                    pdfViewerContainer.innerHTML = '<p class="text-danger">Error loading PDF preview.</p>';
+                }
+            }
+        } else {
+            pdfViewerContainer.style.display = 'none';
+            toggleButton.textContent = 'Show Original PDF Preview';
+        }
+    });
+
+</script>
 {% endblock %} 
