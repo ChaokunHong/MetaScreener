@@ -33,13 +33,31 @@ def load_literature_ris(filepath_or_stream: Union[str, IO[bytes]]) -> Optional[p
                 entries = list(rispy.load(bibliography_file))
         elif hasattr(filepath_or_stream, 'read'):
             source_description = "uploaded file stream"
-            text_stream = io.TextIOWrapper(filepath_or_stream, encoding='utf-8-sig', errors='replace')
-            entries = list(rispy.load(text_stream))
+            
+            try:
+                # Ensure stream is at the beginning if possible
+                if hasattr(filepath_or_stream, 'seek') and callable(filepath_or_stream.seek):
+                    filepath_or_stream.seek(0)
+                
+                # Read all bytes from the original stream
+                binary_content = filepath_or_stream.read()
+                
+                # Create a new BytesIO stream from this content
+                buffered_binary_stream = io.BytesIO(binary_content)
+                
+                # Now wrap this BytesIO stream with TextIOWrapper
+                text_stream = io.TextIOWrapper(buffered_binary_stream, encoding='utf-8-sig', errors='replace')
+                entries = list(rispy.load(text_stream))
+            except Exception as e_stream_handling:
+                print(f"Error handling uploaded stream before RIS parsing: {e_stream_handling}")
+                traceback.print_exc()
+                return None
         else:
             print("Error: Invalid input type for load_literature_ris.")
             return None
 
         if not entries:
+            print(f"RIS parsing resulted in no entries for {source_description}.") # Added more specific log
             return pd.DataFrame()
 
         data_for_df = []
