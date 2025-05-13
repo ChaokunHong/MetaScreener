@@ -122,6 +122,11 @@ def extract_text_from_pdf(file_stream: IO[bytes], ocr_language: str = 'eng') -> 
                 page_header = f"--- TEXT FROM PDF Page {page_num_1_indexed} ---"
                 
                 page_text_direct = page.get_text("text", sort=True).strip()
+                # --- ADDED TEMPORARY DEBUG PRINT ---
+                print(f"--- RAW EXTRACTED TEXT FOR PAGE {page_num_1_indexed} (length: {len(page_text_direct)}) ---")
+                print(page_text_direct)
+                print(f"----------------------------------------")
+                # --- END TEMPORARY DEBUG PRINT ---
                 current_page_raw_text = page_text_direct
 
                 if len(page_text_direct) < MIN_TEXT_LENGTH_PER_PAGE_TO_SKIP_OCR:
