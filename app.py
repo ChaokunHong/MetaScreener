@@ -1590,28 +1590,24 @@ def batch_screen_pdfs_stream():
 
 
 # --- NEW Helper for processing a single PDF in batch ---
-def _perform_batch_pdf_screening_for_file(item_manifest, criteria_prompt_text, llm_provider_name, llm_model_id, llm_api_key, llm_base_url, upload_folder):
-    original_filename = item_manifest['original_filename']
-    file_storage = item_manifest['file_storage']
-    file_storage.seek(0)
-    temp_file_id = str(uuid.uuid4())
-    saved_filename = f"batch_{temp_file_id}_{original_filename}"
-    saved_file_path = os.path.join(upload_folder, saved_filename)
+def _perform_batch_pdf_screening_for_file(item_manifest_with_path, criteria_prompt_text, llm_provider_name, llm_model_id, llm_api_key, llm_base_url):
+    original_filename = item_manifest_with_path['original_filename']
+    processing_file_path = item_manifest_with_path['processing_file_path'] # This is the FULL path
+
     try:
-        file_storage.save(saved_file_path)
-        app_logger.info(f"Batch PDF: Saved '{original_filename}' to '{saved_file_path}' for processing.")
-        with open(saved_file_path, 'rb') as saved_file_stream:
-            full_text = extract_text_from_pdf(saved_file_stream, ocr_language='eng')
+        app_logger.info(f"Batch PDF Thread: Processing '{original_filename}' from path '{processing_file_path}'.")
+        with open(processing_file_path, 'rb') as saved_file_stream:
+            full_text = extract_text_from_pdf(saved_file_stream, ocr_language='eng') 
+        
         if full_text is None:
-            app_logger.error(f"Batch PDF: Failed to extract text from '{original_filename}'.")
+            app_logger.error(f"Batch PDF Thread: Failed to extract text from '{original_filename}'.")
             return {'filename': original_filename, 'decision': 'TEXT_EXTRACT_ERROR', 'reasoning': 'Failed to extract text from PDF.'}
+        
         prompt_data = construct_llm_prompt(full_text, criteria_prompt_text)
         if not prompt_data:
-            app_logger.error(f"Batch PDF: Failed to construct LLM prompt for '{original_filename}'.")
+            app_logger.error(f"Batch PDF Thread: Failed to construct LLM prompt for '{original_filename}'.")
             return {'filename': original_filename, 'decision': 'PROMPT_ERROR', 'reasoning': 'Failed to construct LLM prompt.'}
-
-        # 3. Call LLM API (reusing existing utility)
-        # Note: call_llm_api expects provider_name, model_id, api_key, base_url
+        
         api_result = call_llm_api(prompt_data, llm_provider_name, llm_model_id, llm_api_key, llm_base_url)
         
         return {
@@ -1621,16 +1617,16 @@ def _perform_batch_pdf_screening_for_file(item_manifest, criteria_prompt_text, l
         }
 
     except Exception as e_process:
-        app_logger.exception(f"Batch PDF: Error processing file '{original_filename}': {e_process}")
-        return {'filename': original_filename, 'decision': 'PROCESSING_ERROR', 'reasoning': str(e_process)}
+        app_logger.exception(f"Batch PDF Thread: Error processing file '{original_filename}': {e_process}")
+        return {'filename': original_filename, 'decision': 'FILE_PROCESSING_ERROR', 'reasoning': str(e_process)}
     finally:
-        # Clean up the saved temporary file after processing
-        if os.path.exists(saved_file_path):
+        if os.path.exists(processing_file_path):
             try:
-                os.remove(saved_file_path)
-                app_logger.info(f"Batch PDF: Cleaned up temporary file '{saved_file_path}'.")
+                os.remove(processing_file_path)
+                app_logger.info(f"Batch PDF Thread: Cleaned up temporary file '{processing_file_path}'.")
             except Exception as e_cleanup:
-                app_logger.error(f"Batch PDF: Error cleaning up temp file '{saved_file_path}': {e_cleanup}")
+                app_logger.error(f"Batch PDF Thread: Error cleaning up temp file '{processing_file_path}': {e_cleanup}")
+
 # --- END NEW Helper ---
 
 
