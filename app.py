@@ -1497,7 +1497,40 @@ def batch_screen_pdfs_stream():
         return Response(sse_config_error_gen(), mimetype='text/event-stream')
     # --- END Config Fetch ---
 
-    upload_folder_path = app.config['UPLOAD_FOLDER'] # Get upload folder path
+    upload_folder_path = app.config['UPLOAD_FOLDER']
+
+    # --- Pre-save files that need processing to unique temp paths ---
+    files_ready_for_threads = []
+    for item_manifest in files_to_process_manifest:
+        file_storage = item_manifest['file_storage']
+        original_filename = item_manifest['original_filename']
+        try:
+            file_storage.seek(0) # Reset stream before saving
+            temp_file_id = str(uuid.uuid4())
+            # Save with a name that indicates it's a temporary file for this batch operation
+            processing_filename = f"batch_processing_{temp_file_id}_{original_filename}"
+            processing_file_path = os.path.join(upload_folder_path, processing_filename)
+            file_storage.save(processing_file_path)
+            app_logger.info(f"Batch PDF: Pre-saved '{original_filename}' to '{processing_file_path}' for thread processing.")
+            files_ready_for_threads.append({
+                'original_filename': original_filename,
+                'processing_file_path': processing_file_path # Pass the path to the thread
+            })
+        except Exception as e_save:
+            app_logger.error(f"Batch PDF: Failed to pre-save file '{original_filename}' for processing: {e_save}")
+            # Optionally, send an immediate SSE error for this file or collect errors
+            # For now, this file will be skipped by the threads if it's not in files_ready_for_threads
+            pass # Or append an error marker to files_ready_for_threads to report it
+    # --- End Pre-save ---
+
+    if not files_ready_for_threads:
+        app_logger.warning("Batch PDF Stream: No files were successfully pre-saved for processing.")
+        def sse_presave_error_gen():
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to prepare any files for batch processing.'})}\n\n"
+        return Response(sse_presave_error_gen(), mimetype='text/event-stream')
+
+    # Update total_files_to_process to reflect only successfully pre-saved files
+    total_files_to_process = len(files_ready_for_threads) 
 
     def generate_processing_progress():
         yield f"data: {json.dumps({'type': 'start', 'total_uploaded': len(initial_manifest), 'total_to_process': total_files_to_process, 'filter_info': filter_description})}\n\n"
@@ -1505,25 +1538,22 @@ def batch_screen_pdfs_stream():
         processed_files_results = []
         futures_map = {}
 
-        with ThreadPoolExecutor(max_workers=4) as executor: # Max workers can be tuned
-            for item_manifest in files_to_process_manifest:
-                # Args for _perform_batch_pdf_screening_for_file:
-                # file_item_manifest, criteria_prompt_text, llm_provider_name, llm_model_id, llm_api_key, llm_base_url, upload_folder
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            for thread_item_manifest in files_ready_for_threads: # Iterate over pre-saved file manifests
                 future = executor.submit(
                     _perform_batch_pdf_screening_for_file, 
-                    item_manifest, 
+                    thread_item_manifest, # This now contains 'processing_file_path'
                     criteria_prompt_text, 
                     llm_provider_name, 
                     llm_model_id, 
                     llm_api_key, 
-                    llm_base_url,
-                    upload_folder_path
+                    llm_base_url
+                    # upload_folder is no longer needed by the helper as it gets a full path
                 )
-                # Use original_filename or a unique ID from item_manifest if available for futures_map key
-                # For now, let's assume future object itself is a good key if we process results in order of completion
-                futures_map[future] = item_manifest['original_filename']
+                futures_map[future] = thread_item_manifest['original_filename'] # For logging upon completion/error
 
             processed_count = 0
+            # ... (as_completed loop remains similar, but _perform_batch_pdf_screening_for_file now takes different manifest) ...
             for future in as_completed(futures_map):
                 original_filename_for_log = futures_map[future]
                 try:
@@ -1613,20 +1643,18 @@ def show_batch_pdf_results(batch_session_id):
     if not batch_data or not batch_data.get('is_batch_pdf_result', False):
         app_logger.warning(f"Batch PDF results not found or invalid for ID: {batch_session_id}")
         flash("Batch PDF screening results not found or may have expired.", "warning")
-        return redirect(url_for('full_text_screening_page')) # Redirect to where batch jobs are initiated
+        return redirect(url_for('full_text_screening_page'))
     
-    # For now, just log that we found it. Later, render a template.
-    app_logger.info(f"Found batch data for {batch_session_id}. Contains {len(batch_data.get('results', []))} items.")
-    app_logger.debug(f"Batch data content: {batch_data}")
+    app_logger.info(f"Rendering batch PDF results for {batch_session_id}. Contains {len(batch_data.get('results', []))} items.")
+    # app_logger.debug(f"Batch data content: {batch_data}") # Can be very verbose
 
-    # TODO: Create and use a new template 'batch_pdf_results.html'
-    # return render_template('batch_pdf_results.html', 
-    #                        batch_info=batch_data, 
-    #                        batch_id=batch_session_id,
-    #                        current_year=datetime.datetime.now().year)
+    return render_template('batch_pdf_results.html', 
+                           batch_info=batch_data, 
+                           batch_id=batch_session_id,
+                           current_year=datetime.datetime.now().year)
     
-    # Placeholder response until template is created
-    return f"Placeholder for Batch PDF Results. Batch ID: {batch_session_id}. Results count: {len(batch_data.get('results', []))}" 
+    # # Placeholder response until template is created
+    # return f"Placeholder for Batch PDF Results. Batch ID: {batch_session_id}. Results count: {len(batch_data.get('results', []))}" 
 # --- END NEW Batch PDF Results Route ---
 
 

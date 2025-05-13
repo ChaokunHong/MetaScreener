@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Batch PDF Screening Results - {{ batch_info.filename if batch_info else 'Batch' }} {% endblock %}
+
+{% block extra_head %}
+<style>
+    .table th, .table td { vertical-align: middle; font-size: 0.9rem;}
+    .reasoning-text { font-size: 0.85rem; color: #555; max-width: 400px; white-space: pre-wrap; word-break: break-word;}
+    .decision-INCLUDE { color: green; font-weight: bold; }
+    .decision-EXCLUDE { color: red; font-weight: bold; }
+    .decision-MAYBE { color: orange; font-weight: bold; }
+    .decision-ERROR, .decision-TEXT_EXTRACT_ERROR, .decision-PROMPT_ERROR, .decision-PROCESSING_ERROR, .decision-WORKER_ERROR, .decision-API_ERROR {
+        color: purple; font-weight: bold;
+    }
+    .table-responsive {max-height: 70vh; overflow-y: auto;}
+    .table thead th { position: sticky; top: 0; background-color: #343a40; color: white; z-index: 1;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>{{ batch_info.filename if batch_info else 'Batch PDF Screening Results' }}</h1>
+        <a href="{{ url_for('full_text_screening_page') }}" class="btn btn-secondary btn-sm">Back to Full-Text Screening</a>
+    </div>
+
+    {% if batch_info and batch_info.results %}
+        <p class="mb-1">
+            Screened {{ batch_info.results|length }} PDF file(s).
+            {% if batch_info.filter_applied and batch_info.filter_applied != 'all uploaded files' %}
+                <br><small class="text-muted">Filter applied: {{ batch_info.filter_applied }}</small>
+            {% endif %}
+        </p>
+        
+        {# TODO: Add Download Button Here Later #}
+
+        <div class="table-responsive mt-3">
+            <table class="table table-striped table-bordered table-hover">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Filename</th>
+                        <th>Decision</th>
+                        <th>Reasoning</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for result in batch_info.results %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ result.filename }}</td>
+                        <td><span class="decision-{{ result.decision }}">{{ result.decision }}</span></td>
+                        <td><span class="reasoning-text">{{ result.reasoning }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-warning mt-3">
+            No results found for this batch (ID: {{ batch_id }}), or the results have expired.
+        </div>
+    {% endif %}
+</div>
+{% endblock %} 
