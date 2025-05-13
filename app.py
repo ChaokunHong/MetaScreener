@@ -876,18 +876,30 @@ def stream_test_screen_file():
                     f"data: {json.dumps({'type': 'error', 'message': message})}\n\n",
                     mimetype='text/event-stream'
                 )
-        
+
         elif line_range_input:
             try:
-                start_idx, end_idx = parse_line_range(line_range_input, original_df_count) # Use original_df_count for range parsing against the whole file
+                start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                 if start_idx >= end_idx:
-                    return Response(f"data: {json.dumps({'type': 'error', 'message': f'The range "{line_range_input}" is invalid or results in no articles to sample from.'})}\n\n", mimetype='text/event-stream')
+                    msg = f'The range "{line_range_input}" is invalid or results in no articles to sample from.'
+                    return Response(
+                        f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n",
+                        mimetype='text/event-stream'
+                    )
                 df_for_sampling = df_for_sampling.iloc[start_idx:end_idx]
-                filter_description = f"entries in 1-based range [{start_idx+1}-{end_idx}]"
+                filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
                 if df_for_sampling.empty:
-                    return Response(f"data: {json.dumps({'type': 'error', 'message': f'The range "{line_range_input}" resulted in no articles to sample from.'})}\n\n", mimetype='text/event-stream')
+                    msg = f'The range "{line_range_input}" resulted in no articles to sample from.'
+                    return Response(
+                        f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n",
+                        mimetype='text/event-stream'
+                    )
             except ValueError as e:
-                return Response(f"data: {json.dumps({'type': 'error', 'message': f'Invalid range format for "{line_range_input}": {str(e)}'})}\n\n", mimetype='text/event-stream')
+                msg = f'Invalid range format for "{line_range_input}": {str(e)}'
+                return Response(
+                    f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n",
+                    mimetype='text/event-stream'
+                )
         
         # Now, take the sample from the (potentially filtered) df_for_sampling
         if df_for_sampling.empty: # If original df was not empty, but filtering made it empty
