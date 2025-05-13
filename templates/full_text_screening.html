@@ -32,8 +32,17 @@
     <form id="batch_pdf_screen_form" enctype="multipart/form-data">
         <div class="form-group">
             <label for="batch_pdf_files">Upload PDF Files (select multiple):</label>
-            <input type="file" name="batch_pdf_files" id="batch_pdf_files" class="form-control-file form-control-sm" required accept=".pdf" multiple>
+            <input type="file" name="batch_pdf_files_input_control" id="batch_pdf_files_input_control" class="form-control-file form-control-sm" required accept=".pdf" multiple>
         </div>
+
+        <!-- Added section to display selected files and allow removal -->
+        <div id="batch_selected_files_preview_area" class="mb-2" style="display: none;">
+            <strong>Selected files:</strong>
+            <ul id="batch_selected_files_list" class="list-group list-group-flush" style="max-height: 150px; overflow-y: auto; font-size: 0.9em;">
+                <!-- Selected files will be listed here by JavaScript -->
+            </ul>
+        </div>
+        <!-- End selected files preview -->
 
         <div class="form-row">
             <div class="form-group col-md-6">
@@ -88,15 +97,65 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // --- NEW: Batch PDF Screening SSE Logic --- 
+    // --- Batch PDF Screening Logic --- 
+    const batchPdfFilesInputControl = document.getElementById('batch_pdf_files_input_control');
+    const selectedFilesPreviewArea = document.getElementById('batch_selected_files_preview_area');
+    const selectedFilesList = document.getElementById('batch_selected_files_list');
     const startBatchPdfScreenButton = document.getElementById('start_batch_pdf_screen_button');
+    
+    let currentBatchFiles = []; // Array to hold the File objects that are currently selected
+
+    if (batchPdfFilesInputControl) {
+        batchPdfFilesInputControl.addEventListener('change', function(event) {
+            selectedFilesList.innerHTML = ''; // Clear previous list
+            currentBatchFiles = Array.from(event.target.files); // Store File objects
+            
+            if (currentBatchFiles.length > 0) {
+                selectedFilesPreviewArea.style.display = 'block';
+                currentBatchFiles.forEach((file, index) => {
+                    const listItem = document.createElement('li');
+                    listItem.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'py-1', 'px-2');
+                    listItem.textContent = file.name;
+                    
+                    const removeButton = document.createElement('button');
+                    removeButton.classList.add('btn', 'btn-outline-danger', 'btn-sm');
+                    removeButton.innerHTML = '&times;'; // Multiplication sign for 'x'
+                    removeButton.type = 'button'; // Important for forms
+                    removeButton.title = 'Remove file';
+                    removeButton.dataset.fileIndex = index; // Store original index if needed, though direct array ops are better
+
+                    removeButton.addEventListener('click', function() {
+                        // Find file by name in currentBatchFiles and remove it
+                        // This is safer if list reordering occurs, but direct index is fine if list isn't reordered by user.
+                        // For simplicity, let's assume we can find it by name or we can regenerate the array.
+                        const fileNameToRemove = file.name; // or use an ID if files can have same name
+                        currentBatchFiles = currentBatchFiles.filter(f => f.name !== fileNameToRemove || f !== file); // Filter out the file
+                        
+                        // Re-render the list (or just remove the listItem)
+                        listItem.remove(); 
+                        if (currentBatchFiles.length === 0) {
+                            selectedFilesPreviewArea.style.display = 'none';
+                        }
+                        // Important: If you clear the input control's value, it forgets all files.
+                        // We manage the list in `currentBatchFiles` instead.
+                        // batchPdfFilesInputControl.value = ""; // DO NOT DO THIS unless you have a way to repopulate it
+                    });
+                    
+                    listItem.appendChild(removeButton);
+                    selectedFilesList.appendChild(listItem);
+                });
+            } else {
+                selectedFilesPreviewArea.style.display = 'none';
+            }
+        });
+    }
+
     if (startBatchPdfScreenButton) {
         startBatchPdfScreenButton.addEventListener('click', function() {
-            const batchPdfFilesInput = document.getElementById('batch_pdf_files');
             const batchTitleFilterInput = document.getElementById('batch_pdf_title_filter');
             const batchOrderFilterInput = document.getElementById('batch_pdf_order_filter');
 
-            if (!batchPdfFilesInput.files || batchPdfFilesInput.files.length === 0) {
+            if (currentBatchFiles.length === 0) { // Check our managed list
                 alert('Please select one or more PDF files for batch screening.');
                 return;
             }
@@ -120,9 +179,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if(batchSpinner) batchSpinner.style.display = 'inline-block';
 
             const formData = new FormData();
-            for (let i = 0; i < batchPdfFilesInput.files.length; i++) {
-                formData.append('batch_pdf_files', batchPdfFilesInput.files[i]); // Use same name for all files
-            }
+            // Append files from our managed currentBatchFiles array
+            currentBatchFiles.forEach(file => {
+                formData.append('batch_pdf_files', file); 
+            });
+
             if (batchTitleFilterInput.value) {
                 formData.append('batch_pdf_title_filter', batchTitleFilterInput.value.trim());
             }
@@ -131,7 +192,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const xhrBatchPdf = new XMLHttpRequest();
-            // IMPORTANT: Replace with the actual endpoint URL once created in app.py
             xhrBatchPdf.open("POST", "{{ url_for('batch_screen_pdfs_stream_placeholder') }}", true); 
             let lastBatchCharIndex = 0;
 
@@ -143,7 +203,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (message.startsWith("data: ")) {
                         try {
                             const jsonData = JSON.parse(message.substring(6));
-                            // Update UI: batchProgressBar, batchProgressStatus, batchLog
                             if (jsonData.type === 'start') {
                                 if(batchProgressStatus) batchProgressStatus.textContent = `Starting... Total files to process: ${jsonData.total_to_process} out of ${jsonData.total_uploaded} uploaded.`;
                                 if(batchLog) batchLog.innerHTML += `<div>[${new Date().toLocaleTimeString()}] Batch Started. Files to process: ${jsonData.total_to_process}. Filter: ${jsonData.filter_info || 'none'}</div>`;
@@ -162,7 +221,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if(batchProgressStatus) batchProgressStatus.textContent = jsonData.message;
                                 if(batchLog) batchLog.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${jsonData.message}</div>`;
                                 if (jsonData.batch_session_id && batchResultsLinkArea) {
-                                    // IMPORTANT: Replace with actual results page URL
                                     let baseUrl = "{{ url_for('show_batch_pdf_results_placeholder', batch_session_id='__BATCH_ID__') }}";
                                     document.getElementById('view_batch_pdf_results_link').href = baseUrl.replace('__BATCH_ID__', jsonData.batch_session_id);
                                     batchResultsLinkArea.style.display = 'block';
