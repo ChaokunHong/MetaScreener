@@ -7,43 +7,74 @@
     .hero-section {
         padding: 4rem 2rem;
         margin-bottom: 2rem;
-        background-color: #e9ecef; /* Light grey background, common for jumbotrons */
+        background-color: #e9ecef;
         border-radius: .3rem;
         text-align: center;
+        display: flex; /* For vertical centering of content */
+        flex-direction: column; /* Stack items vertically */
+        align-items: center; /* Center items horizontally */
+        justify-content: center; /* Center items vertically */
     }
     .hero-section .display-4 {
         font-weight: 300;
+        color: #111827; /* Darker heading color */
     }
     .hero-section .lead {
         font-size: 1.25rem;
         font-weight: 300;
+        color: #4B5563; /* Medium gray for lead text */
+        max-width: 700px; /* Constrain width for readability */
+        margin-left: auto;
+        margin-right: auto;
     }
     .hero-section .logo-img {
-        max-height: 80px; /* Adjust as needed */
-        margin-bottom: 1rem;
+        max-height: 70px; /* Slightly smaller logo */
+        margin-bottom: 1.5rem;
     }
     .hero-actions .btn {
         margin: 0.5rem;
+        padding: 0.75rem 1.5rem; /* Larger buttons */
+        font-size: 1.1rem;
+        transition: all 0.2s ease-in-out; /* Smooth transition for hover */
     }
-    .features-section .section-card h4 svg {
-        margin-right: 0.5em;
-        vertical-align: text-bottom;
+    .hero-actions .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .features-section h3 {
+        margin-bottom: 2rem;
+        color: #111827;
+    }
+    .features-section .section-card {
+        transition: all 0.2s ease-in-out;
+    }
+    .features-section .section-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .features-section .section-card h4 .bi {
+        margin-right: 0.6em;
+        vertical-align: -0.1em; /* Adjust icon alignment */
+        font-size: 1.2em; /* Slightly larger icons */
+        color: #2563EB; /* Blue icon color */
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="hero-section">
-    {# Logic to display logo - assumes logo.png in static/images or configured elsewhere #}
     <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MetaScreener Logo" class="logo-img">
-
     <h1 class="display-4">MetaScreener</h1>
-    <p class="lead">AI-Powered Literature Screening Assistant</p>
-    <hr class="my-4">
-    <p>Efficiently screen abstracts and full-text PDFs for your systematic reviews using Large Language Models. Save time and improve accuracy.</p>
+    <p class="lead">AI-powered Assistant for Abstract & Full-text Screening</p>
+    <hr class="my-4" style="width: 50%;">
+    <p style="max-width: 700px; margin-left: auto; margin-right: auto;">Efficiently screen abstracts and full-text PDFs for your systematic reviews using Large Language Models. Save time and improve accuracy.</p>
     <div class="hero-actions">
-        <a class="btn btn-primary btn-lg" href="{{ url_for('llm_config_page') }}" role="button">Configure LLM & Start</a>
-        <a class="btn btn-secondary btn-lg" href="{{ url_for('screening_actions_page') }}" role="button">View Screening Actions</a>
+        <a class="btn btn-primary btn-lg" href="{{ url_for('llm_config_page') }}" role="button">
+            <i class="bi bi-sliders"></i> Configure LLM & Start
+        </a>
+        <a class="btn btn-secondary btn-lg" href="{{ url_for('screening_actions_page') }}" role="button">
+            <i class="bi bi-card-checklist"></i> View Screening Actions
+        </a>
     </div>
 </div>
 
@@ -54,21 +85,21 @@
         </div>
     </div>
     <div class="row">
-        <div class="col-md-4">
-            <div class="section-card">
-                <h4><svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-gear-fill" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311a1.464 1.464 0 0 1-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413-1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 0 0-5.858 2.929 2.929 0 0 0 0 5.858z"/></svg> Configurable LLMs</h4>
-                <p>Choose from various providers like DeepSeek, OpenAI, Gemini, and Claude. Bring your own API key.</p>
+        <div class="col-md-4 mb-4">
+            <div class="section-card h-100">
+                <h4><i class="bi bi-cpu-fill"></i> Configurable LLMs</h4>
+                <p>Choose from various providers like DeepSeek, OpenAI, Gemini, and Claude. Securely connect your own API key.</p>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="section-card">
-                <h4><svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-filter-circle-fill" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zM3.5 5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1 0-1zM5 8.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm2 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5z"/></svg> Efficient Screening</h4>
+        <div class="col-md-4 mb-4">
+            <div class="section-card h-100">
+                <h4><i class="bi bi-funnel-fill"></i> Efficient Screening</h4>
                 <p>Screen abstracts from RIS files or full-text PDFs. Batch processing available for PDFs.</p>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="section-card">
-                <h4><svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-card-checklist" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M14.5 3a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h13zm-13-1A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-13z"/><path fill-rule="evenodd" d="M7 5.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm-1.496-.854a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 1 1 .708-.708l.146.147 1.146-1.147a.5.5 0 0 1 .708 0zM7 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm-1.496-.854a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 1 1 .708-.708l.146.147 1.146-1.147a.5.5 0 0 1 .708 0z"/></svg> PICOT Criteria</h4>
+        <div class="col-md-4 mb-4">
+            <div class="section-card h-100">
+                <h4><i class="bi bi-card-heading"></i> PICOT Criteria</h4>
                 <p>Define detailed inclusion/exclusion criteria using the structured PICOT framework.</p>
             </div>
         </div>
