@@ -854,6 +854,18 @@ def stream_test_screen_file():
     if file.filename == '' or not allowed_file(file.filename):
         return Response(f"data: {json.dumps({'type': 'error', 'message': 'No selected/invalid file.'})}\n\n", mimetype='text/event-stream')
 
+    # --- Ensure all form fields are read outside or at the top of the main try block ---
+    try:
+        sample_size_str = request.form.get('sample_size', '10') # Get as string first
+        sample_size = int(sample_size_str)
+        sample_size = max(5, min(9999, sample_size)) 
+    except ValueError: 
+        sample_size = 10 # Default if conversion fails
+    
+    line_range_input = request.form.get('line_range_filter', '').strip()
+    title_filter_input = request.form.get('title_text_filter', '').strip()
+    # --- END ---
+
     try:
         # --- Debug Prints for file stream (Test Screening) ---
         print(f"--- Debug Test Screening: Before load_literature_ris ---")
