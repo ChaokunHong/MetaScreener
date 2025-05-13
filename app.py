@@ -1527,7 +1527,7 @@ def batch_screen_pdfs_stream():
     
     upload_folder_path = app.config['UPLOAD_FOLDER']
     files_ready_for_threads = []
-    for item_manifest in files_to_process_manifest:
+    for item_manifest in files_to_process_manifest: # item_manifest already contains original_index
         file_storage = item_manifest['file_storage']
         original_filename = item_manifest['original_filename']
         try:
@@ -1538,11 +1538,14 @@ def batch_screen_pdfs_stream():
             file_storage.save(processing_file_path)
             app_logger.info(f"Batch PDF: Pre-saved '{original_filename}' to '{processing_file_path}' for thread processing.")
             files_ready_for_threads.append({
+                'original_index': item_manifest['original_index'], # Pass along the original_index
                 'original_filename': original_filename,
                 'processing_file_path': processing_file_path
             })
         except Exception as e_save:
             app_logger.error(f"Batch PDF: Failed to pre-save file '{original_filename}' for processing: {e_save}")
+            # Consider how to handle files that fail to pre-save: skip or report error for them specifically.
+            # For now, they are just not added to files_ready_for_threads.
             pass 
             
     if not files_ready_for_threads:
@@ -1558,22 +1561,25 @@ def batch_screen_pdfs_stream():
         processed_files_results = []
         futures_map = {}
         with ThreadPoolExecutor(max_workers=4) as executor:
-            for thread_item_manifest in files_ready_for_threads:
+            for thread_item_manifest_with_path_and_index in files_ready_for_threads: # item now includes original_index
                 future = executor.submit(
                     _perform_batch_pdf_screening_for_file, 
-                    thread_item_manifest, 
+                    thread_item_manifest_with_path_and_index, # Pass the item which includes original_index
                     criteria_prompt_text, 
                     llm_provider_name, 
                     llm_model_id, 
                     llm_api_key, 
                     llm_base_url
                 )
-                futures_map[future] = thread_item_manifest['original_filename']
+                # Keying futures_map by future object is fine; we retrieve original_filename for logging from the manifest later
+                futures_map[future] = thread_item_manifest_with_path_and_index # Store the whole manifest to access original_filename and original_index
+
             processed_count = 0
             for future in as_completed(futures_map):
-                original_filename_for_log = futures_map[future]
+                completed_item_manifest = futures_map[future] # Get the manifest for this completed future
+                original_filename_for_log = completed_item_manifest['original_filename']
                 try:
-                    screening_result = future.result()
+                    screening_result = future.result() # This result dict should now include original_index
                     processed_files_results.append(screening_result)
                     processed_count += 1
                     yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total_to_process': total_files_to_process, 'percentage': int((processed_count / total_files_to_process) * 100), 'current_file_name': screening_result.get('filename', original_filename_for_log), 'decision': screening_result.get('decision', 'ERROR')})}\n\n"
@@ -1581,11 +1587,18 @@ def batch_screen_pdfs_stream():
                     processed_count += 1 
                     app_logger.error(f"Batch PDF: Exception processing future for {original_filename_for_log}: {e_future}")
                     processed_files_results.append({
+                        'original_index': completed_item_manifest['original_index'], # Ensure original_index is here for sorting
                         'filename': original_filename_for_log, 
+                        'title_for_display': original_filename_for_log, # Fallback title
                         'decision': 'WORKER_THREAD_ERROR',
                         'reasoning': str(e_future)
                     })
                     yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total_to_process': total_files_to_process, 'percentage': int((processed_count / total_files_to_process) * 100), 'current_file_name': original_filename_for_log, 'decision': 'WORKER_THREAD_ERROR'})}\n\n"
+        
+        # --- NEW: Sort results by original_index before storing --- 
+        processed_files_results.sort(key=lambda x: x.get('original_index', float('inf')))
+        # --- END NEW --- 
+
         batch_session_id = str(uuid.uuid4())
         if processed_files_results: 
             full_screening_sessions[batch_session_id] = { 
@@ -1605,12 +1618,12 @@ def batch_screen_pdfs_stream():
 
 
 # --- NEW Helper for processing a single PDF in batch ---
-def _perform_batch_pdf_screening_for_file(item_manifest_with_path, criteria_prompt_text, llm_provider_name, llm_model_id, llm_api_key, llm_base_url):
-    original_filename = item_manifest_with_path['original_filename']
-    processing_file_path = item_manifest_with_path['processing_file_path']
+def _perform_batch_pdf_screening_for_file(item_manifest_with_path_and_index, criteria_prompt_text, llm_provider_name, llm_model_id, llm_api_key, llm_base_url):
+    original_filename = item_manifest_with_path_and_index['original_filename']
+    processing_file_path = item_manifest_with_path_and_index['processing_file_path']
+    original_index_from_manifest = item_manifest_with_path_and_index['original_index'] # Get original_index
     
-    display_title = original_filename # Default to filename
-
+    display_title = original_filename 
     try:
         app_logger.info(f"Batch PDF Thread: Processing '{original_filename}' from path '{processing_file_path}'.")
         
@@ -1634,16 +1647,17 @@ def _perform_batch_pdf_screening_for_file(item_manifest_with_path, criteria_prom
         
         if full_text is None:
             app_logger.error(f"Batch PDF Thread: Failed to extract text from '{original_filename}'.")
-            return {'filename': original_filename, 'title_for_display': display_title, 'decision': 'TEXT_EXTRACT_ERROR', 'reasoning': 'Failed to extract text from PDF.'}
+            return {'original_index': original_index_from_manifest, 'filename': original_filename, 'title_for_display': display_title, 'decision': 'TEXT_EXTRACT_ERROR', 'reasoning': 'Failed to extract text from PDF.'}
         
         prompt_data = construct_llm_prompt(full_text, criteria_prompt_text)
         if not prompt_data:
             app_logger.error(f"Batch PDF Thread: Failed to construct LLM prompt for '{original_filename}'.")
-            return {'filename': original_filename, 'title_for_display': display_title, 'decision': 'PROMPT_ERROR', 'reasoning': 'Failed to construct LLM prompt.'}
+            return {'original_index': original_index_from_manifest, 'filename': original_filename, 'title_for_display': display_title, 'decision': 'PROMPT_ERROR', 'reasoning': 'Failed to construct LLM prompt.'}
         
         api_result = call_llm_api(prompt_data, llm_provider_name, llm_model_id, llm_api_key, llm_base_url)
         
         result_to_return = {
+            'original_index': original_index_from_manifest, # Add original_index to the successful result
             'filename': original_filename, 
             'title_for_display': display_title, 
             'decision': api_result.get('label', 'API_ERROR'),
@@ -1654,7 +1668,7 @@ def _perform_batch_pdf_screening_for_file(item_manifest_with_path, criteria_prom
 
     except Exception as e_process:
         app_logger.exception(f"Batch PDF Thread: Error processing file '{original_filename}': {e_process}")
-        error_result = {'filename': original_filename, 'title_for_display': display_title, 'decision': 'FILE_PROCESSING_ERROR', 'reasoning': str(e_process)}
+        error_result = {'original_index': original_index_from_manifest, 'filename': original_filename, 'title_for_display': display_title, 'decision': 'FILE_PROCESSING_ERROR', 'reasoning': str(e_process)}
         app_logger.info(f"Batch PDF Thread: Returning error result for '{original_filename}': {error_result}")
         return error_result
     finally:
