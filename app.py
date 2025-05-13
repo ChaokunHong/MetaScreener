@@ -854,19 +854,22 @@ def stream_test_screen_file():
     if file.filename == '' or not allowed_file(file.filename):
         return Response(f"data: {json.dumps({'type': 'error', 'message': 'No selected/invalid file.'})}\n\n", mimetype='text/event-stream')
 
-    # --- Ensure all form fields are read outside or at the top of the main try block ---
+    # --- Get ALL form fields first, ensuring they are defined before the main try block ---
     try:
-        sample_size_str = request.form.get('sample_size', '10') # Get as string first
+        sample_size_str = request.form.get('sample_size', '10') 
         sample_size = int(sample_size_str)
         sample_size = max(5, min(9999, sample_size)) 
     except ValueError: 
         sample_size = 10 # Default if conversion fails
     
+    # These must be defined at this level to be accessible in the subsequent try block's main logic
     line_range_input = request.form.get('line_range_filter', '').strip()
     title_filter_input = request.form.get('title_text_filter', '').strip()
-    # --- END ---
-
-    try:
+    # --- Form fields are now defined ---
+    
+    # The previous edit attempt had removed the main 'try' block start here by mistake.
+    # This 'try' block is essential for the overall function logic and error handling.
+    try: 
         # --- Debug Prints for file stream (Test Screening) ---
         print(f"--- Debug Test Screening: Before load_literature_ris ---")
         print(f"Filename: {file.filename}")
@@ -893,42 +896,29 @@ def stream_test_screen_file():
         original_df_count = len(df)
         filter_description = "all entries"
 
-        if title_filter_input:
+        if title_filter_input: # This is where the NameError previously occurred
             df_for_sampling = df_for_sampling[df_for_sampling['title'].str.contains(title_filter_input, case=False, na=False)]
             filter_description = f"entries matching title '{title_filter_input}'"
             if df_for_sampling.empty:
-                message = f'No articles found matching title: "{title_filter_input}" to sample from.'
-                return Response(
-                    f"data: {json.dumps({'type': 'error', 'message': message})}\n\n",
-                    mimetype='text/event-stream'
-                )
-
+                msg = f'No articles found matching title: "{title_filter_input}" to sample from.'
+                return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n", mimetype='text/event-stream')
+        
         elif line_range_input:
             try:
                 start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                 if start_idx >= end_idx:
                     msg = f'The range "{line_range_input}" is invalid or results in no articles to sample from.'
-                    return Response(
-                        f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n",
-                        mimetype='text/event-stream'
-                    )
+                    return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n", mimetype='text/event-stream')
                 df_for_sampling = df_for_sampling.iloc[start_idx:end_idx]
                 filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
                 if df_for_sampling.empty:
                     msg = f'The range "{line_range_input}" resulted in no articles to sample from.'
-                    return Response(
-                        f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n",
-                        mimetype='text/event-stream'
-                    )
+                    return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n", mimetype='text/event-stream')
             except ValueError as e:
                 msg = f'Invalid range format for "{line_range_input}": {str(e)}'
-                return Response(
-                    f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n",
-                    mimetype='text/event-stream'
-                )
+                return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n", mimetype='text/event-stream')
         
-        # Now, take the sample from the (potentially filtered) df_for_sampling
-        if df_for_sampling.empty: # If original df was not empty, but filtering made it empty
+        if df_for_sampling.empty:
              return Response(f"data: {json.dumps({'type': 'error', 'message': 'No articles found after applying filters to sample from.'})}\n\n", mimetype='text/event-stream')
 
         sample_df = df_for_sampling.head(min(sample_size, len(df_for_sampling)))
@@ -955,28 +945,25 @@ def stream_test_screen_file():
         session_id = str(uuid.uuid4())
         test_sessions[session_id] = {
              'file_name': file.filename,
-             'sample_size': actual_sample_size, # Store the actual number of items being screened
+             'sample_size': actual_sample_size, 
              'test_items_data': [],
-             'filter_applied': filter_description # Store filter info
+             'filter_applied': filter_description 
          }
 
-        # MODIFIED: Pass actual_sample_size and filter_description to generator
         def generate_test_progress(current_sample_df, num_actual_sample_items, current_filter_desc):
             processed_count = 0
-            # SSE 'start' event with the actual count of items TO BE SCREENED and filter info
             yield f"data: {json.dumps({'type': 'start', 'total': num_actual_sample_items, 'filter_info': current_filter_desc})}\n\n"
             temp_results_list = []
             futures_map = {}
             
             with ThreadPoolExecutor(max_workers=8) as executor:
-                for index, row in current_sample_df.iterrows(): # Use current_sample_df
+                for index, row in current_sample_df.iterrows(): 
                     abstract = row.get('abstract')
                     future = executor.submit(
                         _perform_screening_on_abstract,
                         abstract, criteria_prompt_text,
                         provider_name, model_id, api_key, base_url
                     )
-                    # index here is the original index from the loaded RIS, which is correct
                     futures_map[future] = {'index': index, 'row': row}
 
                 for future in as_completed(futures_map):
@@ -1032,12 +1019,11 @@ def stream_test_screen_file():
                  test_sessions[session_id]['test_items_data'] = temp_results_list
             yield f"data: {json.dumps({'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id})}\n\n"
 
-        # MODIFIED: Pass sample_df, actual_sample_size, and filter_description
         return Response(generate_test_progress(sample_df, actual_sample_size, filter_description), mimetype='text/event-stream')
 
-    except Exception as e:
+    except Exception as e: 
         traceback.print_exc()
-        return Response(f"data: {json.dumps({'type': 'error', 'message': f'Server error before test streaming: {str(e)}'})}\n\n", mimetype='text/event-stream')
+        return Response(f"data: {json.dumps({'type': 'error', 'message': f'Server error during test streaming processing: {str(e)}'})}\n\n", mimetype='text/event-stream')
 
 
 # --- New Route to Show Test Results ---
