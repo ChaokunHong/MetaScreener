@@ -28,6 +28,11 @@
     </div>
 
     {% if test_items %}
+        <!-- ADDED: Display filter information for Test Results -->
+        {% if filter_applied and filter_applied != 'all entries' %}
+            <p class="mb-1 text-muted font-italic small">Filter applied before sampling: {{ filter_applied }}</p>
+        {% endif %}
+        <!-- END ADDED -->
         <p>Review AI's decisions for <strong>{{ test_items|length }}</strong> sampled item(s) and provide your assessment. Then click "Calculate Metrics & Compare".</p>
         <form method="POST" action="{{ url_for('calculate_metrics_route') }}">
             <input type="hidden" name="test_session_id" value="{{ session_id }}">

@@ -9,15 +9,29 @@
     <p>Upload a .ris file to screen a sample of abstracts with progress updates. Compare AI decisions and view metrics.</p>
     <form id="test_screen_form" enctype="multipart/form-data"> 
         <div class="form-row">
-            <div class="form-group col-md-8">
+            <div class="form-group col-md-5">
                 <label for="test_file">Upload RIS File:</label>
                 <input type="file" name="file" id="test_file" class="form-control-file form-control-sm" required accept=".ris">
             </div>
-            <div class="form-group col-md-4">
-                <label for="sample_size">Sample Size (5-9999):</label> 
+            <div class="form-group col-md-2">
+                <label for="sample_size">Sample Size:</label> 
                 <input type="number" name="sample_size" id="sample_size" class="form-control form-control-sm" value="10" min="5" max="9999">
             </div>
         </div>
+        <!-- NEW FILTER FIELDS for Test Screening -->
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label for="test_title_text_filter">Filter by Title (Optional):</label>
+                <input type="text" id="test_title_text_filter" name="title_text_filter" class="form-control form-control-sm" placeholder="Enter keywords from title">
+            </div>
+            <div class="form-group col-md-6">
+                <label for="test_line_range_filter">Filter by Line Numbers (Optional, 1-based):</label>
+                <input type="text" id="test_line_range_filter" name="line_range_filter" class="form-control form-control-sm" placeholder="e.g., 5-10, 7, 1-20, 50-">
+            </div>
+        </div>
+        <small class="form-text text-muted mb-2">Filters are applied *before* sampling. If both title and line numbers are filled, title filter takes precedence.</small>
+        <!-- END NEW FILTER FIELDS for Test Screening -->
+
         <button id="start_test_screen_button" type="button" class="btn btn-info btn-sm">
             <span id="test_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
             Start Test Screening with Progress
@@ -49,6 +63,21 @@
             <label for="full_file_progress">Upload RIS File:</label>
             <input type="file" name="file" id="full_file_progress" class="form-control-file form-control-sm" required accept=".ris">
         </div>
+
+        <!-- NEW FILTER FIELDS -->
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label for="title_text_filter">Filter by Title (Optional):</label>
+                <input type="text" id="title_text_filter" name="title_text_filter" class="form-control form-control-sm" placeholder="Enter keywords from title">
+            </div>
+            <div class="form-group col-md-6">
+                <label for="line_range_filter">Filter by Line Numbers (Optional, 1-based):</label>
+                <input type="text" id="line_range_filter" name="line_range_filter" class="form-control form-control-sm" placeholder="e.g., 5-10, 7, 1-20, 50-">
+            </div>
+        </div>
+        <small class="form-text text-muted mb-2">If both title and line numbers are filled, title filter will take precedence.</small>
+        <!-- END NEW FILTER FIELDS -->
+
         <button type="button" id="start_full_screen_button" class="btn btn-danger btn-sm">Screen Full File with Progress (SSE)</button>
     </form>
     {# RESTORED: Detailed HTML for Full progress area #}
@@ -132,6 +161,11 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("Test Screen Button CLICKED!");
             const testFileInput = document.getElementById('test_file');
             const sampleSizeInput = document.getElementById('sample_size');
+            // --- NEW: Get filter inputs for Test Screening ---
+            const testTitleFilterInput = document.getElementById('test_title_text_filter');
+            const testLineRangeInput = document.getElementById('test_line_range_filter');
+            // --- END NEW ---
+
             if (!testFileInput.files || testFileInput.files.length === 0) { alert('Please select a file for test screening.'); return; }
             const sampleSize = sampleSizeInput.value || 10;
             console.log(`Test Screening initiated. Sample size: ${sampleSize}`);
@@ -154,7 +188,18 @@ document.addEventListener('DOMContentLoaded', function() {
             startTestScreenButton.disabled = true;
             window.loggedTestLogError = false; // Reset log flag for this run
 
-            const formData = new FormData(); formData.append('file', testFileInput.files[0]); formData.append('sample_size', sampleSize);
+            const formData = new FormData(); 
+            formData.append('file', testFileInput.files[0]); 
+            formData.append('sample_size', sampleSize);
+            // --- NEW: Append filter data to FormData for Test Screening ---
+            if (testTitleFilterInput && testTitleFilterInput.value) {
+                formData.append('title_text_filter', testTitleFilterInput.value.trim());
+            }
+            if (testLineRangeInput && testLineRangeInput.value) {
+                formData.append('line_range_filter', testLineRangeInput.value.trim());
+            }
+            // --- END NEW ---
+
             const xhrTest = new XMLHttpRequest(); 
             console.log("Initiating Test XHR Request...");
             xhrTest.open("POST", "{{ url_for('stream_test_screen_file') }}", true);
@@ -180,7 +225,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if(currentTestStatus) currentTestStatus.textContent = `Starting... Total: ${jsonData.total}`;
                                 if(currentTestArea) currentTestArea.style.display = 'block'; 
                                 if(currentTestLogContainer) currentTestLogContainer.style.display = 'block';
-                                addTestLogItem(`[${new Date().toLocaleTimeString()}] Started. Total: ${jsonData.total}`);
+                                // --- MODIFIED: Display filter info from SSE for Test Screening ---
+                                let testStartMessage = `[${new Date().toLocaleTimeString()}] Started test screening. Max sample: ${sampleSizeInput.value}, Actual to screen: ${jsonData.total}`;
+                                if (jsonData.filter_info && jsonData.filter_info !== 'all entries') {
+                                    testStartMessage += ` (Filter: ${jsonData.filter_info})`;
+                                }
+                                addTestLogItem(testStartMessage);
+                                // --- END MODIFIED ---
                             } else if (jsonData.type === 'progress') {
                                 if (currentTestBar) {
                                     try { currentTestBar.style.width = jsonData.percentage + '%'; currentTestBar.textContent = jsonData.percentage + '%'; }
@@ -208,8 +259,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             } else if (jsonData.type === 'error') {
                                 if(currentTestBar){ /* ... */ }
                                 if(currentTestStatus) currentTestStatus.textContent = `Error: ${jsonData.message}`;
-                                addTestLogItem(`[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`);
-                                // ... add config link if needed ...
+                                // --- MODIFIED: Display config link if API key missing for Test --- 
+                                let testErrorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
+                                if (jsonData.needs_config) {
+                                    const configUrl = "{{ url_for('llm_config_page') }}";
+                                    testErrorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
+                                }
+                                addTestLogItem(testErrorMessage);
+                                // --- END MODIFIED ---
                                 xhrTest.abort();
                                 finalizeTestButton();
                             }
@@ -241,24 +298,32 @@ document.addEventListener('DOMContentLoaded', function() {
              const sseResultsLinkArea = document.getElementById('sse_results_link_area');
              if(progressArea) progressArea.style.display = 'block';
              if(progressLogContainer) progressLogContainer.style.display = 'block';
-             // Reset log content
-             addLogItem(""); // Clear by potentially removing old items
-             const initialFullLogEl = document.getElementById('progress_log'); if(initialFullLogEl) initialFullLogEl.innerHTML = ''; // Explicit clear
+             addLogItem(""); 
+             const initialFullLogEl = document.getElementById('progress_log'); if(initialFullLogEl) initialFullLogEl.innerHTML = '';
 
              if(progressBar) {progressBar.style.width = '0%'; progressBar.textContent = '0%'; progressBar.classList.remove('bg-success','bg-danger');}
              if(progressStatus) progressStatus.textContent = 'Initializing...';
              if(sseResultsLinkArea) sseResultsLinkArea.style.display = 'none';
              startFullScreenButton.disabled = true;
-             window.loggedFullLogError = false; // Reset log flag
+             window.loggedFullLogError = false; 
              
-             const formData = new FormData(); formData.append('file', fileInput.files[0]);
+             const formData = new FormData(); 
+             formData.append('file', fileInput.files[0]);
+             const titleFilterInput = document.getElementById('title_text_filter');
+             const lineRangeInput = document.getElementById('line_range_filter');
+             if (titleFilterInput && titleFilterInput.value) {
+                 formData.append('title_text_filter', titleFilterInput.value.trim());
+             }
+             if (lineRangeInput && lineRangeInput.value) {
+                 formData.append('line_range_filter', lineRangeInput.value.trim());
+             }
+
              const xhr = new XMLHttpRequest(); 
              console.log("Initiating Full XHR Request...");
              xhr.open("POST", "{{ url_for('stream_screen_file') }}", true);
              let lastCharIndex = 0;
              
              xhr.onprogress = function() {
-                 console.log("Full Handler: xhr.onprogress");
                  const newText = xhr.responseText.substring(lastCharIndex);
                  lastCharIndex = xhr.responseText.length;
                  const messages = newText.split('\n\n');
@@ -266,7 +331,6 @@ document.addEventListener('DOMContentLoaded', function() {
                      if (message.startsWith("data: ")) {
                          try {
                              const jsonData = JSON.parse(message.substring(6));
-                             // Get elements JUST BEFORE use
                              const currentFullBar = document.getElementById('progress_bar');
                              const currentFullStatus = document.getElementById('progress_status');
                              const currentFullArea = document.getElementById('progress_area');
@@ -278,7 +342,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                  if(currentFullStatus) currentFullStatus.textContent = `Screening ${jsonData.total} items...`;
                                  if(currentFullArea) currentFullArea.style.display = 'block';
                                  if(currentFullLogContainer) currentFullLogContainer.style.display = 'block';
-                                 addLogItem(`[${new Date().toLocaleTimeString()}] Started. Total: ${jsonData.total}`);
+                                 let startMessage = `[${new Date().toLocaleTimeString()}] Started. Total to screen: ${jsonData.total}`;
+                                 if (jsonData.filter_info && jsonData.filter_info !== 'all entries') {
+                                     startMessage += ` (Filter: ${jsonData.filter_info})`;
+                                 }
+                                 addLogItem(startMessage);
                              } else if (jsonData.type === 'progress') {
                                  if (currentFullBar) { 
                                      try { currentFullBar.style.width = jsonData.percentage + '%'; currentFullBar.textContent = jsonData.percentage + '%'; } 
@@ -292,9 +360,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                  let decisionClass = jsonData.decision ? 'log-decision-' + jsonData.decision.toUpperCase().replace('API_','').replace('HTTP_ERROR_','ERROR_') : '';
                                  addLogItem(`[${new Date().toLocaleTimeString()}] Item ${jsonData.count}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,30) : 'Item'}... <span class="log-item-decision ${decisionClass}">${jsonData.decision || ''}</span>`);
                              } else if (jsonData.type === 'complete') {
-                                 // ... (complete logic using re-fetched elements) ...
-                                 if(currentFullBar){/* update */} 
-                                 if(currentFullStatus) {/* update */} 
+                                 if(currentFullBar){ currentFullBar.classList.add('bg-success'); currentFullBar.textContent = "Complete"; }
+                                 if(currentFullStatus) currentFullStatus.textContent = jsonData.message;
                                  addLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message}`);
                                  if (jsonData.screening_id && currentFullLink && currentFullLinkArea) {
                                      let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
@@ -304,10 +371,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                  xhr.abort(); 
                                  finalizeButtons();
                              } else if (jsonData.type === 'error') {
-                                 // ... (error logic using re-fetched elements) ...
-                                 if(currentFullBar){/* update */} 
-                                 if(currentFullStatus) {/* update */} 
-                                 addLogItem(`[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`);
+                                 if(currentFullBar){ currentFullBar.classList.add('bg-danger'); currentFullBar.textContent = "Error";}
+                                 if(currentFullStatus) currentFullStatus.textContent = `Error: ${jsonData.message}`;
+                                 let errorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
+                                 if (jsonData.needs_config) {
+                                     const configUrl = "{{ url_for('llm_config_page') }}";
+                                     errorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
+                                 }
+                                 addLogItem(errorMessage);
                                  xhr.abort();
                                  finalizeButtons();
                              }
@@ -323,4 +394,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
 }); 
 </script>
-{% endblock %} 
+{% endblock %}
