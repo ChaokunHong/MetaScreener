@@ -1672,6 +1672,94 @@ def show_batch_pdf_results(batch_session_id):
 # --- END NEW Batch PDF Results Route ---
 
 
+# --- NEW: Download Route for Batch PDF Screening Results ---
+@app.route('/download_batch_pdf_results/<batch_session_id>/<format>', methods=['GET'], endpoint='download_batch_pdf_results_placeholder')
+def download_batch_pdf_results(batch_session_id, format):
+    app_logger.info(f"Request to download batch PDF results for ID: {batch_session_id}, Format: {format}")
+    batch_data = full_screening_sessions.get(batch_session_id)
+
+    if not batch_data or not batch_data.get('is_batch_pdf_result', False):
+        app_logger.warning(f"Download Batch PDF: Results not found or invalid for ID: {batch_session_id}")
+        flash("Batch PDF screening results for download not found or may have expired.", "warning")
+        # Redirect to the page where they might have come from or a sensible default
+        return redirect(request.referrer or url_for('full_text_screening_page'))
+        
+    results_list = batch_data.get('results', [])
+    # Use a generic base name or derive from batch info if available
+    batch_name_info = batch_data.get('filename', 'batch_pdf_screening')
+    filename_base = secure_filename(batch_name_info).replace('Batch_PDF_Results_', '').replace('_', ' ').replace('processed', '').strip().replace(' ', '_')
+    if not filename_base: filename_base = "batch_pdf_results"
+
+    if not results_list:
+         app_logger.warning(f"Download Batch PDF: No actual result items found in batch data for ID: {batch_session_id}")
+         flash("No result items found within the batch data to download.", "warning")
+         return redirect(request.referrer or url_for('full_text_screening_page'))
+    
+    try:
+        # The results_list should be a list of dicts, suitable for DataFrame
+        # Ensure we are selecting relevant columns for download, including 'title_for_display'
+        df_export_data = []
+        for item in results_list:
+            df_export_data.append({
+                'Filename (Original)': item.get('filename'),
+                'Display Title': item.get('title_for_display'),
+                'Decision': item.get('decision'),
+                'Reasoning': item.get('reasoning')
+            })
+        df = pd.DataFrame(df_export_data)
+
+    except Exception as e:
+         app_logger.exception(f"Download Batch PDF: Error converting results to DataFrame for batch ID {batch_session_id}")
+         flash(f"Error preparing data for download: {e}", "error")
+         return redirect(request.referrer or url_for('full_text_screening_page'))
+
+    output_buffer = None
+    mimetype = None
+    download_filename = None
+
+    try:
+        if format == 'csv':
+            output_buffer = io.StringIO()
+            df.to_csv(output_buffer, index=False, encoding='utf-8-sig')
+            mimetype = 'text/csv'
+            download_filename = f"{filename_base}_batch_results.csv"
+            bytes_buffer = io.BytesIO(output_buffer.getvalue().encode('utf-8-sig'))
+            output_buffer = bytes_buffer 
+            output_buffer.seek(0)
+        elif format == 'xlsx':
+            output_buffer = io.BytesIO()
+            with pd.ExcelWriter(output_buffer, engine='openpyxl') as writer:
+                df.to_excel(writer, index=False, sheet_name='Batch PDF Results')
+            mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            download_filename = f"{filename_base}_batch_results.xlsx"
+            output_buffer.seek(0)
+        elif format == 'json':
+            output_buffer = io.StringIO()
+            # df.to_json will convert the DataFrame to JSON, if direct list of dicts is preferred, use json.dumps(results_list)
+            json_data_to_dump = df.to_dict(orient='records') # Convert df to list of dicts for consistent JSON structure
+            json.dump(json_data_to_dump, output_buffer, indent=4)
+            mimetype = 'application/json'
+            download_filename = f"{filename_base}_batch_results.json"
+            bytes_buffer = io.BytesIO(output_buffer.getvalue().encode('utf-8'))
+            output_buffer = bytes_buffer
+            output_buffer.seek(0)
+        else:
+            flash(f"Unsupported download format: {format}", "error")
+            return redirect(request.referrer or url_for('full_text_screening_page'))
+
+        return send_file(
+            output_buffer,
+            mimetype=mimetype,
+            as_attachment=True,
+            download_name=download_filename
+        )
+
+    except Exception as e:
+        app_logger.exception(f"Download Batch PDF: Error generating download file for batch ID {batch_session_id}, format {format}")
+        flash(f"Error generating download file ({format}): {e}", "error")
+        return redirect(request.referrer or url_for('full_text_screening_page'))
+# --- END NEW Batch PDF Download Route ---
+
 # --- Run App ---
 if __name__ == '__main__':
     app_logger.info("Starting Flask app in debug mode...") # Example for __main__
