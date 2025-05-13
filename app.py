@@ -1435,8 +1435,7 @@ def batch_screen_pdfs_stream():
         applied_title_filter = True
         if not files_to_process_manifest:
             app_logger.info(f"Batch PDF Stream: No files matched title filter '{title_filter_input}'.")
-            # THIS IS THE LINE FROM THE LOG - ENSURING IT'S CORRECTED
-            error_message_text = f'No PDF files found matching filename filter: "{title_filter_input}"' 
+            error_message_text = f'No PDF files found matching filename filter: "{title_filter_input}"' # Corrected
             return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
             
     if not applied_title_filter and order_filter_input: 
@@ -1446,7 +1445,7 @@ def batch_screen_pdfs_stream():
             
             if start_idx_0_based >= end_idx_0_based_exclusive:
                 app_logger.info(f"Batch PDF Stream: Order filter range '{order_filter_input}' is invalid or results in no files.")
-                error_message_text = f'The order filter range "{order_filter_input}" is invalid or results in no files.'
+                error_message_text = f'The order filter range "{order_filter_input}" is invalid or results in no files.' # Corrected
                 return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
 
             files_to_process_manifest = files_to_process_manifest[start_idx_0_based:end_idx_0_based_exclusive]
@@ -1454,18 +1453,18 @@ def batch_screen_pdfs_stream():
             
             if not files_to_process_manifest:
                 app_logger.info(f"Batch PDF Stream: No files matched order filter '{order_filter_input}'.")
-                error_message_text = 'No PDF files found for the specified order range.'
+                error_message_text = 'No PDF files found for the specified order range.' # Corrected
                 return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
         
         except ValueError as e:
             app_logger.warning(f"Batch PDF Stream: Invalid order filter format '{order_filter_input}': {e}")
-            error_message_text = f'Invalid format for order filter "{order_filter_input}": {str(e)}'
+            error_message_text = f'Invalid format for order filter "{order_filter_input}": {str(e)}' # Corrected
             return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
 
     total_files_to_process = len(files_to_process_manifest)
     if total_files_to_process == 0 and (title_filter_input or order_filter_input):
         app_logger.info("Batch PDF Stream: No files selected for processing after filters.")
-        error_message_text = 'No PDF files selected for processing after applying filters.'
+        error_message_text = 'No PDF files selected for processing after applying filters.' # Corrected
         return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
 
     app_logger.info(f"Batch PDF Stream: {total_files_to_process} file(s) selected. Filter applied: {filter_description}")
@@ -1485,19 +1484,18 @@ def batch_screen_pdfs_stream():
         if not llm_api_key:
             app_logger.error("Batch PDF Stream: API Key missing in session for the selected LLM provider.")
             def sse_error_gen():
-                error_message_text = f'API Key for {llm_provider_name} must be provided via configuration.'
+                error_message_text = f'API Key for {llm_provider_name} must be provided via configuration.' # Corrected
                 yield f"data: {json.dumps({'type': 'error', 'message': error_message_text, 'needs_config': True})}\n\n"
             return Response(sse_error_gen(), mimetype='text/event-stream')
     except Exception as e_config:
         app_logger.exception("Batch PDF Stream: Error fetching LLM/Criteria configuration.")
         def sse_config_error_gen():
-            error_message_text = f'Error fetching LLM/Criteria configuration: {str(e_config)}'
+            error_message_text = f'Error fetching LLM/Criteria configuration: {str(e_config)}' # Corrected
             yield f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n"
         return Response(sse_config_error_gen(), mimetype='text/event-stream')
     
     upload_folder_path = app.config['UPLOAD_FOLDER']
     files_ready_for_threads = []
-    # ... (pre-save files logic) ...
     for item_manifest in files_to_process_manifest:
         file_storage = item_manifest['file_storage']
         original_filename = item_manifest['original_filename']
@@ -1518,13 +1516,12 @@ def batch_screen_pdfs_stream():
             
     if not files_ready_for_threads:
         app_logger.warning("Batch PDF Stream: No files were successfully pre-saved for processing.")
-        def sse_presave_error_gen():
-            error_message_text = 'Failed to prepare any files for batch processing.'
+        def sse_presave_error_gen(): 
+            error_message_text = 'Failed to prepare any files for batch processing.' # Corrected
             yield f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n"
         return Response(sse_presave_error_gen(), mimetype='text/event-stream')
 
     total_files_to_process = len(files_ready_for_threads) 
-    # ... (generate_processing_progress function definition and its content remains the same) ...
     def generate_processing_progress():
         yield f"data: {json.dumps({'type': 'start', 'total_uploaded': len(initial_manifest), 'total_to_process': total_files_to_process, 'filter_info': filter_description})}\n\n"
         processed_files_results = []
