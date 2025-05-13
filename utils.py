@@ -93,14 +93,15 @@ def load_literature_ris(filepath_or_stream: Union[str, IO[bytes]]) -> Optional[p
         return None
 
 
-# --- PDF Text Extraction (Enhanced with OCR Fallback) --- 
-def extract_text_from_pdf(file_stream: IO[bytes], ocr_language: str = 'eng') -> Optional[str]: # Added ocr_language
+# --- PDF Text Extraction (Enhanced with Page/Line Numbers and OCR Fallback) --- 
+def extract_text_from_pdf(file_stream: IO[bytes], ocr_language: str = 'eng') -> Optional[str]:
     """Extracts text content from a PDF file stream.
-    Uses PyMuPDF for direct text extraction and falls back to Tesseract OCR for image-based pages.
+    Uses PyMuPDF for direct text extraction, falls back to Tesseract OCR for image-based pages,
+    and prepends page and line number information to the extracted text.
     """
-    text_parts = []
+    text_pages_with_line_numbers = []
     pdf_data = None
-    MIN_TEXT_LENGTH_PER_PAGE_TO_SKIP_OCR = 50 # Heuristic: if less than this, consider OCR
+    MIN_TEXT_LENGTH_PER_PAGE_TO_SKIP_OCR = 50 # Heuristic
 
     try:
         print("   - Reading PDF file stream into bytes...")
@@ -114,36 +115,52 @@ def extract_text_from_pdf(file_stream: IO[bytes], ocr_language: str = 'eng') -> 
             if doc.page_count == 0:
                 print("   - Error: PDF has 0 pages or could not be parsed correctly.")
                 return None
-            print(f"   - PDF has {doc.page_count} pages. Extracting text with OCR fallback...")
+            print(f"   - PDF has {doc.page_count} pages. Extracting text, adding page/line numbers, with OCR fallback...")
 
-            for page_num, page in enumerate(doc):
-                page_text_direct = page.get_text("text", sort=True).strip() 
-                current_page_text = page_text_direct
+            for page_num_0_indexed, page in enumerate(doc):
+                page_num_1_indexed = page_num_0_indexed + 1
+                page_header = f"--- TEXT FROM PDF Page {page_num_1_indexed} ---"
+                
+                page_text_direct = page.get_text("text", sort=True).strip()
+                current_page_raw_text = page_text_direct
 
                 if len(page_text_direct) < MIN_TEXT_LENGTH_PER_PAGE_TO_SKIP_OCR:
-                    print(f"   - Page {page_num + 1}: Direct text short ({len(page_text_direct)} chars). Attempting OCR.")
+                    print(f"   - Page {page_num_1_indexed}: Direct text short ({len(page_text_direct)} chars). Attempting OCR.")
                     try:
                         pix = page.get_pixmap(dpi=300) 
                         img_bytes = pix.tobytes("png")
                         pil_image = Image.open(io.BytesIO(img_bytes))
-                        # Ensure tesseract_cmd is configured if necessary, e.g.:
+                        # Ensure tesseract_cmd is configured if necessary, e.g., in app.py or config.py:
                         # pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract' 
                         ocr_text = pytesseract.image_to_string(pil_image, lang=ocr_language).strip()
                         
                         if ocr_text:
-                            print(f"   - Page {page_num + 1}: OCR successful (extracted {len(ocr_text)} chars).")
-                            if len(ocr_text) > len(page_text_direct) + MIN_TEXT_LENGTH_PER_PAGE_TO_SKIP_OCR or (not page_text_direct and ocr_text):
-                                current_page_text = ocr_text
+                            # Prefer OCR if it finds substantially more text, or if direct was empty
+                            if (len(ocr_text) > len(page_text_direct) + MIN_TEXT_LENGTH_PER_PAGE_TO_SKIP_OCR) or \
+                               (not page_text_direct and ocr_text):
+                                current_page_raw_text = ocr_text
+                                print(f"   - Page {page_num_1_indexed}: Used OCR text ({len(ocr_text)} chars).")
+                            else:
+                                print(f"   - Page {page_num_1_indexed}: OCR text not substantially better or direct was sufficient. Using direct text ({len(page_text_direct)} chars).")
                         else:
-                            print(f"   - Page {page_num + 1}: OCR did not yield text.")
+                            print(f"   - Page {page_num_1_indexed}: OCR did not yield text. Using direct text.")
                     except Exception as e_ocr:
-                        print(f"   - Page {page_num + 1}: OCR attempt failed: {e_ocr}")
-                        # Fallback to direct text if OCR fails
+                        print(f"   - Page {page_num_1_indexed}: OCR attempt failed: {e_ocr}. Using direct text.")
                 
-                text_parts.append(current_page_text)
+                lines_on_page_with_numbers = []
+                if current_page_raw_text:
+                    for line_idx, line_content in enumerate(current_page_raw_text.split('\n')):
+                        lines_on_page_with_numbers.append(f"P{page_num_1_indexed}.L{line_idx + 1}: {line_content}")
+                
+                page_full_text_with_lines = page_header + "\n" + "\n".join(lines_on_page_with_numbers)
+                text_pages_with_line_numbers.append(page_full_text_with_lines)
             
-            final_text = "\n\n--- Page Break ---\n\n".join(text_parts) # Join pages with a clear separator
-        print(f"   - Successfully extracted approx {len(final_text)} characters from PDF (with OCR attempts).")
+            final_text = "\n\n=== End of Page / Start of Next Page ===\n\n".join(text_pages_with_line_numbers)
+            # Remove the separator after the very last page
+            if final_text.endswith("\n\n=== End of Page / Start of Next Page ===\n\n"):
+                final_text = final_text[:-len("\n\n=== End of Page / Start of Next Page ===\n\n")]
+
+        print(f"   - Successfully extracted and formatted approx {len(final_text)} characters from PDF.")
         return final_text
 
     except Exception as e:

@@ -1141,10 +1141,34 @@ def screen_pdf_decision():
     if file.filename == '': flash('No PDF file selected.', 'error'); return redirect(url_for('full_text_screening_page'))
 
     if file and file.filename.lower().endswith('.pdf'):
-        filename = secure_filename(file.filename)
+        original_filename = secure_filename(file.filename)
+        pdf_screening_id = str(uuid.uuid4()) # Generate ID for this screening session
+        
+        # --- NEW: Save the uploaded PDF file --- 
+        # Use pdf_screening_id to create a unique filename to avoid conflicts
+        # And to easily associate the stored file with the screening session
+        saved_pdf_filename = f"{pdf_screening_id}_{original_filename}"
+        pdf_save_path = os.path.join(app.config['UPLOAD_FOLDER'], saved_pdf_filename)
+        
         try:
-            full_text = extract_text_from_pdf(file.stream)
-            if full_text is None: flash(f"Could not extract text from PDF: {filename}.", "error"); return redirect(url_for('full_text_screening_page'))
+            file.save(pdf_save_path) # Save the uploaded file object
+            print(f"   - PDF saved to: {pdf_save_path}")
+
+            # Now, process the saved file instead of the raw stream for consistency
+            # Or, for efficiency, read the stream for processing and only use saved path for later serving.
+            # For now, let's process the stream as before, and keep track of the saved path.
+            # Reset stream pointer for reading after save (if stream is to be reused)
+            file.stream.seek(0) 
+            # --- END NEW ---
+
+            # full_text = extract_text_from_pdf(file.stream) # OLD
+            full_text = extract_text_from_pdf(file.stream, ocr_language='eng') # Pass stream, ensure language if needed
+            
+            if full_text is None: 
+                flash(f"Could not extract text from PDF: {original_filename}.", "error")
+                # Optionally, delete the saved PDF if extraction fails immediately
+                # if os.path.exists(pdf_save_path): os.remove(pdf_save_path)
+                return redirect(url_for('full_text_screening_page'))
             
             # Get criteria and LLM config
             criteria_full_text = get_screening_criteria()
@@ -1172,21 +1196,21 @@ def screen_pdf_decision():
             # Call LLM (Synchronous)
             screening_result = call_llm_api(prompt_data, provider_name, model_id, api_key, base_url)
             
-            # Generate ID and store result
-            pdf_screening_id = str(uuid.uuid4())
             pdf_screening_results[pdf_screening_id] = {
-                'filename': filename,
+                'filename': original_filename, # Original filename for display
+                'saved_pdf_path': pdf_save_path, # Store the path to the saved PDF
                 'decision': screening_result.get('label', 'ERROR'),
                 'reasoning': screening_result.get('justification', '-'),
                 'extracted_text_preview': full_text[:2000] + ("... (truncated)" if len(full_text) > 2000 else "")
             }
 
-            # Redirect to the results display route
             return redirect(url_for('show_pdf_result', pdf_screening_id=pdf_screening_id))
 
         except Exception as e:
-            flash(f"An error occurred processing PDF {filename}: {e}", "error")
+            flash(f"An error occurred processing PDF {original_filename}: {e}", "error")
             traceback.print_exc()
+            # Optionally clean up saved file on error
+            # if 'pdf_save_path' in locals() and os.path.exists(pdf_save_path): os.remove(pdf_save_path)
             return redirect(url_for('full_text_screening_page'))
     else:
         flash('Invalid file type. Please upload a PDF file.', 'error')
@@ -1201,6 +1225,7 @@ def show_pdf_result(pdf_screening_id):
         
     current_year = datetime.datetime.now().year
     return render_template('pdf_result.html',
+                           pdf_id=pdf_screening_id, # Pass the ID itself
                            filename=result_data.get('filename'),
                            decision=result_data.get('decision'),
                            reasoning=result_data.get('reasoning'),
@@ -1342,6 +1367,43 @@ Fields to Extract (with instructions and examples):
     else:
         flash('Invalid file type. Please upload a PDF file.', 'error')
         return redirect(url_for('data_extraction_page'))
+
+
+# --- ADDED: Route to serve saved PDF files for preview ---
+@app.route('/serve_pdf/<pdf_id>/<original_filename>', methods=['GET'])
+def serve_pdf_file(pdf_id: str, original_filename: str):
+    # Construct the filename as it was saved
+    # This assumes the filename format f"{pdf_id}_{original_filename}" used during saving
+    # Ensure original_filename is sanitized if it comes directly from URL path in a real scenario,
+    # but here it's mainly for constructing the known saved name.
+    # For security, it's better if the actual filename on disk is ONLY the pdf_id.pdf 
+    # or if we look up the full saved_pdf_path from a secure mapping (e.g. pdf_screening_results[pdf_id]['saved_pdf_path'])
+    # However, to keep it simple for now based on previous save logic:
+    
+    # Let's refine this: it's better to fetch path from our stored results for security and accuracy.
+    session_data = pdf_screening_results.get(pdf_id)
+    if not session_data or 'saved_pdf_path' not in session_data:
+        return "PDF record not found or path missing.", 404
+
+    saved_path = session_data['saved_pdf_path']
+    
+    # Use send_from_directory for security. 
+    # It needs directory and filename separately.
+    directory = os.path.dirname(saved_path)
+    filename = os.path.basename(saved_path)
+
+    if not os.path.exists(saved_path):
+         return "PDF file not found on server.", 404
+
+    try:
+        return send_file(saved_path, as_attachment=False) # as_attachment=False for inline display
+    except FileNotFoundError:
+        return "File not found, server error.", 404
+    except Exception as e:
+        print(f"Error serving PDF {filename}: {e}")
+        traceback.print_exc()
+        return "Error serving PDF.", 500
+# --- END ADDED PDF serving route ---
 
 
 # --- Run App ---
