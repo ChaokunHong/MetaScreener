@@ -666,7 +666,11 @@ def stream_screen_file():
             df_for_screening = df_for_screening[df_for_screening['title'].str.contains(title_filter_input, case=False, na=False)]
             filter_description = f"entries matching title '{title_filter_input}'"
             if df_for_screening.empty:
-                return Response(f"data: {json.dumps({'type': 'error', 'message': f'No articles found matching title: \"{title_filter_input}\"'})}\n\n", mimetype='text/event-stream')
+                message = f'No articles found matching title: "{title_filter_input}"'
+                return Response(
+                    f"data: {json.dumps({'type': 'error', 'message': message})}\n\n",
+                    mimetype='text/event-stream'
+                )
         
         elif line_range_input: # Else if, so title takes precedence if both are filled (though UI should ideally prevent this)
             try:
