@@ -787,16 +787,16 @@ def stream_screen_file():
                     except Exception as e:
                         processed_count += 1 # Still increment for progress tracking
                         progress_percentage = int((processed_count / num_total_items) * 100) if num_total_items > 0 else 0
-                        error_message_item = f"Error processing item '{title[:30]}...': {e}"
+                        error_message_text_item = f"Error processing item '{title[:30]}...': {e}"
                         app_logger.error(f"Error processing item (original index {index}): {e}")
-                        traceback.print_exc()
-                        # Send progress event even for error, but with an error decision
-                        progress_event = {
+                        # traceback.print_exc() # app_logger.error with exc_info=True or logger.exception would be better if full trace needed here
+                        progress_event_data = {
                             'type': 'progress', 'count': processed_count, 'total': num_total_items,
                             'percentage': progress_percentage, 'current_item_title': title,
-                            'decision': 'ITEM_ERROR' # Specific marker for item processing error
+                            'decision': 'ITEM_ERROR', # Keep this simple for the event
+                            'error_detail': error_message_text_item # Optionally send detail if frontend can use it
                         }
-                        yield f"data: {json.dumps(progress_event)}\n\n"
+                        yield f"data: {json.dumps(progress_event_data)}\n\n"
                         # Optionally, add a placeholder to temp_results_list for this error
                         temp_results_list.append({
                             'index': index + 1, 'title': title, 'authors': authors_str,
@@ -820,7 +820,8 @@ def stream_screen_file():
     
     except Exception as e:
         app_logger.exception("Server error before full streaming")
-        return Response(f"data: {json.dumps({'type': 'error', 'message': f'Server error before full streaming: {str(e)}'})}\n\n", mimetype='text/event-stream')
+        error_message_text_server = f'Server error before full streaming: {str(e)}'
+        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text_server})}\n\n", mimetype='text/event-stream')
 
 
 @app.route('/show_screening_results/<screening_id>', endpoint='show_screening_results') 
@@ -848,11 +849,13 @@ def show_screening_results(screening_id):
 @app.route('/stream_test_screen_file', methods=['POST'], endpoint='stream_test_screen_file')
 def stream_test_screen_file():
     if 'file' not in request.files:
-        return Response(f"data: {json.dumps({'type': 'error', 'message': 'No file part.'})}\n\n", mimetype='text/event-stream')
+        error_message_text = 'No file part.'
+        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
 
     file = request.files['file']
     if file.filename == '' or not allowed_file(file.filename):
-        return Response(f"data: {json.dumps({'type': 'error', 'message': 'No selected/invalid file.'})}\n\n", mimetype='text/event-stream')
+        error_message_text = 'No selected/invalid file.'
+        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
 
     # --- Get ALL form fields first, ensuring they are defined before the main try block ---
     try:
@@ -870,9 +873,11 @@ def stream_test_screen_file():
     try: 
         df = load_literature_ris(file.stream)
         if df is None or df.empty:
-            return Response(f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\n\n", mimetype='text/event-stream')
+            error_message_text = 'Failed to load RIS or file empty.'
+            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
         if 'abstract' not in df.columns:
-            return Response(f"data: {json.dumps({'type': 'error', 'message': 'RIS missing abstract column.'})}\n\n", mimetype='text/event-stream')
+            error_message_text = 'RIS missing abstract column.'
+            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
         df['title'] = df.get('title', pd.Series(["Title Not Found"] * len(df))).fillna("Title Not Found")
         df['authors'] = df.get('authors', pd.Series([[] for _ in range(len(df))]))
         df['authors'] = df['authors'].apply(lambda x: x if isinstance(x, list) else [])
@@ -985,13 +990,14 @@ def stream_test_screen_file():
                     except Exception as e:
                         processed_count += 1
                         progress_percentage = int((processed_count / num_actual_sample_items) * 100) if num_actual_sample_items > 0 else 0
-                        error_message_item = f"Error processing item '{title[:30]}...': {e}"
+                        error_message_text_item_test = f"Error processing item '{title[:30]}...': {e}"
                         app_logger.error(f"Error processing item (original index {index}): {e}")
                         traceback.print_exc()
                         progress_data = {
                              'type': 'progress', 'count': processed_count, 'total': num_actual_sample_items,
                              'percentage': progress_percentage, 'current_item_title': title,
-                             'decision': 'ITEM_ERROR' 
+                             'decision': 'ITEM_ERROR', 
+                             'error_detail': error_message_text_item_test # Optionally send detail
                          }
                         yield f"data: {json.dumps(progress_data)}\n\n"
                         temp_results_list.append({
@@ -1009,7 +1015,8 @@ def stream_test_screen_file():
 
     except Exception as e: 
         app_logger.exception("Server error during test streaming processing")
-        return Response(f"data: {json.dumps({'type': 'error', 'message': f'Server error during test streaming processing: {str(e)}'})}\n\n", mimetype='text/event-stream')
+        error_message_text_server_test = f'Server error during test streaming processing: {str(e)}'
+        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text_server_test})}\n\n", mimetype='text/event-stream')
 
 
 # --- New Route to Show Test Results ---
