@@ -1435,15 +1435,18 @@ def batch_screen_pdfs_stream():
 
     if title_filter_input:
         files_to_process_manifest = [
-            item for item in files_to_process_manifest 
+            item for item in files_to_process_manifest
             if title_filter_input.lower() in item['original_filename'].lower()
         ]
         filter_description = f"files matching filename '{title_filter_input}'"
         applied_title_filter = True
         if not files_to_process_manifest:
             app_logger.info(f"Batch PDF Stream: No files matched title filter '{title_filter_input}'.")
-            error_message_text = f'No PDF files found matching filename filter: "{title_filter_input}"' # Corrected
-            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
+            error_message_text = f'No PDF files found matching filename filter: "{title_filter_input}"'
+            return Response(
+                f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n",
+                mimetype='text/event-stream'
+            )
             
     if not applied_title_filter and order_filter_input: 
         try:
