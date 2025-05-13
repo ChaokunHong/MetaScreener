@@ -44,12 +44,32 @@
     </div>
 
     {% if batch_info and batch_info.results %}
-        <p class="mb-1">
-            Screened {{ batch_info.results|length }} PDF file(s).
-            {% if batch_info.filter_applied and batch_info.filter_applied != 'all uploaded files' %}
-                <br><small class="text-muted">Filter applied: {{ batch_info.filter_applied }}</small>
-            {% endif %}
-        </p>
+        <div class="row mb-3">
+            <div class="col-md-8">
+                <p class="mb-1">
+                    Screened {{ batch_info.results|length }} PDF file(s).
+                    {% if batch_info.filter_applied and batch_info.filter_applied != 'all uploaded files' %}
+                        <br><small class="text-muted">Filter applied: {{ batch_info.filter_applied }}</small>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-4">
+                {# --- NEW: Decision Statistics Summary --- #}
+                {% if decision_counts %}
+                <h6>Summary:</h6>
+                <ul class="list-unstyled list-inline" style="font-size: 0.9em;">
+                    {% for decision, count in decision_counts.items() %}
+                        {% if count > 0 %}
+                            <li class="list-inline-item">
+                                <span class="decision-{{ decision }}">{{ decision.replace('_',' ') }}:</span> {{ count }}
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {# --- END NEW: Decision Statistics Summary --- #}
+            </div>
+        </div>
         
         <!-- NEW: Download Section for Batch PDF Results -->
         <div class="mt-3 mb-3 d-flex align-items-center">

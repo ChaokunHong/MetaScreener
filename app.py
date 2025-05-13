@@ -119,12 +119,33 @@ def allowed_file(filename):
 @app.route('/configure_llm', methods=['POST'])
 def configure_llm():
     app_logger.info("--- Entering configure_llm --- ")
+
+    # Check if the action is to clear a specific API key
+    provider_to_clear = request.form.get('clear_api_key')
+    if provider_to_clear:
+        providers_info = get_llm_providers_info()
+        if provider_to_clear in providers_info:
+            provider_config_to_clear = providers_info[provider_to_clear]
+            session_key_to_clear = provider_config_to_clear.get("api_key_session_key")
+            if session_key_to_clear and session_key_to_clear in session:
+                session.pop(session_key_to_clear)
+                app_logger.info(f"Cleared API key for {provider_to_clear} from session.")
+                flash(f'API Key for {provider_to_clear.replace("_"," ")} has been cleared from session.', 'success')
+            else:
+                app_logger.warning(f"Attempted to clear key for {provider_to_clear}, but no key found in session or session key name missing.")
+                flash(f'No API Key was set in session for {provider_to_clear.replace("_"," ")}.', 'info')
+        else:
+            app_logger.warning(f"Attempted to clear key for invalid provider: {provider_to_clear}")
+            flash(f'Invalid provider specified for clearing API key.', 'error')
+        return redirect(url_for('llm_config_page')) # Redirect after clearing
+
+    # If not clearing, proceed with saving/updating LLM config and API key
     selected_provider = request.form.get('llm_provider')
     selected_model_id = request.form.get('llm_model_id')
     app_logger.info(f"Provider: {selected_provider}, Model: {selected_model_id}")
 
     providers_info = get_llm_providers_info()
-    if selected_provider not in providers_info:
+    if not selected_provider or selected_provider not in providers_info:
         flash('Invalid LLM Provider selected.', 'error')
         return redirect(url_for('llm_config_page'))
 
@@ -132,33 +153,29 @@ def configure_llm():
 
     session['selected_llm_provider'] = selected_provider
     session['selected_llm_model_id'] = selected_model_id
+    flash_messages = [f'LLM Provider set to {selected_provider.replace("_"," ")} and Model to {selected_model_id}.']
 
+    # Handle API key submission for the selected provider
     api_key_form_field = f"{selected_provider.lower()}_api_key"
     user_api_key = request.form.get(api_key_form_field)
-    app_logger.debug(f"Form field for key: '{api_key_form_field}'")
-    app_logger.debug(f"Submitted key value: '{user_api_key}' (Type: {type(user_api_key)})")
-
-    if user_api_key:
-        app_logger.debug("User API key is truthy, attempting to save...")
+    
+    if user_api_key: # If user submitted a key for the currently selected provider
+        app_logger.debug(f"Attempting to save API key for {selected_provider}.")
         session_key_for_api = provider_config.get("api_key_session_key")
-        app_logger.debug(f"Session key name from config: '{session_key_for_api}'")
         if session_key_for_api:
             session[session_key_for_api] = user_api_key
-            app_logger.info(f"Saved API key for {selected_provider} (first 5 chars: '{user_api_key[:5]}...') to session['{session_key_for_api}']")
-            flash(f'API Key for {selected_provider} updated in session.', 'info')
+            app_logger.info(f"Saved API key for {selected_provider} into session.")
+            flash_messages.append(f'API Key for {selected_provider.replace("_"," ")} updated in session.')
         else:
-             app_logger.error("Could not find api_key_session_key in provider config!")
+             app_logger.error(f"Could not find api_key_session_key in provider config for {selected_provider}!")
+             flash_messages.append(f'Error: Configuration problem for {selected_provider} API key storage.')
     else:
-        app_logger.debug("User API key is FALSY (empty or None), NOT saving to session.")
-        if not user_api_key and request.form.get(f'clear_{api_key_form_field}'):
-             session_key_for_api = provider_config.get("api_key_session_key")
-             if session_key_for_api and session_key_for_api in session:
-                 session.pop(session_key_for_api)
-                 app_logger.info(f"Cleared key for {selected_provider} from session.")
-                 flash(f'API Key for {selected_provider} cleared from session.', 'info')
+        app_logger.debug(f"No new API key submitted for {selected_provider}. Retaining existing session key if any.")
+
+    for msg in flash_messages:
+        flash(msg, 'success') # Use 'success' or 'info' based on message type
 
     app_logger.debug(f"Session contents after configure_llm: {session}")
-    flash(f'LLM configuration updated to {selected_provider} - Model: {selected_model_id}.', 'success')
     return redirect(url_for('llm_config_page'))
 
 
@@ -1659,17 +1676,28 @@ def show_batch_pdf_results(batch_session_id):
         flash("Batch PDF screening results not found or may have expired.", "warning")
         return redirect(url_for('full_text_screening_page'))
     
-    app_logger.info(f"Rendering batch PDF results for {batch_session_id}. Contains {len(batch_data.get('results', []))} items.")
-    # app_logger.debug(f"Batch data content: {batch_data}") # Can be very verbose
+    results = batch_data.get('results', [])
+    # --- NEW: Calculate decision statistics --- 
+    decision_counts = {
+        'INCLUDE': 0, 'EXCLUDE': 0, 'MAYBE': 0,
+        'TEXT_EXTRACT_ERROR': 0, 'PROMPT_ERROR': 0, 'API_ERROR': 0, 
+        'FILE_PROCESSING_ERROR': 0, 'WORKER_THREAD_ERROR': 0, 'ERROR': 0 # Generic ERROR and other specific ones
+    }
+    for result_item in results:
+        decision = result_item.get('decision', 'ERROR').upper()
+        if decision in decision_counts:
+            decision_counts[decision] += 1
+        else: # Catch any other unforeseen decision strings as generic ERROR
+            decision_counts['ERROR'] +=1
+    # --- END NEW --- 
+
+    app_logger.info(f"Rendering batch PDF results for {batch_session_id}. Contains {len(results)} items.")
 
     return render_template('batch_pdf_results.html', 
                            batch_info=batch_data, 
                            batch_id=batch_session_id,
+                           decision_counts=decision_counts, # Pass counts to template
                            current_year=datetime.datetime.now().year)
-    
-    # # Placeholder response until template is created
-    # return f"Placeholder for Batch PDF Results. Batch ID: {batch_session_id}. Results count: {len(batch_data.get('results', []))}" 
-# --- END NEW Batch PDF Results Route ---
 
 
 # --- NEW: Download Route for Batch PDF Screening Results ---
