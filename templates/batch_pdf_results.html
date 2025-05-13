@@ -98,7 +98,7 @@
                 <tbody>
                     {% for result in batch_info.results %}
                     <tr>
-                        <td>{{ loop.index }}</td>
+                        <td>{{ result.original_index + 1 if result.original_index is not none else loop.index }}</td>
                         <td>{{ result.title_for_display if result.title_for_display else result.filename }}</td>
                         <td><span class="decision-{{ result.decision }}">{{ result.decision }}</span></td>
                         <td><span class="reasoning-text">{{ result.reasoning }}</span></td>
