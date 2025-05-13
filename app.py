@@ -1218,9 +1218,10 @@ def screen_pdf_decision():
 
 @app.route('/show_pdf_result/<pdf_screening_id>', endpoint='show_pdf_result')
 def show_pdf_result(pdf_screening_id):
-    result_data = pdf_screening_results.pop(pdf_screening_id, None) # Pop to clean up
+    result_data = pdf_screening_results.get(pdf_screening_id) # Use .get() to keep the entry for PDF serving
+    
     if not result_data:
-        flash("PDF screening result not found or already viewed.", "warning")
+        flash("PDF screening result not found. It might have expired or was not processed correctly.", "warning") # Adjusted message
         return redirect(url_for('full_text_screening_page'))
         
     current_year = datetime.datetime.now().year
