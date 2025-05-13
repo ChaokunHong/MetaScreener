@@ -9,6 +9,7 @@ import io
 import fitz # PyMuPDF
 import pytesseract # <--- 新增导入
 from PIL import Image # <--- 新增导入
+import logging # <-- Import logging
 
 # For Gemini
 import google.generativeai as genai
@@ -20,8 +21,22 @@ from anthropic import Anthropic, APIStatusError, APIConnectionError, RateLimitEr
 from config import (
     SUPPORTED_LLM_PROVIDERS, PICOT_TEMPLATE, 
     DEFAULT_SYSTEM_PROMPT, DEFAULT_OUTPUT_INSTRUCTIONS, # Import defaults
-    get_screening_criteria, get_current_criteria_object # Import necessary getters
+    get_screening_criteria, get_current_criteria_object, # Import necessary getters
+    TESSERACT_CMD_PATH, PDF_OCR_THRESHOLD_CHARS # <-- Import new config items
 )
+
+# Get a logger for this module
+utils_logger = logging.getLogger("metascreener_utils")
+
+# Configure Tesseract path if specified in config
+if TESSERACT_CMD_PATH:
+    try:
+        pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD_PATH
+        utils_logger.info(f"Tesseract OCR command path set to: {TESSERACT_CMD_PATH}")
+    except Exception as e_tess_path:
+        utils_logger.error(f"Error setting Tesseract OCR command path to '{TESSERACT_CMD_PATH}': {e_tess_path}")
+else:
+    utils_logger.info("Tesseract OCR command path not specified in config, using system PATH.")
 
 
 # --- Data Loading Functions ---
@@ -51,15 +66,14 @@ def load_literature_ris(filepath_or_stream: Union[str, IO[bytes]]) -> Optional[p
                 text_stream = io.TextIOWrapper(buffered_binary_stream, encoding='utf-8-sig', errors='replace')
                 entries = list(rispy.load(text_stream))
             except Exception as e_stream_handling:
-                print(f"Error handling uploaded stream before RIS parsing: {e_stream_handling}")
-                traceback.print_exc()
+                utils_logger.exception(f"Error handling uploaded stream before RIS parsing: {source_description}")
                 return None
         else:
-            print("Error: Invalid input type for load_literature_ris.")
+            utils_logger.error(f"Invalid input type for load_literature_ris: {type(filepath_or_stream)}")
             return None
 
         if not entries:
-            print(f"RIS parsing resulted in no entries for {source_description}.") # Added more specific log
+            utils_logger.warning(f"RIS parsing resulted in no entries for {source_description}.")
             return pd.DataFrame()
 
         data_for_df = []
@@ -82,14 +96,14 @@ def load_literature_ris(filepath_or_stream: Union[str, IO[bytes]]) -> Optional[p
                 df[col] = None if col != 'authors' else [[] for _ in range(len(df))]
         return df
     except FileNotFoundError:
-        print(f"Error: RIS file not found: {source_description}");
+        utils_logger.error(f"Error: RIS file not found: {source_description}")
         return None
     except UnicodeDecodeError as e:
-        print(f"Error decoding RIS file {source_description}: {e}");
+        utils_logger.error(f"Error decoding RIS file {source_description}: {e}")
         return None
     except Exception as e:
-        print(f"Error reading/parsing RIS file {source_description}: {e}");
-        traceback.print_exc();
+        utils_logger.exception(f"Error reading/parsing RIS file {source_description}")
+        traceback.print_exc()
         return None
 
 
@@ -101,56 +115,47 @@ def extract_text_from_pdf(file_stream: IO[bytes], ocr_language: str = 'eng') -> 
     """
     text_pages_with_line_numbers = []
     pdf_data = None
-    MIN_TEXT_LENGTH_PER_PAGE_TO_SKIP_OCR = 50 # Heuristic
 
     try:
-        print("   - Reading PDF file stream into bytes...")
+        utils_logger.debug("Reading PDF file stream into bytes...")
         pdf_data = file_stream.read()
         if not pdf_data:
-             print("   - Error: PDF file stream was empty after read.")
+             utils_logger.error("PDF file stream was empty after read.")
              return None
-        print(f"   - Read {len(pdf_data)} bytes. Opening with PyMuPDF...")
+        utils_logger.debug(f"Read {len(pdf_data)} bytes. Opening with PyMuPDF...")
         
         with fitz.open(stream=pdf_data, filetype="pdf") as doc:
             if doc.page_count == 0:
-                print("   - Error: PDF has 0 pages or could not be parsed correctly.")
+                utils_logger.error("PDF has 0 pages or could not be parsed correctly.")
                 return None
-            print(f"   - PDF has {doc.page_count} pages. Extracting text, adding page/line numbers, with OCR fallback...")
+            utils_logger.info(f"PDF has {doc.page_count} pages. Extracting text, adding page/line numbers, with OCR fallback...")
 
             for page_num_0_indexed, page in enumerate(doc):
                 page_num_1_indexed = page_num_0_indexed + 1
                 page_header = f"--- TEXT FROM PDF Page {page_num_1_indexed} ---"
                 
                 page_text_direct = page.get_text("text", sort=True).strip()
-                # --- ADDED TEMPORARY DEBUG PRINT ---
-                print(f"--- RAW EXTRACTED TEXT FOR PAGE {page_num_1_indexed} (length: {len(page_text_direct)}) ---")
-                print(page_text_direct)
-                print(f"----------------------------------------")
-                # --- END TEMPORARY DEBUG PRINT ---
                 current_page_raw_text = page_text_direct
 
-                if len(page_text_direct) < MIN_TEXT_LENGTH_PER_PAGE_TO_SKIP_OCR:
-                    print(f"   - Page {page_num_1_indexed}: Direct text short ({len(page_text_direct)} chars). Attempting OCR.")
+                if len(page_text_direct) < PDF_OCR_THRESHOLD_CHARS:
+                    utils_logger.info(f"Page {page_num_1_indexed}: Direct text short ({len(page_text_direct)} chars, threshold: {PDF_OCR_THRESHOLD_CHARS}). Attempting OCR.")
                     try:
                         pix = page.get_pixmap(dpi=300) 
                         img_bytes = pix.tobytes("png")
                         pil_image = Image.open(io.BytesIO(img_bytes))
-                        # Ensure tesseract_cmd is configured if necessary, e.g., in app.py or config.py:
-                        # pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract' 
                         ocr_text = pytesseract.image_to_string(pil_image, lang=ocr_language).strip()
                         
                         if ocr_text:
-                            # Prefer OCR if it finds substantially more text, or if direct was empty
-                            if (len(ocr_text) > len(page_text_direct) + MIN_TEXT_LENGTH_PER_PAGE_TO_SKIP_OCR) or \
+                            if (len(ocr_text) > len(page_text_direct) + PDF_OCR_THRESHOLD_CHARS) or \
                                (not page_text_direct and ocr_text):
                                 current_page_raw_text = ocr_text
-                                print(f"   - Page {page_num_1_indexed}: Used OCR text ({len(ocr_text)} chars).")
+                                utils_logger.info(f"Page {page_num_1_indexed}: Used OCR text ({len(ocr_text)} chars).")
                             else:
-                                print(f"   - Page {page_num_1_indexed}: OCR text not substantially better or direct was sufficient. Using direct text ({len(page_text_direct)} chars).")
+                                utils_logger.info(f"Page {page_num_1_indexed}: OCR text not substantially better or direct was sufficient. Using direct text ({len(page_text_direct)} chars).")
                         else:
-                            print(f"   - Page {page_num_1_indexed}: OCR did not yield text. Using direct text.")
+                            utils_logger.info(f"Page {page_num_1_indexed}: OCR did not yield text. Using direct text.")
                     except Exception as e_ocr:
-                        print(f"   - Page {page_num_1_indexed}: OCR attempt failed: {e_ocr}. Using direct text.")
+                        utils_logger.warning(f"Page {page_num_1_indexed}: OCR attempt failed: {e_ocr}. Using direct text.")
                 
                 lines_on_page_with_numbers = []
                 if current_page_raw_text:
@@ -165,19 +170,19 @@ def extract_text_from_pdf(file_stream: IO[bytes], ocr_language: str = 'eng') -> 
             if final_text.endswith("\n\n=== End of Page / Start of Next Page ===\n\n"):
                 final_text = final_text[:-len("\n\n=== End of Page / Start of Next Page ===\n\n")]
 
-        print(f"   - Successfully extracted and formatted approx {len(final_text)} characters from PDF.")
+        utils_logger.info(f"Successfully extracted and formatted approx {len(final_text)} characters from PDF.")
         return final_text
 
     except Exception as e:
-        print(f"Error extracting text from PDF: {e}")
+        utils_logger.exception("Error extracting text from PDF")
         if pdf_data is not None:
-             print(f"   - Attempted to open data of type: {type(pdf_data)}")
+             utils_logger.debug(f"   - Attempted to open data of type: {type(pdf_data)}")
         if "cannot open broken document" in str(e) or "syntax error" in str(e).lower():
-             print("   - Hint: The PDF file might be corrupted or not a standard PDF.")
+             utils_logger.warning("   - Hint: The PDF file might be corrupted or not a standard PDF.")
         elif "permission error" in str(e).lower():
-             print("   - Hint: The PDF file might be password protected or have extraction restrictions.")
+             utils_logger.warning("   - Hint: The PDF file might be password protected or have extraction restrictions.")
         elif isinstance(e, TypeError) and "bad stream" in str(e):
-             print(f"   - Type passed to fitz.open(stream=...) was: {type(pdf_data)}") 
+             utils_logger.warning(f"   - Type passed to fitz.open(stream=...) was: {type(pdf_data)}") 
         traceback.print_exc()
         return None
 
@@ -211,7 +216,7 @@ def call_llm_api(prompt_data: Dict[str, str], provider_name: str, model_id: str,
     if not api_key: return {"label": "CONFIG_ERROR", "justification": f"API Key for {provider_name} missing."}
     if not main_prompt: return {"label": "PROMPT_ERROR", "justification": "Main prompt body is missing."}
 
-    print(f"   - Calling {provider_name} model: {model_id} (Base: {base_url or 'default'})")
+    utils_logger.info(f"Calling {provider_name} model: {model_id} (Base: {base_url or 'default'})")
 
     if provider_name == "DeepSeek" or provider_name == "OpenAI_ChatGPT":
         return _call_openai_compatible_api(main_prompt, system_prompt, model_id, api_key, base_url, provider_name)
@@ -254,7 +259,7 @@ def _parse_llm_response(message_content: str) -> Dict[str, str]:
         label = "MAYBE"
 
     if label == "PARSE_ERROR":
-        print(f"   - Parse Error: Could not extract LABEL. Response snippet: '{message_content[:200]}...'")
+        utils_logger.warning(f"Parse Error: Could not extract LABEL. Response snippet: '{message_content[:200]}...'")
         justification = f"Original unparsed response: {message_content[:200]}..."
     return {"label": label, "justification": justification}
 
@@ -286,7 +291,7 @@ Dict[str, str]:
         details = str(e.response.text[:200]) if e.response is not None else str(e)
         return {"label": f"API_HTTP_ERROR_{status}", "justification": f"{provider_name} HTTP Error {status}: {details}"}
     except Exception as e:
-        traceback.print_exc()
+        utils_logger.exception(f"Script error ({provider_name})")
         return {"label": "SCRIPT_ERROR", "justification": f"Script error ({provider_name}): {str(e)}"}
 
 
@@ -311,7 +316,7 @@ def _call_gemini_api(full_prompt: str, model_id: str, api_key: str) -> Dict[str,
         return {"label": f"API_{finish_reason}",
                 "justification": f"Gemini API no content, reason: {finish_reason}. Details: {str(response)[:200]}"}
     except Exception as e:
-        traceback.print_exc()
+        utils_logger.exception("Gemini API error")
         return {"label": "GEMINI_API_ERROR", "justification": f"Gemini API error: {str(e)}"}
 
 
@@ -335,7 +340,7 @@ def _call_claude_api(main_prompt: str, system_prompt: Optional[str], model_id: s
         return {"label": f"CLAUDE_API_ERROR_{e.status_code if hasattr(e, 'status_code') else 'GENERAL'}",
                 "justification": f"Claude API Error: {str(e)}"}
     except Exception as e:
-        traceback.print_exc()
+        utils_logger.exception(f"Script error (Claude)")
         return {"label": "SCRIPT_ERROR", "justification": f"Script error (Claude): {str(e)}"}
 
 
@@ -354,7 +359,7 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
     if not api_key: return "API_ERROR: API Key missing in call."
     if not main_prompt: return "API_ERROR: Main prompt body is missing."
 
-    print(f"   - Calling {provider_name} (Raw Content) model: {model_id}, Max Tokens: {max_tokens}")
+    utils_logger.info(f"Calling {provider_name} (Raw Content) model: {model_id}, Max Tokens: {max_tokens}")
 
     raw_content = None
     error_info = None
@@ -370,7 +375,7 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
             # Check if model supports JSON mode (heuristic)
             if "1106" in model_id or "gpt-4" in model_id or "preview" in model_id or "-o" in model_id: 
                  data["response_format"] = { "type": "json_object" }
-                 print("   - Requesting JSON mode from OpenAI compatible API.")
+                 utils_logger.info("   - Requesting JSON mode from OpenAI compatible API.")
 
             response = requests.post(api_endpoint, headers=headers, json=data, timeout=180)
             response.raise_for_status()
@@ -412,13 +417,13 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
     except APIError as e: error_info = f"Claude API Error: {str(e)}" # Specific Claude error
     except Exception as e:
         error_info = f"Generic API call error ({provider_name}): {str(e)}"
-        print(f"Error in raw API call ({provider_name}): {e}")
+        utils_logger.exception(f"Error in raw API call ({provider_name})")
         traceback.print_exc()
 
     if error_info:
-        print(f"   - API Call Error: {error_info}")
+        utils_logger.error(f"API Call Error: {error_info}")
         # Return the error message itself? Or None? Returning error helps debug.
         return f"API_ERROR: {error_info}"
         
-    # print(f"   - Raw LLM Output: {raw_content[:200]}...") # Debugging
+    # utils_logger.debug(f"Raw LLM Output: {raw_content[:200]}...") # If re-enabling debug logging for this
     return raw_content

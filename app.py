@@ -15,6 +15,19 @@ import sys # For printing to stderr
 import io # For creating in-memory files
 import re
 from typing import Dict, Optional # ADDED Import for type hints
+from cachetools import TTLCache # <-- Import TTLCache
+import logging # <-- Import logging
+
+# --- Configure logging ---
+logging.basicConfig(
+    level=os.environ.get("LOGLEVEL", "INFO").upper(), # Allow setting log level via env var
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout) # Log to stdout
+    ]
+)
+app_logger = logging.getLogger("metascreener_app") # Use a specific name for the app logger
+# --- End logging configuration ---
 
 # Import functions from our utils and config
 from utils import load_literature_ris, extract_text_from_pdf, construct_llm_prompt, call_llm_api, call_llm_api_raw_content, _parse_llm_response
@@ -34,7 +47,8 @@ ALLOWED_EXTENSIONS = {'ris'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 test_sessions = {} # For holding test screening data + results before metrics
 full_screening_sessions = {} # ADDED: For holding full screening results temporarily
-pdf_screening_results = {} # ADDED: Global dict for PDF results
+# NEW: Use TTLCache for pdf_screening_results. Max 500 items, 2 hours TTL (7200 seconds)
+pdf_screening_results = TTLCache(maxsize=500, ttl=7200)
 pdf_extraction_results = {} # ADDED: For extraction results
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -103,10 +117,10 @@ def allowed_file(filename):
 # --- Route for LLM Configuration ---
 @app.route('/configure_llm', methods=['POST'])
 def configure_llm():
-    print("--- Entering configure_llm --- ", file=sys.stderr)
+    app_logger.info("--- Entering configure_llm --- ")
     selected_provider = request.form.get('llm_provider')
     selected_model_id = request.form.get('llm_model_id')
-    print(f"Provider: {selected_provider}, Model: {selected_model_id}", file=sys.stderr)
+    app_logger.info(f"Provider: {selected_provider}, Model: {selected_model_id}")
 
     providers_info = get_llm_providers_info()
     if selected_provider not in providers_info:
@@ -120,30 +134,29 @@ def configure_llm():
 
     api_key_form_field = f"{selected_provider.lower()}_api_key"
     user_api_key = request.form.get(api_key_form_field)
-    print(f"Form field for key: '{api_key_form_field}'", file=sys.stderr)
-    print(f"Submitted key value: '{user_api_key}' (Type: {type(user_api_key)})", file=sys.stderr)
+    app_logger.debug(f"Form field for key: '{api_key_form_field}'")
+    app_logger.debug(f"Submitted key value: '{user_api_key}' (Type: {type(user_api_key)})")
 
     if user_api_key:
-        print("User API key is truthy, attempting to save...", file=sys.stderr)
+        app_logger.debug("User API key is truthy, attempting to save...")
         session_key_for_api = provider_config.get("api_key_session_key")
-        print(f"Session key name from config: '{session_key_for_api}'", file=sys.stderr)
+        app_logger.debug(f"Session key name from config: '{session_key_for_api}'")
         if session_key_for_api:
             session[session_key_for_api] = user_api_key
-            print(f"Saved '{user_api_key[:5]}...' to session['{session_key_for_api}']", file=sys.stderr)
+            app_logger.info(f"Saved API key for {selected_provider} (first 5 chars: '{user_api_key[:5]}...') to session['{session_key_for_api}']")
             flash(f'API Key for {selected_provider} updated in session.', 'info')
         else:
-             print("ERROR: Could not find api_key_session_key in provider config!", file=sys.stderr)
+             app_logger.error("Could not find api_key_session_key in provider config!")
     else:
-        print("User API key is FALSY (empty or None), NOT saving to session.", file=sys.stderr)
-        # Check if maybe clear was intended (less likely if user typed something)
+        app_logger.debug("User API key is FALSY (empty or None), NOT saving to session.")
         if not user_api_key and request.form.get(f'clear_{api_key_form_field}'):
              session_key_for_api = provider_config.get("api_key_session_key")
              if session_key_for_api and session_key_for_api in session:
                  session.pop(session_key_for_api)
-                 print(f"Cleared key for {selected_provider} from session.", file=sys.stderr)
+                 app_logger.info(f"Cleared key for {selected_provider} from session.")
                  flash(f'API Key for {selected_provider} cleared from session.', 'info')
 
-    print(f"Session contents after configure_llm: {session}", file=sys.stderr)
+    app_logger.debug(f"Session contents after configure_llm: {session}")
     flash(f'LLM configuration updated to {selected_provider} - Model: {selected_model_id}.', 'success')
     return redirect(url_for('llm_config_page'))
 
@@ -267,7 +280,7 @@ def set_criteria():
         flash('Screening criteria and settings successfully saved!', 'success')
     except Exception as e:
         flash(f'Error saving screening criteria: {e}', 'error')
-        traceback.print_exc()
+        app_logger.exception("Error saving screening criteria") # Replaces traceback.print_exc()
     return redirect(url_for('screening_criteria_page'))
 
 
@@ -363,7 +376,7 @@ def screen_full_dataset(session_id):
                          return redirect(url_for('llm_config_page'))
                     results_map[index] = screening_result # Store result associated with its original index
                 except Exception as exc:
-                     print(f"Error processing item (index {index}) in sync route: {exc}")
+                     app_logger.error(f"Error processing item (index {index}) in sync route: {exc}")
                      traceback.print_exc()
                      results_map[index] = {'decision': 'WORKER_ERROR', 'reasoning': str(exc)} # Store an error result
 
@@ -384,7 +397,7 @@ def screen_full_dataset(session_id):
         return render_template('results.html', results=results_list, filename=filename, current_year=current_year)
 
     except Exception as e:
-        traceback.print_exc()
+        app_logger.exception(f"Error during full screening for session {session_id}")
         flash(f"Error during full screening: {e}.", 'error')
         if session_id in test_sessions:
             del test_sessions[session_id]
@@ -497,7 +510,7 @@ def calculate_performance_metrics(ai_decisions, human_decisions, labels_order=['
         # Get count from confusion matrix where Human=INCLUDE (row idx_include) and AI=EXCLUDE (column idx_exclude)
         critical_errors_count = cm_3x3[idx_include, idx_exclude]
     except (ValueError, IndexError) as e:
-        print(f"Error calculating critical error count: {e}")
+        app_logger.error(f"Error calculating critical error count: {e}")
         critical_errors_count = 0 # Default to 0 if labels not found or matrix issue
         
     critical_error_rate = (critical_errors_count / total_predictions) * 100 if total_predictions > 0 else 0
@@ -647,18 +660,6 @@ def stream_screen_file():
     # --- END NEW ---
 
     try:
-        # --- Debug Prints for file stream (Full Screening) ---
-        print(f"--- Debug Full Screening: Before load_literature_ris ---")
-        print(f"Filename: {file.filename}")
-        print(f"Content Type: {file.content_type}")
-        print(f"Stream type: {type(file.stream)}")
-        if hasattr(file.stream, 'tell'):
-            try:
-                print(f"Stream initial position: {file.stream.tell()}")
-            except Exception as e:
-                print(f"Error getting stream position: {e}")
-        # --- End Debug Prints ---
-
         df = load_literature_ris(file.stream)
         if df is None or df.empty: return Response(f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\n\n", mimetype='text/event-stream')
         
@@ -722,7 +723,7 @@ def stream_screen_file():
         current_llm_config_data = get_current_llm_config(session)
         provider_name = current_llm_config_data['provider_name']
         model_id = current_llm_config_data['model_id']
-        base_url = get_base_url_for_provider(provider_name) # Ensure base_url is fetched
+        base_url = get_base_url_for_provider(provider_name)
         provider_info = get_llm_providers_info().get(provider_name, {})
         # Corrected access to api_key_session_key based on actual structure from config.py
         session_key_name = provider_info.get("api_key_session_key") 
@@ -787,7 +788,7 @@ def stream_screen_file():
                         processed_count += 1 # Still increment for progress tracking
                         progress_percentage = int((processed_count / num_total_items) * 100) if num_total_items > 0 else 0
                         error_message_item = f"Error processing item '{title[:30]}...': {e}"
-                        print(f"Error processing item (original index {index}): {e}")
+                        app_logger.error(f"Error processing item (original index {index}): {e}")
                         traceback.print_exc()
                         # Send progress event even for error, but with an error decision
                         progress_event = {
@@ -818,8 +819,7 @@ def stream_screen_file():
         return Response(generate_full_screening_progress(df_for_screening, total_entries_to_screen, filter_description), mimetype='text/event-stream')
     
     except Exception as e:
-        traceback.print_exc()
-        # Make sure base_url is defined or handled. Here, it might not be if error is early.
+        app_logger.exception("Server error before full streaming")
         return Response(f"data: {json.dumps({'type': 'error', 'message': f'Server error before full streaming: {str(e)}'})}\n\n", mimetype='text/event-stream')
 
 
@@ -867,21 +867,7 @@ def stream_test_screen_file():
     title_filter_input = request.form.get('title_text_filter', '').strip()
     # --- Form fields are now defined ---
     
-    # The previous edit attempt had removed the main 'try' block start here by mistake.
-    # This 'try' block is essential for the overall function logic and error handling.
     try: 
-        # --- Debug Prints for file stream (Test Screening) ---
-        print(f"--- Debug Test Screening: Before load_literature_ris ---")
-        print(f"Filename: {file.filename}")
-        print(f"Content Type: {file.content_type}")
-        print(f"Stream type: {type(file.stream)}")
-        if hasattr(file.stream, 'tell'):
-            try:
-                print(f"Stream initial position: {file.stream.tell()}")
-            except Exception as e:
-                print(f"Error getting stream position: {e}")
-        # --- End Debug Prints ---
-
         df = load_literature_ris(file.stream)
         if df is None or df.empty:
             return Response(f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\n\n", mimetype='text/event-stream')
@@ -1000,7 +986,7 @@ def stream_test_screen_file():
                         processed_count += 1
                         progress_percentage = int((processed_count / num_actual_sample_items) * 100) if num_actual_sample_items > 0 else 0
                         error_message_item = f"Error processing item '{title[:30]}...': {e}"
-                        print(f"Error processing item (original index {index}): {e}")
+                        app_logger.error(f"Error processing item (original index {index}): {e}")
                         traceback.print_exc()
                         progress_data = {
                              'type': 'progress', 'count': processed_count, 'total': num_actual_sample_items,
@@ -1022,7 +1008,7 @@ def stream_test_screen_file():
         return Response(generate_test_progress(sample_df, actual_sample_size, filter_description), mimetype='text/event-stream')
 
     except Exception as e: 
-        traceback.print_exc()
+        app_logger.exception("Server error during test streaming processing")
         return Response(f"data: {json.dumps({'type': 'error', 'message': f'Server error during test streaming processing: {str(e)}'})}\n\n", mimetype='text/event-stream')
 
 
@@ -1152,7 +1138,7 @@ def screen_pdf_decision():
         
         try:
             file.save(pdf_save_path) # Save the uploaded file object
-            print(f"   - PDF saved to: {pdf_save_path}")
+            app_logger.info(f"PDF saved to: {pdf_save_path}")
 
             # Now, process the saved file instead of the raw stream for consistency
             # Or, for efficiency, read the stream for processing and only use saved path for later serving.
@@ -1208,9 +1194,7 @@ def screen_pdf_decision():
 
         except Exception as e:
             flash(f"An error occurred processing PDF {original_filename}: {e}", "error")
-            traceback.print_exc()
-            # Optionally clean up saved file on error
-            # if 'pdf_save_path' in locals() and os.path.exists(pdf_save_path): os.remove(pdf_save_path)
+            app_logger.exception(f"An error occurred processing PDF {original_filename}") # replaces traceback.print_exc()
             return redirect(url_for('full_text_screening_page'))
     else:
         flash('Invalid file type. Please upload a PDF file.', 'error')
@@ -1253,14 +1237,14 @@ def extract_data_pdf():
 
     if file and file.filename.lower().endswith('.pdf'):
         filename = secure_filename(file.filename)
-        print(f"Starting data extraction for PDF: {filename}")
+        app_logger.info(f"Starting data extraction for PDF: {filename}")
         try:
             full_text = extract_text_from_pdf(file.stream)
             if full_text is None:
                 flash(f"Could not extract text from PDF: {filename}.", "error")
                 return redirect(url_for('data_extraction_page'))
             
-            print(f"Extracted {len(full_text)} characters. Preparing extraction prompt...")
+            app_logger.info(f"Extracted {len(full_text)} characters. Preparing extraction prompt...")
             
             # --- Gather User-Defined Extraction Fields --- 
             extraction_fields = {}
@@ -1299,7 +1283,7 @@ Fields to Extract (with instructions and examples):
             # Aggressively truncate input text (Adjust MAX_INPUT_CHARS as needed)
             MAX_INPUT_CHARS = 30000 
             truncated_text = full_text[:MAX_INPUT_CHARS]
-            if len(full_text) > MAX_INPUT_CHARS: print(f"Warning: Truncated PDF text from {len(full_text)} to {MAX_INPUT_CHARS} chars.")
+            if len(full_text) > MAX_INPUT_CHARS: app_logger.warning(f"Warning: Truncated PDF text from {len(full_text)} to {MAX_INPUT_CHARS} chars.")
             extraction_prompt += f"\n--- Full Text (potentially truncated) ---\n{truncated_text}\n--- End of Text ---\n\nExtracted JSON data:"""
 
             # --- Get LLM Config --- 
@@ -1313,7 +1297,7 @@ Fields to Extract (with instructions and examples):
             if not api_key: flash(f"API Key for {provider_name} must be provided...", "error"); return redirect(url_for('llm_config_page'))
 
             # --- Call LLM for Raw Content --- 
-            print(f"Sending extraction prompt to {provider_name}...")
+            app_logger.info(f"Sending extraction prompt to {provider_name}...")
             llm_response_raw = call_llm_api_raw_content(
                  {
                     "system_prompt": "You are an AI assistant performing data extraction. Output ONLY the requested JSON object, enclosed in ```json ... ``` if possible.", 
@@ -1341,18 +1325,18 @@ Fields to Extract (with instructions and examples):
                         
                         if json_str_to_parse:
                             extracted_data = json.loads(json_str_to_parse)
-                            print("Successfully parsed JSON from LLM output.")
+                            app_logger.info("Successfully parsed JSON from LLM output.")
                         else:
-                            print("Could not find valid JSON structure in LLM output.")
+                            app_logger.warning("Could not find valid JSON structure in LLM output.")
                             extracted_data = {"error": "LLM did not return expected JSON structure.", "raw_output": llm_response_raw[:500]}
                     except json.JSONDecodeError:
-                        print(f"Failed to decode JSON from LLM output: {llm_response_raw}")
+                        app_logger.error(f"Failed to decode JSON from LLM output: {llm_response_raw}")
                         extracted_data = {"error": "LLM output was not valid JSON.", "raw_output": llm_response_raw[:500]}
                     except Exception as parse_err:
-                        print(f"Unexpected error parsing LLM output: {parse_err}")
+                        app_logger.error(f"Unexpected error parsing LLM output: {parse_err}")
                         extracted_data = {"error": f"Unexpected error parsing output: {parse_err}", "raw_output": llm_response_raw[:500]}
             else:
-                print("LLM call returned no content or unexpected type.")
+                app_logger.warning("LLM call returned no content or unexpected type.")
                 extracted_data = {"error": "LLM call returned no content or failed."}
 
             current_year = datetime.datetime.now().year
@@ -1362,8 +1346,8 @@ Fields to Extract (with instructions and examples):
                                    current_year=current_year)
 
         except Exception as e:
-            flash(f"An error occurred during data extraction for {filename}: {e}", "error")
-            traceback.print_exc()
+            flash(f"An error occurred during data extraction for {original_filename if 'original_filename' in locals() else 'Unknown PDF'}: {e}", "error")
+            app_logger.exception(f"An error occurred during data extraction for PDF")
             return redirect(url_for('data_extraction_page'))
     else:
         flash('Invalid file type. Please upload a PDF file.', 'error')
@@ -1398,17 +1382,229 @@ def serve_pdf_file(pdf_id: str, original_filename: str):
 
     try:
         return send_file(saved_path, as_attachment=False) # as_attachment=False for inline display
-    except FileNotFoundError:
-        return "File not found, server error.", 404
     except Exception as e:
-        print(f"Error serving PDF {filename}: {e}")
+        app_logger.error(f"Error serving PDF {filename}: {e}")
         traceback.print_exc()
         return "Error serving PDF.", 500
 # --- END ADDED PDF serving route ---
 
 
+# --- NEW: Batch Full-Text PDF Screening SSE Route (Skeleton) ---
+@app.route('/batch_screen_pdfs_stream', methods=['POST'], endpoint='batch_screen_pdfs_stream_placeholder')
+def batch_screen_pdfs_stream():
+    app_logger.info("Batch PDF Stream: Request received.")
+    
+    uploaded_files = request.files.getlist("batch_pdf_files")
+    title_filter_input = request.form.get('batch_pdf_title_filter', '').strip()
+    order_filter_input = request.form.get('batch_pdf_order_filter', '').strip()
+
+    if not uploaded_files or all(f.filename == '' for f in uploaded_files):
+        app_logger.warning("Batch PDF Stream: No files were uploaded or all files are empty.")
+        return Response(f"data: {json.dumps({'type': 'error', 'message': 'No PDF files uploaded or all files are empty.'})}\n\n", mimetype='text/event-stream')
+
+    initial_manifest = []
+    for idx, file_storage_object in enumerate(uploaded_files):
+        if file_storage_object and file_storage_object.filename:
+            original_filename = secure_filename(file_storage_object.filename)
+            initial_manifest.append({
+                'original_index': idx, 
+                'original_filename': original_filename,
+                'file_storage': file_storage_object, 
+                'saved_path': None 
+            })
+    
+    if not initial_manifest:
+        app_logger.warning("Batch PDF Stream: No valid files found in upload.")
+        return Response(f"data: {json.dumps({'type': 'error', 'message': 'No valid PDF files found in upload.'})}\n\n", mimetype='text/event-stream')
+
+    app_logger.info(f"Batch PDF Stream: Initially {len(initial_manifest)} files uploaded.")
+    app_logger.info(f"Batch PDF Stream: Title filter: '{title_filter_input}', Order filter: '{order_filter_input}'")
+
+    files_to_process_manifest = list(initial_manifest)
+    filter_description = "all uploaded files"
+    applied_title_filter = False
+
+    if title_filter_input:
+        files_to_process_manifest = [
+            item for item in files_to_process_manifest 
+            if title_filter_input.lower() in item['original_filename'].lower()
+        ]
+        filter_description = f"files matching filename '{title_filter_input}'"
+        applied_title_filter = True
+        if not files_to_process_manifest:
+            app_logger.info(f"Batch PDF Stream: No files matched title filter '{title_filter_input}'.")
+            return Response(f"data: {json.dumps({'type': 'error', 'message': f'No PDF files found matching filename filter: "{title_filter_input}"'})}\n\n", mimetype='text/event-stream')
+            
+    # Apply order filter if title filter was NOT applied, or if it was applied and order filter is also present (meaning order applies to the title-filtered list)
+    # The UI note says: "If both filename and order filters are filled, filename filter will take precedence."
+    # This means if title_filter_input is present, order_filter_input is IGNORED.
+    if not applied_title_filter and order_filter_input: 
+        try:
+            num_items_for_order_filter = len(files_to_process_manifest) # Should be len(initial_manifest) here if title filter wasn't applied
+            start_idx_0_based, end_idx_0_based_exclusive = parse_line_range(order_filter_input, num_items_for_order_filter)
+            
+            if start_idx_0_based >= end_idx_0_based_exclusive:
+                app_logger.info(f"Batch PDF Stream: Order filter range '{order_filter_input}' is invalid or results in no files.")
+                return Response(f"data: {json.dumps({'type': 'error', 'message': f'The order filter range "{order_filter_input}" is invalid or results in no files.'})}\n\n", mimetype='text/event-stream')
+
+            files_to_process_manifest = files_to_process_manifest[start_idx_0_based:end_idx_0_based_exclusive]
+            filter_description = f"files by order range [{start_idx_0_based+1}-{end_idx_0_based_exclusive}]"
+            
+            if not files_to_process_manifest:
+                app_logger.info(f"Batch PDF Stream: No files matched order filter '{order_filter_input}'.")
+                return Response(f"data: {json.dumps({'type': 'error', 'message': 'No PDF files found for the specified order range.'})}\n\n", mimetype='text/event-stream')
+        
+        except ValueError as e:
+            app_logger.warning(f"Batch PDF Stream: Invalid order filter format '{order_filter_input}': {e}")
+            return Response(f"data: {json.dumps({'type': 'error', 'message': f'Invalid format for order filter "{order_filter_input}": {str(e)}'})}\n\n", mimetype='text/event-stream')
+
+    total_files_to_process = len(files_to_process_manifest)
+    if total_files_to_process == 0 and (title_filter_input or order_filter_input):
+         # This case means filters were applied but resulted in zero files. 
+         # If no filters were applied and still zero, initial_manifest check would have caught it.
+        app_logger.info("Batch PDF Stream: No files selected for processing after filters.")
+        return Response(f"data: {json.dumps({'type': 'error', 'message': 'No PDF files selected for processing after applying filters.'})}\n\n", mimetype='text/event-stream')
+
+    app_logger.info(f"Batch PDF Stream: {total_files_to_process} file(s) selected. Filter applied: {filter_description}")
+    selected_filenames_log = [item['original_filename'] for item in files_to_process_manifest]
+    app_logger.info(f"Batch PDF Stream: Selected files for processing: {selected_filenames_log}")
+
+    # --- Get LLM and Criteria Config ONCE before starting threads ---
+    try:
+        criteria_prompt_text = get_screening_criteria()
+        current_llm_config_data = get_current_llm_config(session)
+        llm_provider_name = current_llm_config_data['provider_name']
+        llm_model_id = current_llm_config_data['model_id']
+        llm_base_url = get_base_url_for_provider(llm_provider_name)
+        
+        provider_info = get_llm_providers_info().get(llm_provider_name, {})
+        session_key_name = provider_info.get("api_key_session_key")
+        llm_api_key = session.get(session_key_name) if session_key_name else None
+
+        if not llm_api_key:
+            app_logger.error("Batch PDF Stream: API Key missing in session for the selected LLM provider.")
+            # Send an error event and stop
+            # This error needs to be sent via SSE if we reach here after initial connection.
+            def sse_error_gen():
+                yield f"data: {json.dumps({'type': 'error', 'message': f'API Key for {llm_provider_name} must be provided via configuration.', 'needs_config': True})}\n\n"
+            return Response(sse_error_gen(), mimetype='text/event-stream')
+    except Exception as e_config:
+        app_logger.exception("Batch PDF Stream: Error fetching LLM/Criteria configuration.")
+        def sse_config_error_gen():
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Error fetching LLM/Criteria configuration: {str(e_config)}'})}\n\n"
+        return Response(sse_config_error_gen(), mimetype='text/event-stream')
+    # --- END Config Fetch ---
+
+    upload_folder_path = app.config['UPLOAD_FOLDER'] # Get upload folder path
+
+    def generate_processing_progress():
+        yield f"data: {json.dumps({'type': 'start', 'total_uploaded': len(initial_manifest), 'total_to_process': total_files_to_process, 'filter_info': filter_description})}\n\n"
+        
+        processed_files_results = []
+        futures_map = {}
+
+        with ThreadPoolExecutor(max_workers=4) as executor: # Max workers can be tuned
+            for item_manifest in files_to_process_manifest:
+                # Args for _perform_batch_pdf_screening_for_file:
+                # file_item_manifest, criteria_prompt_text, llm_provider_name, llm_model_id, llm_api_key, llm_base_url, upload_folder
+                future = executor.submit(
+                    _perform_batch_pdf_screening_for_file, 
+                    item_manifest, 
+                    criteria_prompt_text, 
+                    llm_provider_name, 
+                    llm_model_id, 
+                    llm_api_key, 
+                    llm_base_url,
+                    upload_folder_path
+                )
+                # Use original_filename or a unique ID from item_manifest if available for futures_map key
+                # For now, let's assume future object itself is a good key if we process results in order of completion
+                futures_map[future] = item_manifest['original_filename']
+
+            processed_count = 0
+            for future in as_completed(futures_map):
+                original_filename_for_log = futures_map[future]
+                try:
+                    screening_result = future.result() # This is the dict returned by our helper
+                    processed_files_results.append(screening_result)
+                    processed_count += 1
+                    yield f"data: {json.dumps({                        'type': 'progress',                         'count': processed_count,                         'total_to_process': total_files_to_process,                        'percentage': int((processed_count / total_files_to_process) * 100),                        'current_file_name': screening_result.get('filename', original_filename_for_log),                        'decision': screening_result.get('decision', 'ERROR')                     })}\n\n"
+                except Exception as e_future:
+                    processed_count += 1 # Still count it as processed (with error)
+                    app_logger.error(f"Batch PDF: Exception processing future for {original_filename_for_log}: {e_future}")
+                    processed_files_results.append({
+                        'filename': original_filename_for_log, 
+                        'decision': 'WORKER_ERROR', 
+                        'reasoning': str(e_future)
+                    })
+                    yield f"data: {json.dumps({                        'type': 'progress',                         'count': processed_count,                        'total_to_process': total_files_to_process,                        'percentage': int((processed_count / total_files_to_process) * 100),                        'current_file_name': original_filename_for_log,                        'decision': 'WORKER_ERROR'                     })}\n\n"
+
+        batch_session_id = str(uuid.uuid4())
+        if processed_files_results: 
+            full_screening_sessions[batch_session_id] = { 
+                'filename': f"Batch PDF Results ({len(processed_files_results)} of {total_files_to_process} processed)", 
+                'filter_applied': filter_description,
+                'results': processed_files_results,
+                'is_batch_pdf_result': True 
+            }
+            app_logger.info(f"Batch PDF Stream: Stored {len(processed_files_results)} results under batch ID {batch_session_id}")
+        else:
+            app_logger.warning("Batch PDF Stream: No results were processed or collected.")
+
+        yield f"data: {json.dumps({'type': 'complete', 'message': 'Batch PDF processing finished.', 'batch_session_id': batch_session_id if processed_files_results else None})}\n\n"
+        app_logger.info(f"Batch PDF stream: Processing SSE finished. Batch ID: {batch_session_id if processed_files_results else 'N/A'}")
+
+    return Response(generate_processing_progress(), mimetype='text/event-stream')
+
+
+# --- NEW Helper for processing a single PDF in batch ---
+def _perform_batch_pdf_screening_for_file(item_manifest, criteria_prompt_text, llm_provider_name, llm_model_id, llm_api_key, llm_base_url, upload_folder):
+    original_filename = item_manifest['original_filename']
+    file_storage = item_manifest['file_storage']
+    file_storage.seek(0)
+    temp_file_id = str(uuid.uuid4())
+    saved_filename = f"batch_{temp_file_id}_{original_filename}"
+    saved_file_path = os.path.join(upload_folder, saved_filename)
+    try:
+        file_storage.save(saved_file_path)
+        app_logger.info(f"Batch PDF: Saved '{original_filename}' to '{saved_file_path}' for processing.")
+        with open(saved_file_path, 'rb') as saved_file_stream:
+            full_text = extract_text_from_pdf(saved_file_stream, ocr_language='eng')
+        if full_text is None:
+            app_logger.error(f"Batch PDF: Failed to extract text from '{original_filename}'.")
+            return {'filename': original_filename, 'decision': 'TEXT_EXTRACT_ERROR', 'reasoning': 'Failed to extract text from PDF.'}
+        prompt_data = construct_llm_prompt(full_text, criteria_prompt_text)
+        if not prompt_data:
+            app_logger.error(f"Batch PDF: Failed to construct LLM prompt for '{original_filename}'.")
+            return {'filename': original_filename, 'decision': 'PROMPT_ERROR', 'reasoning': 'Failed to construct LLM prompt.'}
+
+        # 3. Call LLM API (reusing existing utility)
+        # Note: call_llm_api expects provider_name, model_id, api_key, base_url
+        api_result = call_llm_api(prompt_data, llm_provider_name, llm_model_id, llm_api_key, llm_base_url)
+        
+        return {
+            'filename': original_filename,
+            'decision': api_result.get('label', 'API_ERROR'),
+            'reasoning': api_result.get('justification', 'API call failed or returned invalid data.')
+        }
+
+    except Exception as e_process:
+        app_logger.exception(f"Batch PDF: Error processing file '{original_filename}': {e_process}")
+        return {'filename': original_filename, 'decision': 'PROCESSING_ERROR', 'reasoning': str(e_process)}
+    finally:
+        # Clean up the saved temporary file after processing
+        if os.path.exists(saved_file_path):
+            try:
+                os.remove(saved_file_path)
+                app_logger.info(f"Batch PDF: Cleaned up temporary file '{saved_file_path}'.")
+            except Exception as e_cleanup:
+                app_logger.error(f"Batch PDF: Error cleaning up temp file '{saved_file_path}': {e_cleanup}")
+# --- END NEW Helper ---
+
+
 # --- Run App ---
 if __name__ == '__main__':
+    app_logger.info("Starting Flask app in debug mode...") # Example for __main__
     app.run(debug=True, host='0.0.0.0', port=5050)
 
 #test

@@ -24,6 +24,11 @@ Format your response EXACTLY as follows (LABEL and Justification on separate lin
 LABEL: [Your Decision - INCLUDE, EXCLUDE, or MAYBE]
 Justification: [Your Brief Justification. If MAYBE, state what needs clarification.]"""
 
+# --- ADDED: Configuration for PDF Processing ---
+TESSERACT_CMD_PATH = os.getenv("TESSERACT_CMD_PATH", None) # Default to None, app/utils will handle if not set
+PDF_OCR_THRESHOLD_CHARS = int(os.getenv("PDF_OCR_THRESHOLD_CHARS", 50)) # Default to 50 chars
+# --- END ADDED Configuration ---
+
 
 # --- LLM Provider Configurations ---
 SUPPORTED_LLM_PROVIDERS = {
