@@ -36,11 +36,14 @@ app_logger = logging.getLogger("metascreener_app") # Use a specific name for the
 from utils import load_literature_ris, extract_text_from_pdf, construct_llm_prompt, call_llm_api, call_llm_api_raw_content, _parse_llm_response
 from config import (
     get_screening_criteria, set_user_criteria, reset_to_default_criteria,
-    DEFAULT_EXAMPLE_CRITERIA, USER_CRITERIA,
+    USER_CRITERIA, # USER_CRITERIA is still used directly in app.py for session init, keep for now
     get_llm_providers_info, get_current_llm_config,
     get_api_key_for_provider, get_base_url_for_provider,
     DEFAULT_SYSTEM_PROMPT, DEFAULT_OUTPUT_INSTRUCTIONS,
-    get_current_criteria_object
+    get_current_criteria_object,
+    get_supported_criteria_frameworks, get_default_criteria_for_framework, get_current_framework_id,
+    DEFAULT_FRAMEWORK_VALUES, # DEFAULT_EXAMPLE_CRITERIA, <-- Ensure this is removed
+    get_blank_criteria_for_framework  # local import to avoid circular
 )
 
 app = Flask(__name__)
@@ -230,19 +233,40 @@ def llm_config_page():
 
 @app.route('/criteria', methods=['GET'], endpoint='screening_criteria_page')
 def screening_criteria_page():
-    criteria = get_current_criteria_object() # This is USER_CRITERIA or DEFAULT_EXAMPLE_CRITERIA
+    user_current_criteria = get_current_criteria_object() 
+    current_framework_id = get_current_framework_id()
+
+    # NEW: allow switching framework via query param
+    all_frameworks = get_supported_criteria_frameworks()
+    requested_framework = request.args.get('framework_id')
+    if requested_framework and requested_framework in all_frameworks and requested_framework != current_framework_id:
+        # Switch to requested framework & reset criteria to defaults for that framework
+        # Use blank criteria so form starts empty
+        set_user_criteria(requested_framework, get_blank_criteria_for_framework(requested_framework))
+        current_framework_id = requested_framework
+        user_current_criteria = get_current_criteria_object()
+
     current_year = datetime.datetime.now().year
-    config_defaults = {
+    framework_default_criteria = get_default_criteria_for_framework(current_framework_id)
+
+    # List of element prefixes (exclude 'other') for JS usage
+    element_prefixes = [el['id'] for el in all_frameworks[current_framework_id]['elements'] if el['id'] != 'other']
+
+    # DEFAULT_FRAMEWORK_VALUES is now imported at the top of app.py
+
+    config_defaults_for_template = {
         'DEFAULT_SYSTEM_PROMPT': DEFAULT_SYSTEM_PROMPT,
-        'DEFAULT_OUTPUT_INSTRUCTIONS': DEFAULT_OUTPUT_INSTRUCTIONS,
-        'DEFAULT_PICOT_CRITERIA': DEFAULT_EXAMPLE_CRITERIA # Pass the full PICOT defaults
+        'DEFAULT_OUTPUT_INSTRUCTIONS': DEFAULT_OUTPUT_INSTRUCTIONS
     }
-    # criteria variable already holds either user's saved or the default examples.
-    # The JavaScript will need the raw default examples to compare against.
+
     return render_template('screening_criteria.html', 
-                           criteria=criteria, 
+                           criteria=user_current_criteria, 
                            current_year=current_year,
-                           config_defaults=config_defaults) # Pass all defaults
+                           config_defaults=config_defaults_for_template,
+                           supported_frameworks=all_frameworks,
+                           current_framework_id=current_framework_id,
+                           default_framework_criteria=framework_default_criteria,
+                           element_prefixes=element_prefixes)
 
 @app.route('/abstract_screening', methods=['GET'], endpoint='abstract_screening_page')
 def abstract_screening_page():
@@ -269,37 +293,36 @@ def screening_actions_page():
 @app.route('/set_criteria', methods=['POST'])
 def set_criteria():
     try:
-        # Get NEW structured criteria fields including _maybe
-        criteria_dict = {
-            # PICOT Include/Exclude/Maybe
-            'p_include': request.form.get('p_include', ''),
-            'p_exclude': request.form.get('p_exclude', ''),
-            'p_maybe': request.form.get('p_maybe', ''), # Added
-            'i_include': request.form.get('i_include', ''),
-            'i_exclude': request.form.get('i_exclude', ''),
-            'i_maybe': request.form.get('i_maybe', ''), # Added
-            'c_include': request.form.get('c_include', ''),
-            'c_exclude': request.form.get('c_exclude', ''),
-            'c_maybe': request.form.get('c_maybe', ''), # Added
-            'o_include': request.form.get('o_include', ''),
-            'o_exclude': request.form.get('o_exclude', ''),
-            'o_maybe': request.form.get('o_maybe', ''), # Added
-            't_include': request.form.get('t_include', ''),
-            't_exclude': request.form.get('t_exclude', ''),
-            't_maybe': request.form.get('t_maybe', ''), # Added
-            # Other Criteria
-            'other_inclusion': request.form.get('other_inclusion', ''), 
-            'other_exclusion': request.form.get('other_exclusion', ''), 
-            # REMOVED: 'maybe_conditions': request.form.get('maybe_conditions', ''),
-        }
-        
-        # Get advanced settings (unchanged)
+        selected_framework = request.form.get('framework_id', get_current_framework_id())
+        supported_frameworks = get_supported_criteria_frameworks()
+        if selected_framework not in supported_frameworks:
+            flash(f"Unknown framework '{selected_framework}'.", 'error')
+            return redirect(url_for('screening_criteria_page'))
+
+        framework_config = supported_frameworks[selected_framework]
+
+        # Dynamically gather criteria fields based on framework definition
+        criteria_dict = {}
+        for element in framework_config.get('elements', []):
+            el_id = element['id']
+            if el_id == 'other':
+                criteria_dict['other_inclusion'] = request.form.get('other_inclusion', '')
+                criteria_dict['other_exclusion'] = request.form.get('other_exclusion', '')
+            else:
+                for aspect in ['include', 'exclude', 'maybe']:
+                    form_key = f"{el_id}_{aspect}"
+                    criteria_dict[form_key] = request.form.get(form_key, '')
+
+        # Advanced settings
         system_prompt = request.form.get('ai_system_prompt')
         output_instructions = request.form.get('ai_output_format_instructions')
-        if system_prompt is not None: criteria_dict['ai_system_prompt'] = system_prompt
-        if output_instructions is not None: criteria_dict['ai_output_format_instructions'] = output_instructions
+        if system_prompt is not None:
+            criteria_dict['ai_system_prompt'] = system_prompt
+        if output_instructions is not None:
+            criteria_dict['ai_output_format_instructions'] = output_instructions
 
-        set_user_criteria(criteria_dict) # Update the global USER_CRITERIA
+        # Persist criteria for the user
+        set_user_criteria(selected_framework, criteria_dict)
         flash('Screening criteria and settings successfully saved!', 'success')
     except Exception as e:
         flash(f'Error saving screening criteria: {e}', 'error')
@@ -1903,6 +1926,5 @@ if os.environ.get('WERKZEUG_RUN_MAIN') != 'true': # Avoid running in Flask reloa
 # --- Run App ---
 if __name__ == '__main__':
     app_logger.info("Starting Flask app in debug mode...") # Example for __main__
-    app.run(debug=True, host='0.0.0.0', port=5050)
+    app.run(debug=True, host='0.0.0.0', port=5050)#test
 
-#test
