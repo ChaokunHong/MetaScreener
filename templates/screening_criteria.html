@@ -25,14 +25,36 @@
         margin-top: 15px;
     }
     /* Keep other styles from base if needed, or add specific ones */
-    .criteria-section { margin-bottom: 15px; background-color: #f9f9f9; padding:15px; border-radius:5px; }
-    .form-group label {font-weight: 500;}
-    textarea { min-height: 70px; font-size:0.95rem; }
-    .criteria-subsection label { font-weight: 600; font-size: 0.9em; color: #444; margin-bottom: 0.2rem; display: block; }
-    .criteria-subsection textarea { min-height: 60px; margin-bottom: 15px; }
-    .criteria-subsection .form-text { font-size: 0.8em; margin-top: -10px; margin-bottom: 10px; }
-    .pico-label { font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem; }
-    .best-practices { background-color: #f0f8ff; border-left: 4px solid #17a2b8; padding: 15px; margin-bottom: 20px; font-size: 0.9em; }
+    .criteria-section { margin-bottom: 0; border-radius:0; border-left:0; border-right:0; border-top:0; } /* Remove individual section borders for accordion items */
+    .criteria-section:first-of-type { border-top: 1px solid rgba(0,0,0,.125); }
+    .card-header {
+        padding: .75rem 1.25rem;
+        background-color: #f7f7f9; /* Lighter header for accordion */
+    }
+    .card-header .btn-link {
+        font-size: 1.1rem; /* Match .pico-label more closely */
+        font-weight: bold;
+        text-decoration: none;
+        color: #333;
+        width: 100%;
+        text-align: left;
+        padding: 0;
+    }
+    .card-header .btn-link:hover {
+        text-decoration: none;
+    }
+    .card-header .btn-link:focus {
+        box-shadow: none;
+    }
+    .card .card-body {
+        padding-top: 1rem; /* Add some padding to the body of the card */
+    }
+    .pico-label { /* Styles for this class might be mostly handled by btn-link now */
+        display: inline; /* If still used within button */
+    }
+    /* Ensure textareas still have some bottom margin */
+    .criteria-subsection textarea { margin-bottom: 1rem; }
+    .criteria-subsection:last-child textarea { margin-bottom: 0.5rem; }
 </style>
 {% endblock %}
 
@@ -65,48 +87,70 @@
 
     <form method="POST" action="{{ url_for('set_criteria') }}">
         
-        {# --- PICOT Criteria Section --- #}
         <h3 class="mt-4">PICOT Criteria</h3>
-        
-        {# Refactored Macro for Include/Exclude/Maybe #}
-        {% macro criteria_field(field_prefix, pico_element, pico_desc) %}
-            <div class="form-group criteria-section">
-                <strong class="pico-label">{{ pico_element }} - {{ pico_desc }}</strong>
-                <div class="criteria-subsection">
-                    <label for="{{ field_prefix }}_include">What characteristics related to {{ pico_desc.lower() }} *must* be present to INCLUDE?</label>
-                    <textarea name="{{ field_prefix }}_include" id="{{ field_prefix }}_include" class="form-control" rows="2" 
-                              placeholder="e.g., For Population: patients over 65 with confirmed diagnosis; For Intervention: use of specific drug dosage">{{ criteria[field_prefix+'_include'] if criteria and criteria[field_prefix+'_include'] else '' }}</textarea>
+        <div class="accordion" id="picotAccordion">
+            {# MODIFIED Macro for Include/Exclude/Maybe within an Accordion structure #}
+            {% macro criteria_accordion_item(field_prefix, pico_element, pico_desc, parent_id, is_first=false) %}
+            <div class="card">
+                <div class="card-header" id="heading{{ field_prefix.upper() }}">
+                    <h2 class="mb-0">
+                        <button class="btn btn-link btn-block text-left {% if not is_first %}collapsed{% endif %}" type="button" data-toggle="collapse" data-target="#collapse{{ field_prefix.upper() }}" aria-expanded="{{ 'true' if is_first else 'false' }}" aria-controls="collapse{{ field_prefix.upper() }}">
+                            {{ pico_element }} - {{ pico_desc }}
+                        </button>
+                    </h2>
                 </div>
-                 <div class="criteria-subsection">
-                    <label for="{{ field_prefix }}_exclude">What characteristics related to {{ pico_desc.lower() }} *must NOT* be present (i.e., lead to EXCLUDE)?</label>
-                    <textarea name="{{ field_prefix }}_exclude" id="{{ field_prefix }}_exclude" class="form-control" rows="2" 
-                              placeholder="e.g., For Population: pediatric patients, animal studies; For Outcome: studies reporting only mortality">{{ criteria[field_prefix+'_exclude'] if criteria and criteria[field_prefix+'_exclude'] else '' }}</textarea>
-                </div>
-                 <div class="criteria-subsection">
-                    <label for="{{ field_prefix }}_maybe">What missing or unclear details about {{ pico_desc.lower() }} in the abstract would lead to a 'MAYBE' decision?</label>
-                    <textarea name="{{ field_prefix }}_maybe" id="{{ field_prefix }}_maybe" class="form-control" rows="2" 
-                              placeholder="e.g., For Population: specific age range unclear; For Intervention: dosage not mentioned; For Outcome: measurement scale ambiguous">{{ criteria[field_prefix+'_maybe'] if criteria and criteria[field_prefix+'_maybe'] else '' }}</textarea>
-                    <small class="form-text text-muted">Focus on information needed for a clear decision that might be missing in the abstract.</small>
+                <div id="collapse{{ field_prefix.upper() }}" class="collapse {% if is_first %}show{% endif %}" aria-labelledby="heading{{ field_prefix.upper() }}" data-parent="#{{ parent_id }}">
+                    <div class="card-body criteria-section">
+                        <div class="criteria-subsection">
+                            <label for="{{ field_prefix }}_include">What characteristics related to {{ pico_desc.lower() }} *must* be present to INCLUDE?</label>
+                            <textarea name="{{ field_prefix }}_include" id="{{ field_prefix }}_include" class="form-control" rows="2" 
+                                      placeholder="e.g., For Population: patients over 65...">{{ criteria[field_prefix+'_include'] if criteria and criteria[field_prefix+'_include'] else '' }}</textarea>
+                        </div>
+                         <div class="criteria-subsection">
+                            <label for="{{ field_prefix }}_exclude">What characteristics related to {{ pico_desc.lower() }} *must NOT* be present (i.e., lead to EXCLUDE)?</label>
+                            <textarea name="{{ field_prefix }}_exclude" id="{{ field_prefix }}_exclude" class="form-control" rows="2" 
+                                      placeholder="e.g., For Population: pediatric patients...">{{ criteria[field_prefix+'_exclude'] if criteria and criteria[field_prefix+'_exclude'] else '' }}</textarea>
+                        </div>
+                         <div class="criteria-subsection">
+                            <label for="{{ field_prefix }}_maybe">What missing or unclear details about {{ pico_desc.lower() }} in the abstract would lead to a 'MAYBE' decision?</label>
+                            <textarea name="{{ field_prefix }}_maybe" id="{{ field_prefix }}_maybe" class="form-control" rows="2" 
+                                      placeholder="e.g., For Population: specific age range unclear...">{{ criteria[field_prefix+'_maybe'] if criteria and criteria[field_prefix+'_maybe'] else '' }}</textarea>
+                            <small class="form-text text-muted">Focus on information needed for a clear decision that might be missing in the abstract.</small>
+                        </div>
+                    </div>
                 </div>
             </div>
-        {% endmacro %}
+            {% endmacro %}
 
-        {{ criteria_field('p', 'P', 'Population/Patient/Problem') }}
-        {{ criteria_field('i', 'I', 'Intervention') }}
-        {{ criteria_field('c', 'C', 'Comparison') }}
-        {{ criteria_field('o', 'O', 'Outcome') }}
-        {{ criteria_field('t', 'T', 'Time / Study Type') }}
+            {{ criteria_accordion_item('p', 'P', 'Population/Patient/Problem', parent_id='picotAccordion', is_first=true) }}
+            {{ criteria_accordion_item('i', 'I', 'Intervention', parent_id='picotAccordion') }}
+            {{ criteria_accordion_item('c', 'C', 'Comparison', parent_id='picotAccordion') }}
+            {{ criteria_accordion_item('o', 'O', 'Outcome', parent_id='picotAccordion') }}
+            {{ criteria_accordion_item('t', 'T', 'Time / Study Type', parent_id='picotAccordion') }}
 
-        {# --- Other Criteria --- #}
-        <h3 class="mt-4">Other Criteria</h3>
-        <div class="form-group criteria-section">
-             <label for="other_inclusion">Other Specific Inclusion Criteria:</label>
-             <textarea name="other_inclusion" id="other_inclusion" class="form-control" rows="3" placeholder="List any other essential criteria for inclusion not covered by PICOT.">{{ criteria.other_inclusion if criteria and criteria.other_inclusion else '' }}</textarea>
-        </div>
-         <div class="form-group criteria-section">
-             <label for="other_exclusion">Other Specific Exclusion Criteria:</label>
-             <textarea name="other_exclusion" id="other_exclusion" class="form-control" rows="3" placeholder="List any other specific criteria for exclusion not covered by PICOT.">{{ criteria.other_exclusion if criteria and criteria.other_exclusion else '' }}</textarea>
-        </div>
+            {# --- Other Criteria as an Accordion Item --- #}
+            <div class="card">
+                <div class="card-header" id="headingOther">
+                    <h2 class="mb-0">
+                        <button class="btn btn-link btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapseOther" aria-expanded="false" aria-controls="collapseOther">
+                            Other General Criteria
+                        </button>
+                    </h2>
+                </div>
+                <div id="collapseOther" class="collapse" aria-labelledby="headingOther" data-parent="#picotAccordion">
+                    <div class="card-body criteria-section">
+                        <div class="form-group criteria-subsection">
+                             <label for="other_inclusion">Other Specific Inclusion Criteria:</label>
+                             <textarea name="other_inclusion" id="other_inclusion" class="form-control" rows="3" placeholder="List any other essential criteria for inclusion not covered by PICOT.">{{ criteria.other_inclusion if criteria and criteria.other_inclusion else '' }}</textarea>
+                        </div>
+                         <div class="form-group criteria-subsection">
+                             <label for="other_exclusion">Other Specific Exclusion Criteria:</label>
+                             <textarea name="other_exclusion" id="other_exclusion" class="form-control" rows="3" placeholder="List any other specific criteria for exclusion not covered by PICOT.">{{ criteria.other_exclusion if criteria and criteria.other_exclusion else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div> {# End Accordion #}
         
         {# --- Advanced AI Prompt Settings Section --- #}
         <div class="advanced-settings mt-4">
