@@ -8,6 +8,9 @@
 [![LLM Integration](https://img.shields.io/badge/LLM-Multi--Provider-purple.svg)](https://github.com/ChaokunHong/MetaScreener)
 
 **Fast, accurate AI-assisted literature screening tool for systematic reviews and meta-analyses**
+
+**Live Application:** [https://www.metascreener.net/](https://www.metascreener.net/) (Tencent Cloud - Primary)  
+**Alternative Deployment:** [https://metascreener.onrender.com](https://metascreener.onrender.com) (Render.com)
 </div>
 
 ## 📖 Table of Contents
@@ -103,8 +106,10 @@ MetaScreener is a web application specifically designed for medical literature s
   - Batch PDF parallel processing
   - Page preview and extracted text view
 - **Data Extraction**
-  - Custom extraction field definition
-  - Structured data output
+  - Custom extraction field definition with user-specified names and descriptions
+  - Template-based extraction instruction settings for structured data capture
+  - JSON schema configuration for consistent output formatting
+  - Support for multiple data fields with complex relationships
 
 ### User Experience Enhancements
 - **Professional Landing Page**: Clear and concise entry guidance
@@ -235,17 +240,21 @@ MetaScreener is a web application specifically designed for medical literature s
 
 ### Data Extraction
 - **Extraction Configuration**:
-  - Custom field definition
-  - Extraction instruction settings
-  - Output format configuration
+  - Custom field definition with user-specified names and descriptions
+  - Template-based extraction instruction settings for structured data capture
+  - JSON schema configuration for consistent output formatting
+  - Support for multiple data fields with complex relationships
 - **Processing Control**:
-  - Extraction progress monitoring
-  - Error handling and recovery
-  - Result preview
+  - Real-time extraction progress monitoring with status indicators
+  - Robust error handling with detailed diagnostics and recovery options
+  - Interactive result preview with expandable/collapsible fields
+  - Content validation against defined schema rules
 - **Data Output**:
-  - Structured JSON output
-  - Tabularized data view
-  - Export options
+  - Structured JSON output with nested field relationships
+  - Tabularized data view for easy readability
+  - Multiple export options (JSON, CSV, Excel)
+  - Citation metadata preservation
+  - Extracted data can be directly integrated with analysis workflows
 
 ### Batch Processing
 - **Queue Management**:
