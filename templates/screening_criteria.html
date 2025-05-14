@@ -24,15 +24,23 @@
         padding-left: 10px;
         margin-top: 15px;
     }
-    /* Keep other styles from base if needed, or add specific ones */
-    .criteria-section { margin-bottom: 0; border-radius:0; border-left:0; border-right:0; border-top:0; } /* Remove individual section borders for accordion items */
+    /* Consistent card styling */
+    .criteria-section { 
+        margin-bottom: 0; 
+        border-radius: 0; 
+        border-left: 0; 
+        border-right: 0; 
+        border-top: 0; 
+    } 
     .criteria-section:first-of-type { border-top: 1px solid rgba(0,0,0,.125); }
+    
+    /* Card header styling */
     .card-header {
         padding: .75rem 1.25rem;
         background-color: #f7f7f9; /* Lighter header for accordion */
     }
     .card-header .btn-link {
-        font-size: 1.1rem; /* Match .pico-label more closely */
+        font-size: 1.1rem;
         font-weight: bold;
         text-decoration: none;
         color: #333;
@@ -42,30 +50,110 @@
     }
     .card-header .btn-link:hover {
         text-decoration: none;
+        color: #007bff;
     }
     .card-header .btn-link:focus {
         box-shadow: none;
     }
     .card .card-body {
-        padding-top: 1rem; /* Add some padding to the body of the card */
+        padding: 1.25rem;
     }
-    .pico-label { /* Styles for this class might be mostly handled by btn-link now */
-        display: inline; /* If still used within button */
+    
+    /* Textarea and form field styles */
+    .criteria-subsection textarea { 
+        margin-bottom: 1.25rem; 
+        border-color: #ced4da;
     }
-    /* Ensure textareas still have some bottom margin */
-    .criteria-subsection textarea { margin-bottom: 1rem; }
-    .criteria-subsection:last-child textarea { margin-bottom: 0.5rem; }
+    .criteria-subsection:last-child textarea { 
+        margin-bottom: 0.75rem; 
+    }
     .textarea-is-placeholder {
-        color: #999; /* Lighter grey for placeholder text */
-        /* font-style: italic; /* Optional: make placeholder italic */
+        color: #999;
     }
-    /* Added styles for help buttons and popovers */
+    
+    /* Section styling */
+    .section-container {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: #495057;
+        border-bottom: 1px solid #e9ecef;
+        padding-bottom: 0.5rem;
+    }
+    
+    /* Buttons styling */
+    .btn {
+        border-radius: 4px;
+        font-weight: 500;
+        padding: 0.375rem 0.75rem;
+        transition: all 0.2s;
+    }
+    .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+    .btn-primary:hover {
+        background-color: #0069d9;
+        border-color: #0062cc;
+    }
+    .btn-success {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+    .btn-success:hover {
+        background-color: #218838;
+        border-color: #1e7e34;
+    }
+    .btn-info {
+        background-color: #17a2b8;
+        border-color: #17a2b8;
+    }
+    .btn-info:hover {
+        background-color: #138496;
+        border-color: #117a8b;
+    }
+    .btn-warning {
+        background-color: #ffc107;
+        border-color: #ffc107;
+        color: #212529;
+    }
+    .btn-warning:hover {
+        background-color: #e0a800;
+        border-color: #d39e00;
+        color: #212529;
+    }
+    .btn-danger {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+    .btn-danger:hover {
+        background-color: #c82333;
+        border-color: #bd2130;
+    }
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    .btn-lg {
+        padding: 0.5rem 1rem;
+        font-size: 1.1rem;
+    }
+    
+    /* Help buttons and popovers */
     .help-button {
         padding: 0;
         color: #6c757d;
         font-size: 1.1rem;
         margin-left: 10px;
         cursor: pointer;
+        transition: color 0.2s;
     }
     .help-button:hover {
         color: #007bff;
@@ -75,48 +163,138 @@
         max-width: 500px;
         white-space: pre-wrap;
         font-size: 0.9rem;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.15);
     }
     .popover-header {
         background-color: #f8f9fa;
         border-bottom: 1px solid #dee2e6;
         font-weight: bold;
         color: #495057;
+        padding: 0.75rem 1rem;
     }
     .popover-body {
-        padding: 12px;
+        padding: 1rem;
         line-height: 1.5;
         color: #212529;
         background-color: #fff;
     }
+    
+    /* Subsection styles */
     .criteria-subsection {
         margin-bottom: 1.5rem;
     }
     .criteria-subsection:last-child {
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Best practices box */
+    .best-practices {
+        background-color: #f8f9fa;
+        border-left: 4px solid #17a2b8;
+        padding: 1rem;
+        margin: 1.5rem 0;
+        border-radius: 0 4px 4px 0;
+    }
+    .best-practices h5 {
+        color: #17a2b8;
+        margin-bottom: 0.75rem;
+    }
+    .best-practices ul {
         margin-bottom: 0;
+    }
+    .best-practices li {
+        margin-bottom: 0.5rem;
+    }
+    .best-practices li:last-child {
+        margin-bottom: 0;
+    }
+    
+    /* Framework selection area */
+    .framework-selection-container {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Action buttons area */
+    .action-buttons-container {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    /* Enhanced action buttons */
+    .btn-action {
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        border-radius: 6px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        font-size: 0.95rem;
+    }
+    
+    .btn-action:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 3px 8px rgba(0,123,255,0.3) !important;
+    }
+    
+    .btn-action-secondary {
+        font-weight: 500;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        font-size: 0.85rem;
+    }
+    
+    .btn-action-secondary:hover {
+        background-color: rgba(220,53,69,0.1);
+    }
+    
+    @media (max-width: 767.98px) {
+        .btn-action, .btn-action-secondary {
+            display: block;
+            width: 100%;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="section-card">
-    <h2>Screening Criteria & AI Settings</h2>
+    <h2 class="mb-4">Screening Criteria & AI Settings</h2>
     
     <!-- Mode Toggle -->
-    <div class="form-group mode-toggle">
-        <label>
+    <div class="form-group mode-toggle mb-4">
+        <label class="mr-3">
             <input type="radio" name="criteria_mode" value="basic" checked> Basic Mode (Recommended)
         </label>
         <label>
             <input type="radio" name="criteria_mode" value="advanced"> Advanced Mode
         </label>
-        <p class="text-muted small">Basic mode provides guided input. Advanced mode allows customizing PICOT structure detail and AI prompt instructions (use with caution).</p>
+        <p class="text-muted small mt-2 mb-0">Basic mode provides guided input. Advanced mode allows customizing criteria structure and AI prompt instructions (use with caution).</p>
     </div>
-    <hr>
+    <hr class="mb-4">
+
+    <!-- Framework Selection -->
+    <div class="framework-selection-container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <label for="framework_select" class="mb-0"><strong>Choose Criteria Framework:</strong></label>
+            <button type="button" class="btn btn-link help-button" data-toggle="popover" data-placement="right" data-trigger="click" title="Framework Selection Guide" data-content="<strong>PICOT</strong>: Standard for clinical intervention studies. Use for treatment efficacy evaluations.<br><br><strong>PICOS</strong>: Extension of PICOT with emphasis on study design. Ideal for systematic reviews.<br><br><strong>PECO</strong>: For epidemiological/exposure studies examining risk factors without interventions.<br><br><strong>PICOC</strong>: Adds context consideration. Appropriate when setting is important to study relevance.<br><br><strong>SPIDER</strong>: Designed for qualitative research. Use when exploring experiences, views, or social phenomena.<br><br><strong>ECLIPSE</strong>: For health service/management questions. Focuses on service delivery rather than clinical outcomes.<br><br><strong>CLIP</strong>: For rehabilitation/therapy studies. Emphasizes client characteristics and professional roles.<br><br><strong>BeHEMoTh</strong>: For theory-based interventions. Use when examining behavior change models or theoretical frameworks.">
+                <i class="fas fa-question-circle"></i>
+            </button>
+        </div>
+        <select id="framework_select" name="framework_id" class="form-control" onchange="onFrameworkChange(this.value)">
+            {% for fw_id, fw_conf in supported_frameworks.items() %}
+                <option value="{{ fw_id }}" {% if fw_id == current_framework_id %}selected{% endif %}>{{ fw_conf.display_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
 
     <!-- AI Best Practices Tips (Always Visible) -->
     <div class="best-practices">
-        <h5>Tips for Effective Criteria:</h5>
-        <ul>
+        <h5><i class="fas fa-lightbulb mr-2"></i>Tips for Effective Criteria:</h5>
+        <ul class="pl-3">
             <li><strong>Be Specific:</strong> Use precise terms (e.g., "patients aged 18-65" instead of "adults").</li>
             <li><strong>Be Clear:</strong> Use bullet points or short phrases. Define ambiguous terms if necessary.</li>
             <li><strong>Focus on Abstract:</strong> Write criteria based on information typically found in an abstract.</li>
@@ -125,144 +303,148 @@
     </div>
 
     <form method="POST" action="{{ url_for('set_criteria') }}" id="criteriaForm">
-        <div class="row mt-3 mb-4 align-items-end">
-            <div class="col-md-7">
-                <h5>Manage Locally Saved Criteria Sets</h5>
-                <div class="form-group">
-                    <label for="saved_criteria_select" class="sr-only">Load Saved Criteria:</label>
-                    <div class="input-group input-group-sm">
-                        <select id="saved_criteria_select" class="form-control form-control-sm" title="Select a saved criteria set to load or manage">
-                            <option value="">-- Select a set --</option>
-                        </select>
-                        <div class="input-group-append">
-                            <button type="button" id="load_criteria_button" class="btn btn-info btn-sm">Load to Form</button>
-                            <button type="button" id="update_loaded_local_set_button" class="btn btn-outline-success btn-sm" style="display:none;">Update Loaded Local Set</button>
-                            <button type="button" id="delete_criteria_button" class="btn btn-outline-danger btn-sm" style="display:none;">Delete Selected Local Set</button>
+        <!-- Saved Criteria Management -->
+        <div class="section-container">
+            <div class="section-title">Manage Saved Criteria Sets</div>
+            <div class="row align-items-end">
+                <div class="col-md-8">
+                    <div class="form-group mb-md-0">
+                        <label for="saved_criteria_select" class="sr-only">Load Saved Criteria:</label>
+                        <div class="input-group">
+                            <select id="saved_criteria_select" class="form-control" title="Select a saved criteria set to load or manage">
+                                <option value="">-- Select a saved criteria set --</option>
+                            </select>
+                            <div class="input-group-append">
+                                <button type="button" id="load_criteria_button" class="btn btn-info">Load</button>
+                                <button type="button" id="update_loaded_local_set_button" class="btn btn-success" style="display:none;">Update</button>
+                                <button type="button" id="delete_criteria_button" class="btn btn-danger" style="display:none;">Delete</button>
+                            </div>
                         </div>
+                        <small id="loaded_set_name_display" class="form-text text-muted mt-2" style="display:none;">Form currently shows: <strong></strong> (unsaved changes unless updated/applied)</small>
                     </div>
-                    <small id="loaded_set_name_display" class="form-text text-muted" style="display:none;">Form currently shows: <strong></strong> (unsaved local changes unless updated/applied)</small>
+                </div>
+                <div class="col-md-4 text-md-right mt-3 mt-md-0">
+                     <button type="button" id="save_criteria_as_button" class="btn btn-success"><i class="fas fa-save mr-1"></i>Save as New Set</button>
                 </div>
             </div>
-            <div class="col-md-5 text-md-right">
-                 <button type="button" id="save_criteria_as_button" class="btn btn-success btn-sm">Save Form as New Local Set...</button>
-            </div>
         </div>
-        <hr>
-        <h3 class="mt-4">PICOT Criteria</h3>
-        <div class="accordion" id="picotAccordion">
-            {# MODIFIED Macro for Include/Exclude/Maybe within an Accordion structure #}
-            {% macro criteria_accordion_item(field_prefix, pico_element, pico_desc, parent_id, is_first=false) %}
-            <div class="card">
-                <div class="card-header" id="heading{{ field_prefix.upper() }}">
+        
+        <!-- Criteria Sections -->
+        <div class="section-container">
+            <h3 class="mb-4">{{ supported_frameworks[current_framework_id].display_name }} Criteria</h3>
+
+            {# Macro for generating include/exclude/maybe accordions dynamically #}
+            {% macro criteria_accordion_item(field_prefix, element_label, element_desc, parent_id, is_first=false) %}
+            <div class="card mb-3">
+                <div class="card-header" id="heading{{ field_prefix | upper }}">
                     <h2 class="mb-0">
-                        <button class="btn btn-link btn-block text-left {% if not is_first %}collapsed{% endif %}" type="button" data-toggle="collapse" data-target="#collapse{{ field_prefix.upper() }}" aria-expanded="{{ 'true' if is_first else 'false' }}" aria-controls="collapse{{ field_prefix.upper() }}">
-                            {{ pico_element }} - {{ pico_desc }}
+                        <button class="btn btn-link btn-block text-left {% if not is_first %}collapsed{% endif %}" type="button" data-toggle="collapse" data-target="#collapse{{ field_prefix | upper }}" aria-expanded="{{ 'true' if is_first else 'false' }}" aria-controls="collapse{{ field_prefix | upper }}">
+                            {{ element_label }} - {{ element_desc }}
                         </button>
                     </h2>
                 </div>
-                <div id="collapse{{ field_prefix.upper() }}" class="collapse {% if is_first %}show{% endif %}" aria-labelledby="heading{{ field_prefix.upper() }}" data-parent="#{{ parent_id }}">
+                <div id="collapse{{ field_prefix | upper }}" class="collapse {% if is_first %}show{% endif %}" aria-labelledby="heading{{ field_prefix | upper }}" data-parent="#{{ parent_id }}">
                     <div class="card-body criteria-section">
                         <div class="criteria-subsection">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <label for="{{ field_prefix }}_include">What characteristics related to {{ pico_desc.lower() }} *must* be present to INCLUDE?</label>
-                                <button type="button" class="btn btn-link help-button" 
-                                        data-toggle="popover" 
-                                        data-trigger="click" 
-                                        data-placement="right" 
-                                        title="Include Criteria Examples & Tips" 
-                                        data-content="{{ config_defaults.DEFAULT_PICOT_CRITERIA[field_prefix ~ '_include'] | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
-                                    <i class="fas fa-question-circle"></i></button>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label for="{{ field_prefix }}_include" class="mb-0">What characteristics related to {{ element_desc.lower() }} <em>must</em> be present to INCLUDE?</label>
+                                <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click" data-placement="right" title="Include Criteria Examples & Tips" data-content="{{ default_framework_criteria.get(field_prefix ~ '_include', '') | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
+                                    <i class="fas fa-question-circle"></i>
+                                </button>
                             </div>
-                            <textarea name="{{ field_prefix }}_include" id="{{ field_prefix }}_include" class="form-control" rows="2"></textarea>
+                            <textarea name="{{ field_prefix }}_include" id="{{ field_prefix }}_include" class="form-control" rows="3">{{ criteria.get(field_prefix ~ '_include', '') }}</textarea>
                         </div>
                         <div class="criteria-subsection">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <label for="{{ field_prefix }}_exclude">What characteristics related to {{ pico_desc.lower() }} *must NOT* be present (i.e., lead to EXCLUDE)?</label>
-                                <button type="button" class="btn btn-link help-button" 
-                                        data-toggle="popover" 
-                                        data-trigger="click" 
-                                        data-placement="right" 
-                                        title="Exclude Criteria Examples & Tips" 
-                                        data-content="{{ config_defaults.DEFAULT_PICOT_CRITERIA[field_prefix ~ '_exclude'] | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
-                                    <i class="fas fa-question-circle"></i></button>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label for="{{ field_prefix }}_exclude" class="mb-0">What characteristics related to {{ element_desc.lower() }} <em>must NOT</em> be present (EXCLUDE)?</label>
+                                <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click" data-placement="right" title="Exclude Criteria Examples & Tips" data-content="{{ default_framework_criteria.get(field_prefix ~ '_exclude', '') | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
+                                    <i class="fas fa-question-circle"></i>
+                                </button>
                             </div>
-                            <textarea name="{{ field_prefix }}_exclude" id="{{ field_prefix }}_exclude" class="form-control" rows="2"></textarea>
+                            <textarea name="{{ field_prefix }}_exclude" id="{{ field_prefix }}_exclude" class="form-control" rows="3">{{ criteria.get(field_prefix ~ '_exclude', '') }}</textarea>
                         </div>
-                        <div class="criteria-subsection"> {# This is the _maybe subsection #}
-                            <div class="d-flex justify-content-between align-items-center">
-                                <label for="{{ field_prefix }}_maybe">What missing or unclear details about {{ pico_desc.lower() }} in the abstract would lead to a 'MAYBE' decision?</label>
-                                <button type="button" class="btn btn-link help-button" 
-                                        data-toggle="popover" 
-                                        data-trigger="click" 
-                                        data-placement="right" 
-                                        title="Maybe Criteria Examples & Tips" 
-                                        data-content="{{ config_defaults.DEFAULT_PICOT_CRITERIA[field_prefix ~ '_maybe'] | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
-                                    <i class="fas fa-question-circle"></i></button>
+                        <div class="criteria-subsection">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label for="{{ field_prefix }}_maybe" class="mb-0">What missing or unclear details about {{ element_desc.lower() }} would lead to a 'MAYBE' decision?</label>
+                                <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click" data-placement="right" title="Maybe Criteria Examples & Tips" data-content="{{ default_framework_criteria.get(field_prefix ~ '_maybe', '') | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
+                                    <i class="fas fa-question-circle"></i>
+                                </button>
                             </div>
-                            <textarea name="{{ field_prefix }}_maybe" id="{{ field_prefix }}_maybe" class="form-control" rows="2"></textarea>
+                            <textarea name="{{ field_prefix }}_maybe" id="{{ field_prefix }}_maybe" class="form-control" rows="3">{{ criteria.get(field_prefix ~ '_maybe', '') }}</textarea>
                         </div>
                     </div>
                 </div>
             </div>
             {% endmacro %}
 
-            {{ criteria_accordion_item('p', 'P', 'Population/Patient/Problem', parent_id='picotAccordion', is_first=true) }}
-            {{ criteria_accordion_item('i', 'I', 'Intervention', parent_id='picotAccordion') }}
-            {{ criteria_accordion_item('c', 'C', 'Comparison', parent_id='picotAccordion') }}
-            {{ criteria_accordion_item('o', 'O', 'Outcome', parent_id='picotAccordion') }}
-            {{ criteria_accordion_item('t', 'T', 'Time / Study Type', parent_id='picotAccordion') }}
-
-            {# --- Other Criteria as an Accordion Item --- #}
-            <div class="card">
-                <div class="card-header" id="headingOther">
-                    <h2 class="mb-0">
-                        <button class="btn btn-link btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapseOther" aria-expanded="false" aria-controls="collapseOther">
-                            Other General Criteria
-                        </button>
-                    </h2>
-                </div>
-                <div id="collapseOther" class="collapse" aria-labelledby="headingOther" data-parent="#picotAccordion">
-                    <div class="card-body criteria-section">
-                        <div class="form-group criteria-subsection">
-                             <label for="other_inclusion">Other Specific Inclusion Criteria:</label>
-                             <textarea name="other_inclusion" id="other_inclusion" class="form-control" rows="3" placeholder="List any other essential criteria for inclusion not covered by PICOT.">{{ criteria.other_inclusion if criteria and criteria.other_inclusion else '' }}</textarea>
-                        </div>
-                         <div class="form-group criteria-subsection">
-                             <label for="other_exclusion">Other Specific Exclusion Criteria:</label>
-                             <textarea name="other_exclusion" id="other_exclusion" class="form-control" rows="3" placeholder="List any other specific criteria for exclusion not covered by PICOT.">{{ criteria.other_exclusion if criteria and criteria.other_exclusion else '' }}</textarea>
+            <div class="accordion" id="criteriaAccordion">
+                {% for element in supported_frameworks[current_framework_id]['elements'] %}
+                    {% if element.id != 'other' %}
+                        {{ criteria_accordion_item(element.id, element.id|upper, element.name, parent_id='criteriaAccordion', is_first=loop.first) }}
+                    {% endif %}
+                {% endfor %}
+                
+                <!-- Other General Criteria -->
+                <div class="card mb-3">
+                    <div class="card-header" id="headingOther">
+                        <h2 class="mb-0">
+                            <button class="btn btn-link btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapseOther" aria-expanded="false" aria-controls="collapseOther">
+                                Other General Criteria
+                            </button>
+                        </h2>
+                    </div>
+                    <div id="collapseOther" class="collapse" aria-labelledby="headingOther" data-parent="#criteriaAccordion">
+                        <div class="card-body criteria-section">
+                            <div class="form-group criteria-subsection">
+                                <label for="other_inclusion" class="mb-2">Other Specific Inclusion Criteria:</label>
+                                <textarea name="other_inclusion" id="other_inclusion" class="form-control" rows="3" placeholder="List any other essential criteria for inclusion not covered by the selected framework.">{{ criteria.other_inclusion if criteria and criteria.other_inclusion else '' }}</textarea>
+                            </div>
+                            <div class="form-group criteria-subsection">
+                                <label for="other_exclusion" class="mb-2">Other Specific Exclusion Criteria:</label>
+                                <textarea name="other_exclusion" id="other_exclusion" class="form-control" rows="3" placeholder="List any other specific criteria for exclusion not covered by the selected framework.">{{ criteria.other_exclusion if criteria and criteria.other_exclusion else '' }}</textarea>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div> {# End Accordion #}
+        </div>
         
-        {# --- Advanced AI Prompt Settings Section --- #}
-        <div class="advanced-settings mt-4">
-            <hr>
-            <h3>Advanced AI Prompt Settings</h3>
-             <p class="text-muted">Modify how the AI is instructed. Changes can significantly impact performance and reliability.</p>
+        <!-- Advanced AI Prompt Settings Section -->
+        <div class="advanced-settings section-container">
+            <div class="section-title">Advanced AI Prompt Settings</div>
+            <p class="text-muted mb-4">Modify how the AI is instructed. Changes can significantly impact performance and reliability.</p>
             
             <div class="form-group">
-                <label for="ai_system_prompt">AI System Prompt / Role:</label>
+                <label for="ai_system_prompt" class="mb-2">AI System Prompt / Role:</label>
                 <textarea name="ai_system_prompt" id="ai_system_prompt" class="form-control prompt-textarea criteria-field-for-placeholder" rows="4">{{ criteria.ai_system_prompt if criteria and criteria.ai_system_prompt else config_defaults.DEFAULT_SYSTEM_PROMPT }}</textarea>
-                 <small class="form-text text-muted">Define the overall role or persona for the AI assistant.</small>
+                <small class="form-text text-muted">Define the overall role or persona for the AI assistant.</small>
             </div>
 
             <div class="form-group">
-                <label for="ai_output_format_instructions">AI Output Format Instructions:</label>
+                <label for="ai_output_format_instructions" class="mb-2">AI Output Format Instructions:</label>
                 <textarea name="ai_output_format_instructions" id="ai_output_format_instructions" class="form-control prompt-textarea criteria-field-for-placeholder" rows="5">{{ criteria.ai_output_format_instructions if criteria and criteria.ai_output_format_instructions else config_defaults.DEFAULT_OUTPUT_INSTRUCTIONS }}</textarea>
                 <small class="form-text text-muted">Instruct the AI on its response format. Use {abstract} placeholder.</small>
             </div>
             
-             <div class="advanced-warning">
+            <div class="advanced-warning mt-4">
                 <strong>Warning:</strong> Modifying these prompts incorrectly can lead to unpredictable AI behavior, poor screening results, or errors. Proceed with caution and test thoroughly after changes.
             </div>
         </div>
         
-        {# --- Main Action Buttons --- #}
-        <div class="mt-4">
-            <button type="submit" class="btn btn-primary btn-lg" name="submit_action" value="save_and_apply">Apply Criteria for Screening</button>
-            <a href="{{ url_for('reset_criteria') }}" class="btn btn-warning btn-sm ml-2">Reset to Server Defaults</a>
+        <!-- Main Action Buttons -->
+        <div class="action-buttons-container">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="d-flex flex-column flex-md-row justify-content-center">
+                        <button type="submit" class="btn btn-primary py-2 px-4 shadow-sm btn-action" name="submit_action" value="save_and_apply">
+                            <i class="fas fa-check-circle mr-2"></i>Apply Criteria for Screening
+                        </button>
+                        <a href="{{ url_for('reset_criteria') }}" class="btn btn-outline-danger mt-3 mt-md-0 ml-md-3 py-1 px-3 btn-action-secondary">
+                            <i class="fas fa-undo mr-1"></i>Reset to Defaults
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </form>
 </div>
@@ -274,12 +456,21 @@ const CRITERIA_SETS_KEY = 'metaScreenerCriteriaSets';
 let currentlyLoadedSetName = null; 
 let formDirty = false; 
 
+function onFrameworkChange(newFw){
+    if(!newFw) return;
+    // Reload page with selected framework param
+    const url = new URL(window.location.href);
+    url.searchParams.set('framework_id', newFw);
+    window.location.href = url.toString();
+}
+
+// Prepare dynamic prefixes list from server-side
+const elementPrefixes = {{ element_prefixes | tojson }};
 function getAllCriteriaFieldIds() {
-    const prefixes = ['p', 'i', 'c', 'o', 't'];
-    const suffixes = ['include', 'exclude', 'maybe'];
+    const suffixes = ['include','exclude','maybe'];
     let ids = [];
-    prefixes.forEach(p => suffixes.forEach(s => ids.push(`${p}_${s}`)));
-    ids.push('other_inclusion', 'other_exclusion', 'ai_system_prompt', 'ai_output_format_instructions');
+    elementPrefixes.forEach(p => suffixes.forEach(s => ids.push(`${p}_${s}`)));
+    ids.push('other_inclusion','other_exclusion','ai_system_prompt','ai_output_format_instructions');
     return ids;
 }
 
@@ -328,7 +519,7 @@ function populateSavedCriteriaDropdown() {
     if(!select) return;
     const criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
     const currentSelectedValueInDropdown = select.value;
-    select.innerHTML = '<option value="">-- Select a local set --</option>';
+    select.innerHTML = '<option value="">-- Select a saved criteria set --</option>';
     for (const name in criteriaSets) {
         const option = document.createElement('option');
         option.value = name;
@@ -493,6 +684,5 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error("jQuery or Bootstrap Popover not loaded, popovers will not work.");
     }
 });
-
 </script>
 {% endblock %} 

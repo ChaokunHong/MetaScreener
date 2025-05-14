@@ -19,10 +19,11 @@ from anthropic import Anthropic, APIStatusError, APIConnectionError, RateLimitEr
 
 # Import necessary items from config
 from config import (
-    SUPPORTED_LLM_PROVIDERS, PICOT_TEMPLATE, 
-    DEFAULT_SYSTEM_PROMPT, DEFAULT_OUTPUT_INSTRUCTIONS, # Import defaults
-    get_screening_criteria, get_current_criteria_object, # Import necessary getters
-    TESSERACT_CMD_PATH, PDF_OCR_THRESHOLD_CHARS # <-- Import new config items
+    SUPPORTED_LLM_PROVIDERS, # PICOT_TEMPLATE, # Ensure this is commented out or removed
+    DEFAULT_SYSTEM_PROMPT, DEFAULT_OUTPUT_INSTRUCTIONS,
+    get_screening_criteria, get_current_criteria_object,
+    get_supported_criteria_frameworks, get_default_criteria_for_framework, get_current_framework_id,
+    TESSERACT_CMD_PATH, PDF_OCR_THRESHOLD_CHARS
 )
 
 # Get a logger for this module
