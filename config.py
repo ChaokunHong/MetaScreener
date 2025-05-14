@@ -131,44 +131,95 @@ PICOT_TEMPLATE = """
 # Refactored Default Example Criteria with per-element Maybe
 DEFAULT_EXAMPLE_CRITERIA = {
     # Population
-    "p_include": ("- Primary population: General population sampled from community settings (households, schools, workplaces, community screening programs)\n"
-                  "- Includes all ages, both sexes, pregnant women\n"
-                  "- Extended populations (representative of community): Outpatients (not seeking care for studied infection), health check-up attendees, community volunteers"),
-    "p_exclude": ("- Hospitalized patients (>48 hours)\n"
-                  "- Neonates in NICU/special care\n"
-                  "- Healthcare workers\n"
-                  "- Long-term care residents\n"
-                  "- International travelers (<6 months ago)\n"
-                  "- Occupational groups (vets, animal handlers, farmers, etc.)\n"
-                  "- Patients seeking care for the studied infection"),
-    "p_maybe": ("- Abstract mentions community setting but doesn't specify recruitment method clearly.\n"
-                "- Age group mentioned but not precise enough if specific range is critical (e.g., just says 'children')."),
+    "p_include": """示例包含标准：
+- 来自社区环境的一般人群（家庭、学校、工作场所、社区筛查项目）
+- 包括所有年龄、性别、孕妇
+- 扩展人群（具有社区代表性）：门诊患者（非因研究感染就医）、体检者、社区志愿者
+
+提示：请具体说明目标人群的特征，如年龄范围、性别、特定条件等。""",
+    "p_exclude": """示例排除标准：
+- 住院患者（>48小时）
+- NICU/特殊护理的新生儿
+- 医护人员
+- 长期护理机构居民
+- 国际旅行者（<6个月前）
+- 特定职业群体（兽医、动物处理者、农民等）
+- 因研究感染就医的患者
+
+提示：列出明确的排除特征，确保与包含标准不矛盾。""",
+    "p_maybe": """示例"可能"情况：
+- 提到社区环境但未明确说明招募方法
+- 提到年龄组但不够精确（如仅说"儿童"）
+
+提示：关注摘要中可能缺失的关键人群信息。""",
     # Intervention
-    "i_include": ("- Observational studies (cross-sectional, cohort, case-control) or RCTs with baseline AMR data are primary focus.\n"
-                  "- No specific intervention required."),
-    "i_exclude": "(No specific intervention exclusions defined)", 
-    "i_maybe": "- Abstract describes data collection but study design isn't explicitly named (e.g., sounds cross-sectional but isn't stated).",
+    "i_include": """示例包含标准：
+- 观察性研究（横断面、队列、病例对照）或具有基线AMR数据的RCT
+- 无需特定干预
+
+提示：明确说明可接受的研究类型和必要的数据要求。""",
+    "i_exclude": """示例排除标准：
+（未定义特定干预排除标准）
+
+提示：如果有特定需要排除的干预类型，请在此说明。""",
+    "i_maybe": """示例"可能"情况：
+- 描述了数据收集但未明确说明研究设计（如，听起来像横断面研究但未明确说明）
+
+提示：指出哪些研究设计细节需要澄清。""",
     # Comparison
-    "c_include": "- No specific comparison group required.",
-    "c_exclude": "(No specific comparison exclusions defined)", 
-    "c_maybe": "(N/A if no comparison is required)",
+    "c_include": """示例包含标准：
+- 无需特定对照组
+
+提示：如果需要特定对照组，请明确说明要求。""",
+    "c_exclude": """示例排除标准：
+（未定义特定对照组排除标准）
+
+提示：说明任何不可接受的对照组类型。""",
+    "c_maybe": """示例"可能"情况：
+（如果不需要对照组则不适用）
+
+提示：列出需要澄清的对照组相关信息。""",
     # Outcome
-    "o_include": "- Reports prevalence of Antimicrobial Resistance (AMR) for specified WHO BPPL pathogens (excluding TB, Gonorrhea).",
-    "o_exclude": ("- Does not report AMR data.\n"
-                  "- Focuses only on excluded pathogens (TB, Gonorrhea)."),
-    "o_maybe": ("- Mentions resistance testing but doesn't specify pathogens clearly in abstract.\n"
-                "- Abstract mentions relevant pathogen but unclear if AMR *prevalence* is reported."),
+    "o_include": """示例包含标准：
+- 报告WHO BPPL病原体的抗菌素耐药性（AMR）流行率（不包括结核病、淋病）
+
+提示：具体说明需要的结果指标和测量方法。""",
+    "o_exclude": """示例排除标准：
+- 未报告AMR数据
+- 仅关注被排除的病原体（结核病、淋病）
+
+提示：明确指出哪些结果会导致排除。""",
+    "o_maybe": """示例"可能"情况：
+- 提到耐药性测试但未明确说明病原体
+- 提到相关病原体但不清楚是否报告了AMR流行率
+
+提示：指出需要在全文中确认的结果细节。""",
     # Time/Study Type
-    "t_include": ("- Any publication year.\n"
-                  "- Any geographic location.\n"
-                  "- Original research articles."), 
-    "t_exclude": ("- Systematic reviews, meta-analyses, review articles, editorials, commentaries, policy papers.\n"
-                  "- Case reports/series (<10 cases).\n"
-                  "- Studies conducted *only* during known outbreaks of studied pathogens."),
-    "t_maybe": "- Abstract doesn\'t clearly state if it\'s original research vs. a review type.",
+    "t_include": """示例包含标准：
+- 任何发表年份
+- 任何地理位置
+- 原创研究文章
+
+提示：说明时间范围和可接受的研究类型。""",
+    "t_exclude": """示例排除标准：
+- 系统综述、meta分析、综述文章、社论、评论、政策文件
+- 病例报告/系列（<10例）
+- 仅在研究病原体已知爆发期间进行的研究
+
+提示：列出不符合要求的研究类型和时间特征。""",
+    "t_maybe": """示例"可能"情况：
+- 摘要未明确说明是原创研究还是综述类型
+
+提示：指出需要确认的研究设计特征。""",
     # Other
-    "other_inclusion": "(No other specific inclusion criteria defined)", 
-    "other_exclusion": "(No other specific exclusion criteria defined)", 
+    "other_inclusion": """其他包含标准示例：
+（未定义其他特定包含标准）
+
+提示：添加任何不属于PICOT框架的其他必要包含标准。""",
+    "other_exclusion": """其他排除标准示例：
+（未定义其他特定排除标准）
+
+提示：添加任何不属于PICOT框架的其他必要排除标准。""",
 }
 
 # USER_CRITERIA will hold the user's overrides, including potentially the new fields

@@ -59,6 +59,27 @@
         color: #999; /* Lighter grey for placeholder text */
         /* font-style: italic; /* Optional: make placeholder italic */
     }
+    /* Added styles for help buttons and popovers */
+    .help-button {
+        padding: 0;
+        color: #6c757d;
+        font-size: 1.1rem;
+        margin-left: 10px;
+    }
+    .help-button:hover {
+        color: #007bff;
+        text-decoration: none;
+    }
+    .popover {
+        max-width: 400px;
+        white-space: pre-wrap;
+    }
+    .criteria-subsection {
+        margin-bottom: 1.5rem;
+    }
+    .criteria-subsection:last-child {
+        margin-bottom: 0;
+    }
 </style>
 {% endblock %}
 
@@ -128,19 +149,37 @@
                 <div id="collapse{{ field_prefix.upper() }}" class="collapse {% if is_first %}show{% endif %}" aria-labelledby="heading{{ field_prefix.upper() }}" data-parent="#{{ parent_id }}">
                     <div class="card-body criteria-section">
                         <div class="criteria-subsection">
-                            <label for="{{ field_prefix }}_include">What characteristics related to {{ pico_desc.lower() }} *must* be present to INCLUDE?</label>
-                            <textarea name="{{ field_prefix }}_include" id="{{ field_prefix }}_include" class="form-control" rows="2" 
-                                      placeholder="e.g., For Population: patients over 65...">{{ criteria[field_prefix+'_include'] if criteria and criteria[field_prefix+'_include'] else '' }}</textarea>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label for="{{ field_prefix }}_include">What characteristics related to {{ pico_desc.lower() }} *must* be present to INCLUDE?</label>
+                                <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click" 
+                                        title="Include Criteria Help" data-placement="left"
+                                        data-content="{{ criteria[field_prefix+'_include'] if criteria and criteria[field_prefix+'_include'] else '' }}">
+                                    <i class="fas fa-question-circle"></i>
+                                </button>
+                            </div>
+                            <textarea name="{{ field_prefix }}_include" id="{{ field_prefix }}_include" class="form-control" rows="2"></textarea>
                         </div>
-                         <div class="criteria-subsection">
-                            <label for="{{ field_prefix }}_exclude">What characteristics related to {{ pico_desc.lower() }} *must NOT* be present (i.e., lead to EXCLUDE)?</label>
-                            <textarea name="{{ field_prefix }}_exclude" id="{{ field_prefix }}_exclude" class="form-control" rows="2" 
-                                      placeholder="e.g., For Population: pediatric patients...">{{ criteria[field_prefix+'_exclude'] if criteria and criteria[field_prefix+'_exclude'] else '' }}</textarea>
+                        <div class="criteria-subsection">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label for="{{ field_prefix }}_exclude">What characteristics related to {{ pico_desc.lower() }} *must NOT* be present (i.e., lead to EXCLUDE)?</label>
+                                <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click"
+                                        title="Exclude Criteria Help" data-placement="left"
+                                        data-content="{{ criteria[field_prefix+'_exclude'] if criteria and criteria[field_prefix+'_exclude'] else '' }}">
+                                    <i class="fas fa-question-circle"></i>
+                                </button>
+                            </div>
+                            <textarea name="{{ field_prefix }}_exclude" id="{{ field_prefix }}_exclude" class="form-control" rows="2"></textarea>
                         </div>
-                         <div class="criteria-subsection">
-                            <label for="{{ field_prefix }}_maybe">What missing or unclear details about {{ pico_desc.lower() }} in the abstract would lead to a 'MAYBE' decision?</label>
-                            <textarea name="{{ field_prefix }}_maybe" id="{{ field_prefix }}_maybe" class="form-control" rows="2" 
-                                      placeholder="e.g., For Population: specific age range unclear...">{{ criteria[field_prefix+'_maybe'] if criteria and criteria[field_prefix+'_maybe'] else '' }}</textarea>
+                        <div class="criteria-subsection">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label for="{{ field_prefix }}_maybe">What missing or unclear details about {{ pico_desc.lower() }} in the abstract would lead to a 'MAYBE' decision?</label>
+                                <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click"
+                                        title="Maybe Criteria Help" data-placement="left"
+                                        data-content="{{ criteria[field_prefix+'_maybe'] if criteria and criteria[field_prefix+'_maybe'] else '' }}">
+                                    <i class="fas fa-question-circle"></i>
+                                </button>
+                            </div>
+                            <textarea name="{{ field_prefix }}_maybe" id="{{ field_prefix }}_maybe" class="form-control" rows="2"></textarea>
                             <small class="form-text text-muted">Focus on information needed for a clear decision that might be missing in the abstract.</small>
                         </div>
                     </div>
@@ -467,6 +506,30 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+});
+
+// Initialize popovers
+document.addEventListener('DOMContentLoaded', function() {
+    // Enable popovers
+    $('[data-toggle="popover"]').popover({
+        html: true,
+        sanitize: false
+    });
+
+    // Close popover when clicking outside
+    $(document).on('click', function (e) {
+        if ($(e.target).data('toggle') !== 'popover'
+            && $(e.target).parents('.popover.show').length === 0) { 
+            $('[data-toggle="popover"]').popover('hide');
+        }
+    });
+
+    // Toggle popover on button click
+    $('.help-button').on('click', function (e) {
+        e.preventDefault();
+        $('.help-button').not(this).popover('hide');
+        $(this).popover('toggle');
+    });
 });
 </script>
 {% endblock %} 
