@@ -131,95 +131,95 @@ PICOT_TEMPLATE = """
 # Refactored Default Example Criteria with per-element Maybe
 DEFAULT_EXAMPLE_CRITERIA = {
     # Population
-    "p_include": """示例包含标准：
-- 来自社区环境的一般人群（家庭、学校、工作场所、社区筛查项目）
-- 包括所有年龄、性别、孕妇
-- 扩展人群（具有社区代表性）：门诊患者（非因研究感染就医）、体检者、社区志愿者
+    "p_include": """Example Include Criteria:
+- Primary population: General population sampled from community settings (households, schools, workplaces, screening programs)
+- Includes all ages, both sexes, pregnant women
+- Extended populations (community representative): Outpatients (not seeking care for studied infection), health check-up attendees
 
-提示：请具体说明目标人群的特征，如年龄范围、性别、特定条件等。""",
-    "p_exclude": """示例排除标准：
-- 住院患者（>48小时）
-- NICU/特殊护理的新生儿
-- 医护人员
-- 长期护理机构居民
-- 国际旅行者（<6个月前）
-- 特定职业群体（兽医、动物处理者、农民等）
-- 因研究感染就医的患者
+Tip: Specify target population characteristics such as age range, gender, and specific conditions.""",
+    "p_exclude": """Example Exclude Criteria:
+- Hospitalized patients (>48 hours)
+- Neonates in NICU/special care
+- Healthcare workers
+- Long-term care residents
+- International travelers (<6 months ago)
+- Occupational groups (vets, animal handlers, farmers)
+- Patients seeking care for the studied infection
 
-提示：列出明确的排除特征，确保与包含标准不矛盾。""",
-    "p_maybe": """示例"可能"情况：
-- 提到社区环境但未明确说明招募方法
-- 提到年龄组但不够精确（如仅说"儿童"）
+Tip: List clear exclusion characteristics, ensure no contradiction with inclusion criteria.""",
+    "p_maybe": """Example 'Maybe' Scenarios:
+- Community setting mentioned but recruitment method unclear
+- Age group mentioned but not precise enough (e.g., just says "children")
 
-提示：关注摘要中可能缺失的关键人群信息。""",
+Tip: Focus on key population information that might be missing from abstracts.""",
     # Intervention
-    "i_include": """示例包含标准：
-- 观察性研究（横断面、队列、病例对照）或具有基线AMR数据的RCT
-- 无需特定干预
+    "i_include": """Example Include Criteria:
+- Observational studies (cross-sectional, cohort, case-control) or RCTs with baseline AMR data
+- No specific intervention required
 
-提示：明确说明可接受的研究类型和必要的数据要求。""",
-    "i_exclude": """示例排除标准：
-（未定义特定干预排除标准）
+Tip: Clearly state acceptable study types and necessary data requirements.""",
+    "i_exclude": """Example Exclude Criteria:
+(No specific intervention exclusions defined)
 
-提示：如果有特定需要排除的干预类型，请在此说明。""",
-    "i_maybe": """示例"可能"情况：
-- 描述了数据收集但未明确说明研究设计（如，听起来像横断面研究但未明确说明）
+Tip: Specify any intervention types that should be excluded if applicable.""",
+    "i_maybe": """Example 'Maybe' Scenarios:
+- Data collection described but study design not explicitly named (e.g., sounds cross-sectional but not stated)
 
-提示：指出哪些研究设计细节需要澄清。""",
+Tip: Identify which study design details need clarification.""",
     # Comparison
-    "c_include": """示例包含标准：
-- 无需特定对照组
+    "c_include": """Example Include Criteria:
+- No specific comparison group required
 
-提示：如果需要特定对照组，请明确说明要求。""",
-    "c_exclude": """示例排除标准：
-（未定义特定对照组排除标准）
+Tip: If specific comparison groups are needed, clearly state requirements.""",
+    "c_exclude": """Example Exclude Criteria:
+(No specific comparison exclusions defined)
 
-提示：说明任何不可接受的对照组类型。""",
-    "c_maybe": """示例"可能"情况：
-（如果不需要对照组则不适用）
+Tip: State any unacceptable comparison group types.""",
+    "c_maybe": """Example 'Maybe' Scenarios:
+(N/A if no comparison required)
 
-提示：列出需要澄清的对照组相关信息。""",
+Tip: List comparison-related information needing clarification.""",
     # Outcome
-    "o_include": """示例包含标准：
-- 报告WHO BPPL病原体的抗菌素耐药性（AMR）流行率（不包括结核病、淋病）
+    "o_include": """Example Include Criteria:
+- Reports prevalence of Antimicrobial Resistance (AMR) for specified WHO BPPL pathogens (excluding TB, Gonorrhea)
 
-提示：具体说明需要的结果指标和测量方法。""",
-    "o_exclude": """示例排除标准：
-- 未报告AMR数据
-- 仅关注被排除的病原体（结核病、淋病）
+Tip: Specify required outcome measures and measurement methods.""",
+    "o_exclude": """Example Exclude Criteria:
+- Does not report AMR data
+- Focuses only on excluded pathogens (TB, Gonorrhea)
 
-提示：明确指出哪些结果会导致排除。""",
-    "o_maybe": """示例"可能"情况：
-- 提到耐药性测试但未明确说明病原体
-- 提到相关病原体但不清楚是否报告了AMR流行率
+Tip: Clearly indicate which outcomes lead to exclusion.""",
+    "o_maybe": """Example 'Maybe' Scenarios:
+- Mentions resistance testing but doesn't specify pathogens
+- Mentions relevant pathogen but unclear if AMR prevalence reported
 
-提示：指出需要在全文中确认的结果细节。""",
+Tip: Identify outcome details needing full-text confirmation.""",
     # Time/Study Type
-    "t_include": """示例包含标准：
-- 任何发表年份
-- 任何地理位置
-- 原创研究文章
+    "t_include": """Example Include Criteria:
+- Any publication year
+- Any geographic location
+- Original research articles
 
-提示：说明时间范围和可接受的研究类型。""",
-    "t_exclude": """示例排除标准：
-- 系统综述、meta分析、综述文章、社论、评论、政策文件
-- 病例报告/系列（<10例）
-- 仅在研究病原体已知爆发期间进行的研究
+Tip: State time range and acceptable study types.""",
+    "t_exclude": """Example Exclude Criteria:
+- Systematic reviews, meta-analyses, review articles, editorials, commentaries, policy papers
+- Case reports/series (<10 cases)
+- Studies conducted only during known pathogen outbreaks
 
-提示：列出不符合要求的研究类型和时间特征。""",
-    "t_maybe": """示例"可能"情况：
-- 摘要未明确说明是原创研究还是综述类型
+Tip: List non-compliant study types and temporal characteristics.""",
+    "t_maybe": """Example 'Maybe' Scenarios:
+- Abstract doesn't clearly state if it's original research vs. review type
 
-提示：指出需要确认的研究设计特征。""",
+Tip: Identify study design features needing confirmation.""",
     # Other
-    "other_inclusion": """其他包含标准示例：
-（未定义其他特定包含标准）
+    "other_inclusion": """Example Other Inclusion Criteria:
+(No other specific inclusion criteria defined)
 
-提示：添加任何不属于PICOT框架的其他必要包含标准。""",
-    "other_exclusion": """其他排除标准示例：
-（未定义其他特定排除标准）
+Tip: Add any necessary inclusion criteria not covered by PICOT framework.""",
+    "other_exclusion": """Example Other Exclusion Criteria:
+(No other specific exclusion criteria defined)
 
-提示：添加任何不属于PICOT框架的其他必要排除标准。""",
+Tip: Add any necessary exclusion criteria not covered by PICOT framework."""
 }
 
 # USER_CRITERIA will hold the user's overrides, including potentially the new fields
