@@ -230,17 +230,19 @@ def llm_config_page():
 
 @app.route('/criteria', methods=['GET'], endpoint='screening_criteria_page')
 def screening_criteria_page():
-    criteria = get_current_criteria_object()
+    criteria = get_current_criteria_object() # This is USER_CRITERIA or DEFAULT_EXAMPLE_CRITERIA
     current_year = datetime.datetime.now().year
-    # Pass defaults for the template to use if user hasn't set custom ones
     config_defaults = {
         'DEFAULT_SYSTEM_PROMPT': DEFAULT_SYSTEM_PROMPT,
-        'DEFAULT_OUTPUT_INSTRUCTIONS': DEFAULT_OUTPUT_INSTRUCTIONS
+        'DEFAULT_OUTPUT_INSTRUCTIONS': DEFAULT_OUTPUT_INSTRUCTIONS,
+        'DEFAULT_PICOT_CRITERIA': DEFAULT_EXAMPLE_CRITERIA # Pass the full PICOT defaults
     }
+    # criteria variable already holds either user's saved or the default examples.
+    # The JavaScript will need the raw default examples to compare against.
     return render_template('screening_criteria.html', 
                            criteria=criteria, 
                            current_year=current_year,
-                           config_defaults=config_defaults) # Pass defaults to template
+                           config_defaults=config_defaults) # Pass all defaults
 
 @app.route('/abstract_screening', methods=['GET'], endpoint='abstract_screening_page')
 def abstract_screening_page():
