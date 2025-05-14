@@ -6,23 +6,22 @@ load_dotenv()
 
 # --- ADDED: Default Prompt Settings ---
 DEFAULT_SYSTEM_PROMPT = "You are an AI assistant for medical literature screening. Provide output in 'LABEL: [Decision]' and 'Justification: [Reasoning]' format."
-DEFAULT_OUTPUT_INSTRUCTIONS = """# Screening Task:
-Based *only* on the abstract provided below, classify the study using ONE of the following labels: INCLUDE, EXCLUDE, or MAYBE.
-- Use INCLUDE if the abstract clearly meets all critical inclusion criteria and does not meet any exclusion criteria.
-- Use EXCLUDE if the abstract clearly meets one or more exclusion criteria, or fails to meet critical inclusion criteria.
-- Use MAYBE if the abstract suggests potential eligibility but requires full-text review to confirm specific criteria.
-
-Then, provide a brief justification for your decision (1-2 sentences). If MAYBE, specify what needs clarification.
-
-# Study Abstract:
----
-{abstract}
----
-
-# Your Classification:
-Format your response EXACTLY as follows (LABEL and Justification on separate lines):
-LABEL: [Your Decision - INCLUDE, EXCLUDE, or MAYBE]
-Justification: [Your Brief Justification. If MAYBE, state what needs clarification.]"""
+DEFAULT_OUTPUT_INSTRUCTIONS = (
+    "# Screening Task:\n"
+    "Based *only* on the abstract provided below, classify the study using ONE of the following labels: INCLUDE, EXCLUDE, or MAYBE.\n"
+    "- Use INCLUDE if the abstract clearly meets all critical inclusion criteria and does not meet any exclusion criteria.\n"
+    "- Use EXCLUDE if the abstract clearly meets one or more exclusion criteria, or fails to meet critical inclusion criteria.\n"
+    "- Use MAYBE if the abstract suggests potential eligibility but requires full-text review to confirm specific criteria.\n\n"
+    "Then, provide a brief justification for your decision (1-2 sentences). If MAYBE, specify what needs clarification.\n\n"
+    "# Study Abstract:\n"
+    "---\n"
+    "{abstract}\n"
+    "---\n\n"
+    "# Your Classification:\n"
+    "Format your response EXACTLY as follows (LABEL and Justification on separate lines):\n"
+    "LABEL: [Your Decision - INCLUDE, EXCLUDE, or MAYBE]\n"
+    "Justification: [Your Brief Justification. If MAYBE, state what needs clarification.]"
+)
 
 # --- ADDED: Configuration for PDF Processing ---
 TESSERACT_CMD_PATH = os.getenv("TESSERACT_CMD_PATH", None) # Default to None, app/utils will handle if not set
@@ -132,29 +131,44 @@ PICOT_TEMPLATE = """
 # Refactored Default Example Criteria with per-element Maybe
 DEFAULT_EXAMPLE_CRITERIA = {
     # Population
-    "p_include": """- Primary population: General population sampled from community settings (households, schools, workplaces, community screening programs)\n- Includes all ages, both sexes, pregnant women\n- Extended populations (representative of community): Outpatients (not seeking care for studied infection), health check-up attendees, community volunteers""",
-    "p_exclude": """- Hospitalized patients (>48 hours)\n- Neonates in NICU/special care\n- Healthcare workers\n- Long-term care residents\n- International travelers (<6 months ago)\n- Occupational groups (vets, animal handlers, farmers, etc.)\n- Patients seeking care for the studied infection""",
-    "p_maybe": """- Abstract mentions community setting but doesn't specify recruitment method clearly.\n- Age group mentioned but not precise enough if specific range is critical (e.g., just says 'children').""",
+    "p_include": ("- Primary population: General population sampled from community settings (households, schools, workplaces, community screening programs)\n"
+                  "- Includes all ages, both sexes, pregnant women\n"
+                  "- Extended populations (representative of community): Outpatients (not seeking care for studied infection), health check-up attendees, community volunteers"),
+    "p_exclude": ("- Hospitalized patients (>48 hours)\n"
+                  "- Neonates in NICU/special care\n"
+                  "- Healthcare workers\n"
+                  "- Long-term care residents\n"
+                  "- International travelers (<6 months ago)\n"
+                  "- Occupational groups (vets, animal handlers, farmers, etc.)\n"
+                  "- Patients seeking care for the studied infection"),
+    "p_maybe": ("- Abstract mentions community setting but doesn't specify recruitment method clearly.\n"
+                "- Age group mentioned but not precise enough if specific range is critical (e.g., just says 'children')."),
     # Intervention
-    "i_include": """- Observational studies (cross-sectional, cohort, case-control) or RCTs with baseline AMR data are primary focus.\n- No specific intervention required.""",
-    "i_exclude": """(No specific intervention exclusions defined)""", 
-    "i_maybe": """- Abstract describes data collection but study design isn't explicitly named (e.g., sounds cross-sectional but isn't stated).""",
+    "i_include": ("- Observational studies (cross-sectional, cohort, case-control) or RCTs with baseline AMR data are primary focus.\n"
+                  "- No specific intervention required."),
+    "i_exclude": "(No specific intervention exclusions defined)", 
+    "i_maybe": "- Abstract describes data collection but study design isn't explicitly named (e.g., sounds cross-sectional but isn't stated).",
     # Comparison
-    "c_include": """- No specific comparison group required.""",
-    "c_exclude": """(No specific comparison exclusions defined)""", 
-    "c_maybe": """(N/A if no comparison is required)""",
+    "c_include": "- No specific comparison group required.",
+    "c_exclude": "(No specific comparison exclusions defined)", 
+    "c_maybe": "(N/A if no comparison is required)",
     # Outcome
-    "o_include": """- Reports prevalence of Antimicrobial Resistance (AMR) for specified WHO BPPL pathogens (excluding TB, Gonorrhea).""",
-    "o_exclude": """- Does not report AMR data.\n- Focuses only on excluded pathogens (TB, Gonorrhea).""",
-    "o_maybe": """- Mentions resistance testing but doesn't specify pathogens clearly in abstract.\n- Abstract mentions relevant pathogen but unclear if AMR *prevalence* is reported.""",
+    "o_include": "- Reports prevalence of Antimicrobial Resistance (AMR) for specified WHO BPPL pathogens (excluding TB, Gonorrhea).",
+    "o_exclude": ("- Does not report AMR data.\n"
+                  "- Focuses only on excluded pathogens (TB, Gonorrhea)."),
+    "o_maybe": ("- Mentions resistance testing but doesn't specify pathogens clearly in abstract.\n"
+                "- Abstract mentions relevant pathogen but unclear if AMR *prevalence* is reported."),
     # Time/Study Type
-    "t_include": """- Any publication year.\n- Any geographic location.\n- Original research articles.""", 
-    "t_exclude": """- Systematic reviews, meta-analyses, review articles, editorials, commentaries, policy papers.\n- Case reports/series (<10 cases).\n- Studies conducted *only* during known outbreaks of studied pathogens.""",
-    "t_maybe": """- Abstract doesn't clearly state if it's original research vs. a review type.""",
+    "t_include": ("- Any publication year.\n"
+                  "- Any geographic location.\n"
+                  "- Original research articles."), 
+    "t_exclude": ("- Systematic reviews, meta-analyses, review articles, editorials, commentaries, policy papers.\n"
+                  "- Case reports/series (<10 cases).\n"
+                  "- Studies conducted *only* during known outbreaks of studied pathogens."),
+    "t_maybe": "- Abstract doesn\'t clearly state if it\'s original research vs. a review type.",
     # Other
-    "other_inclusion": """(No other specific inclusion criteria defined)""", 
-    "other_exclusion": """(No other specific exclusion criteria defined)""", 
-    # REMOVED 'maybe_conditions'
+    "other_inclusion": "(No other specific inclusion criteria defined)", 
+    "other_exclusion": "(No other specific exclusion criteria defined)", 
 }
 
 # USER_CRITERIA will hold the user's overrides, including potentially the new fields
