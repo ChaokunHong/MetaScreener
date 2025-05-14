@@ -65,6 +65,7 @@
         color: #6c757d;
         font-size: 1.1rem;
         margin-left: 10px;
+        cursor: pointer;
     }
     .help-button:hover {
         color: #007bff;
@@ -523,13 +524,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize popovers with enhanced configuration
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded, initializing popovers...');
+    
+    // Make sure jQuery and Bootstrap are loaded
+    if (typeof $ === 'undefined') {
+        console.error('jQuery is not loaded');
+        return;
+    }
+    if (typeof $.fn.popover === 'undefined') {
+        console.error('Bootstrap popover is not loaded');
+        return;
+    }
+
     // Enable popovers with custom options
-    $('[data-toggle="popover"]').popover({
+    const popoverElements = $('[data-toggle="popover"]');
+    console.log('Found popover elements:', popoverElements.length);
+    
+    popoverElements.popover({
         html: true,
         sanitize: false,
         trigger: 'click',
         container: 'body',
         template: '<div class="popover" role="tooltip"><div class="arrow"></div><h3 class="popover-header"></h3><div class="popover-body"></div></div>'
+    });
+
+    // Log popover content for debugging
+    popoverElements.each(function() {
+        console.log('Popover content for', $(this).attr('title'), ':', $(this).attr('data-content'));
     });
 
     // Close popover when clicking outside
@@ -545,6 +566,7 @@ document.addEventListener('DOMContentLoaded', function() {
     $('.help-button').on('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
+        console.log('Help button clicked:', $(this).attr('title'));
         
         // Hide all other popovers
         $('[data-toggle="popover"]').not(this).popover('hide');
