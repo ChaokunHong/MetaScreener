@@ -238,8 +238,12 @@ def screening_criteria_page():
 
     # NEW: allow switching framework via query param
     all_frameworks = get_supported_criteria_frameworks()
+    if not isinstance(all_frameworks, dict):
+        app_logger.error(f"CRITICAL: get_supported_criteria_frameworks() in config.py returned a non-dictionary type: {type(all_frameworks)}. This may lead to errors. Defaulting to an empty dictionary for this request.")
+        all_frameworks = {}
+    
     requested_framework = request.args.get('framework_id')
-    if requested_framework and requested_framework in all_frameworks and requested_framework != current_framework_id:
+    if requested_framework and all_frameworks and requested_framework in all_frameworks and requested_framework != current_framework_id:
         # Switch to requested framework & reset criteria to defaults for that framework
         # Use blank criteria so form starts empty
         set_user_criteria(requested_framework, get_blank_criteria_for_framework(requested_framework))
@@ -250,7 +254,9 @@ def screening_criteria_page():
     framework_default_criteria = get_default_criteria_for_framework(current_framework_id)
 
     # List of element prefixes (exclude 'other') for JS usage
-    element_prefixes = [el['id'] for el in all_frameworks[current_framework_id]['elements'] if el['id'] != 'other']
+    element_prefixes = [] # Default to empty list
+    if all_frameworks and current_framework_id in all_frameworks and 'elements' in all_frameworks[current_framework_id]:
+        element_prefixes = [el['id'] for el in all_frameworks[current_framework_id]['elements'] if el['id'] != 'other']
 
     # DEFAULT_FRAMEWORK_VALUES is now imported at the top of app.py
 
