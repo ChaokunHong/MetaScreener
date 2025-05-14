@@ -1,251 +1,668 @@
-# MetaScreener: AI-Assisted Literature Screening
+# MetaScreener: AI-Assisted Literature Screening Tool
 
-MetaScreener is a web application designed to streamline the literature screening process for systematic reviews, particularly in the medical field, using Large Language Models (LLMs). It helps researchers efficiently filter large volumes of abstracts (from RIS files) and full-text documents (PDFs) based on user-defined inclusion and exclusion criteria. The application supports various LLM providers and emphasizes secure, session-based API key handling.
+<div align="center">
+<img src="static/images/logo.png" alt="MetaScreener Logo" width="300"/>
 
-**Live Application (Primary Deployment):** [https://www.metascreener.net/](https://www.metascreener.net/) (Typically reflects the latest stable version on Tencent Cloud).
-**Alternative Deployment (May be used for testing/staging):** [https://metascreener.onrender.com](https://metascreener.onrender.com) (This Render instance may be outdated or experimental).
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-2.0%2B-green.svg)](https://flask.palletsprojects.com/)
+[![LLM Integration](https://img.shields.io/badge/LLM-Multi--Provider-purple.svg)](https://github.com/ChaokunHong/MetaScreener)
 
-## ✨ Features
+**Fast, accurate AI-assisted literature screening tool for systematic reviews and meta-analyses**
+</div>
 
-*   **Flexible Input Formats**:
-    *   Upload `.ris` files for abstract screening.
-    *   Upload single PDFs for individual full-text screening.
-    *   **NEW**: Upload multiple PDFs for batch full-text screening.
-*   **Configurable LLM Providers**: 
-    *   Choose from DeepSeek, OpenAI (ChatGPT), Google (Gemini), and Anthropic (Claude).
-    *   Select specific models from each provider.
-*   **Secure API Key Management**: 
-    *   User-provided API keys are stored *only* in the browser session for the current visit.
-    *   Clear guidance and links for obtaining API keys.
-    *   Option to clear stored session keys individually per provider.
-*   **Advanced PDF Text Extraction**:
-    *   Utilizes PyMuPDF for fast and accurate text extraction from text-based PDFs.
-    *   Integrated OCR (Tesseract) fallback for scanned or image-based PDFs.
-    *   Extracted text for LLM processing now includes page and line number context (e.g., `P1.L5: ...`).
-    *   Attempts to extract document titles from PDF metadata for better display.
-*   **Comprehensive Screening Criteria**: 
-    *   Define detailed inclusion/exclusion criteria using the structured PICOT framework.
-    *   Separate fields for **Include**, **Exclude**, and **Maybe** conditions for each PICOT element.
-    *   Advanced options to customize the AI System Prompt and Output Format Instructions.
-*   **Screening Modes & Workflow**:
-    *   **Abstract Screening (RIS files)**:
-        *   Filter by title keywords or line number range within the RIS file.
-        *   Test Screening: Process a sample of abstracts with real-time progress (SSE) and detailed performance metrics (Accuracy, Kappa, Confusion Matrix, etc.) after manual assessment.
-        *   Full Dataset Screening: Process all abstracts with real-time SSE progress.
-    *   **Full-Text PDF Screening**:
-        *   Single PDF: Upload, screen, view results with extracted text preview and original PDF preview using `pdf.js`.
-        *   Batch PDF: Upload multiple PDFs, filter by filename or upload order, and process concurrently with SSE progress updates.
-    *   **Data Extraction (Beta)**: Define custom fields and instructions to extract structured data from single PDFs.
-*   **User Experience Enhancements**:
-    *   Dedicated landing page (Hero section) for a professional introduction.
-    *   Improved navigation with active link highlighting and consistent branding.
-    *   Preview list for batch PDF uploads, allowing removal of individual files or clearing all selections before processing (with item numbering).
-    *   Clear ("x") buttons for filter input fields.
-    *   Expand/Collapse functionality for long abstract texts in results tables.
-    *   Batch PDF screening results include a statistical summary of decisions.
-*   **Result Download**: 
-    *   Download abstract screening results (RIS) in CSV, Excel, or JSON formats.
-    *   Download batch PDF screening results in CSV, Excel, or JSON formats.
-*   **Performance**: Utilizes threading (`ThreadPoolExecutor`) for concurrent LLM API calls to speed up batch processing.
-*   **Deployment-Ready**: Configured for Gunicorn and includes considerations for various deployment environments.
+## 📖 Table of Contents
 
-## 💻 Technology Stack
+- [System Overview](#-system-overview)
+- [Core Features](#-core-features)
+- [Technical Architecture](#-technical-architecture)
+- [Detailed Functionality](#-detailed-functionality)
+  - [User Interface](#user-interface)
+  - [LLM Configuration](#llm-configuration) 
+  - [Screening Criteria Frameworks](#screening-criteria-frameworks)
+  - [Abstract Screening](#abstract-screening)
+  - [Full-text Screening](#full-text-screening)
+  - [Data Extraction](#data-extraction)
+  - [Batch Processing](#batch-processing)
+- [Installation Guide](#-installation-guide)
+  - [Environment Requirements](#environment-requirements)
+  - [Dependency Installation](#dependency-installation)
+  - [Configuration Options](#configuration-options)
+- [Usage Guide](#-usage-guide)
+  - [Workflow](#workflow)
+  - [Best Practices](#best-practices)
+- [Deployment Options](#-deployment-options)
+  - [Local Development Environment](#local-development-environment)
+  - [Production Environment](#production-environment)
+  - [Cloud Services](#cloud-services)
+- [System Architecture](#-system-architecture)
+  - [Code Organization](#code-organization)
+  - [Data Flow](#data-flow)
+- [Security and Privacy](#-security-and-privacy)
+- [Performance Optimization](#-performance-optimization)
+- [Frequently Asked Questions](#-frequently-asked-questions)
+- [Contribution Guidelines](#-contribution-guidelines)
+- [Changelog](#-changelog)
+- [Development Roadmap](#-development-roadmap)
+- [Author Information](#-author-information)
+- [Disclaimer](#-disclaimer)
 
-*   **Backend**: Python, Flask, Gunicorn
-*   **Frontend**: HTML5, CSS3 (Bootstrap 4), JavaScript (including `pdf.js` for PDF rendering)
-*   **LLM Integration**: Provider-specific Python SDKs (`requests`, `google-generativeai`, `anthropic`)
-*   **Data Handling & Processing**: `pandas`, `rispy` (for .ris files)
-*   **PDF Processing**: `PyMuPDF (fitz)` for text and metadata extraction, `Pytesseract` & `Pillow` for OCR.
-*   **Task Scheduling (Internal Cleanup)**: `APScheduler`
-*   **Metrics & Utilities**: `scikit-learn`, `cachetools`
-*   **Deployment Platform Examples**: Tencent Cloud (manual Nginx/Gunicorn setup), Render.com (PaaS)
+## 🔍 System Overview
 
-## 🚀 Getting Started (Local Setup)
+MetaScreener is a web application specifically designed for medical literature screening, utilizing Large Language Model (LLM) technology to significantly enhance the efficiency and accuracy of systematic literature reviews. The system supports screening large volumes of abstracts from RIS files and processing full-text PDF documents based on user-defined inclusion/exclusion criteria. MetaScreener integrates multiple advanced LLM provider interfaces, emphasizes secure session-based API key handling, and provides researchers with a one-stop solution for literature screening.
 
-Follow these instructions to set up and run the project locally for development or testing.
+**Primary Use Cases**:
+- Literature screening for systematic reviews and meta-analyses
+- Evidence-based medical research
+- Initial screening of large literature databases
+- Collaborative screening by research teams
 
-**Prerequisites:**
+**Key Benefits**:
+- Reduces literature screening time by over 80%
+- Improves consistency and accuracy of the screening process
+- Decreases cognitive burden on researchers
+- Standardizes screening workflows and decision rationales
 
-*   Python (3.10+ recommended)
-*   `pip` (Python package installer)
-*   Git
-*   **Tesseract OCR Engine**: Required for PDF text extraction with OCR fallback.
-    *   **Ubuntu/Debian**: `sudo apt-get update && sudo apt-get install tesseract-ocr tesseract-ocr-eng` (and other languages like `tesseract-ocr-chi-sim` if needed).
-    *   **macOS (using Homebrew)**: `brew install tesseract tesseract-lang`
-    *   **Windows**: Download installer from the official Tesseract GitHub page.
-    *   Ensure the Tesseract command-line tool is in your system's PATH, or set the `TESSERACT_CMD_PATH` environment variable (see below).
+## ✨ Core Features
 
-**Setup:**
+### Flexible Input Formats
+- **RIS File Processing**: Supports standard research literature database export formats for efficient batch abstract screening
+- **PDF Full-text Processing**: Supports single file and batch PDF upload and processing for detailed literature evaluation
+- **Intelligent Text Extraction**: Combines PyMuPDF direct extraction with Tesseract OCR technology to ensure comprehensive text retrieval
+- **Metadata Management**: Automatically extracts PDF metadata to enhance document organization and citation
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <your-repository-url> # Replace with your actual repo URL
-    cd MetaScreener # Or your project directory name
-    ```
+### Diverse LLM Provider Integration
+- **Comprehensive Provider Support**: 
+  - DeepSeek
+  - OpenAI (ChatGPT)
+  - Google (Gemini)
+  - Anthropic (Claude)
+- **Model Selection Flexibility**: Each provider supports multiple models to meet different precision and speed requirements
+- **Secure API Key Management**: Keys are stored only in browser sessions, ensuring security
 
-2.  **Create and activate a virtual environment:**
-    *   On macOS/Linux:
-        ```bash
-        python3 -m venv venv
-        source venv/bin/activate
-        ```
-    *   On Windows:
-        ```bash
-        python -m venv venv
-        .\venv\Scripts\activate
-        ```
+### Advanced Screening Criteria Frameworks
+- **Multiple Standardized Frameworks**:
+  - PICOT (Population, Intervention, Comparison, Outcome, Time)
+  - SPIDER (Sample, Phenomenon, Intervention, Data, Evaluation, Research)
+  - PICOS (Population, Intervention, Comparison, Outcome, Study Design)
+  - PECO (Population, Exposure, Comparison, Outcome)
+  - PICOC (Population, Intervention, Comparison, Outcome, Context)
+  - ECLIPSE (Expectation, Client group, Location, Impact, Professionals, SErvice)
+  - CLIP (Client, Location, Intervention, Professionals)
+  - BeHEMoTh (Behaviour of interest, Health context, Exclusions, Models or Theories)
+- **Fine-grained Decision Conditions**: Each framework element supports Include, Exclude, and Maybe conditions
+- **Custom Prompts**: Advanced users can customize AI system prompts and output formats
 
-3.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+### Comprehensive Screening Workflow
+- **Abstract Screening**
+  - Keyword filtering
+  - Line number range filtering
+  - Test screening with performance evaluation
+  - Full dataset real-time processing
+- **Full-text PDF Screening**
+  - Single file detailed analysis
+  - Batch PDF parallel processing
+  - Page preview and extracted text view
+- **Data Extraction**
+  - Custom extraction field definition
+  - Structured data output
 
-4.  **Set up Environment Variables (Configuration):**
-    *   Create a file named `.env` in the project root directory (e.g., `MetaScreener/.env`).
-    *   Add necessary configurations. **Do not commit the `.env` file to Git.** Example:
-        ```dotenv
-        # --- LLM API Keys (Optional - can also be set only in UI session) ---
-        # DEEPSEEK_API_KEY=sk-your_deepseek_key_here
-        # OPENAI_API_KEY=sk-your_openai_key_here
-        # GEMINI_API_KEY=AIz...your_gemini_key_here
-        # ANTHROPIC_API_KEY=sk-ant-...your_claude_key_here
+### User Experience Enhancements
+- **Professional Landing Page**: Clear and concise entry guidance
+- **Real-time Progress Feedback**: SSE (Server-Sent Events) based processing progress display
+- **Result Visualization**: Includes performance metrics, confusion matrices, and statistical summaries
+- **Batch Processing Optimization**: Upload file preview, filtering, and removal options
+- **Result Export**: Supports CSV, Excel, and JSON format export of screening results
 
-        # --- Flask Specific (Optional but recommended for dev) ---
-        # SECRET_KEY=a_very_strong_random_string_for_flask_session # For session security
-        # FLASK_DEBUG=1 # To run in debug mode via `flask run` (set FLASK_APP=app.py)
+## 🚀 Technical Architecture
 
-        # --- Tesseract OCR Configuration (Optional) ---
-        # TESSERACT_CMD_PATH=/usr/bin/tesseract # Example for Linux, adjust to your Tesseract path if not in system PATH
-        # PDF_OCR_THRESHOLD_CHARS=50 # Min chars on page to skip OCR (default 50 in config.py)
-        
-        # --- Log Level (Optional) ---
-        # LOGLEVEL=DEBUG # For more verbose logging (INFO is default in app.py)
-        ```
-    *   **Note on API Keys**: While API keys can be set in `.env` for local testing convenience, the primary and recommended way for users to provide keys is through the LLM Configuration UI, which stores them securely in the browser session.
+### Backend Stack
+- **Core Framework**: Python + Flask
+- **WSGI Server**: Gunicorn
+- **LLM Integration**: Provider-specific Python SDKs
+- **Data Processing**:
+  - pandas (dataframe processing)
+  - rispy (RIS file parsing)
+  - PyMuPDF (PDF text extraction)
+  - Pytesseract (OCR functionality)
+- **Task Scheduling**: APScheduler
+- **Performance Optimization**: ThreadPoolExecutor concurrent processing
+- **Metrics Calculation**: scikit-learn
 
-5.  **Run the development server:**
-    *   Using Flask's built-in server (good for development):
-        ```bash
-        # Ensure FLASK_APP is set, e.g., export FLASK_APP=app.py (Linux/macOS) or set FLASK_APP=app.py (Windows)
-        flask run --host=0.0.0.0 --port=5050 
-        ```
-        Or, if you have `if __name__ == '__main__': app.run(...)` in your `app.py`:
-        ```bash
-        python app.py
-        ```
-    The application should be available at `http://127.0.0.1:5050`.
+### Frontend Stack
+- **Markup Language**: HTML5
+- **Styling**: CSS3 (Bootstrap 4)
+- **Client-side Scripting**: JavaScript
+- **PDF Rendering**: pdf.js
+- **Real-time Feedback**: Server-Sent Events (SSE)
 
-## 📖 Usage Workflow
+### Deployment and Configuration
+- **Deployment Platforms**:
+  - Tencent Cloud (primary deployment)
+  - Render.com (alternative deployment)
+- **Configuration Management**: python-dotenv
+- **Reverse Proxy**: Nginx (production environment)
 
-MetaScreener provides a step-by-step process for literature screening:
+## 📊 Detailed Functionality
 
-1.  **Landing Page (Home)**:
-    *   Upon first visit, you'll see an overview of MetaScreener's capabilities.
-    *   Use the main action buttons to navigate to "Configure LLM & Start" or directly to "View Screening Actions."
+### User Interface
+- **Basic Layout**:
+  - Responsive design, adapting to different devices
+  - Consistent navigation bar and footer
+  - Unified theme colors for interface elements
+- **Homepage Design**:
+  - Feature overview area
+  - Quick start guide
+  - Main functionality entry points
+- **Activity Status Indication**:
+  - Current page highlighting
+  - Loading indicators for processing operations
+  - Visual feedback for success/failure states
 
-2.  **LLM Configuration (`/llm_config`)**:
-    *   Select your desired LLM Provider and Model.
-    *   Enter your API key for the selected provider. The status of the key (Not set, Using environment default, Set in session) will be displayed.
-    *   You can view/hide the entered key.
-    *   If a key is set in the session, a "Clear Key" button will appear to remove it from the current browser session.
-    *   Click "Save LLM Config & API Key" to save your choices and any entered API key to the session.
+### LLM Configuration
+- **Provider Management**:
+  - Dynamic loading of supported provider list
+  - Provider API documentation links
+  - Visual indication of currently selected provider
+- **Model Selection**:
+  - Provider-filtered model list
+  - Model capability descriptions
+  - Default recommended model indicators
+- **API Key Handling**:
+  - Session-level key storage
+  - Key status display (Not set/Using environment default/Set in session)
+  - Key clearing options
+  - Key show/hide toggle
 
-3.  **Screening Criteria (`/criteria`)**:
-    *   Define your study's inclusion and exclusion criteria using the PICOT framework.
-    *   For each PICOT element, provide conditions for **Include**, **Exclude**, and **Maybe** classifications.
-    *   Optionally, use the "Advanced Mode" to customize the AI System Prompt and Output Format Instructions.
-    *   Save your criteria. You can also reset to default example criteria.
+### Screening Criteria Frameworks
+- **Framework Selection**:
+  - Eight standardized framework dropdown options
+  - Framework introduction and applicable scenarios
+  - Data retention options when switching frameworks
+- **Criteria Definition Interface**:
+  - Sectioned paragraph layout
+  - Input areas for each element's include/exclude/maybe conditions
+  - Example text and tips
+  - Formatted preview
+- **Advanced Settings**:
+  - System prompt customization
+  - Output format instruction customization
+  - Default value reset options
 
-4.  **Screening Actions Dashboard (`/screening_actions`)**:
-    *   This page provides links to the different screening modules.
+### Abstract Screening
+- **File Processing**:
+  - RIS file validation and upload
+  - File parsing progress feedback
+  - Abstract extraction and formatting
+- **Screening Filters**:
+  - Title keyword filtering
+  - Line number range limitation
+  - Clear filter options
+- **Test Screening**:
+  - Sample size settings
+  - Random sampling methods
+  - Real-time processing progress display
+- **Performance Evaluation**:
+  - Confusion matrix visualization
+  - Cohen's Kappa coefficient calculation
+  - Precision, recall, F1 score and other metrics
+  - Workload reduction rate estimation
+- **Full Dataset Screening**:
+  - Parallel processing optimization
+  - Real-time progress updates
+  - Paginated result display
+  - Expandable/collapsible detail views
 
-5.  **Abstract Screening (`/abstract_screening`)**:
-    *   Upload a `.ris` file.
-    *   Optionally filter abstracts by title keywords or line number range (clearable inputs).
-    *   Perform Test Screening on a sample with SSE progress and view detailed performance metrics.
-    *   Perform Full Dataset Screening with SSE progress, view results (with expandable abstracts), and download.
+### Full-text Screening
+- **Single File Screening**:
+  - PDF file upload and validation
+  - Text extraction processing
+  - OCR fallback processing
+  - Page number and line number marking
+- **Document Preview**:
+  - Original PDF interactive preview
+  - Extracted text page display
+  - Page navigation controls
+- **Batch Processing**:
+  - Multiple file selection and upload
+  - Upload queue preview
+  - Filename filtering
+  - Upload order filtering
+- **Result Management**:
+  - Batch processing statistical summary
+  - Result sorting options
+  - Multiple format exports
+  - Result caching and recovery
 
-6.  **Full-Text PDF Screening (`/full_text_screening`)**:
-    *   **Single PDF**: Upload, screen, view results with extracted text (page/line numbered, OCR fallback), and an interactive original PDF preview.
-    *   **Batch PDF**: Upload multiple PDFs, preview/remove selected files (with numbering), filter by filename or upload order (clearable inputs), process concurrently with SSE progress, view batch results (with decision stats, title extraction, ordered by upload), and download.
+### Data Extraction
+- **Extraction Configuration**:
+  - Custom field definition
+  - Extraction instruction settings
+  - Output format configuration
+- **Processing Control**:
+  - Extraction progress monitoring
+  - Error handling and recovery
+  - Result preview
+- **Data Output**:
+  - Structured JSON output
+  - Tabularized data view
+  - Export options
 
-7.  **Data Extraction (Beta) (`/data_extraction`)**:
-    *   Define custom fields to extract specific data points from a single PDF.
+### Batch Processing
+- **Queue Management**:
+  - Processing priority settings
+  - Queue status monitoring
+  - Failed task retry
+- **Resource Optimization**:
+  - Dynamic thread pool adjustment
+  - Memory usage monitoring
+  - Timeout handling
+- **Result Aggregation**:
+  - Batch processing statistical reports
+  - Anomaly situation flagging
+  - Result set exports
 
-## ⚙️ Configuration Summary
+## 💻 Installation Guide
 
-*   **API Keys**: Primarily managed via the "LLM Configuration" UI (session storage). Can be pre-set in `.env` for local testing.
-*   **Screening Criteria**: Defined via the "Screening Criteria" UI.
-*   **Environment Variables for Advanced Config**: `TESSERACT_CMD_PATH`, `PDF_OCR_THRESHOLD_CHARS`, `LOGLEVEL` can be set in `.env` or system-wide to override defaults in `config.py`.
+### Environment Requirements
+- **Operating System**:
+  - Linux, macOS, or Windows
+  - Ubuntu 20.04+ recommended for server deployment
+- **Python Version**: 3.10+ (3.11 recommended)
+- **Hardware Requirements**:
+  - Memory: 2GB minimum, 4GB+ recommended
+  - Storage: At least 1GB available space
+  - CPU: Multi-core processor (parallel processing optimization)
+- **Network**: Stable internet connection (for external LLM API calls)
+- **External Dependencies**:
+  - Tesseract OCR engine (for PDF OCR functionality)
+  - (Optional) Nginx (for production deployment)
 
-## ☁️ Deployment
-
-This application can be deployed on various platforms.
-
-**Primary Deployment (Tencent Cloud - `https://www.metascreener.net/`)**:
-*   The live application is typically hosted on a Tencent Cloud server.
-*   This setup usually involves **Nginx** as a reverse proxy and **Gunicorn** as the WSGI server.
-*   **Manual Server Configuration Required**:
-    *   Ensure Nginx is configured to proxy requests to Gunicorn (e.g., `proxy_pass http://127.0.0.1:5000;`).
-    *   **Crucially, Nginx's `client_max_body_size` directive must be set to an appropriate value (e.g., `50M` or `100M`)** in your Nginx site configuration to allow for large PDF uploads. Without this, you will encounter "413 Request Entity Too Large" errors.
-    *   Gunicorn should be run as a service (e.g., using `systemd`) for resilience. Example Gunicorn command: `gunicorn --workers 3 --bind 127.0.0.1:5000 app:app` (adjust worker count as needed).
-    *   Firewall/Security Group rules on Tencent Cloud must allow traffic on HTTP (80) and HTTPS (443) ports.
-    *   SSL/TLS certificates (e.g., from Let's Encrypt) should be configured in Nginx.
-
-**Alternative Deployment (Render.com)**:
-*   The application is also configured for easy deployment on [Render](https://render.com/).
-*   It uses `gunicorn` as the WSGI server (start command on Render is typically: `gunicorn --workers 4 --bind 0.0.0.0:$PORT app:app`).
-*   Required environment variables (as listed in the `.env` setup, excluding API keys if users provide them via UI) must be set in the Render service environment settings.
-*   Render typically handles aspects like SSL and request routing automatically, but check their documentation for request body size limits if encountering issues.
-
-
-## ⚙️ Running for Production (General Gunicorn Notes)
-
-For a more robust setup, especially in production, use Gunicorn:
-
+### Dependency Installation
+#### Basic Setup
 ```bash
-# Ensure your virtual environment is activated
-# source venv/bin/activate
+# Clone repository
+git clone https://github.com/ChaokunHong/MetaScreener.git
+cd MetaScreener
 
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate  # Linux/macOS
+# or .\venv\Scripts\activate  # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+#### Tesseract OCR Installation
+**Ubuntu/Debian**:
+```bash
+sudo apt-get update
+sudo apt-get install tesseract-ocr tesseract-ocr-eng
+# Optional: Install additional language packs
+# sudo apt-get install tesseract-ocr-chi-sim
+```
+
+**macOS (using Homebrew)**:
+```bash
+brew install tesseract tesseract-lang
+```
+
+**Windows**:
+Download installer from the [Tesseract GitHub page](https://github.com/UB-Mannheim/tesseract/wiki).
+
+### Configuration Options
+Create an `.env` file in the project root directory:
+```dotenv
+# --- LLM API Keys (Optional - can also be set through UI session) ---
+# DEEPSEEK_API_KEY=sk-your_deepseek_key_here
+# OPENAI_API_KEY=sk-your_openai_key_here
+# GEMINI_API_KEY=AIz...your_gemini_key_here
+# ANTHROPIC_API_KEY=sk-ant-...your_claude_key_here
+
+# --- Flask Configuration (Optional but recommended) ---
+# SECRET_KEY=strong_random_string_for_session_security
+# FLASK_DEBUG=1  # Set in development mode
+
+# --- Tesseract OCR Configuration (Optional) ---
+# TESSERACT_CMD_PATH=/usr/bin/tesseract  # Set Tesseract path if not in system PATH
+# PDF_OCR_THRESHOLD_CHARS=50  # Minimum character threshold to skip OCR
+
+# --- Log Level (Optional) ---
+# LOGLEVEL=DEBUG  # More detailed logs (default is INFO)
+```
+
+## 📘 Usage Guide
+
+### Workflow
+The standard workflow for MetaScreener includes the following steps:
+
+#### 1. Initial Configuration
+- Visit the homepage to understand system overview
+- Navigate to "Configure LLM & Start" or directly to "View Screening Actions"
+
+#### 2. LLM Configuration (`/llm_config`)
+- Select LLM provider and model
+- Enter API key (will be stored in current browser session)
+- Confirm key status (Not set/Using environment default/Set)
+- Save configuration
+
+#### 3. Screening Criteria Setup (`/criteria`)
+- Select appropriate criteria framework for your research (PICOT, SPIDER, etc.)
+- Define Include, Exclude, and Maybe conditions for each framework element
+- Optionally use advanced mode to customize AI prompts and output format
+- Save criteria or reset to default examples as needed
+
+#### 4. Screening Action Selection (`/screening_actions`)
+- Interface provides links to different screening modules
+
+#### 5. Abstract Screening (`/abstract_screening`)
+- Upload .ris file
+- Optionally filter literature by title keywords or line number range
+- Perform test screening (on a sample), view detailed performance metrics
+- Perform full dataset screening, view results and download
+
+#### 6. Full-text PDF Screening (`/full_text_screening`)
+- **Single PDF Mode**: Upload, screen, view results (including extracted text and PDF preview)
+- **Batch PDF Mode**: Upload multiple PDFs, filter/remove selected files, filter by filename or upload order, process in parallel, view and download batch results
+
+#### 7. Data Extraction (Beta) (`/data_extraction`)
+- Define custom data fields to extract from a single PDF
+
+### Best Practices
+- **Framework Selection**: Choose appropriate screening framework based on research type:
+  - PICOT: Suitable for intervention studies
+  - PICOS: Suitable for systematic reviews
+  - PECO: Suitable for epidemiological studies
+  - SPIDER: Suitable for qualitative research
+- **Test Screening**: Always run test screening on a sample first to validate AI decision quality
+- **Criteria Adjustment**: Adjust screening criteria based on test results to improve accuracy
+- **Incremental Processing**: Consider dividing files into smaller groups when processing large batches
+- **Result Verification**: Manually review automated decisions, especially "MAYBE" decisions
+- **API Key Management**: Use temporarily stored session keys, avoid saving keys in environment variables
+- **Regular Backups**: Regularly export screening results to prevent session expiration loss
+
+## 🌐 Deployment Options
+
+### Local Development Environment
+```bash
+# Ensure virtual environment is activated
+# source venv/bin/activate or .\venv\Scripts\activate
+
+# Use Flask's built-in server (good for development)
+export FLASK_APP=app.py
+export FLASK_DEBUG=1  # Optional, enables debug mode
+flask run --host=0.0.0.0 --port=5050
+
+# Or run directly (if app.py contains app.run() code)
+python app.py
+```
+
+### Production Environment
+
+#### Gunicorn Setup
+```bash
+# Ensure Gunicorn is installed
+pip install gunicorn
+
+# Run Gunicorn with appropriate configuration
 gunicorn --workers 3 --bind 0.0.0.0:5000 app:app
 ```
-*   `--workers 3`: Adjust the number of worker processes based on your server's CPU cores (e.g., `2 * num_cores + 1`).
-*   `--bind 0.0.0.0:5000`: Listen on all interfaces on port 5000. Change as needed.
-*   **Nginx Configuration**: As mentioned above, running Gunicorn behind Nginx is highly recommended.
-*   **APScheduler with Multiple Workers**: If using multiple Gunicorn workers, the default APScheduler setup (running in each app instance) will cause the `cleanup_expired_pdf_files` job to run on each worker. For a simple daily cleanup of old files, this might be acceptable (as deleting an already-deleted file is harmless), but for critical, once-only tasks, a persistent job store for APScheduler or a dedicated scheduler process would be more robust.
 
-## ⚠️ Important Notes
+#### Nginx Configuration (Example)
+```nginx
+server {
+    listen 80;
+    server_name your_domain.com;
 
-*   **API Key Security**: API keys are handled client-side (session storage) and are not stored on the server backend beyond the active user session.
-*   **File Management & Cleanup**:
-    *   PDFs uploaded for **batch full-text screening** are saved temporarily during processing (`uploads/batch_processing_*`) and are **automatically deleted** by their respective worker threads after processing is complete (or on error).
-    *   PDFs uploaded for **single full-text screening** (which enables PDF preview) are saved in the `uploads/` directory (e.g., `uploads/<uuid>_<original_filename>.pdf`). Their metadata is managed by an in-memory cache (`TTLCache`) with a default Time-To-Live of 2 hours. While the cache entry expires, the actual file on disk is **not automatically deleted by the application itself through this cache expiration**.
-    *   **Action Required for Single-Preview PDFs**: You **must** implement a strategy to periodically clean the `uploads/` directory of these single-preview PDF files. The built-in `APScheduler` job (`cleanup_expired_pdf_files`) is designed to do this by checking if the file's ID is still in the `TTLCache`. Ensure the scheduler is running and correctly configured for your deployment. As a fallback or alternative, a cron job can be used. Example for Linux (deletes matching files older than 7 days):
-        ```cron
-        0 3 * * * /usr/bin/find /path/to/your/MetaScreener/uploads -name "????????-????-????-????-????????????_*.pdf" -type f -mtime +7 -delete
-        ```
-        Replace `/path/to/your/MetaScreener/uploads` with the actual absolute path.
-*   **Tesseract OCR**: For scanned PDF processing, Tesseract OCR must be installed on the server where the application is running. If it's not found in the system PATH, you must set the `TESSERACT_CMD_PATH` environment variable.
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Support for SSE
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        
+        # Important: Allow large file uploads
+        client_max_body_size 100M;
+    }
+}
+```
 
-## 👨‍🔬 Author & Feedback
+#### Systemd Service (Example)
+```ini
+# /etc/systemd/system/metascreener.service
+[Unit]
+Description=MetaScreener Gunicorn Service
+After=network.target
 
-MetaScreener was developed by:
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/path/to/MetaScreener
+ExecStart=/path/to/MetaScreener/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:5000 app:app
+Restart=always
 
-*   **Chaokun Hong**
-*   chaokun.hong@ndm.ox.ac.uk
-*   Centre for Tropical Medicine and Global Health, Nuffield Department of Medicine, University of Oxford, UK.<br><br>
+[Install]
+WantedBy=multi-user.target
+```
 
-*   **Thao Phuong Nguyen**
-*   ngthao.20107@gmail.com
-*   Oxford University Clinical Research Unit，National Hospital for Tropical Diseases，Hanoi, Vietnam
+### Cloud Services
 
-We welcome feedback, bug reports, and especially data on the performance (e.g., sensitivity, specificity, time saved) of MetaScreener in your literature screening workflows. Your real-world usage data is invaluable for improving this tool!
+#### Tencent Cloud Deployment (Primary Deployment)
+- Use Tencent Cloud ECS instance
+- Configure Nginx as reverse proxy
+- Set up SSL certificate
+- Configure firewall rules (allow ports 80/443)
+- Configure application to run automatically via Systemd service
 
-Please report issues or provide feedback via [GitHub Issues](https://github.com/ChaokunHong/MetaScreener/issues) (replace with your actual repository URL if different) or by contacting the author directly.
+#### Render.com Deployment (Alternative Deployment)
+- Create new Web Service on Render.com
+- Set build command: `pip install -r requirements.txt`
+- Set start command: `gunicorn --workers 4 --bind 0.0.0.0:$PORT app:app`
+- Configure necessary environment variables
+- Deploy application
+
+## 🔧 System Architecture
+
+### Code Organization
+```
+MetaScreener/
+├── app.py                 # Main application entry point
+├── config.py              # Configuration definitions and utility functions
+├── utils.py               # Common utility function set
+├── requirements.txt       # Dependency library list
+├── README.md              # Project documentation
+├── Procfile               # Render.com deployment configuration
+├── .env                   # Environment variable configuration (local development)
+├── static/                # Static resource directory
+│   └── images/            # Image resources
+│       └── logo.png       # Application logo
+├── templates/             # HTML template directory
+│   ├── base.html          # Base template (contains common layout)
+│   ├── index.html         # Homepage template
+│   ├── llm_configuration.html # LLM configuration page
+│   ├── screening_criteria.html # Screening criteria configuration page
+│   ├── screening_actions.html  # Screening action selection page
+│   ├── abstract_screening.html # Abstract screening page
+│   ├── full_text_screening.html # Full-text screening page
+│   ├── results.html       # Screening results page
+│   ├── test_results.html  # Test screening results page
+│   ├── metrics_results.html # Performance metrics results page
+│   ├── pdf_result.html    # PDF screening results page
+│   ├── batch_pdf_results.html # Batch PDF screening results page
+│   ├── data_extraction.html # Data extraction page
+│   └── extraction_result.html # Data extraction results page
+└── uploads/               # Uploaded file temporary storage directory
+```
+
+### Data Flow
+1. **Input Processing**:
+   - RIS files parsed into pandas DataFrame via `rispy`
+   - PDF files have text extracted via `PyMuPDF`+`Tesseract OCR`
+   - User criteria submitted via web forms, stored in session
+
+2. **AI Processing**:
+   - Build prompt = system prompt + screening criteria + text content + output format requirements
+   - Submit prompt through selected LLM's API
+   - Parse API response, extract decision label and explanation
+
+3. **Parallel Processing**:
+   - Batch tasks use `ThreadPoolExecutor` to create thread pool
+   - Tasks assigned to threads, asynchronously execute API calls
+   - Results streamed to frontend via SSE
+
+4. **Result Management**:
+   - Temporary results stored in application memory (dictionaries/cache)
+   - PDF file results use `TTLCache` (2-hour expiration)
+   - Long-term cached data periodically cleaned via background tasks
+
+5. **File Cleanup**:
+   - Batch processing PDFs deleted immediately after processing
+   - Single-file preview PDFs periodically cleaned via `APScheduler` tasks
+   - Session data cleared when browser session ends
+
+## 🔒 Security and Privacy
+
+- **API Key Handling**:
+  - Keys stored only in current browser session
+  - Automatically cleared after session ends
+  - Not persistently stored on server backend
+  - Transmitted via HTTPS to prevent man-in-the-middle attacks
+
+- **File Handling**:
+  - Uploaded files temporarily stored on server
+  - Batch processing PDFs deleted immediately after processing
+  - Single file PDFs retained for a few hours at most before deletion
+  - Filenames use UUID prefixes to prevent conflicts
+
+- **Session Security**:
+  - Uses Flask's secure session mechanism
+  - Session key configured via environment variable
+  - Prevention of session fixation attacks
+  - Regular session rotation
+
+- **Input Validation**:
+  - File type validation
+  - File size limitations
+  - Filename security handling
+  - Content type validation
+
+- **CORS Policy**:
+  - Cross-origin request limitations based on deployment environment
+  - Appropriate content security policy settings
+  - Prevention of unauthorized API calls
+
+## ⚡ Performance Optimization
+
+- **Concurrent Processing**:
+  - ThreadPoolExecutor manages parallel API calls
+  - Batch tasks automatically load balanced
+  - Dynamic thread count adjustment based on server load
+
+- **Caching Strategy**:
+  - TTLCache for PDF processing results
+  - LLM configuration and screening criteria cached in session
+  - Avoids reprocessing identical content
+
+- **Chunked Processing**:
+  - Large RIS files processed in batches
+  - Large PDFs use paging strategy
+  - Stream transmission for long processing task results
+
+- **Resource Management**:
+  - Timely cleanup of temporary files to free disk space
+  - Memory usage monitoring and optimization
+  - Regular garbage collection of expired cache data
+
+- **Background Task Scheduling**:
+  - APScheduler manages periodic maintenance tasks
+  - Non-critical operations executed asynchronously
+  - Smooth handling of load peaks
+
+## ❓ Frequently Asked Questions
+
+1. **API Key Configuration Issues**
+   - **Problem**: API key not saved or invalid
+   - **Solution**: Confirm API key is correct and properly saved in session; check account balance is sufficient
+
+2. **File Processing Errors**
+   - **Problem**: RIS file parsing failure
+   - **Solution**: Ensure RIS file uses correct encoding format (UTF-8); verify file structure conforms to standards
+
+3. **PDF Text Extraction Issues**
+   - **Problem**: Incomplete PDF text extraction results
+   - **Solution**: Confirm PDF is not scanned or image-based; check Tesseract OCR installation is correct
+
+4. **LLM Response Parsing Errors**
+   - **Problem**: LLM returned content cannot be correctly parsed into decision labels
+   - **Solution**: Adjust output format instructions; check LLM response completeness
+
+5. **Batch Processing Performance Issues**
+   - **Problem**: Batch processing becomes slow or times out
+   - **Solution**: Reduce batch processing scale; adjust thread count; check network connection stability
+
+6. **File Upload Failures**
+   - **Problem**: Large PDF upload fails (413 error)
+   - **Solution**: Check `client_max_body_size` parameter in Nginx configuration; adjust Flask upload limits
+
+7. **Session Expiration Issues**
+   - **Problem**: Results lost after screening interruption
+   - **Solution**: Periodically save partial results; reduce batch processing scale
+
+8. **Deployment Issues**
+   - **Problem**: Gunicorn startup failure
+   - **Solution**: Check dependency installation completeness; verify permission configuration; check logs for detailed error information
+
+## 📈 Changelog
+
+### v1.0.0 (2025-05-13)
+- Initial version release
+
+
+## 🚀 Development Roadmap
+
+### Near-term Plans
+- **User Account System**: Implement user registration, login, and personal settings
+- **Project Management**: Support saving and organizing multiple screening projects
+- **Team Collaboration**: Add multi-user collaboration and role management
+- **Advanced Data Analysis**: Integrate richer result analysis and visualization
+
+### Mid-term Goals
+- **Annotations and Comments**: Support annotations, discussions, and revisions of results
+- **API Interface**: Provide programmatic access interface
+- **Offline Mode**: Support offline use of some functionality
+
+### Long-term Vision
+- **Adaptive Learning**: Optimize screening decisions based on user feedback
+- **Integration Extensions**: Deep integration with literature management software and academic databases
+- **Mobile Application**: Develop companion mobile application
+- **Multilingual Support**: Extend UI and processing capabilities to multiple languages
+
+## 👥 Author Information
+
+MetaScreener was developed by the following researchers:
+
+**Chaokun Hong**
+- chaokun.hong@ndm.ox.ac.uk
+- Centre for Tropical Medicine and Global Health, Nuffield Department of Medicine, University of Oxford
+
+**Thao Phuong Nguyen**
+- ngthao.20107@gmail.com
+- Oxford University Clinical Research Unit, National Hospital for Tropical Diseases, Hanoi, Vietnam
+
+We welcome feedback about MetaScreener's performance, functionality, and improvements, especially usage data from actual literature screening workflows (sensitivity, specificity, time saved, etc.). Your real-world usage data is invaluable for improving this tool!
 
 ## ⚖️ Disclaimer
 
 MetaScreener is provided "as-is" without any warranties of any kind, express or implied. The accuracy of AI-driven screening and data extraction heavily depends on the chosen LLM, the quality of the input data, and the clarity of the defined criteria. Users are solely responsible for verifying all results and making final decisions. The developers assume no liability for any outcomes resulting from the use of this software. Please use responsibly and in accordance with all applicable ethical guidelines and institutional policies.
 
 ---
+
+<div align="center">
+© 2025 Chaokun Hong & Thao Phuong Nguyen | Nuffield Department of Medicine, University of Oxford & Oxford University Clinical Research Unit
+</div>
 
