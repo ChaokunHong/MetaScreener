@@ -454,38 +454,19 @@ function applyPlaceholderBehavior(textareaElement) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // ... (mode toggle JS, localStorage JS from previous steps) ...
     const criteriaTextareas = document.querySelectorAll(
         'textarea[name^="p_"], textarea[name^="i_"], textarea[name^="c_"], textarea[name^="o_"], textarea[name^="t_"], '
         + 'textarea[name="other_inclusion"], textarea[name="other_exclusion"], '
         + 'textarea[name="ai_system_prompt"], textarea[name="ai_output_format_instructions"]'
     );
-    criteriaTextareas.forEach(applyPlaceholderBehavior);
-
-    // Modify the load_criteria_button listener to re-apply placeholder behavior
-    const loadCriteriaButton = document.getElementById('load_criteria_button');
-    if(loadCriteriaButton) {
-        loadCriteriaButton.addEventListener('click', function() {
-            // Existing load logic if any, or re-implement if it was anonymous
-            const select = document.getElementById('saved_criteria_select');
-            const setName = select.value;
-            if (!setName) { alert("Please select a criteria set to load."); return; }
-            const criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
-            const selectedCriteria = criteriaSets[setName];
-            if (selectedCriteria) {
-                getAllCriteriaFieldIds().forEach(id => {
-                    const element = document.getElementById(id);
-                    if (element && selectedCriteria[id] !== undefined) element.value = selectedCriteria[id];
-                });
-                currentlyLoadedSetName = setName;
-                setFormDirty(false); 
-                criteriaTextareas.forEach(applyPlaceholderBehavior); // << RE-APPLY PLACEHOLDERS
-                updateButtonStates();
-                alert(`Criteria set '${setName}' loaded into the form. If you wish to use these for screening, click 'Apply Criteria for Screening'.`);
-            } else { alert("Error: Could not find the selected criteria set."); }
+    
+    if (criteriaTextareas) {
+        criteriaTextareas.forEach(textarea => {
+            if (textarea) {
+                applyPlaceholderBehavior(textarea);
+            }
         });
     }
-    // When Reset to Server Defaults is clicked, the page reloads, so DOMContentLoaded will re-apply placeholders.
 });
 </script>
 {% endblock %} 
