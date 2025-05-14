@@ -71,8 +71,21 @@
         text-decoration: none;
     }
     .popover {
-        max-width: 400px;
+        max-width: 500px;
         white-space: pre-wrap;
+        font-size: 0.9rem;
+    }
+    .popover-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        font-weight: bold;
+        color: #495057;
+    }
+    .popover-body {
+        padding: 12px;
+        line-height: 1.5;
+        color: #212529;
+        background-color: #fff;
     }
     .criteria-subsection {
         margin-bottom: 1.5rem;
@@ -152,34 +165,34 @@
                             <div class="d-flex justify-content-between align-items-center">
                                 <label for="{{ field_prefix }}_include">What characteristics related to {{ pico_desc.lower() }} *must* be present to INCLUDE?</label>
                                 <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click" 
-                                        title="Include Criteria Help" data-placement="left"
-                                        data-content="{{ criteria[field_prefix+'_include'] if criteria and criteria[field_prefix+'_include'] else '' }}">
+                                        title="Include Criteria Examples & Tips" data-placement="left"
+                                        data-content="{{ config_defaults.DEFAULT_PICOT_CRITERIA[field_prefix+'_include'] }}">
                                     <i class="fas fa-question-circle"></i>
                                 </button>
                             </div>
-                            <textarea name="{{ field_prefix }}_include" id="{{ field_prefix }}_include" class="form-control" rows="2"></textarea>
+                            <textarea name="{{ field_prefix }}_include" id="{{ field_prefix }}_include" class="form-control" rows="2">{{ criteria[field_prefix+'_include'] if criteria and criteria[field_prefix+'_include'] else '' }}</textarea>
                         </div>
                         <div class="criteria-subsection">
                             <div class="d-flex justify-content-between align-items-center">
                                 <label for="{{ field_prefix }}_exclude">What characteristics related to {{ pico_desc.lower() }} *must NOT* be present (i.e., lead to EXCLUDE)?</label>
                                 <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click"
-                                        title="Exclude Criteria Help" data-placement="left"
-                                        data-content="{{ criteria[field_prefix+'_exclude'] if criteria and criteria[field_prefix+'_exclude'] else '' }}">
+                                        title="Exclude Criteria Examples & Tips" data-placement="left"
+                                        data-content="{{ config_defaults.DEFAULT_PICOT_CRITERIA[field_prefix+'_exclude'] }}">
                                     <i class="fas fa-question-circle"></i>
                                 </button>
                             </div>
-                            <textarea name="{{ field_prefix }}_exclude" id="{{ field_prefix }}_exclude" class="form-control" rows="2"></textarea>
+                            <textarea name="{{ field_prefix }}_exclude" id="{{ field_prefix }}_exclude" class="form-control" rows="2">{{ criteria[field_prefix+'_exclude'] if criteria and criteria[field_prefix+'_exclude'] else '' }}</textarea>
                         </div>
                         <div class="criteria-subsection">
                             <div class="d-flex justify-content-between align-items-center">
                                 <label for="{{ field_prefix }}_maybe">What missing or unclear details about {{ pico_desc.lower() }} in the abstract would lead to a 'MAYBE' decision?</label>
                                 <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click"
-                                        title="Maybe Criteria Help" data-placement="left"
-                                        data-content="{{ criteria[field_prefix+'_maybe'] if criteria and criteria[field_prefix+'_maybe'] else '' }}">
+                                        title="Maybe Criteria Examples & Tips" data-placement="left"
+                                        data-content="{{ config_defaults.DEFAULT_PICOT_CRITERIA[field_prefix+'_maybe'] }}">
                                     <i class="fas fa-question-circle"></i>
                                 </button>
                             </div>
-                            <textarea name="{{ field_prefix }}_maybe" id="{{ field_prefix }}_maybe" class="form-control" rows="2"></textarea>
+                            <textarea name="{{ field_prefix }}_maybe" id="{{ field_prefix }}_maybe" class="form-control" rows="2">{{ criteria[field_prefix+'_maybe'] if criteria and criteria[field_prefix+'_maybe'] else '' }}</textarea>
                             <small class="form-text text-muted">Focus on information needed for a clear decision that might be missing in the abstract.</small>
                         </div>
                     </div>
@@ -508,18 +521,22 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Initialize popovers
+// Initialize popovers with enhanced configuration
 document.addEventListener('DOMContentLoaded', function() {
-    // Enable popovers
+    // Enable popovers with custom options
     $('[data-toggle="popover"]').popover({
         html: true,
-        sanitize: false
+        sanitize: false,
+        trigger: 'click',
+        container: 'body',
+        template: '<div class="popover" role="tooltip"><div class="arrow"></div><h3 class="popover-header"></h3><div class="popover-body"></div></div>'
     });
 
     // Close popover when clicking outside
     $(document).on('click', function (e) {
         if ($(e.target).data('toggle') !== 'popover'
-            && $(e.target).parents('.popover.show').length === 0) { 
+            && $(e.target).parents('.popover.show').length === 0
+            && !$(e.target).hasClass('fa-question-circle')) { 
             $('[data-toggle="popover"]').popover('hide');
         }
     });
@@ -527,7 +544,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Toggle popover on button click
     $('.help-button').on('click', function (e) {
         e.preventDefault();
-        $('.help-button').not(this).popover('hide');
+        e.stopPropagation();
+        
+        // Hide all other popovers
+        $('[data-toggle="popover"]').not(this).popover('hide');
+        
+        // Toggle current popover
         $(this).popover('toggle');
     });
 });
