@@ -392,68 +392,63 @@ document.addEventListener('DOMContentLoaded', function() {
     populateSavedCriteriaDropdown();
 });
 
-const DEFAULT_PICOT_CRITERIA_JSON = '{{ config_defaults.DEFAULT_PICOT_CRITERIA | tojson | safe }}';
-const DEFAULT_SYSTEM_PROMPT_JS_JSON = '{{ config_defaults.DEFAULT_SYSTEM_PROMPT | tojson | safe }}';
-const DEFAULT_OUTPUT_INSTRUCTIONS_JS_JSON = '{{ config_defaults.DEFAULT_OUTPUT_INSTRUCTIONS | tojson | safe }}';
+const DEFAULT_PICOT_CRITERIA_JSON_STR = '{{ config_defaults.DEFAULT_PICOT_CRITERIA | tojson | safe }}';
+const DEFAULT_SYSTEM_PROMPT_JSON_STR = '{{ config_defaults.DEFAULT_SYSTEM_PROMPT | tojson | safe }}';
+const DEFAULT_OUTPUT_INSTRUCTIONS_JSON_STR = '{{ config_defaults.DEFAULT_OUTPUT_INSTRUCTIONS | tojson | safe }}';
 
-const DEFAULT_PICOT_CRITERIA = JSON.parse(DEFAULT_PICOT_CRITERIA_JSON);
-const DEFAULT_SYSTEM_PROMPT_JS = JSON.parse(DEFAULT_SYSTEM_PROMPT_JS_JSON);
-const DEFAULT_OUTPUT_INSTRUCTIONS_JS = JSON.parse(DEFAULT_OUTPUT_INSTRUCTIONS_JS_JSON);
+const DEFAULT_PICOT_CRITERIA = JSON.parse(DEFAULT_PICOT_CRITERIA_JSON_STR);
+const DEFAULT_SYSTEM_PROMPT_JS = JSON.parse(DEFAULT_SYSTEM_PROMPT_JSON_STR);
+const DEFAULT_OUTPUT_INSTRUCTIONS_JS = JSON.parse(DEFAULT_OUTPUT_INSTRUCTIONS_JSON_STR);
 
-// Helper function to get the default/placeholder text for a given field ID
 function getDefaultTextForField(fieldId) {
     if (DEFAULT_PICOT_CRITERIA && DEFAULT_PICOT_CRITERIA[fieldId] !== undefined) {
-        return DEFAULT_PICOT_CRITERIA[fieldId];
+        return DEFAULT_PICOT_CRITERIA[fieldId] || ''; // Ensure it returns string, not null/undefined
     }
-    if (fieldId === 'ai_system_prompt') return DEFAULT_SYSTEM_PROMPT_JS;
-    if (fieldId === 'ai_output_format_instructions') return DEFAULT_OUTPUT_INSTRUCTIONS_JS;
-    return ''; // Default to empty if no specific placeholder found
+    if (fieldId === 'ai_system_prompt') return DEFAULT_SYSTEM_PROMPT_JS || '';
+    if (fieldId === 'ai_output_format_instructions') return DEFAULT_OUTPUT_INSTRUCTIONS_JS || '';
+    return '';
 }
 
 function applyPlaceholderBehavior(textareaElement) {
     const fieldId = textareaElement.id;
-    const defaultText = getDefaultTextForField(fieldId);
+    // Get default text, ensuring it's a string for comparison and assignment
+    const defaultText = String(getDefaultTextForField(fieldId) || ''); 
+    const currentValue = String(textareaElement.value || '');
 
-    // Initial check on page load or when criteria are loaded/reset
-    if (textareaElement.value.trim() === defaultText.trim()) {
+    // Log for debugging
+    // console.log(`Field: ${fieldId}, Current: "${currentValue.substring(0,20)}...", Default: "${defaultText.substring(0,20)}...", Match: ${currentValue.trim() === defaultText.trim()}`);
+
+    if (currentValue.trim() === defaultText.trim() && defaultText.trim() !== '') { // Only apply if there IS a default text
         textareaElement.classList.add('textarea-is-placeholder');
     } else {
         textareaElement.classList.remove('textarea-is-placeholder');
     }
 
     textareaElement.addEventListener('focus', function() {
-        if (this.classList.contains('textarea-is-placeholder')) {
-            if (this.value.trim() === getDefaultTextForField(this.id).trim()) { // Double check content before clearing
-                this.value = '';
-                this.classList.remove('textarea-is-placeholder');
-            }
+        const currentDefault = String(getDefaultTextForField(this.id) || '');
+        if (this.classList.contains('textarea-is-placeholder') && String(this.value || '').trim() === currentDefault.trim()) {
+            this.value = '';
+            this.classList.remove('textarea-is-placeholder');
         }
     });
 
     textareaElement.addEventListener('blur', function() {
-        if (this.value.trim() === '') {
-            const defaultTextForThisField = getDefaultTextForField(this.id);
-            if (defaultTextForThisField) { // Only restore if there IS a default text
-                this.value = defaultTextForThisField;
-                this.classList.add('textarea-is-placeholder');
-            }
+        const currentDefault = String(getDefaultTextForField(this.id) || '');
+        if (String(this.value || '').trim() === '' && currentDefault.trim() !== '') { 
+            this.value = currentDefault;
+            this.classList.add('textarea-is-placeholder');
         }
     });
 
     textareaElement.addEventListener('input', function() {
-        // If user types anything, it's no longer a placeholder, even if they delete it all later (blur will handle empty)
         if (this.classList.contains('textarea-is-placeholder')) {
             this.classList.remove('textarea-is-placeholder');
         }
-        // setFormDirty(true); // This is already handled by a separate loop for allCriteriaFields
     });
 }
 
-
 document.addEventListener('DOMContentLoaded', function() {
     // ... (mode toggle JS, localStorage JS from previous steps) ...
-
-    // Apply placeholder behavior to all relevant textareas
     const criteriaTextareas = document.querySelectorAll(
         'textarea[name^="p_"], textarea[name^="i_"], textarea[name^="c_"], textarea[name^="o_"], textarea[name^="t_"], '
         + 'textarea[name="other_inclusion"], textarea[name="other_exclusion"], '
@@ -461,29 +456,30 @@ document.addEventListener('DOMContentLoaded', function() {
     );
     criteriaTextareas.forEach(applyPlaceholderBehavior);
 
-    // Re-apply placeholder logic after loading criteria from localStorage
-    const oldLoadButtonFunction = document.getElementById('load_criteria_button').onclick; // Assuming it was set directly
-    document.getElementById('load_criteria_button').addEventListener('click', function() {
-        // Call existing logic if any, or re-implement if it was anonymous
-        // The logic from previous step for loading into form fields...
-        const select = document.getElementById('saved_criteria_select');
-        const setName = select.value;
-        if (!setName) { alert("Please select a criteria set to load."); return; }
-        const criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
-        const selectedCriteria = criteriaSets[setName];
-        if (selectedCriteria) {
-            getAllCriteriaFieldIds().forEach(id => {
-                const element = document.getElementById(id);
-                if (element && selectedCriteria[id] !== undefined) element.value = selectedCriteria[id];
-            });
-            currentlyLoadedSetName = setName;
-            setFormDirty(false); 
-            criteriaTextareas.forEach(applyPlaceholderBehavior); // Re-apply placeholder state
-            updateButtonStates();
-            alert(`Criteria set '${setName}' loaded into the form. If you wish to use these for screening, click 'Apply Criteria for Screening'.`);
-        } else { alert("Error: Could not find the selected criteria set."); }
-    });
-    // Also re-apply after reset (Reset button causes page reload, so initial check will handle it)
+    // Modify the load_criteria_button listener to re-apply placeholder behavior
+    const loadCriteriaButton = document.getElementById('load_criteria_button');
+    if(loadCriteriaButton) {
+        loadCriteriaButton.addEventListener('click', function() {
+            // Existing load logic if any, or re-implement if it was anonymous
+            const select = document.getElementById('saved_criteria_select');
+            const setName = select.value;
+            if (!setName) { alert("Please select a criteria set to load."); return; }
+            const criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
+            const selectedCriteria = criteriaSets[setName];
+            if (selectedCriteria) {
+                getAllCriteriaFieldIds().forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element && selectedCriteria[id] !== undefined) element.value = selectedCriteria[id];
+                });
+                currentlyLoadedSetName = setName;
+                setFormDirty(false); 
+                criteriaTextareas.forEach(applyPlaceholderBehavior); // << RE-APPLY PLACEHOLDERS
+                updateButtonStates();
+                alert(`Criteria set '${setName}' loaded into the form. If you wish to use these for screening, click 'Apply Criteria for Screening'.`);
+            } else { alert("Error: Could not find the selected criteria set."); }
+        });
+    }
+    // When Reset to Server Defaults is clicked, the page reloads, so DOMContentLoaded will re-apply placeholders.
 });
 </script>
 {% endblock %} 
