@@ -385,24 +385,157 @@ Tip: When is the research type or publication status unclear?""",
         "ai_output_format_instructions": DEFAULT_OUTPUT_INSTRUCTIONS
     },
     "PICOS_DEFAULT": {
-        "p_include": "Example Include Criteria:\n- Adults (≥18 years) with a confirmed diagnosis of hypertension treated in primary-care settings.\nTip: Specify age range, diagnostic method and care setting.", 
-        "p_exclude": "Example Exclude Criteria:\n- Pregnant women or paediatric patients.\n- Patients hospitalised >24 h prior to baseline measurement.\nTip: 清楚列出与研究目标无关或可能混杂的群体。", 
-        "p_maybe": "Example 'Maybe' Scenarios:\n- Abstract 仅提及\"adult patients\" 而未说明疾病类型或诊断标准。\nTip: 强调缺失哪些细节会导致犹豫。",
-        "i_include": "Example Include Criteria:\n- Lifestyle counselling programmes lasting ≥3 months focusing on salt reduction.\nTip: 描述干预类型、强度与持续时间。", 
-        "i_exclude": "Example Exclude Criteria:\n- Pharmacological interventions as sole strategy.\nTip: 明确排除不相关或机制不同的干预。", 
-        "i_maybe": "Example 'Maybe' Scenarios:\n- 提到\"community intervention\" 但未说明是否包含行为指导。",
-        "c_include": "Example Include Criteria:\n- Usual care or no-intervention control groups.\nTip: 指定可接受的对照条件。", 
-        "c_exclude": "Example Exclude Criteria:\n- 对照组接受另一种主动干预（如药物治疗）。", 
-        "c_maybe": "Example 'Maybe' Scenarios:\n- 对照组描述含糊，如\"standard programme\" 未给出细节。",
-        "o_include": "Example Include Criteria:\n- Change in systolic/diastolic blood pressure measured ≥6 months post-baseline.\nTip: 阐明要衡量的主要结果指标与时间点。", 
-        "o_exclude": "Example Exclude Criteria:\n- 仅报告依从性或满意度而无血压数据。", 
-        "o_maybe": "Example 'Maybe' Scenarios:\n- 抽象提及\"improved outcomes\" 未说明是否包含血压变化。",
-        "s_design_include": "Example Include Criteria:\n- Randomised Controlled Trials (RCTs) 或 Cluster-RCTs.\nTip: 定义可接受的研究设计。", 
-        "s_design_exclude": "Example Exclude Criteria:\n- 观察性队列、横断面或质性研究。", 
-        "s_design_maybe": "Example 'Maybe' Scenarios:\n- 抽象未说明随机化方法，仅称\"controlled study\"。",
-        "other_inclusion": "Example: 英文全文可获取。",
-        "other_exclusion": "Example: 会议摘要、学位论文。",
-        "ai_system_prompt": DEFAULT_SYSTEM_PROMPT, "ai_output_format_instructions": DEFAULT_OUTPUT_INSTRUCTIONS
+        "p_include": """Example Include Criteria:
+- Adults (≥18 years) with diagnosed major depressive disorder (MDD)
+- Children and adolescents (5-17 years) with attention deficit hyperactivity disorder (ADHD)
+- Patients with type 2 diabetes mellitus and HbA1c ≥7.0%
+- Individuals with chronic low back pain (>12 weeks duration)
+- Community-dwelling elderly (≥65 years) at risk of falls
+- Pregnant women in their first trimester with morning sickness
+
+Tip: Define your target population precisely - include age ranges, diagnostic criteria, disease severity, and relevant demographic characteristics.""",
+        "p_exclude": """Example Exclude Criteria:
+- Patients with severe psychiatric comorbidities
+- Individuals with cognitive impairment preventing informed consent
+- Terminal illness with life expectancy <6 months
+- History of adverse reactions to similar interventions
+- Participation in other clinical trials within past 30 days
+- Unstable medical conditions requiring urgent care
+
+Tip: Clearly specify which population characteristics would make participation inappropriate or potentially harmful.""",
+        "p_maybe": """Example 'Maybe' Scenarios:
+- Abstract mentions "adults" without specifying age range
+- Diagnostic criteria or disease severity not clearly stated
+- Unclear if comorbidities were considered
+- Population described as "patients" without specific characteristics
+- Pregnancy status not specified when relevant
+- Baseline functional status not described
+
+Tip: Note what missing population information would require clarification from full text.""",
+        "i_include": """Example Include Criteria:
+- Structured cognitive behavioral therapy (12 weekly sessions)
+- Novel pharmacological intervention with specified dosing regimen
+- Supervised exercise program (3 sessions/week, 60 minutes each)
+- Digital health intervention with daily monitoring
+- Mindfulness-based stress reduction program
+- Dietary intervention with registered dietitian support
+
+Tip: Describe intervention components, duration, frequency, and delivery method in detail.""",
+        "i_exclude": """Example Exclude Criteria:
+- Non-standardized or poorly described interventions
+- Interventions requiring unavailable specialized equipment
+- Experimental procedures without preliminary safety data
+- Complementary therapies without evidence base
+- Single session or very brief interventions
+- Interventions without clear protocols
+
+Tip: Exclude interventions that lack standardization or feasibility in your context.""",
+        "i_maybe": """Example 'Maybe' Scenarios:
+- Intervention described as "standard care" without specifics
+- Duration or intensity not clearly specified
+- Unclear delivery method (individual vs. group)
+- Provider qualifications not mentioned
+- Adherence monitoring process not described
+- Intervention components not fully detailed
+
+Tip: Identify when intervention details need clarification from full text.""",
+        "c_include": """Example Include Criteria:
+- Standard care or treatment as usual
+- Placebo-controlled comparisons
+- Active control with established intervention
+- Waitlist control groups
+- Attention-matched control conditions
+- Dose-response comparisons
+
+Tip: Define acceptable comparison groups that will provide meaningful evidence.""",
+        "c_exclude": """Example Exclude Criteria:
+- No control or comparison group
+- Historically controlled studies without contemporary comparison
+- Comparisons with obsolete treatments
+- Inadequately matched control groups
+- Contaminated control conditions
+- Ethically inappropriate comparisons
+
+Tip: Specify which comparison designs would not provide valid evidence.""",
+        "c_maybe": """Example 'Maybe' Scenarios:
+- Control condition described vaguely
+- Matching procedures not detailed
+- Unclear if controls received any intervention
+- Cross-over timing not specified
+- Contamination prevention not described
+- Baseline comparability not addressed
+
+Tip: Note what comparison details need clarification from full text.""",
+        "o_include": """Example Include Criteria:
+- Primary outcomes measured with validated instruments
+- Patient-reported outcomes using standardized measures
+- Clinically meaningful endpoints
+- Objective physiological measurements
+- Quality of life assessments
+- Cost-effectiveness analyses
+
+Tip: Specify required outcomes and their measurement methods.""",
+        "o_exclude": """Example Exclude Criteria:
+- Non-validated outcome measures
+- Surrogate endpoints without clinical relevance
+- Subjective outcomes without standardization
+- Incomplete outcome reporting
+- Inappropriate timing of measurements
+- Outcomes susceptible to significant bias
+
+Tip: Exclude outcomes that won't provide reliable evidence.""",
+        "o_maybe": """Example 'Maybe' Scenarios:
+- Outcome measures not fully described
+- Timing of assessments unclear
+- Validation status of measures uncertain
+- Multiple outcomes without specified primary
+- Missing important secondary outcomes
+- Unclear clinical significance thresholds
+
+Tip: Identify when outcome details need clarification from full text.""",
+        "s_design_include": """Example Include Criteria:
+- Randomized controlled trials (RCTs)
+- Cluster randomized trials
+- Pragmatic clinical trials
+- Factorial design studies
+- Adaptive trial designs
+- Well-designed prospective cohort studies
+
+Tip: Define acceptable study designs that will provide appropriate level of evidence.""",
+        "s_design_exclude": """Example Exclude Criteria:
+- Case reports or case series
+- Retrospective studies
+- Pilot studies without power calculations
+- Non-peer reviewed studies
+- Studies with major methodological flaws
+- Qualitative studies
+
+Tip: Specify which study designs would not meet your evidence requirements.""",
+        "s_design_maybe": """Example 'Maybe' Scenarios:
+- Study design not explicitly stated
+- Randomization process not described
+- Sample size justification unclear
+- Blinding procedures not detailed
+- Follow-up duration not specified
+- Analysis plan not fully described
+
+Tip: Note what study design details need clarification from full text.""",
+        "other_inclusion": """Example Include Criteria:
+- English language publications
+- Peer-reviewed journal articles
+- Studies with appropriate ethical approval
+- Adequate sample size based on power calculations
+- Clear reporting of statistical methods
+- Studies following CONSORT guidelines""",
+        "other_exclusion": """Example Exclude Criteria:
+- Conference abstracts without full publication
+- Studies with significant conflicts of interest
+- Publications before 2000
+- Studies with >30% dropout rate
+- Interim analyses without final results
+- Duplicate publications of same data""",
+        "ai_system_prompt": DEFAULT_SYSTEM_PROMPT,
+        "ai_output_format_instructions": DEFAULT_OUTPUT_INSTRUCTIONS
     },
     "PECO_DEFAULT": {
         "p_include": """Example Include Criteria:
