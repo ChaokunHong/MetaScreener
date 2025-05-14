@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Screening Actions - MetaScreener{% endblock %}
+
+{% block content %}
+<div class="container mt-4"> {# Match the container class from your provided source for consistency #}
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1>Screening Actions Dashboard</h1>
+            <p class="lead">Choose a screening task to begin your literature review process.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-4"> {# Adjusted to col-md-6 to take more space if only two main items #}
+            <div class="section-card h-100 d-flex flex-column">
+                <h4><i class="bi bi-file-earmark-text-fill"></i> Abstract Screening</h4>
+                <p class="flex-grow-1">Upload a RIS file to screen abstracts based on your defined criteria. Supports filtering by title and line numbers for large datasets.</p>
+                <a href="{{ url_for('abstract_screening_page') }}" class="btn btn-primary mt-auto align-self-start">Go to Abstract Screening</a>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4"> {# Adjusted to col-md-6 #}
+            <div class="section-card h-100 d-flex flex-column">
+                <h4><i class="bi bi-file-earmark-pdf-fill"></i> Full-Text PDF Screening</h4>
+                <p class="flex-grow-1">Screen individual PDF documents or upload multiple PDFs for batch full-text analysis against your criteria. Features PDF preview for single documents.</p>
+                <a href="{{ url_for('full_text_screening_page') }}" class="btn btn-primary mt-auto align-self-start">Go to Full-Text Screening</a>
+            </div>
+        </div>
+        
+        {# Data Extraction block is REMOVED as per your request #}
+    </div>
+
+    <hr class="my-4">
+
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="section-card">
+                <h5><i class="bi bi-sliders"></i> LLM Configuration</h5>
+                <p>Select your preferred Large Language Model provider, model, and manage API keys.</p>
+                <a href="{{ url_for('llm_config_page') }}" class="btn btn-outline-secondary btn-sm">Configure LLMs</a>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="section-card">
+                <h5><i class="bi bi-card-checklist"></i> Screening Criteria</h5>
+                <p>Define or update your PICOT-based inclusion and exclusion criteria for screening.</p>
+                <a href="{{ url_for('screening_criteria_page') }}" class="btn btn-outline-secondary btn-sm">Set Criteria</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

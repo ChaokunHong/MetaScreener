@@ -260,7 +260,7 @@ def screening_actions_page():
     current_year = datetime.datetime.now().year
     # If we need to show current LLM on this page, fetch it:
     # current_llm = get_current_llm_config(session) 
-    return render_template('screening_actions.html', 
+    return render_template('screening_actions.html',  # <--- Ensure this points to screening_actions.html
                            current_year=current_year)
                            # current_llm_provider=current_llm['provider_name'] # if needed
 

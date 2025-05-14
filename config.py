@@ -149,9 +149,9 @@ Tip: Specify target population characteristics such as age range, gender, and sp
 Tip: List clear exclusion characteristics, ensure no contradiction with inclusion criteria.""",
     "p_maybe": """Example 'Maybe' Scenarios:
 - Community setting mentioned but recruitment method unclear
-- Age group mentioned but not precise enough (e.g., just says "children")
+- Age group mentioned but not precise enough, e.g., just says "children"
 
-Tip: Focus on key population information that might be missing from abstracts.""",
+Tip: Focus on key population information that might be missing from abstracts, needed for a clear decision.""",
     # Intervention
     "i_include": """Example Include Criteria:
 - Observational studies (cross-sectional, cohort, case-control) or RCTs with baseline AMR data
@@ -165,7 +165,7 @@ Tip: Specify any intervention types that should be excluded if applicable.""",
     "i_maybe": """Example 'Maybe' Scenarios:
 - Data collection described but study design not explicitly named (e.g., sounds cross-sectional but not stated)
 
-Tip: Identify which study design details need clarification.""",
+Tip: Focus on key intervention/study design details that might be missing from abstracts, needed for a clear decision.""",
     # Comparison
     "c_include": """Example Include Criteria:
 - No specific comparison group required
@@ -178,7 +178,7 @@ Tip: State any unacceptable comparison group types.""",
     "c_maybe": """Example 'Maybe' Scenarios:
 (N/A if no comparison required)
 
-Tip: List comparison-related information needing clarification.""",
+Tip: Focus on key comparison details that might be missing from abstracts, needed for a clear decision (if applicable).""",
     # Outcome
     "o_include": """Example Include Criteria:
 - Reports prevalence of Antimicrobial Resistance (AMR) for specified WHO BPPL pathogens (excluding TB, Gonorrhea)
@@ -193,7 +193,7 @@ Tip: Clearly indicate which outcomes lead to exclusion.""",
 - Mentions resistance testing but doesn't specify pathogens
 - Mentions relevant pathogen but unclear if AMR prevalence reported
 
-Tip: Identify outcome details needing full-text confirmation.""",
+Tip: Focus on key outcome details that might be missing from abstracts, needed for a clear decision.""",
     # Time/Study Type
     "t_include": """Example Include Criteria:
 - Any publication year
@@ -210,7 +210,7 @@ Tip: List non-compliant study types and temporal characteristics.""",
     "t_maybe": """Example 'Maybe' Scenarios:
 - Abstract doesn't clearly state if it's original research vs. review type
 
-Tip: Identify study design features needing confirmation.""",
+Tip: Focus on key study type/publication details that might be missing from abstracts, needed for a clear decision.""",
     # Other
     "other_inclusion": """Example Other Inclusion Criteria:
 (No other specific inclusion criteria defined)
