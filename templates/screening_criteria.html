@@ -165,36 +165,41 @@
                         <div class="criteria-subsection">
                             <div class="d-flex justify-content-between align-items-center">
                                 <label for="{{ field_prefix }}_include">What characteristics related to {{ pico_desc.lower() }} *must* be present to INCLUDE?</label>
-                                <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click" 
-                                        title="Include Criteria Examples & Tips" data-placement="left"
-                                        data-content="{{ config_defaults.DEFAULT_PICOT_CRITERIA[field_prefix+'_include'] }}">
-                                    <i class="fas fa-question-circle"></i>
-                                </button>
+                                <button type="button" class="btn btn-link help-button" 
+                                        data-toggle="popover" 
+                                        data-trigger="click" 
+                                        data-placement="right" 
+                                        title="Include Criteria Examples & Tips" 
+                                        data-content="{{ config_defaults.DEFAULT_PICOT_CRITERIA[field_prefix ~ '_include'] | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
+                                    <i class="fas fa-question-circle"></i></button>
                             </div>
-                            <textarea name="{{ field_prefix }}_include" id="{{ field_prefix }}_include" class="form-control" rows="2">{{ criteria[field_prefix+'_include'] if criteria and criteria[field_prefix+'_include'] else '' }}</textarea>
+                            <textarea name="{{ field_prefix }}_include" id="{{ field_prefix }}_include" class="form-control" rows="2"></textarea>
                         </div>
                         <div class="criteria-subsection">
                             <div class="d-flex justify-content-between align-items-center">
                                 <label for="{{ field_prefix }}_exclude">What characteristics related to {{ pico_desc.lower() }} *must NOT* be present (i.e., lead to EXCLUDE)?</label>
-                                <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click"
-                                        title="Exclude Criteria Examples & Tips" data-placement="left"
-                                        data-content="{{ config_defaults.DEFAULT_PICOT_CRITERIA[field_prefix+'_exclude'] }}">
-                                    <i class="fas fa-question-circle"></i>
-                                </button>
+                                <button type="button" class="btn btn-link help-button" 
+                                        data-toggle="popover" 
+                                        data-trigger="click" 
+                                        data-placement="right" 
+                                        title="Exclude Criteria Examples & Tips" 
+                                        data-content="{{ config_defaults.DEFAULT_PICOT_CRITERIA[field_prefix ~ '_exclude'] | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
+                                    <i class="fas fa-question-circle"></i></button>
                             </div>
-                            <textarea name="{{ field_prefix }}_exclude" id="{{ field_prefix }}_exclude" class="form-control" rows="2">{{ criteria[field_prefix+'_exclude'] if criteria and criteria[field_prefix+'_exclude'] else '' }}</textarea>
+                            <textarea name="{{ field_prefix }}_exclude" id="{{ field_prefix }}_exclude" class="form-control" rows="2"></textarea>
                         </div>
-                        <div class="criteria-subsection">
+                        <div class="criteria-subsection"> {# This is the _maybe subsection #}
                             <div class="d-flex justify-content-between align-items-center">
                                 <label for="{{ field_prefix }}_maybe">What missing or unclear details about {{ pico_desc.lower() }} in the abstract would lead to a 'MAYBE' decision?</label>
-                                <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click"
-                                        title="Maybe Criteria Examples & Tips" data-placement="left"
-                                        data-content="{{ config_defaults.DEFAULT_PICOT_CRITERIA[field_prefix+'_maybe'] }}">
-                                    <i class="fas fa-question-circle"></i>
-                                </button>
+                                <button type="button" class="btn btn-link help-button" 
+                                        data-toggle="popover" 
+                                        data-trigger="click" 
+                                        data-placement="right" 
+                                        title="Maybe Criteria Examples & Tips" 
+                                        data-content="{{ config_defaults.DEFAULT_PICOT_CRITERIA[field_prefix ~ '_maybe'] | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
+                                    <i class="fas fa-question-circle"></i></button>
                             </div>
-                            <textarea name="{{ field_prefix }}_maybe" id="{{ field_prefix }}_maybe" class="form-control" rows="2">{{ criteria[field_prefix+'_maybe'] if criteria and criteria[field_prefix+'_maybe'] else '' }}</textarea>
-                            <small class="form-text text-muted">Focus on information needed for a clear decision that might be missing in the abstract.</small>
+                            <textarea name="{{ field_prefix }}_maybe" id="{{ field_prefix }}_maybe" class="form-control" rows="2"></textarea>
                         </div>
                     </div>
                 </div>
@@ -282,15 +287,15 @@ const allCriteriaFields = getAllCriteriaFieldIds().map(id => document.getElement
 
 function setFormDirty(isDirty) {
     formDirty = isDirty;
-    // When form becomes dirty, if a set was loaded, it means it now has unsaved changes relative to that loaded set.
-    // If it becomes clean (e.g., after saving or loading), it matches the loaded set.
     updateButtonStates(); 
 }
 
 allCriteriaFields.forEach(field => {
-    field.addEventListener('input', () => {
-        setFormDirty(true);
-    });
+    if(field) {
+        field.addEventListener('input', () => {
+            setFormDirty(true);
+        });
+    }
 });
 
 function updateButtonStates() {
@@ -299,12 +304,14 @@ function updateButtonStates() {
     const deleteButton = document.getElementById('delete_criteria_button');
     const loadedSetNameDisplayStrong = document.getElementById('loaded_set_name_display').querySelector('strong');
     const loadedSetNameDisplaySmall = document.getElementById('loaded_set_name_display');
+    
+    if (!select || !updateButton || !deleteButton || !loadedSetNameDisplayStrong || !loadedSetNameDisplaySmall) return;
+
     const selectedValueInDropdown = select.value;
 
     if (currentlyLoadedSetName) {
         loadedSetNameDisplaySmall.style.display = 'inline';
         loadedSetNameDisplayStrong.textContent = currentlyLoadedSetName;
-        // Update button is visible if a set is loaded, and enabled only if form is dirty.
         updateButton.style.display = 'inline-block';
         updateButton.disabled = !formDirty; 
         deleteButton.style.display = (selectedValueInDropdown === currentlyLoadedSetName) ? 'inline-block' : 'none';
@@ -318,20 +325,19 @@ function updateButtonStates() {
 
 function populateSavedCriteriaDropdown() {
     const select = document.getElementById('saved_criteria_select');
+    if(!select) return;
     const criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
-    const currentSelectedValueInDropdown = select.value; // Preserve selection if possible
+    const currentSelectedValueInDropdown = select.value;
     select.innerHTML = '<option value="">-- Select a local set --</option>';
     for (const name in criteriaSets) {
         const option = document.createElement('option');
         option.value = name;
         option.textContent = name;
-        // Re-select if it was previously selected AND still exists
         if (name === currentSelectedValueInDropdown && criteriaSets[name]) {
              option.selected = true;
         }
         select.appendChild(option);
     }
-    // If the currentlyLoadedSetName still exists in the list, ensure it's selected in dropdown
     if (currentlyLoadedSetName && criteriaSets[currentlyLoadedSetName]){
         select.value = currentlyLoadedSetName;
     }
@@ -355,225 +361,138 @@ function saveCriteriaToLocalStorage(setName, showOverwriteConfirm = true) {
     return true;
 }
 
-document.getElementById('save_criteria_as_button').addEventListener('click', function() {
-    const setName = prompt("Enter a name for this local criteria set (new or to overwrite):");
-    if (!setName || setName.trim() === '') {
-        alert("Criteria set name cannot be empty.");
-        return;
-    }
-    const trimmedSetName = setName.trim();
-    if (saveCriteriaToLocalStorage(trimmedSetName)) { // Overwrite confirmation is handled inside
-        alert(`Criteria set '${trimmedSetName}' saved to local storage!`);
-        currentlyLoadedSetName = trimmedSetName;
-        setFormDirty(false); // Form is now clean, matching the just saved/overwritten set
-        populateSavedCriteriaDropdown(); // Refresh and re-select in dropdown
-        // document.getElementById('saved_criteria_select').value = currentlyLoadedSetName; // Done by populate
-        updateButtonStates(); 
-    }
-});
-
-document.getElementById('load_criteria_button').addEventListener('click', function() {
-    const select = document.getElementById('saved_criteria_select');
-    const setName = select.value;
-    if (!setName) { alert("Please select a criteria set to load."); return; }
-    const criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
-    const selectedCriteria = criteriaSets[setName];
-    if (selectedCriteria) {
-        getAllCriteriaFieldIds().forEach(id => {
-            const element = document.getElementById(id);
-            if (element && selectedCriteria[id] !== undefined) element.value = selectedCriteria[id];
-        });
-        currentlyLoadedSetName = setName;
-        setFormDirty(false); // Form is now clean, matching the loaded set
-        updateButtonStates();
-        alert(`Criteria set '${setName}' loaded into the form. If you wish to use these for screening, click 'Apply Criteria for Screening'.`);
-    } else { alert("Error: Could not find the selected criteria set."); }
-});
-
-document.getElementById('update_loaded_local_set_button').addEventListener('click', function(){
-    if (!currentlyLoadedSetName) {
-        // This case should ideally not happen if button is disabled when no set is loaded
-        alert("Error: No criteria set is currently active in the form to update.");
-        return;
-    }
-    // No need for confirm here, as this is an explicit "update current" action
-    if (saveCriteriaToLocalStorage(currentlyLoadedSetName, false)) { // false: don't show overwrite confirm
-        alert(`Locally saved criteria set '${currentlyLoadedSetName}' updated successfully!`);
-        setFormDirty(false); // Form is now clean, matching the updated set
-        // No need to repopulate dropdown if name hasn't changed, but update buttons for dirty state
-        updateButtonStates(); 
-    } else {
-        alert("Error: Failed to update the local criteria set."); 
-    }
-});
-
-document.getElementById('delete_criteria_button').addEventListener('click', function() {
-    const select = document.getElementById('saved_criteria_select');
-    const setName = select.value;
-    if (!setName) { alert("Please select a criteria set to delete from the dropdown."); return; }
-    if (confirm(`Are you sure you want to delete the locally saved criteria set '${setName}'? This cannot be undone.`)) {
-        let criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
-        delete criteriaSets[setName];
-        localStorage.setItem(CRITERIA_SETS_KEY, JSON.stringify(criteriaSets));
-        alert(`Criteria set '${setName}' deleted successfully!`);
-        if (currentlyLoadedSetName === setName) { 
-            currentlyLoadedSetName = null;
-            setFormDirty(true); // Form content is now effectively a new, unsaved (and dirty) set
+const saveBtn = document.getElementById('save_criteria_as_button');
+if(saveBtn) {
+    saveBtn.addEventListener('click', function() {
+        const setName = prompt("Enter a name for this local criteria set (new or to overwrite):");
+        if (!setName || setName.trim() === '') {
+            alert("Criteria set name cannot be empty.");
+            return;
         }
-        populateSavedCriteriaDropdown(); // This will also call updateButtonStates
-    }
-});
+        const trimmedSetName = setName.trim();
+        if (saveCriteriaToLocalStorage(trimmedSetName)) {
+            alert(`Criteria set '${trimmedSetName}' saved to local storage!`);
+            currentlyLoadedSetName = trimmedSetName;
+            setFormDirty(false);
+            populateSavedCriteriaDropdown(); 
+            updateButtonStates(); 
+        }
+    });
+}
 
-// Reset to Defaults button is an <a> tag, so it causes a page reload.
-// After reload, currentlyLoadedSetName will be null and form will have server defaults.
-// The main form submission also causes a reload.
+const loadBtn = document.getElementById('load_criteria_button');
+if(loadBtn) {
+    loadBtn.addEventListener('click', function() {
+        const select = document.getElementById('saved_criteria_select');
+        if(!select) return;
+        const setName = select.value;
+        if (!setName) { alert("Please select a criteria set to load."); return; }
+        const criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
+        const selectedCriteria = criteriaSets[setName];
+        if (selectedCriteria) {
+            getAllCriteriaFieldIds().forEach(id => {
+                const element = document.getElementById(id);
+                if (element && selectedCriteria[id] !== undefined) {
+                    element.value = selectedCriteria[id];
+                }
+            });
+            currentlyLoadedSetName = setName;
+            setFormDirty(false); 
+            updateButtonStates();
+            alert(`Criteria set '${setName}' loaded into the form. If you wish to use these for screening, click 'Apply Criteria for Screening'.`);
+        } else { alert("Error: Could not find the selected criteria set."); }
+    });
+}
+
+const updateLoadedBtn = document.getElementById('update_loaded_local_set_button');
+if(updateLoadedBtn) {
+    updateLoadedBtn.addEventListener('click', function(){
+        if (!currentlyLoadedSetName) {
+            alert("Error: No criteria set is currently active in the form to update.");
+            return;
+        }
+        if (saveCriteriaToLocalStorage(currentlyLoadedSetName, false)) { 
+            alert(`Locally saved criteria set '${currentlyLoadedSetName}' updated successfully!`);
+            setFormDirty(false); 
+            updateButtonStates(); 
+        } else {
+            alert("Error: Failed to update the local criteria set."); 
+        }
+    });
+}
+
+const deleteBtn = document.getElementById('delete_criteria_button');
+if(deleteBtn) {
+    deleteBtn.addEventListener('click', function() {
+        const select = document.getElementById('saved_criteria_select');
+        if(!select) return;
+        const setName = select.value;
+        if (!setName) { alert("Please select a criteria set to delete from the dropdown."); return; }
+        if (confirm(`Are you sure you want to delete the locally saved criteria set '${setName}'? This cannot be undone.`)) {
+            let criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
+            delete criteriaSets[setName];
+            localStorage.setItem(CRITERIA_SETS_KEY, JSON.stringify(criteriaSets));
+            alert(`Criteria set '${setName}' deleted successfully!`);
+            if (currentlyLoadedSetName === setName) { 
+                currentlyLoadedSetName = null;
+                setFormDirty(true); 
+            }
+            populateSavedCriteriaDropdown(); 
+        }
+    });
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     const modeRadios = document.querySelectorAll('input[name="criteria_mode"]');
     const advancedSettingsDiv = document.querySelector('.advanced-settings');
 
     function toggleAdvancedSettings() {
-        if (document.querySelector('input[name="criteria_mode"]:checked').value === 'advanced') {
-            advancedSettingsDiv.style.display = 'block';
-        } else {
-            advancedSettingsDiv.style.display = 'none';
+        if(document.querySelector('input[name="criteria_mode"]:checked') && advancedSettingsDiv){
+            if (document.querySelector('input[name="criteria_mode"]:checked').value === 'advanced') {
+                advancedSettingsDiv.style.display = 'block';
+            } else {
+                advancedSettingsDiv.style.display = 'none';
+            }
         }
     }
-    modeRadios.forEach(radio => radio.addEventListener('change', toggleAdvancedSettings));
-    toggleAdvancedSettings(); 
+    if(modeRadios.length > 0 && advancedSettingsDiv){
+        modeRadios.forEach(radio => radio.addEventListener('change', toggleAdvancedSettings));
+        toggleAdvancedSettings(); 
+    }
 
     populateSavedCriteriaDropdown();
-});
 
-const DEFAULT_PICOT_CRITERIA_JSON_STR = '{{ config_defaults.DEFAULT_PICOT_CRITERIA | tojson | safe }}';
-const DEFAULT_SYSTEM_PROMPT_JSON_STR = '{{ config_defaults.DEFAULT_SYSTEM_PROMPT | tojson | safe }}';
-const DEFAULT_OUTPUT_INSTRUCTIONS_JSON_STR = '{{ config_defaults.DEFAULT_OUTPUT_INSTRUCTIONS | tojson | safe }}';
+    if (typeof $ !== 'undefined' && typeof $.fn.popover !== 'undefined') {
+        try {
+            $('[data-toggle="popover"]').popover({
+                html: true,        
+                sanitize: false,   
+                trigger: 'click',  
+                container: 'body', 
+                template: '<div class="popover" role="tooltip"><div class="arrow"></div><h3 class="popover-header"></h3><div class="popover-body"></div></div>'
+            });
 
-// --- BEGIN ADDED DEBUG LINES ---
-console.log("DEBUG: DEFAULT_PICOT_CRITERIA_JSON_STR:", DEFAULT_PICOT_CRITERIA_JSON_STR);
-console.log("DEBUG: DEFAULT_SYSTEM_PROMPT_JSON_STR:", DEFAULT_SYSTEM_PROMPT_JSON_STR);
-console.log("DEBUG: DEFAULT_OUTPUT_INSTRUCTIONS_JSON_STR:", DEFAULT_OUTPUT_INSTRUCTIONS_JSON_STR);
-// --- END ADDED DEBUG LINES ---
+            $(document).on('click', function (e) {
+                let isPopoverClick = $(e.target).closest('[data-toggle="popover"]').length > 0;
+                let isInsidePopover = $(e.target).closest('.popover.show').length > 0;
 
-const DEFAULT_PICOT_CRITERIA = JSON.parse(DEFAULT_PICOT_CRITERIA_JSON_STR);
-const DEFAULT_SYSTEM_PROMPT_JS = JSON.parse(DEFAULT_SYSTEM_PROMPT_JSON_STR);
-const DEFAULT_OUTPUT_INSTRUCTIONS_JS = JSON.parse(DEFAULT_OUTPUT_INSTRUCTIONS_JSON_STR);
+                if (!isPopoverClick && !isInsidePopover) {
+                    $('[data-toggle="popover"]').popover('hide');
+                }
+            });
+            
+            $('[data-toggle="popover"]').on('show.bs.popover', function () {
+                $('[data-toggle="popover"]').not(this).popover('hide');
+            });
+            console.log("Popovers initialized (or attempted to initialize) successfully.");
 
-function getDefaultTextForField(fieldId) {
-    if (DEFAULT_PICOT_CRITERIA && DEFAULT_PICOT_CRITERIA[fieldId] !== undefined) {
-        return DEFAULT_PICOT_CRITERIA[fieldId] || ''; // Ensure it returns string, not null/undefined
-    }
-    if (fieldId === 'ai_system_prompt') return DEFAULT_SYSTEM_PROMPT_JS || '';
-    if (fieldId === 'ai_output_format_instructions') return DEFAULT_OUTPUT_INSTRUCTIONS_JS || '';
-    return '';
-}
-
-function applyPlaceholderBehavior(textareaElement) {
-    const fieldId = textareaElement.id;
-    // Get default text, ensuring it's a string for comparison and assignment
-    const defaultText = String(getDefaultTextForField(fieldId) || ''); 
-    const currentValue = String(textareaElement.value || '');
-
-    // Log for debugging
-    // console.log(`Field: ${fieldId}, Current: "${currentValue.substring(0,20)}...", Default: "${defaultText.substring(0,20)}...", Match: ${currentValue.trim() === defaultText.trim()}`);
-
-    if (currentValue.trim() === defaultText.trim() && defaultText.trim() !== '') { // Only apply if there IS a default text
-        textareaElement.classList.add('textarea-is-placeholder');
+        } catch (popoverError) {
+            console.error("Error during Popover initialization or event binding:", popoverError);
+        }
     } else {
-        textareaElement.classList.remove('textarea-is-placeholder');
-    }
-
-    textareaElement.addEventListener('focus', function() {
-        const currentDefault = String(getDefaultTextForField(this.id) || '');
-        if (this.classList.contains('textarea-is-placeholder') && String(this.value || '').trim() === currentDefault.trim()) {
-            this.value = '';
-            this.classList.remove('textarea-is-placeholder');
-        }
-    });
-
-    textareaElement.addEventListener('blur', function() {
-        const currentDefault = String(getDefaultTextForField(this.id) || '');
-        if (String(this.value || '').trim() === '' && currentDefault.trim() !== '') { 
-            this.value = currentDefault;
-            this.classList.add('textarea-is-placeholder');
-        }
-    });
-
-    textareaElement.addEventListener('input', function() {
-        if (this.classList.contains('textarea-is-placeholder')) {
-            this.classList.remove('textarea-is-placeholder');
-        }
-    });
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    const criteriaTextareas = document.querySelectorAll(
-        'textarea[name^="p_"], textarea[name^="i_"], textarea[name^="c_"], textarea[name^="o_"], textarea[name^="t_"], '
-        + 'textarea[name="other_inclusion"], textarea[name="other_exclusion"], '
-        + 'textarea[name="ai_system_prompt"], textarea[name="ai_output_format_instructions"]'
-    );
-    
-    if (criteriaTextareas) {
-        criteriaTextareas.forEach(textarea => {
-            if (textarea) {
-                applyPlaceholderBehavior(textarea);
-            }
-        });
+        console.error("jQuery or Bootstrap Popover not loaded, popovers will not work.");
     }
 });
 
-// Initialize popovers with enhanced configuration
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM Content Loaded, initializing popovers...');
-    
-    // Make sure jQuery and Bootstrap are loaded
-    if (typeof $ === 'undefined') {
-        console.error('jQuery is not loaded');
-        return;
-    }
-    if (typeof $.fn.popover === 'undefined') {
-        console.error('Bootstrap popover is not loaded');
-        return;
-    }
-
-    // Enable popovers with custom options
-    const popoverElements = $('[data-toggle="popover"]');
-    console.log('Found popover elements:', popoverElements.length);
-    
-    popoverElements.popover({
-        html: true,
-        sanitize: false,
-        trigger: 'click',
-        container: 'body',
-        template: '<div class="popover" role="tooltip"><div class="arrow"></div><h3 class="popover-header"></h3><div class="popover-body"></div></div>'
-    });
-
-    // Log popover content for debugging
-    popoverElements.each(function() {
-        console.log('Popover content for', $(this).attr('title'), ':', $(this).attr('data-content'));
-    });
-
-    // Close popover when clicking outside
-    $(document).on('click', function (e) {
-        if ($(e.target).data('toggle') !== 'popover'
-            && $(e.target).parents('.popover.show').length === 0
-            && !$(e.target).hasClass('fa-question-circle')) { 
-            $('[data-toggle="popover"]').popover('hide');
-        }
-    });
-
-    // Toggle popover on button click
-    $('.help-button').on('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('Help button clicked:', $(this).attr('title'));
-        
-        // Hide all other popovers
-        $('[data-toggle="popover"]').not(this).popover('hide');
-        
-        // Toggle current popover
-        $(this).popover('toggle');
-    });
-});
 </script>
 {% endblock %} 
