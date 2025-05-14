@@ -21,7 +21,7 @@ DEFAULT_OUTPUT_INSTRUCTIONS = (
     "Format your response EXACTLY as follows (LABEL and Justification on separate lines):\n"
     "LABEL: [Your Decision - INCLUDE, EXCLUDE, or MAYBE]\n"
     "Justification: [Your Brief Justification. If MAYBE, state what needs clarification.]"
-)
+).strip().replace('\r', '').replace('\t', '    ')
 
 # --- ADDED: Configuration for PDF Processing ---
 TESSERACT_CMD_PATH = os.getenv("TESSERACT_CMD_PATH", None) # Default to None, app/utils will handle if not set
