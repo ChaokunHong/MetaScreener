@@ -93,19 +93,19 @@
                     <label for="saved_criteria_select" class="sr-only">Load Saved Criteria:</label>
                     <div class="input-group input-group-sm">
                         <select id="saved_criteria_select" class="form-control form-control-sm" title="Select a saved criteria set to load or manage">
-                            <option value="">-- Select a set to load/manage --</option>
+                            <option value="">-- Select a set --</option>
                         </select>
                         <div class="input-group-append">
                             <button type="button" id="load_criteria_button" class="btn btn-info btn-sm">Load to Form</button>
-                            <button type="button" id="update_loaded_set_button" class="btn btn-outline-success btn-sm" style="display:none;">Update Current Local Set</button>
-                            <button type="button" id="delete_criteria_button" class="btn btn-outline-danger btn-sm" style="display:none;">Delete Selected</button>
+                            <button type="button" id="update_loaded_local_set_button" class="btn btn-outline-success btn-sm" style="display:none;">Update Loaded Local Set</button>
+                            <button type="button" id="delete_criteria_button" class="btn btn-outline-danger btn-sm" style="display:none;">Delete Selected Local Set</button>
                         </div>
                     </div>
-                    <small id="loaded_set_name_display" class="form-text text-muted" style="display:none;">Currently editing: <strong></strong></small>
+                    <small id="loaded_set_name_display" class="form-text text-muted" style="display:none;">Form currently shows: <strong></strong> (unsaved local changes unless updated/applied)</small>
                 </div>
             </div>
             <div class="col-md-5 text-md-right">
-                 <button type="button" id="save_criteria_as_button" class="btn btn-success btn-sm">Save Form As New Local Set...</button>
+                 <button type="button" id="save_criteria_as_button" class="btn btn-success btn-sm">Save Form as New Local Set...</button>
             </div>
         </div>
         <hr>
@@ -197,10 +197,10 @@
             </div>
         </div>
         
-        {# --- Buttons --- #}
+        {# --- Main Action Buttons --- #}
         <div class="mt-4">
-            <button type="submit" class="btn btn-primary btn-sm" name="submit_action" value="save_current">Save Current to Server</button> {# Changed text and added name/value #}
-            <a href="{{ url_for('reset_criteria') }}" class="btn btn-warning btn-sm">Reset to Defaults (on Server)</a>
+            <button type="submit" class="btn btn-primary btn-lg" name="submit_action" value="save_and_apply">Apply Criteria for Screening</button>
+            <a href="{{ url_for('reset_criteria') }}" class="btn btn-warning btn-sm ml-2">Reset to Server Defaults</a>
         </div>
     </form>
 </div>
@@ -209,7 +209,8 @@
 {% block extra_js %}
 <script>
 const CRITERIA_SETS_KEY = 'metaScreenerCriteriaSets';
-let currentlyLoadedSetName = null; // Variable to track the currently loaded set name
+let currentlyLoadedSetName = null; 
+let formDirty = false; // Flag to track if form has been changed since load
 
 function getAllCriteriaFieldIds() {
     const prefixes = ['p', 'i', 'c', 'o', 't'];
@@ -220,152 +221,147 @@ function getAllCriteriaFieldIds() {
     return ids;
 }
 
+const allCriteriaFields = getAllCriteriaFieldIds().map(id => document.getElementById(id)).filter(el => el);
+
+function setFormDirty(isDirty) {
+    formDirty = isDirty;
+    updateButtonStates(); // Update button states which might depend on dirty status
+}
+
+allCriteriaFields.forEach(field => {
+    field.addEventListener('input', () => setFormDirty(true));
+});
+
 function updateButtonStates() {
     const select = document.getElementById('saved_criteria_select');
-    const updateButton = document.getElementById('update_loaded_set_button');
+    const updateButton = document.getElementById('update_loaded_local_set_button');
     const deleteButton = document.getElementById('delete_criteria_button');
-    const loadedSetNameDisplay = document.getElementById('loaded_set_name_display');
-    const selectedValue = select.value;
+    const loadedSetNameDisplayStrong = document.getElementById('loaded_set_name_display').querySelector('strong');
+    const loadedSetNameDisplaySmall = document.getElementById('loaded_set_name_display');
+    const selectedValueInDropdown = select.value;
 
     if (currentlyLoadedSetName) {
-        loadedSetNameDisplay.style.display = 'block';
-        loadedSetNameDisplay.querySelector('strong').textContent = currentlyLoadedSetName;
-        updateButton.style.display = 'inline-block';
-        // Show delete button if the loaded set is also the selected one in dropdown for deletion
-        deleteButton.style.display = (selectedValue === currentlyLoadedSetName) ? 'inline-block' : 'none';
+        loadedSetNameDisplaySmall.style.display = 'inline';
+        loadedSetNameDisplayStrong.textContent = currentlyLoadedSetName;
+        // Show update button only if form is dirty OR if no specific set is selected in dropdown (meaning form is independent)
+        updateButton.style.display = 'inline-block'; 
+        deleteButton.style.display = (selectedValueInDropdown === currentlyLoadedSetName) ? 'inline-block' : 'none';
     } else {
-        loadedSetNameDisplay.style.display = 'none';
+        loadedSetNameDisplaySmall.style.display = 'none';
         updateButton.style.display = 'none';
-        deleteButton.style.display = selectedValue ? 'inline-block' : 'none'; // Show delete if any set is selected in dropdown
+        deleteButton.style.display = selectedValueInDropdown ? 'inline-block' : 'none';
+    }
+    // Disable update button if form is not dirty and a set is loaded (no changes to update)
+    if (updateButton.style.display === 'inline-block' && !formDirty && currentlyLoadedSetName) {
+        // updateButton.disabled = true; // Decided against this, can be confusing
     }
 }
 
 function populateSavedCriteriaDropdown() {
     const select = document.getElementById('saved_criteria_select');
     const criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
-    const currentSelectedValue = select.value; // Preserve selection if possible
-    select.innerHTML = '<option value="">-- Select a set to load/manage --</option>';
+    const currentSelectedValue = select.value;
+    select.innerHTML = '<option value="">-- Select a local set --</option>';
     for (const name in criteriaSets) {
         const option = document.createElement('option');
         option.value = name;
         option.textContent = name;
-        if (name === currentSelectedValue) {
-            option.selected = true;
-        }
+        if (name === currentSelectedValue) option.selected = true;
         select.appendChild(option);
     }
-    updateButtonStates(); // Update button visibility based on selection
+    updateButtonStates(); 
 }
 
 function saveCriteriaToLocalStorage(setName, showOverwriteConfirm = true) {
     let criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
     if (showOverwriteConfirm && criteriaSets[setName]) {
-        if (!confirm(`A criteria set named '${setName}' already exists. Overwrite it?`)) {
+        if (!confirm(`A local criteria set named '${setName}' already exists. Overwrite it?`)) {
             return false;
         }
     }
     const currentCriteria = {};
-    const fieldIds = getAllCriteriaFieldIds();
-    fieldIds.forEach(id => {
+    getAllCriteriaFieldIds().forEach(id => {
         const element = document.getElementById(id);
         if (element) currentCriteria[id] = element.value;
     });
     criteriaSets[setName] = currentCriteria;
     localStorage.setItem(CRITERIA_SETS_KEY, JSON.stringify(criteriaSets));
+    setFormDirty(false); // After saving, form is no longer "dirty" relative to this saved version
     return true;
 }
 
 document.getElementById('save_criteria_as_button').addEventListener('click', function() {
-    const setName = prompt("Enter a name for this new or existing criteria set:");
+    const setName = prompt("Enter a name for this local criteria set (new or to overwrite):");
     if (!setName || setName.trim() === '') {
         alert("Criteria set name cannot be empty.");
         return;
     }
-    if (saveCriteriaToLocalStorage(setName.trim())) {
-        alert(`Criteria set '${setName.trim()}' saved successfully to local storage!`);
-        currentlyLoadedSetName = setName.trim(); // Set the newly saved/overwritten set as current
+    const trimmedSetName = setName.trim();
+    if (saveCriteriaToLocalStorage(trimmedSetName)) {
+        alert(`Criteria set '${trimmedSetName}' saved to local storage!`);
+        currentlyLoadedSetName = trimmedSetName;
         populateSavedCriteriaDropdown();
-        document.getElementById('saved_criteria_select').value = currentlyLoadedSetName; // Select it in dropdown
-        updateButtonStates(); // Refresh button states
+        document.getElementById('saved_criteria_select').value = currentlyLoadedSetName;
+        updateButtonStates();
     }
 });
 
 document.getElementById('load_criteria_button').addEventListener('click', function() {
     const select = document.getElementById('saved_criteria_select');
     const setName = select.value;
-    if (!setName) {
-        alert("Please select a criteria set to load.");
-        return;
-    }
+    if (!setName) { alert("Please select a criteria set to load."); return; }
     const criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
     const selectedCriteria = criteriaSets[setName];
     if (selectedCriteria) {
-        const fieldIds = getAllCriteriaFieldIds();
-        fieldIds.forEach(id => {
+        getAllCriteriaFieldIds().forEach(id => {
             const element = document.getElementById(id);
             if (element && selectedCriteria[id] !== undefined) element.value = selectedCriteria[id];
         });
-        currentlyLoadedSetName = setName; // Track the loaded set
+        currentlyLoadedSetName = setName;
+        setFormDirty(false); // Form is now clean relative to the loaded set
         updateButtonStates();
-        if (confirm(`Criteria set '${setName}' loaded into the form. Save these to the server to use for screening now?`)) {
-            document.getElementById('criteriaForm').submit();
-        } else {
-            alert(`Criteria set '${setName}' loaded. Click 'Save Current to Server' to apply them for screening.`);
-        }
-    } else {
-        alert("Error: Could not find the selected criteria set.");
-    }
+        alert(`Criteria set '${setName}' loaded into the form. If you wish to use these for screening, click 'Apply Criteria for Screening'.`);
+    } else { alert("Error: Could not find the selected criteria set."); }
 });
 
-document.getElementById('update_loaded_set_button').addEventListener('click', function(){
+document.getElementById('update_loaded_local_set_button').addEventListener('click', function(){
     if (!currentlyLoadedSetName) {
-        alert("No criteria set is currently loaded to update. Please load a set first.");
+        alert("No criteria set is currently loaded to update. Please load a set first or use 'Save Form as New Local Set...'.");
         return;
     }
     if (confirm(`Are you sure you want to update the locally saved criteria set '${currentlyLoadedSetName}' with the current form content?`)){
         if (saveCriteriaToLocalStorage(currentlyLoadedSetName, false)) { // false for showOverwriteConfirm
             alert(`Locally saved criteria set '${currentlyLoadedSetName}' updated successfully!`);
-            // No need to repopulate dropdown if name hasn't changed
-        } else {
-            alert("Failed to update the local criteria set."); // Should not happen if name is valid
-        }
+            setFormDirty(false); // Form is now clean relative to the updated set
+        } else { alert("Error: Failed to update the local criteria set."); }
     }
+    updateButtonStates(); // Refresh button states
 });
 
 document.getElementById('delete_criteria_button').addEventListener('click', function() {
     const select = document.getElementById('saved_criteria_select');
     const setName = select.value;
-    if (!setName) {
-        alert("Please select a criteria set to delete.");
-        return;
-    }
-    if (confirm(`Are you sure you want to delete the locally saved criteria set '${setName}'? This action cannot be undone.`)) {
+    if (!setName) { alert("Please select a criteria set to delete."); return; }
+    if (confirm(`Are you sure you want to delete the locally saved criteria set '${setName}'? This cannot be undone.`)) {
         let criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
         delete criteriaSets[setName];
         localStorage.setItem(CRITERIA_SETS_KEY, JSON.stringify(criteriaSets));
         alert(`Criteria set '${setName}' deleted successfully!`);
-        if (currentlyLoadedSetName === setName) { // If the deleted set was the one loaded
+        if (currentlyLoadedSetName === setName) {
             currentlyLoadedSetName = null;
+            setFormDirty(true); // Form content is now effectively a new, unsaved set
         }
-        populateSavedCriteriaDropdown(); // Refresh dropdown and button states
+        populateSavedCriteriaDropdown(); 
     }
 });
 
-// Event listener for the main form to clear currentlyLoadedSetName if user manually changes things
-const criteriaForm = document.getElementById('criteriaForm');
-const allFormFields = getAllCriteriaFieldIds().map(id => document.getElementById(id)).filter(el => el);
-allFormFields.forEach(field => {
-    field.addEventListener('input', function() {
-        // If user types in any field, they are no longer strictly editing the "loaded" set
-        // currentlyLoadedSetName = null; // This might be too aggressive, user might just be tweaking
-        // updateButtonStates(); // Let's not do this for now, can be annoying
-    });
-});
+// Reset to Defaults button (which is an <a> tag) might also clear currentlyLoadedSetName
+// Or submitting the form to server might also conceptually mean you're done with the loaded set for now.
+// For simplicity, these are not explicitly clearing currentlyLoadedSetName yet.
 
 document.addEventListener('DOMContentLoaded', function() {
     const modeRadios = document.querySelectorAll('input[name="criteria_mode"]');
     const advancedSettingsDiv = document.querySelector('.advanced-settings');
-
     function toggleAdvancedSettings() {
         if (document.querySelector('input[name="criteria_mode"]:checked').value === 'advanced') {
             advancedSettingsDiv.style.display = 'block';
@@ -373,18 +369,10 @@ document.addEventListener('DOMContentLoaded', function() {
             advancedSettingsDiv.style.display = 'none';
         }
     }
+    modeRadios.forEach(radio => radio.addEventListener('change', toggleAdvancedSettings));
+    toggleAdvancedSettings();
 
-    modeRadios.forEach(radio => {
-        radio.addEventListener('change', toggleAdvancedSettings);
-    });
-
-    // Initial check in case the page loads with advanced selected (e.g., after validation error)
-    toggleAdvancedSettings(); 
-
-    // Initial population of the dropdown
     populateSavedCriteriaDropdown();
-    // updateButtonStates(); // Called inside populateSavedCriteriaDropdown
 });
 </script>
-{% endblock %} 
 {% endblock %} 
