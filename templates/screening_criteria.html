@@ -85,8 +85,32 @@
         </ul>
     </div>
 
-    <form method="POST" action="{{ url_for('set_criteria') }}">
-        
+    <form method="POST" action="{{ url_for('set_criteria') }}" id="criteriaForm">
+        {# --- NEW: Save/Load Criteria Section --- #}
+        <div class="row mt-3 mb-4">
+            <div class="col-md-6">
+                <h5>Manage Criteria Sets</h5>
+                <div class="form-group">
+                    <label for="saved_criteria_select">Load Saved Criteria:</label>
+                    <div class="input-group input-group-sm">
+                        <select id="saved_criteria_select" class="form-control form-control-sm"></select>
+                        <div class="input-group-append">
+                            <button type="button" id="load_criteria_button" class="btn btn-info btn-sm">Load</button>
+                            <button type="button" id="delete_criteria_button" class="btn btn-danger btn-sm" style="display:none;">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h5 class="text-right">&nbsp;</h5> {# Placeholder for alignment #}
+                <div class="form-group text-right">
+                     <button type="button" id="save_criteria_as_button" class="btn btn-success btn-sm mt-4">Save Current Criteria As...</button>
+                </div>
+            </div>
+        </div>
+        <hr>
+        {# --- END NEW: Save/Load Criteria Section --- #}
+
         <h3 class="mt-4">PICOT Criteria</h3>
         <div class="accordion" id="picotAccordion">
             {# MODIFIED Macro for Include/Exclude/Maybe within an Accordion structure #}
@@ -177,8 +201,8 @@
         
         {# --- Buttons --- #}
         <div class="mt-4">
-            <button type="submit" class="btn btn-success btn-sm">Save Criteria & Settings</button>
-            <a href="{{ url_for('reset_criteria') }}" class="btn btn-warning btn-sm">Reset to Defaults</a>
+            <button type="submit" class="btn btn-primary btn-sm" name="submit_action" value="save_current">Save Current to Server</button> {# Changed text and added name/value #}
+            <a href="{{ url_for('reset_criteria') }}" class="btn btn-warning btn-sm">Reset to Defaults (on Server)</a>
         </div>
     </form>
 </div>
@@ -186,6 +210,104 @@
 
 {% block extra_js %}
 <script>
+// Key for localStorage
+const CRITERIA_SETS_KEY = 'metaScreenerCriteriaSets';
+
+// Function to get all PICOT and Advanced field IDs
+function getAllCriteriaFieldIds() {
+    const prefixes = ['p', 'i', 'c', 'o', 't'];
+    const suffixes = ['include', 'exclude', 'maybe'];
+    let ids = [];
+    prefixes.forEach(p => suffixes.forEach(s => ids.push(`${p}_${s}`)));
+    ids.push('other_inclusion', 'other_exclusion', 'ai_system_prompt', 'ai_output_format_instructions');
+    return ids;
+}
+
+// Populate the dropdown with saved criteria sets
+function populateSavedCriteriaDropdown() {
+    const select = document.getElementById('saved_criteria_select');
+    const deleteButton = document.getElementById('delete_criteria_button');
+    select.innerHTML = '<option value="">-- Select a saved set --</option>'; // Default option
+    const criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
+    for (const name in criteriaSets) {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+    }
+    // Show/hide delete button based on if a set is selected
+    select.addEventListener('change', function() {
+        deleteButton.style.display = this.value ? 'inline-block' : 'none';
+    });
+    deleteButton.style.display = select.value ? 'inline-block' : 'none'; // Initial state
+}
+
+// Save current criteria to localStorage
+document.getElementById('save_criteria_as_button').addEventListener('click', function() {
+    const setName = prompt("Enter a name for this criteria set:");
+    if (!setName || setName.trim() === '') {
+        alert("Criteria set name cannot be empty.");
+        return;
+    }
+    let criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
+    if (criteriaSets[setName]) {
+        if (!confirm(`A criteria set named '${setName}' already exists. Overwrite it?`)) {
+            return;
+        }
+    }
+    const currentCriteria = {};
+    const fieldIds = getAllCriteriaFieldIds();
+    fieldIds.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) currentCriteria[id] = element.value;
+    });
+    criteriaSets[setName] = currentCriteria;
+    localStorage.setItem(CRITERIA_SETS_KEY, JSON.stringify(criteriaSets));
+    alert(`Criteria set '${setName}' saved successfully!`);
+    populateSavedCriteriaDropdown(); // Refresh dropdown
+});
+
+// Load selected criteria from localStorage into the form
+document.getElementById('load_criteria_button').addEventListener('click', function() {
+    const select = document.getElementById('saved_criteria_select');
+    const setName = select.value;
+    if (!setName) {
+        alert("Please select a criteria set to load.");
+        return;
+    }
+    const criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
+    const selectedCriteria = criteriaSets[setName];
+    if (selectedCriteria) {
+        const fieldIds = getAllCriteriaFieldIds();
+        fieldIds.forEach(id => {
+            const element = document.getElementById(id);
+            if (element && selectedCriteria[id] !== undefined) {
+                element.value = selectedCriteria[id];
+            }
+        });
+        alert(`Criteria set '${setName}' loaded successfully! Your changes are now in the form. Remember to click 'Save Current to Server' if you want to use these for screening.`);
+    } else {
+        alert("Error: Could not find the selected criteria set.");
+    }
+});
+
+// Delete selected criteria from localStorage
+document.getElementById('delete_criteria_button').addEventListener('click', function() {
+    const select = document.getElementById('saved_criteria_select');
+    const setName = select.value;
+    if (!setName) {
+        alert("Please select a criteria set to delete.");
+        return;
+    }
+    if (confirm(`Are you sure you want to delete the criteria set '${setName}'? This action cannot be undone.`)) {
+        let criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
+        delete criteriaSets[setName];
+        localStorage.setItem(CRITERIA_SETS_KEY, JSON.stringify(criteriaSets));
+        alert(`Criteria set '${setName}' deleted successfully!`);
+        populateSavedCriteriaDropdown(); // Refresh dropdown
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     const modeRadios = document.querySelectorAll('input[name="criteria_mode"]');
     const advancedSettingsDiv = document.querySelector('.advanced-settings');
@@ -204,6 +326,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initial check in case the page loads with advanced selected (e.g., after validation error)
     toggleAdvancedSettings(); 
+
+    // Initial population of the dropdown
+    populateSavedCriteriaDropdown();
 });
 </script>
 {% endblock %} 
