@@ -45,6 +45,8 @@ from config import (
     DEFAULT_FRAMEWORK_VALUES, # DEFAULT_EXAMPLE_CRITERIA, <-- Ensure this is removed
     get_blank_criteria_for_framework  # local import to avoid circular
 )
+# --- Import the new Blueprint ---
+from quality_assessment import quality_bp
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -57,6 +59,15 @@ full_screening_sessions = {} # ADDED: For holding full screening results tempora
 pdf_screening_results = TTLCache(maxsize=500, ttl=7200)
 pdf_extraction_results = {} # ADDED: For extraction results
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Initialize ThreadPoolExecutor
+# Adjust max_workers based on your server capacity and typical workload
+# For CPU-bound tasks in run_ai_quality_assessment (if any), ProcessPoolExecutor might be better,
+# but for primarily I/O-bound (LLM API calls), ThreadPoolExecutor is usually fine.
+app.executor = ThreadPoolExecutor(max_workers=5) 
+
+# --- Register the Blueprint ---
+app.register_blueprint(quality_bp, url_prefix='/quality') # Added a URL prefix for clarity
 
 
 # --- ADDED: Helper function to parse line ranges ---

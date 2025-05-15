@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Upload for Quality Assessment{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Upload Document for Quality Assessment</h2>
+    <p class="lead mb-4">Upload your PDF document here. The system will perform an AI-driven quality assessment based on established checklists relevant to the document type. You can optionally specify the document type, or the AI will attempt to classify it.</p>
+
+    {# Information about Assessment Tools #}
+    {% if assessment_tools_info %}
+    <div class="card bg-light mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Supported Assessment Frameworks</h5>
+        </div>
+        <div class="card-body">
+            <p>This tool utilizes AI to apply criteria from recognized quality assessment tools tailored to different study designs. Current frameworks include:</p>
+            <ul>
+                {% for doc_type, tool_info in assessment_tools_info.items() %}
+                    <li><strong>{{ doc_type }}</strong>: Assessed using criteria based on <em>{{ tool_info.tool_name }}</em>.</li>
+                {% endfor %}
+            </ul>
+            <p class="small text-muted">
+                The AI assessment provides an initial evaluation. Users are encouraged to review the AI's judgments and apply their own expertise.
+                The specific criteria for each tool are simplified and adapted for AI application and may not represent the full, official checklist.
+            </p>
+        </div>
+    </div>
+    {% endif %}
+    
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('.upload_document_for_assessment') }}">
+        
+        
+        <div class="form-group mb-3">
+            <label for="pdf_file">Select PDF File:</label>
+            <input type="file" class="form-control" id="pdf_file" name="pdf_file" accept=".pdf" required>
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="document_type">Document Type (Optional):</label>
+            <select class="form-select" id="document_type" name="document_type">
+                <option value="">Let AI Decide / Not Specified</option>
+                <option value="Systematic Review">Systematic Review / Meta-Analysis</option>
+                <option value="RCT">Randomized Controlled Trial (RCT)</option>
+                <option value="Cohort Study">Cohort Study</option>
+                <option value="Case-Control Study">Case-Control Study</option>
+                <option value="Diagnostic Study">Diagnostic Study</option>
+                <option value="Qualitative Study">Qualitative Study</option>
+                <option value="Other">Other</option>
+            </select>
+            <small class="form-text text-muted">If not specified, the system will attempt to classify it later.</small>
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-3">Upload and Assess</button>
+    </form>
+
+    <hr class="my-4">
+    <h4>Batch Upload (Coming Soon)</h4>
+    <p>Functionality to upload multiple documents at once and view results in a table will be added here.</p>
+
+</div>
+{% endblock %} 
