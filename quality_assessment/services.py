@@ -19,6 +19,7 @@ from quality_assessment.prompts import get_assessment_prompt # Import the prompt
 import os
 import pickle
 from pathlib import Path
+import time
 
 # Placeholder for storing assessment data (in a real app, this would be a database)
 _assessments_db = {}
@@ -30,10 +31,43 @@ ASSESSMENTS_FILE = os.path.join(DATA_DIR, 'assessments.pickle')
 # Define directory for storing uploaded PDFs for quality assessment preview
 QA_PDF_UPLOAD_DIR = os.path.join(DATA_DIR, 'quality_assessment_pdfs')
 
+# Define cleanup interval (1 hour in seconds)
+QA_PDF_CLEANUP_INTERVAL_SECONDS = 60 * 60 
+
 # Create data directory if it doesn't exist
 os.makedirs(DATA_DIR, exist_ok=True)
 # Create QA PDF upload directory if it doesn't exist
 os.makedirs(QA_PDF_UPLOAD_DIR, exist_ok=True)
+
+def cleanup_old_qa_pdfs():
+    """Cleans up PDF files older than QA_PDF_CLEANUP_INTERVAL_SECONDS in QA_PDF_UPLOAD_DIR."""
+    now = time.time()
+    files_deleted_count = 0
+    current_app.logger.info(f"QA_PDF_CLEANUP: Starting cleanup of old PDF files in {QA_PDF_UPLOAD_DIR}.")
+
+    try:
+        for filename in os.listdir(QA_PDF_UPLOAD_DIR):
+            file_path = os.path.join(QA_PDF_UPLOAD_DIR, filename)
+            if os.path.isfile(file_path) and filename.lower().endswith('.pdf'):
+                try:
+                    file_mod_time = os.path.getmtime(file_path)
+                    if (now - file_mod_time) > QA_PDF_CLEANUP_INTERVAL_SECONDS:
+                        os.remove(file_path)
+                        files_deleted_count += 1
+                        current_app.logger.info(f"QA_PDF_CLEANUP: Deleted old PDF: {filename}")
+                        
+                        # Optional: Update _assessments_db to remove reference to the deleted PDF
+                        # This requires parsing assessment_id from filename or iterating _assessments_db
+                        # For simplicity, we are not doing this here to avoid loading/saving _assessments_db
+                        # frequently by a cleanup task. The preview will just fail if file is gone.
+                except OSError as e_remove:
+                    current_app.logger.error(f"QA_PDF_CLEANUP: Error deleting file {file_path}: {e_remove}")
+                except Exception as e_check:
+                    current_app.logger.error(f"QA_PDF_CLEANUP: Error checking file {file_path}: {e_check}")
+    except Exception as e_list:
+        current_app.logger.error(f"QA_PDF_CLEANUP: Error listing files in {QA_PDF_UPLOAD_DIR}: {e_list}")
+
+    current_app.logger.info(f"QA_PDF_CLEANUP: Finished cleanup. Deleted {files_deleted_count} old PDF files.")
 
 def _save_assessments_to_file(assessment_id_to_log: Optional[str] = None):
     """Save assessment data to file for persistence"""

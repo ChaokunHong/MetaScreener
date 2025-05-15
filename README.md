@@ -25,6 +25,7 @@
   - [Abstract Screening](#abstract-screening)
   - [Full-text Screening](#full-text-screening)
   - [Data Extraction](#data-extraction)
+  - [Quality Assessment](#quality-assessment)
   - [Batch Processing](#batch-processing)
 - [Installation Guide](#-installation-guide)
   - [Environment Requirements](#environment-requirements)
@@ -110,6 +111,11 @@ MetaScreener is a web application specifically designed for medical literature s
   - Template-based extraction instruction settings for structured data capture
   - JSON schema configuration for consistent output formatting
   - Support for multiple data fields with complex relationships
+
+- **Quality Assessment**
+  - Single or batch PDF methodological quality evaluation
+  - Supports AMSTAR 2, Cochrane RoB 2, QUADAS-2, Newcastle-Ottawa Scale, AXIS, CASP and other standardized tools
+  - Criterion-level AI judgments with detailed rationales and overall summaries
 
 ### User Experience Enhancements
 - **Professional Landing Page**: Clear and concise entry guidance
@@ -256,6 +262,20 @@ MetaScreener is a web application specifically designed for medical literature s
   - Citation metadata preservation
   - Extracted data can be directly integrated with analysis workflows
 
+### Quality Assessment
+- **Assessment Configuration**:
+  - Upload single or multiple PDFs for automatic methodological quality assessment
+  - Choose document type (Systematic Review, RCT, Cohort, Case-Control, Cross-sectional, Qualitative) or let AI classify automatically
+  - Criteria derived from AMSTAR 2, Cochrane RoB 2, QUADAS-2, Newcastle-Ottawa Scale, AXIS, CASP, etc.
+- **Processing Control**:
+  - Real-time progress monitoring with status polling
+  - Parallel assessment for batch uploads with graceful error handling and retry support
+  - Interactive result view with expandable criterion-level feedback and inline PDF preview
+- **Result Output**:
+  - Summary table of negative findings and total criteria evaluated
+  - Detailed JSON report for each criterion with AI rationale
+  - Export options: CSV, Excel, JSON
+
 ### Batch Processing
 - **Queue Management**:
   - Processing priority settings
@@ -376,6 +396,9 @@ The standard workflow for MetaScreener includes the following steps:
 
 #### 7. Data Extraction (Beta) (`/data_extraction`)
 - Define custom data fields to extract from a single PDF
+
+#### 8. Quality Assessment (`/quality/upload`)
+- Upload one or more PDFs, select or auto-detect study type, run AI quality assessment, view and download detailed reports
 
 ### Best Practices
 - **Framework Selection**: Choose appropriate screening framework based on research type:
@@ -505,6 +528,7 @@ MetaScreener/
 │   ├── batch_pdf_results.html # Batch PDF screening results page
 │   ├── data_extraction.html # Data extraction page
 │   └── extraction_result.html # Data extraction results page
+├── quality_assessment/       # Quality assessment blueprint (routes, services, templates)
 └── uploads/               # Uploaded file temporary storage directory
 ```
 
