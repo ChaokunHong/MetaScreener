@@ -654,6 +654,7 @@ MetaScreener/
 ## 👥 Author Information
 
 MetaScreener was developed by the following researchers:
+
 **Sonia Lewycka**
 - slewycka@oucru.org
 - Centre for Tropical Medicine and Global Health, Nuffield Department of Medicine, University of Oxford
