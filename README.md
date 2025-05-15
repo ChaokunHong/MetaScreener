@@ -654,6 +654,9 @@ MetaScreener/
 ## 👥 Author Information
 
 MetaScreener was developed by the following researchers:
+**Sonia Lewycka**
+- slewycka@oucru.org
+- Centre for Tropical Medicine and Global Health, Nuffield Department of Medicine, University of Oxford
 
 **Chaokun Hong**
 - chaokun.hong@ndm.ox.ac.uk
@@ -663,7 +666,8 @@ MetaScreener was developed by the following researchers:
 - ngthao.20107@gmail.com
 - Oxford University Clinical Research Unit, National Hospital for Tropical Diseases, Hanoi, Vietnam
 
-We welcome feedback about MetaScreener's performance, functionality, and improvements, especially usage data from actual literature screening workflows (sensitivity, specificity, time saved, etc.). Your real-world usage data is invaluable for improving this tool!
+
+We welcome feedback about MetaScreener's performance, functionality, and improvements, especially usage data from actual literature screening workflows (sensitivity, specificity, time saved, etc.). Your real-world usage data is invaluable for improving this tool! We will include any valuable feedback in the contributions or acknowledgments.
 
 ## ⚖️ Disclaimer
 
