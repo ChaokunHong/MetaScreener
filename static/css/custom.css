@@ -1,0 +1,390 @@
+/**
+ * MetaScreener Custom Styles
+ * Modern UI with purple theme
+ * Optimized for performance and better UX
+ */
+
+/* Page loader */
+#page-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.97);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+#page-loader.loaded {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.spinner-container {
+  text-align: center;
+}
+
+.spinner-container .spinner-border {
+  width: 3rem;
+  height: 3rem;
+  color: var(--primary-color) !important;
+}
+
+/* Improve focus styles for accessibility */
+:focus {
+  outline: 3px solid rgba(123, 44, 191, 0.3) !important;
+  outline-offset: 2px;
+}
+
+/* Smooth scrolling for better UX */
+html {
+  scroll-behavior: smooth;
+}
+
+:root {
+  /* Color palette */
+  --primary-color: #7B2CBF;       /* Main purple */
+  --secondary-color: #9B5DE5;     /* Lighter purple */
+  --tertiary-color: #D6D6D6;      /* Light grey */
+  --background-color: #FFFFFF;    /* Pure white */
+  --title-color: #1A1A1A;         /* Almost black */
+  --text-color: #333333;          /* Dark grey */
+  --light-bg: #F9FAFB;            /* Very light grey */
+  --border-color: #E5E7EB;        /* Light grey for borders */
+  --hover-color: #a873e6;         /* Lighter purple for hover states */
+  --focus-color: #6a1ca0;         /* Darker purple for focus/active states */
+  --success-color: #059669;       /* Green for success */
+  --warning-color: #D97706;       /* Orange for warnings/maybe */
+  --danger-color: #DC2626;        /* Red for errors/exclusions */
+  --info-color: #3B82F6;          /* Blue for info/neutral */
+}
+
+/* Base styles */
+body {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: var(--text-color);
+  background-color: var(--light-bg);
+  padding-top: 70px;
+  padding-bottom: 60px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: var(--title-color);
+  font-weight: 600;
+}
+
+h1, h2 {
+  margin-bottom: 0.8em;
+}
+
+h2 {
+  font-size: 1.75rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.3em;
+}
+
+/* Navigation bar */
+.navbar-custom {
+  background-color: var(--primary-color) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-dark .navbar-nav .nav-item.active > .nav-link {
+  border-bottom: 3px solid white;
+  padding-bottom: calc(0.5rem - 3px);
+  color: white;
+  font-weight: 500;
+}
+
+.navbar-dark .navbar-nav .nav-link:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* Cards and sections */
+.section-card {
+  margin-bottom: 25px;
+  padding: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background-color: var(--background-color);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  transition: box-shadow 0.3s ease;
+}
+
+.section-card:hover {
+  box-shadow: 0 4px 6px rgba(0,0,0,0.08);
+}
+
+.criteria-section {
+  margin-bottom: 15px;
+  background-color: #f9f9f9;
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+}
+
+/* Buttons */
+.btn {
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+.btn:focus {
+  box-shadow: 0 0 0 0.2rem rgba(123, 44, 191, 0.25);
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+  background-color: var(--hover-color);
+  border-color: var(--hover-color);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active, .btn-primary:focus {
+  background-color: var(--focus-color) !important;
+  border-color: var(--focus-color) !important;
+}
+
+.btn-secondary {
+  background-color: var(--tertiary-color);
+  border-color: var(--tertiary-color);
+  color: var(--title-color);
+}
+
+.btn-secondary:hover {
+  background-color: #c0c0c0;
+  border-color: #c0c0c0;
+  color: var(--title-color);
+  transform: translateY(-1px);
+}
+
+.btn-success {
+  background-color: var(--success-color);
+  border-color: var(--success-color);
+}
+
+.btn-success:hover {
+  background-color: #057857;
+  border-color: #057857;
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background-color: var(--danger-color);
+  border-color: var(--danger-color);
+}
+
+.btn-danger:hover {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.btn-group-sm > .btn, .btn-sm {
+  padding: .25rem .5rem;
+  font-size: .875rem;
+  line-height: 1.5;
+  border-radius: 4px;
+}
+
+/* Form elements */
+.form-control {
+  border-radius: 6px;
+  border-color: var(--border-color);
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+  border-color: var(--secondary-color);
+  box-shadow: 0 0 0 0.2rem rgba(155, 93, 229, 0.25);
+}
+
+textarea {
+  min-height: 70px;
+  font-size: 0.95rem;
+}
+
+.form-group label {
+  font-weight: 500;
+  color: var(--title-color);
+  margin-bottom: 0.3rem;
+}
+
+/* Alerts and notifications */
+.alert {
+  margin-top: 15px;
+  border-radius: 6px;
+  border-width: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.alert-success {
+  background-color: rgba(5, 150, 105, 0.1);
+  color: var(--success-color);
+  border-left: 4px solid var(--success-color);
+}
+
+.alert-danger {
+  background-color: rgba(220, 38, 38, 0.1);
+  color: var(--danger-color);
+  border-left: 4px solid var(--danger-color);
+}
+
+.alert-warning {
+  background-color: rgba(217, 119, 6, 0.1);
+  color: var(--warning-color);
+  border-left: 4px solid var(--warning-color);
+}
+
+.alert-info {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: var(--info-color);
+  border-left: 4px solid var(--info-color);
+}
+
+/* Progress logs */
+#progress_log {
+  max-height: 150px;
+  overflow-y: auto;
+  font-size: 0.8em;
+  background-color: var(--background-color);
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  margin-top: 8px;
+  border-radius: 6px;
+  white-space: pre-line;
+}
+
+#progress_log div {
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+#progress_log div:last-child {
+  border-bottom: none;
+}
+
+.log-item-decision {
+  font-weight: bold;
+  margin-left: 5px;
+}
+
+.log-decision-INCLUDE {
+  color: var(--success-color);
+}
+
+.log-decision-EXCLUDE {
+  color: var(--danger-color);
+}
+
+.log-decision-MAYBE {
+  color: var(--warning-color);
+}
+
+.log-decision-ERROR,
+.log-decision-CONFIG_ERROR,
+.log-decision-PROMPT_ERROR {
+  color: var(--danger-color);
+}
+
+.log-decision-NO_ABSTRACT {
+  color: #666;
+}
+
+/* Footer */
+.footer {
+  padding: 1rem 0;
+  color: #6c757d;
+  text-align: center;
+  font-size: 0.9em;
+  border-top: 1px solid var(--border-color);
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  background-color: var(--background-color);
+}
+
+/* Misc helpers */
+.api-key-info {
+  font-size: 0.85em;
+  color: #555;
+  margin-bottom: 15px;
+}
+
+/* Tables */
+.table {
+  border-collapse: collapse;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.table thead th {
+  background-color: var(--light-bg);
+  color: var(--title-color);
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+  background-color: rgba(249, 250, 251, 0.5);
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(155, 93, 229, 0.05);
+}
+
+/* Custom switch */
+.custom-switch .custom-control-label::before {
+  background-color: #cbd5e0;
+}
+
+.custom-control-input:checked ~ .custom-control-label::before {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+/* Badges */
+.badge-primary {
+  background-color: var(--primary-color);
+}
+
+.badge-secondary {
+  background-color: var(--tertiary-color);
+  color: var(--title-color);
+}
+
+.badge-success {
+  background-color: var(--success-color);
+}
+
+.badge-warning {
+  background-color: var(--warning-color);
+}
+
+.badge-danger {
+  background-color: var(--danger-color);
+}
+
+/* Custom fonts for code/monospace */
+code, pre, .monospace {
+  font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+} 

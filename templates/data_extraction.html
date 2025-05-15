@@ -4,80 +4,142 @@
 
 {% block extra_head %}
 <style>
-    .field-group { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 5px; background-color: #fdfdfd; }
+    .field-group { 
+        border: 1px solid var(--border-color); 
+        padding: 15px; 
+        margin-bottom: 15px; 
+        border-radius: 8px; 
+        background-color: var(--background-color);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        transition: box-shadow 0.3s ease;
+    }
+    .field-group:hover {
+        box-shadow: 0 3px 6px rgba(123, 44, 191, 0.1);
+    }
     .field-group label { font-weight: 600; font-size: 0.9em; }
     .field-group input, .field-group textarea { margin-bottom: 5px; }
-    .delete-field-btn { font-size: 0.8em; }
-    .best-practices { background-color: #f0f8ff; border-left: 4px solid #17a2b8; padding: 15px; margin-bottom: 20px; font-size: 0.9em; }
+    .delete-field-btn { font-size: 0.85em; }
+    .best-practices { 
+        background-color: rgba(155, 93, 229, 0.05); 
+        border-left: 4px solid var(--primary-color); 
+        padding: 15px; 
+        margin-bottom: 20px; 
+        font-size: 0.9em;
+        border-radius: 0 8px 8px 0;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="section-card">
-    <h2>Data Extraction (from Single PDF - Beta)</h2>
-    <p>Define the data points you want to extract, then upload a PDF document.</p>
+    <h2>Data Extraction <span class="badge badge-pill badge-warning">Beta</span></h2>
+    <p>Define the specific data points you want to extract from a PDF document, then upload it for processing.</p>
     
-    {# --- Tips --- #}
-    <div class="best-practices">
-        <h5>Tips for Effective Extraction Instructions:</h5>
-        <ul>
+    {# --- Tips with improved styling --- #}
+    <div class="best-practices mb-4">
+        <div class="d-flex align-items-center mb-2">
+            <i class="bi bi-lightbulb-fill mr-2" style="color: var(--info-color); font-size: 1.2rem;"></i>
+            <h5 class="mb-0">Tips for Effective Extraction Instructions:</h5>
+        </div>
+        <ul class="mb-0">
             <li><strong>Be Specific:</strong> Ask for exactly what you need (e.g., 'mean age in years', 'sample size for intervention group'). Use the 'Field Name' as a unique key.</li>
             <li><strong>Request Format:</strong> Clearly specify units or desired format if needed (e.g., 'Report number only', 'Include 95% CI').</li>
             <li><strong>Use Examples:</strong> Providing an example in the 'Expected Format' field helps the AI greatly.</li>
             <li><strong>One Point per Field:</strong> Avoid asking for multiple unrelated pieces of data in a single field instruction.</li>
             <li><strong>Focus on Text:</strong> The AI reads the text. Ensure the information is likely present in the document text.</li>
         </ul>
+        <button class="btn btn-link btn-sm p-0 mt-2 collapse-tips" type="button">Hide tips</button>
     </div>
 
     {# --- Extraction Form --- #}
     <form method="POST" action="{{ url_for('extract_data_pdf') }}" enctype="multipart/form-data" id="extract_form">
         
-        {# --- Dynamic Field Definitions --- #}
-        <h3>Define Data Fields to Extract</h3>
-        <div id="extraction-fields-container">
-            {# Initial Field Group (Example) - Can be added dynamically #}
-            <div class="field-group">
-                <div class="form-row">
-                    <div class="form-group col-md-3">
-                        <label for="field_name_0">Field Name (Key)</label>
-                        <input type="text" name="field_name_0" class="form-control form-control-sm" placeholder="e.g., sample_size" required>
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label for="instruction_0">Extraction Instruction / Question</label>
-                        <input type="text" name="instruction_0" class="form-control form-control-sm" placeholder="e.g., What was the total sample size?" required>
-                    </div>
-                    <div class="form-group col-md-3">
-                        <label for="example_0">Expected Format / Example</label>
-                        <input type="text" name="example_0" class="form-control form-control-sm" placeholder="e.g., 123">
+        <div class="card mb-4">
+            <div class="card-header" style="background-color: rgba(123, 44, 191, 0.05); border-bottom: 1px solid rgba(123, 44, 191, 0.1);">
+                <h3 class="mb-0 h5" style="color: var(--primary-color);"><i class="bi bi-list-ul mr-2"></i>Define Data Fields to Extract</h3>
+            </div>
+            <div class="card-body">
+                <div id="extraction-fields-container">
+                    {# Initial Field Group (Example) - Can be added dynamically #}
+                    <div class="field-group">
+                        <div class="form-row">
+                            <div class="form-group col-md-3">
+                                <label for="field_name_0">
+                                    <i class="bi bi-key-fill mr-1 text-muted small"></i>Field Name (Key)
+                                </label>
+                                <input type="text" name="field_name_0" class="form-control form-control-sm" placeholder="e.g., sample_size" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="instruction_0">
+                                    <i class="bi bi-question-circle-fill mr-1 text-muted small"></i>Extraction Instruction / Question
+                                </label>
+                                <input type="text" name="instruction_0" class="form-control form-control-sm" placeholder="e.g., What was the total sample size?" required>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label for="example_0">
+                                    <i class="bi bi-card-text mr-1 text-muted small"></i>Expected Format / Example
+                                </label>
+                                <input type="text" name="example_0" class="form-control form-control-sm" placeholder="e.g., 123">
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-danger btn-sm delete-field-btn" onclick="removeField(this)">
+                            <i class="bi bi-trash mr-1"></i>Remove Field
+                        </button>
                     </div>
                 </div>
-                <button type="button" class="btn btn-danger btn-sm delete-field-btn" onclick="removeField(this)">Remove Field</button>
+                <button type="button" id="add-field-btn" class="btn btn-outline-secondary btn-sm mt-3">
+                    <i class="bi bi-plus-circle mr-1"></i>Add Another Field
+                </button>
             </div>
         </div>
-        <button type="button" id="add-field-btn" class="btn btn-secondary btn-sm mt-2">+ Add Another Field</button>
-        <hr>
 
-        {# --- File Upload --- #}
-        <h3>Upload PDF for Extraction</h3>
-        <div class="alert alert-warning small">
-            <strong>Warning:</strong> Data extraction is experimental. Always verify results. Processing can be slow and costly.
+        <div class="card mb-4">
+            <div class="card-header" style="background-color: rgba(123, 44, 191, 0.05); border-bottom: 1px solid rgba(123, 44, 191, 0.1);">
+                <h3 class="mb-0 h5" style="color: var(--primary-color);"><i class="bi bi-file-pdf mr-2"></i>Upload PDF for Extraction</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning small">
+                    <i class="bi bi-exclamation-triangle-fill mr-1"></i>
+                    <strong>Warning:</strong> Data extraction is experimental. Always verify results. Processing can be slow and costly.
+                </div>
+                <div class="form-group mt-3">
+                    <label for="pdf_extract_file">Select PDF Document:</label>
+                    <div class="custom-file">
+                        <input type="file" name="pdf_extract_file" id="pdf_extract_file" class="custom-file-input" required accept=".pdf">
+                        <label class="custom-file-label" for="pdf_extract_file">Choose PDF file...</label>
+                    </div>
+                    <small class="form-text text-muted mt-1">Maximum file size: 50MB</small>
+                </div>
+                
+                <button id="start_extract_button" type="submit" class="btn btn-success mt-3">
+                    <span id="extract_spinner" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true" style="display: none;"></span>
+                    <i class="bi bi-lightning-charge mr-1"></i>Extract Data from PDF
+                </button>
+            </div>
         </div>
-        <div class="form-group mt-3">
-            <label for="pdf_extract_file">Upload PDF File:</label>
-            <input type="file" name="pdf_extract_file" id="pdf_extract_file" class="form-control-file form-control-sm" required accept=".pdf">
-        </div>
-        
-        {# --- Submit Button --- #}
-         <button id="start_extract_button" type="submit" class="btn btn-success btn-sm mt-3">
-            <span id="extract_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
-            Extract Data from PDF
-        </button>
     </form>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+// UI Enhancement for tips collapse
+document.addEventListener('DOMContentLoaded', function() {
+    const tipsBtn = document.querySelector('.collapse-tips');
+    if (tipsBtn) {
+        tipsBtn.addEventListener('click', function() {
+            const tipsUl = this.previousElementSibling;
+            if (tipsUl.style.display === 'none') {
+                tipsUl.style.display = 'block';
+                this.textContent = 'Hide tips';
+            } else {
+                tipsUl.style.display = 'none';
+                this.textContent = 'Show tips';
+            }
+        });
+    }
+});
+
 let fieldCounter = 1; // Start counter for unique IDs/names
 
 function addField() {
@@ -99,7 +161,9 @@ function addField() {
                 <input type="text" name="example_${fieldCounter}" class="form-control form-control-sm" placeholder="e.g., RCT">
             </div>
         </div>
-        <button type="button" class="btn btn-danger btn-sm delete-field-btn" onclick="removeField(this)">Remove Field</button>
+        <button type="button" class="btn btn-outline-danger btn-sm delete-field-btn" onclick="removeField(this)">
+            <i class="bi bi-trash mr-1"></i>Remove Field
+        </button>
     `;
     container.appendChild(newFieldGroup);
     fieldCounter++;
@@ -119,7 +183,25 @@ function removeField(button) {
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('add-field-btn').addEventListener('click', addField);
 
-    // Spinner Logic (unchanged)
+    // Custom file input display
+    const fileInput = document.getElementById('pdf_extract_file');
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            // Get the label element 
+            const label = this.nextElementSibling;
+            
+            // Get the selected file name
+            let fileName = '';
+            if (this.files && this.files.length > 0) {
+                fileName = this.files[0].name;
+            }
+            
+            // Update the label text with the file name or default text
+            label.textContent = fileName || 'Choose PDF file...';
+        });
+    }
+    
+    // Spinner Logic and form validation
     const extractForm = document.getElementById('extract_form');
     const extractButton = document.getElementById('start_extract_button');
     const extractSpinner = document.getElementById('extract_spinner');
@@ -134,13 +216,24 @@ document.addEventListener('DOMContentLoaded', function() {
                      event.preventDefault(); // Stop submission
                      return;
                 }
+                
+                // Check file size (max 50MB)
+                const maxSize = 50 * 1024 * 1024; // 50MB in bytes
+                if (pdfFileInput.files[0].size > maxSize) {
+                    alert("File is too large. Maximum size is 50MB.");
+                    event.preventDefault();
+                    return;
+                }
+                
+                // Display spinner and disable button
                 extractSpinner.style.display = 'inline-block';
                 extractButton.disabled = true;
+                extractButton.innerHTML = '<span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>Processing...';
             } else {
-                 // This case should be caught by the 'required' attribute on file input
-                 // If not, uncomment below
-                 // alert('Please select a PDF file.'); 
-                 // event.preventDefault();
+                // This case should be caught by the 'required' attribute on file input
+                // If not, uncomment below
+                // alert('Please select a PDF file.'); 
+                // event.preventDefault();
             }
         });
     }

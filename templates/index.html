@@ -1,107 +1,406 @@
 {% extends "base.html" %}
 
-{% block title %}Welcome to MetaScreener - AI Literature Screening Assistant{% endblock %}
+{% block title %}MetaScreener - AI-Powered Literature Screening Tool{% endblock %}
 
 {% block extra_head %}
 <style>
+    /* Hero section styling */
     .hero-section {
-        padding: 4rem 2rem;
-        margin-bottom: 2rem;
-        background-color: #e9ecef;
-        border-radius: .3rem;
+        padding: 5rem 2rem;
+        margin-bottom: 3rem;
+        background: linear-gradient(135deg, #7B2CBF11, #9B5DE522);
+        border-radius: 12px;
         text-align: center;
-        display: flex; /* For vertical centering of content */
-        flex-direction: column; /* Stack items vertically */
-        align-items: center; /* Center items horizontally */
-        justify-content: center; /* Center items vertically */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(123, 44, 191, 0.1);
     }
+    
+    .hero-section::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%239B5DE5' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+        z-index: 0;
+    }
+    
+    .hero-content {
+        position: relative;
+        z-index: 2;
+    }
+    
     .hero-section .display-4 {
-        font-weight: 300;
-        color: #111827; /* Darker heading color */
+        font-weight: 700;
+        color: var(--title-color);
+        margin-bottom: 1rem;
+        letter-spacing: -0.5px;
     }
+    
     .hero-section .lead {
-        font-size: 1.25rem;
-        font-weight: 300;
-        color: #4B5563; /* Medium gray for lead text */
-        max-width: 700px; /* Constrain width for readability */
-        margin-left: auto;
-        margin-right: auto;
+        font-size: 1.4rem;
+        font-weight: 400;
+        color: var(--primary-color);
+        max-width: 700px;
+        margin: 0 auto 1.5rem;
     }
+    
     .hero-section .logo-img {
-        max-height: 70px; /* Slightly smaller logo */
+        max-height: 80px;
         margin-bottom: 1.5rem;
+        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
     }
+    
+    .hero-actions {
+        margin-top: 2rem;
+    }
+    
     .hero-actions .btn {
         margin: 0.5rem;
-        padding: 0.75rem 1.5rem; /* Larger buttons */
+        padding: 0.85rem 1.8rem;
         font-size: 1.1rem;
-        transition: all 0.2s ease-in-out; /* Smooth transition for hover */
+        transition: all 0.2s ease-in-out;
+        border-radius: 8px;
+        font-weight: 500;
     }
+    
     .hero-actions .btn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        box-shadow: 0 4px 12px rgba(123, 44, 191, 0.25);
     }
-    .features-section h3 {
-        margin-bottom: 2rem;
-        color: #111827;
+    
+    /* Workflow section */
+    .workflow-section {
+        margin-bottom: 4rem;
     }
-    .features-section .section-card {
-        transition: all 0.2s ease-in-out;
+    
+    .workflow-section h2 {
+        text-align: center;
+        margin-bottom: 2.5rem;
+        font-weight: 600;
+        color: var(--title-color);
     }
-    .features-section .section-card:hover {
+    
+    .workflow-step {
+        position: relative;
+        padding: 0 1rem;
+    }
+    
+    .workflow-step:not(:last-child)::after {
+        content: "";
+        position: absolute;
+        top: 2.5rem;
+        right: -1rem;
+        width: 2rem;
+        height: 2px;
+        background-color: var(--border-color);
+        z-index: 1;
+    }
+    
+    .workflow-step .step-number {
+        width: 40px;
+        height: 40px;
+        background-color: var(--primary-color);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-weight: 600;
+        z-index: 2;
+        position: relative;
+    }
+    
+    .workflow-step .step-title {
+        font-weight: 600;
+        color: var(--title-color);
+        margin-bottom: 0.5rem;
+        text-align: center;
+    }
+    
+    .workflow-step .step-description {
+        font-size: 0.95rem;
+        color: var(--text-color);
+        text-align: center;
+    }
+
+    /* Features section styling */
+    .features-section h2 {
+        margin-bottom: 2.5rem;
+        color: var(--title-color);
+        text-align: center;
+        font-weight: 600;
+    }
+    
+    .feature-card {
+        height: 100%;
+        border-radius: 10px;
+        padding: 1.5rem;
+        background-color: white;
+        border: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .feature-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+        border-color: var(--secondary-color);
     }
-    .features-section .section-card h4 .bi {
-        margin-right: 0.6em;
-        vertical-align: -0.1em; /* Adjust icon alignment */
-        font-size: 1.2em; /* Slightly larger icons */
-        color: #2563EB; /* Blue icon color */
+    
+    .feature-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--primary-color);
+        align-self: center;
+    }
+    
+    .feature-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: var(--title-color);
+        text-align: center;
+    }
+    
+    .feature-description {
+        font-size: 0.95rem;
+        color: var(--text-color);
+        flex-grow: 1;
+        text-align: center;
+    }
+    
+    /* Getting started section */
+    .getting-started-section {
+        margin: 4rem 0;
+        background-color: #f9fafb;
+        border-radius: 12px;
+        padding: 3rem 2rem;
+        text-align: center;
+        border: 1px solid var(--border-color);
+    }
+    
+    .getting-started-section h2 {
+        margin-bottom: 1.5rem;
+        color: var(--title-color);
+    }
+    
+    .action-cards {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+    
+    .action-card {
+        flex: 1;
+        min-width: 250px;
+        max-width: 300px;
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        border: 1px solid var(--border-color);
+        transition: all 0.2s ease;
+    }
+    
+    .action-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        border-color: var(--primary-color);
+    }
+    
+    .action-icon {
+        font-size: 2rem;
+        color: var(--primary-color);
+        margin-bottom: 1rem;
+    }
+    
+    .action-title {
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: var(--title-color);
+    }
+    
+    .action-description {
+        font-size: 0.9rem;
+        color: var(--text-color);
+        margin-bottom: 1.5rem;
+    }
+    
+    .action-btn {
+        margin-top: auto;
+    }
+    
+    /* Media queries for responsiveness */
+    @media (max-width: 768px) {
+        .workflow-step:not(:last-child)::after {
+            display: none;
+        }
+        
+        .workflow-step {
+            margin-bottom: 2rem;
+        }
+        
+        .hero-section {
+            padding: 3rem 1rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
+<!-- Hero Section -->
 <div class="hero-section">
-    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="MetaScreener Logo" class="logo-img">
-    <h1 class="display-4">MetaScreener</h1>
-    <p class="lead">AI-powered Assistant for Abstract & Full-text Screening</p>
-    <hr class="my-4" style="width: 50%;">
-    <p style="max-width: 700px; margin-left: auto; margin-right: auto;">Efficiently screen abstracts and full-text PDFs for your systematic reviews using Large Language Models. Save time and improve accuracy.</p>
-    <div class="hero-actions">
-        <a class="btn btn-primary btn-lg" href="{{ url_for('llm_config_page') }}" role="button">
-            <i class="bi bi-sliders"></i> Configure LLM & Start
-        </a>
-        <a class="btn btn-secondary btn-lg" href="{{ url_for('screening_actions_page') }}" role="button">
-            <i class="bi bi-card-checklist"></i> View Screening Actions
-        </a>
+    <div class="hero-content">
+        <img src="{{ url_for('static', filename='images/logo_optimized.png') }}" alt="MetaScreener Logo" class="logo-img">
+        <h1 class="display-4">MetaScreener</h1>
+        <p class="lead">Transform your literature screening process</p>
+        <p style="max-width: 700px; margin: 0 auto 2rem; color: var(--text-color);">
+            An advanced AI-powered tool that helps researchers efficiently screen abstracts and full-text PDFs for systematic reviews and meta-analyses.
+            Designed to significantly reduce screening workload while maintaining reliability through human-AI collaboration.
+        </p>
+        <div class="hero-actions">
+            <a class="btn btn-primary btn-lg" href="{{ url_for('llm_config_page') }}" role="button">
+                <i class="bi bi-lightning-charge"></i> Get Started
+            </a>
+            <a class="btn btn-outline-secondary btn-lg" href="#features-section" role="button">
+                <i class="bi bi-card-checklist"></i> Explore Features
+            </a>
+        </div>
     </div>
 </div>
 
-<div class="container features-section">
-    <div class="row text-center mb-4">
-        <div class="col-12">
-            <h3>Key Features</h3>
+<!-- Workflow Section -->
+<div class="container workflow-section">
+    <h2>How It Works</h2>
+    <div class="row">
+        <div class="col-md-3 workflow-step">
+            <div class="step-number">1</div>
+            <div class="step-title">Configure</div>
+            <p class="step-description">Set up your LLM provider and API key for the screening process.</p>
+        </div>
+        <div class="col-md-3 workflow-step">
+            <div class="step-number">2</div>
+            <div class="step-title">Define Criteria</div>
+            <p class="step-description">Define your inclusion/exclusion criteria using structured frameworks.</p>
+        </div>
+        <div class="col-md-3 workflow-step">
+            <div class="step-number">3</div>
+            <div class="step-title">Upload & Screen</div>
+            <p class="step-description">Upload RIS files or PDFs and begin the automated screening process.</p>
+        </div>
+        <div class="col-md-3 workflow-step">
+            <div class="step-number">4</div>
+            <div class="step-title">Review Results</div>
+            <p class="step-description">Analyze results, export data, and make final decisions confidently.</p>
         </div>
     </div>
+</div>
+
+<!-- Features Section -->
+<div id="features-section" class="container features-section">
+    <h2>Key Features</h2>
     <div class="row">
         <div class="col-md-4 mb-4">
-            <div class="section-card h-100">
-                <h4><i class="bi bi-cpu-fill"></i> Configurable LLMs</h4>
-                <p>Choose from various providers like DeepSeek, OpenAI, Gemini, and Claude. Securely connect your own API key.</p>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="bi bi-cpu"></i>
+                </div>
+                <h3 class="feature-title">Multiple LLM Providers</h3>
+                <p class="feature-description">Leverage DeepSeek, OpenAI, Google Gemini, or Anthropic Claude models with your own API keys for optimal results.</p>
             </div>
         </div>
         <div class="col-md-4 mb-4">
-            <div class="section-card h-100">
-                <h4><i class="bi bi-funnel-fill"></i> Efficient Screening</h4>
-                <p>Screen abstracts from RIS files or full-text PDFs. Batch processing available for PDFs.</p>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="bi bi-filter-square"></i>
+                </div>
+                <h3 class="feature-title">Flexible Screening Frameworks</h3>
+                <p class="feature-description">Choose from PICOT, PICOS, SPIDER, PECO and other evidence-based frameworks to structure your review criteria.</p>
             </div>
         </div>
         <div class="col-md-4 mb-4">
-            <div class="section-card h-100">
-                <h4><i class="bi bi-card-heading"></i> PICOT Criteria</h4>
-                <p>Define detailed inclusion/exclusion criteria using the structured PICOT framework.</p>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="bi bi-file-earmark-text"></i>
+                </div>
+                <h3 class="feature-title">Multi-Format Support</h3>
+                <p class="feature-description">Screen literature from RIS files with abstracts or analyze full-text PDFs with intelligent text extraction and OCR capabilities.</p>
             </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="bi bi-speedometer2"></i>
+                </div>
+                <h3 class="feature-title">Accelerated Workflow</h3>
+                <p class="feature-description">Process multiple documents simultaneously with multi-threading and real-time progress tracking.</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="bi bi-clipboard-data"></i>
+                </div>
+                <h3 class="feature-title">Performance Metrics</h3>
+                <p class="feature-description">Evaluate screening accuracy with confusion matrices, Cohen's Kappa, sensitivity, specificity, and workload reduction statistics.</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="bi bi-layout-text-window"></i>
+                </div>
+                <h3 class="feature-title">Data Extraction</h3>
+                <p class="feature-description">Extract structured data from full-text documents with customizable extraction templates and JSON formatting.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Getting Started Section -->
+<div class="container getting-started-section">
+    <h2>Ready to transform your literature screening?</h2>
+    <p class="mb-4">Choose your path to get started with MetaScreener</p>
+    
+    <div class="action-cards">
+        <div class="action-card">
+            <div class="action-icon">
+                <i class="bi bi-lightning-charge"></i>
+            </div>
+            <h3 class="action-title">Quick Start</h3>
+            <p class="action-description">Configure your LLM and begin screening immediately with default settings.</p>
+            <a href="{{ url_for('llm_config_page') }}" class="btn btn-primary action-btn">Get Started</a>
+        </div>
+        
+        <div class="action-card">
+            <div class="action-icon">
+                <i class="bi bi-sliders"></i>
+            </div>
+            <h3 class="action-title">Customize Criteria</h3>
+            <p class="action-description">Define detailed inclusion and exclusion criteria for your specific review needs.</p>
+            <a href="{{ url_for('screening_criteria_page') }}" class="btn btn-primary action-btn">Define Criteria</a>
+        </div>
+        
+        <div class="action-card">
+            <div class="action-icon">
+                <i class="bi bi-file-earmark-text"></i>
+            </div>
+            <h3 class="action-title">Screen Documents</h3>
+            <p class="action-description">Upload RIS files or PDFs and start the screening process directly.</p>
+            <a href="{{ url_for('screening_actions_page') }}" class="btn btn-primary action-btn">Screen Now</a>
         </div>
     </div>
 </div>
