@@ -75,6 +75,9 @@
                 <li class="nav-item {% if request.endpoint == 'data_extraction_page' %}active{% endif %}">
                     <a class="nav-link" href="{{ url_for('data_extraction_page') }}">Data Extraction</a>
                 </li>
+                <li class="nav-item {% if request.blueprint == 'quality_assessment' %}active{% endif %}">
+                    <a class="nav-link" href="{{ url_for('quality_assessment.upload_document_for_assessment') }}">Quality Assessment</a>
+                </li>
             </ul>
         </div>
     </nav>
