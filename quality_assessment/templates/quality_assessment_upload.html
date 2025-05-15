@@ -4,8 +4,8 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Upload Document for Quality Assessment</h2>
-    <p class="lead mb-4">Upload your PDF document here. The system will perform an AI-driven quality assessment based on established checklists relevant to the document type. You can optionally specify the document type, or the AI will attempt to classify it.</p>
+    <h2>Upload Document(s) for Quality Assessment</h2>
+    <p class="lead mb-4">Upload one or more PDF documents here. The system will perform an AI-driven quality assessment for each document based on established checklists relevant to its type. You can optionally specify a single document type for all uploaded files if they are the same, or the AI will attempt to classify each document individually.</p>
 
     {# Information about Assessment Tools #}
     {% if assessment_tools_info %}
@@ -28,35 +28,56 @@
     </div>
     {% endif %}
     
-    <form method="POST" enctype="multipart/form-data" action="{{ url_for('.upload_document_for_assessment') }}">
-        
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('.upload_document_for_assessment') }}" id="qaUploadForm">
         
         <div class="form-group mb-3">
-            <label for="pdf_file">Select PDF File:</label>
-            <input type="file" class="form-control" id="pdf_file" name="pdf_file" accept=".pdf" required>
+            <label for="pdf_files">Select PDF File(s):</label>
+            <input type="file" class="form-control" id="pdf_files" name="pdf_files" accept=".pdf" required multiple onchange="updateSelectedFilesList(this.files)">
+        </div>
+
+        <div id="selected-files-list" class="mb-3" style="display:none;">
+            <h6>Selected Files:</h6>
+            <ul class="list-group"></ul>
         </div>
 
         <div class="form-group mb-3">
-            <label for="document_type">Document Type (Optional):</label>
+            <label for="document_type">Document Type (Optional - applies to all selected files if specified):</label>
             <select class="form-select" id="document_type" name="document_type">
-                <option value="">Let AI Decide / Not Specified</option>
+                <option value="">Let AI Decide / Not Specified for each</option>
                 <option value="Systematic Review">Systematic Review / Meta-Analysis</option>
                 <option value="RCT">Randomized Controlled Trial (RCT)</option>
                 <option value="Cohort Study">Cohort Study</option>
                 <option value="Case-Control Study">Case-Control Study</option>
                 <option value="Diagnostic Study">Diagnostic Study</option>
                 <option value="Qualitative Study">Qualitative Study</option>
-                <option value="Other">Other</option>
+                <option value="Other">Other (General)</option>
             </select>
-            <small class="form-text text-muted">If not specified, the system will attempt to classify it later.</small>
+            <small class="form-text text-muted">If not specified, the system will attempt to classify each document individually.</small>
         </div>
 
-        <button type="submit" class="btn btn-primary mt-3">Upload and Assess</button>
+        <button type="submit" class="btn btn-primary mt-3">Upload and Assess Selected File(s)</button>
     </form>
 
-    <hr class="my-4">
-    <h4>Batch Upload (Coming Soon)</h4>
-    <p>Functionality to upload multiple documents at once and view results in a table will be added here.</p>
-
 </div>
+
+<script>
+function updateSelectedFilesList(files) {
+    const listContainer = document.getElementById('selected-files-list');
+    const ul = listContainer.querySelector('ul');
+    ul.innerHTML = ''; // Clear previous list
+
+    if (files.length > 0) {
+        listContainer.style.display = 'block';
+        for (let i = 0; i < files.length; i++) {
+            const li = document.createElement('li');
+            li.className = 'list-group-item list-group-item-sm';
+            li.textContent = files[i].name + ' (' + (files[i].size / 1024).toFixed(2) + ' KB)';
+            ul.appendChild(li);
+        }
+    } else {
+        listContainer.style.display = 'none';
+    }
+}
+</script>
+
 {% endblock %} 

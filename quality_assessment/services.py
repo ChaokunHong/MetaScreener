@@ -40,7 +40,7 @@ def _save_assessments_to_file(assessment_id_to_log: Optional[str] = None):
     try:
         if assessment_id_to_log and assessment_id_to_log in _assessments_db:
             current_assessment_data_to_save = _assessments_db[assessment_id_to_log]
-            print(f"SAVE_LOGIC: For {assessment_id_to_log}, status being saved: {current_assessment_data_to_save.get('status')}, details count: {len(current_assessment_data_to_save.get('assessment_details', []))}")
+            print(f"SAVE_LOGIC: For {assessment_id_to_log}, status being saved: {current_assessment_data_to_save.get('status')}, details count: {len(current_assessment_data_to_save.get('assessment_details', []))}, summary: {current_assessment_data_to_save.get('summary_negative_findings')}")
         
         with open(ASSESSMENTS_FILE, 'wb') as f:
             pickle.dump((_assessments_db, _next_assessment_id), f)
@@ -605,7 +605,7 @@ def get_assessment_result(assessment_id: str):
     if data:
         details = data.get('assessment_details')
         details_count = len(details) if isinstance(details, list) else 0 # Safe way to get length
-        print(f"GET_RESULT_LOGIC: For assessment ID {assessment_id}, status: {data.get('status')}, details count being returned: {details_count}")
+        print(f"GET_RESULT_LOGIC: For assessment ID {assessment_id}, status: {data.get('status')}, details count being returned: {details_count}, summary: {data.get('summary_negative_findings')}")
     else:
         print(f"GET_RESULT_LOGIC: No data found in _assessments_db for assessment ID {assessment_id}")
     return data
@@ -761,12 +761,24 @@ def _execute_assessment_logic(assessment_id: str, llm_config: Dict):
         assessment_data['status'] = 'completed'
         assessment_data['progress']['message'] = "Assessment completed!"
         assessment_data['progress']['current'] = total_criteria
+
+        # Calculate a simple summary: count of negative judgments
+        negative_judgment_count = 0
+        if detailed_results:
+            for res_item in detailed_results:
+                judgment = res_item.get("judgment", "").lower()
+                # Define what constitutes a negative judgment based on your LLM's typical output
+                if "no" in judgment or "high risk" in judgment or "poor" in judgment or judgment == "not met":
+                    negative_judgment_count += 1
+        assessment_data['summary_negative_findings'] = negative_judgment_count
+        assessment_data['summary_total_criteria_evaluated'] = total_criteria
         
         # Force update to ensure the assessment is marked as completed
         if assessment_id in _assessments_db:
             _assessments_db[assessment_id] = assessment_data
             print(f"EXECUTE_LOGIC: Assessment {assessment_id} details count IN DB before save: {len(_assessments_db[assessment_id].get('assessment_details', []))}")
             print(f"EXECUTE_LOGIC: Status IN DB before save: {_assessments_db[assessment_id].get('status')}")
+            print(f"EXECUTE_LOGIC: Summary negative findings IN DB: {_assessments_db[assessment_id].get('summary_negative_findings')}") # Log new summary
 
         # Save completed assessments to file
         _save_assessments_to_file(assessment_id_to_log=assessment_id)

@@ -1,0 +1,445 @@
+{% extends "base.html" %}
+
+{% block title %}Batch Assessment Status - {{ batch_id }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .individual-assessment-progress .progress {
+        height: 10px;
+        margin-top: 5px;
+        margin-bottom: 0;
+    }
+    .status-badge {
+        font-size: 0.8em;
+        padding: 0.3em 0.6em;
+        white-space: nowrap; /* Prevent badge text from wrapping */
+        flex-shrink: 0; /* Prevent status badge from shrinking */
+    }
+    .filename-truncate {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        /* max-width is now applied dynamically or via a more specific selector if needed below */
+        display: inline-block; 
+        vertical-align: middle; 
+    }
+    #batch-summary-table .filename-truncate {
+        max-width: 250px; /* Max width specifically for filename in summary table */
+    }
+    .list-group-item h6 {
+        display: flex; /* Use flex to align filename and ID parts */
+        align-items: baseline; /* Align text baselines */
+        overflow: hidden; /* Added to help contain the flex items */
+        flex-grow: 1; /* Allow h6 to take available space */
+        margin-right: 10px; /* Add some space before the badge */
+    }
+    .list-group-item h6 .text-muted {
+        margin-left: 8px; /* Space between filename and ID */
+        white-space: nowrap; /* Prevent ID part from wrapping */
+        flex-shrink: 0; /* Prevent (ID: ...) part from shrinking too much */
+    }
+    #batch-summary-table th, #batch-summary-table td {
+        font-size: 0.9rem;
+        padding: 0.5rem;
+    }
+    #batch-summary-table .quality-score {
+        font-weight: bold;
+    }
+    .quality-low { color: green; }
+    .quality-medium { color: orange; }
+    .quality-high { color: red; }
+
+    /* Custom Purple for Progress Bars */
+    .progress-bar.bg-purple {
+        background-color: #6f42c1; /* Bootstrap purple, or your preferred shade */
+    }
+    .progress-bar.bg-purple-pending {
+        background-color: #b39ddb; /* Lighter purple for pending/initial state */
+    }
+
+    /* Max width for filename in the individual progress list */
+    #individual-assessments-card .filename-truncate {
+        max-width: 400px; /* Adjust this value as needed */
+    }
+
+    /* Ensure the parent div of h6 and status-badge handles overflow if h6 is too wide */
+    .list-group-item > .d-flex {
+        overflow: hidden; 
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Batch Assessment Status</h2>
+    <p class="lead">Status for Batch ID: <strong>{{ batch_id }}</strong></p>
+
+    {% if batch_info %}
+        <div class="card mb-3" id="batch-summary-card">
+            <div class="card-header">
+                Batch Summary
+            </div>
+            <div class="card-body">
+                <p><strong>Overall Batch Status:</strong> <span id="overall-batch-status" class="badge bg-info">{{ batch_info.status | title }}</span></p>
+                <p id="overall-batch-progress-text">Calculating progress...</p>
+                <div class="progress mb-2" style="height: 15px;">
+                    <div id="overall-batch-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-purple" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                </div>
+                <p><strong>Total Files Attempted:</strong> {{ batch_info.original_attempt_count }}</p>
+                <p><strong>Successfully Queued for Assessment:</strong> {{ batch_info.successful_filenames | length }}</p>
+                {% if batch_info.successful_filenames %}
+                    <ul class="list-unstyled">
+                        {% for name in batch_info.successful_filenames %}
+                            <li><small><i class="bi bi-file-earmark-pdf"></i> {{ name }}</small></li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                {% if batch_info.failed_filenames and batch_info.failed_filenames | length > 0 %}
+                <p class="mt-2"><strong>Failed to Upload/Queue:</strong> {{ batch_info.failed_filenames | length }}</p>
+                    <ul class="list-unstyled">
+                        {% for name in batch_info.failed_filenames %}
+                            <li><small><i class="bi bi-x-circle-fill text-danger"></i> {{ name }}</small></li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Placeholder for the Summary Table - initially hidden or shown when batch is complete #}
+        <div id="batch-summary-table-container" class="mt-4" style="display: none;">
+            <h4>Batch Results Summary</h4>
+            <table class="table table-bordered table-hover" id="batch-summary-table">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Filename</th>
+                        <th>Document Type</th>
+                        <th>Assessment Tool</th>
+                        <th>Quality Issues (Negative Findings / Total Criteria)</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {# Table rows will be populated by JavaScript #}
+                </tbody>
+            </table>
+        </div>
+
+        {# Individual Progress - can be hidden once summary table is shown, or kept #}
+        <div class="card mt-3" id="individual-assessments-card">
+            <div class="card-header">
+                Individual Assessments Progress
+            </div>
+            <ul class="list-group list-group-flush">
+                {% if batch_info.assessment_ids %}
+                    {% for assessment_id in batch_info.assessment_ids %}
+                        {% set loop_index = loop.index0 %}
+                        {% set assessment_filename = batch_info.successful_filenames[loop_index] if loop_index < batch_info.successful_filenames|length else "Unknown Filename" %}
+                        <li class="list-group-item" id="item-{{ assessment_id }}">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">
+                                    <span class="filename-truncate" title="{{ assessment_filename }}">{{ assessment_filename }}</span>
+                                    <small class="text-muted">(ID: {{ assessment_id }})</small>
+                                </h6>
+                                <span id="status-{{ assessment_id }}" class="status-badge badge bg-secondary">Pending...</span>
+                            </div>
+                            <div class="individual-assessment-progress mt-1">
+                                <small id="progress-text-{{ assessment_id }}" class="form-text text-muted">Waiting for status...</small>
+                                <div class="progress" style="height: 10px;">
+                                    <div id="progress-bar-{{ assessment_id }}" class="progress-bar progress-bar-striped progress-bar-animated bg-purple-pending" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-right">
+                                <a href="{{ url_for('.view_assessment_result', assessment_id=assessment_id) }}" id="link-{{assessment_id}}" class="btn btn-sm btn-outline-primary">View Detailed Result</a>
+                            </div>
+                        </li>
+                    {% endfor %}
+                {% else %}
+                    <li class="list-group-item">No assessments were successfully queued in this batch.</li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <div class="mt-4">
+            <a href="{{ url_for('.upload_document_for_assessment') }}" class="btn btn-secondary">Upload More Documents</a>
+        </div>
+
+    {% else %}
+        <div class="alert alert-warning">
+            No information found for this batch ID.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+    const batchId = "{{ batch_id }}";
+    const assessmentIds = JSON.parse('{{ batch_info.assessment_ids | tojson | safe if batch_info and batch_info.assessment_ids else "[]" }}');
+    const statusApiUrlBase = "{{ url_for('.assessment_status', assessment_id='PLACEHOLDER') }}".replace('PLACEHOLDER', '');
+    const batchSummaryApiUrl = "{{ url_for('.get_batch_summary', batch_id=batch_id) }}";
+
+    let pollIntervals = {}; 
+    let assessmentStates = {}; 
+    assessmentIds.forEach(id => { assessmentStates[id] = 'pending_assessment'; });
+
+    let overallProgress = {
+        completed: 0, errors: 0, processing: 0, pending: assessmentIds.length, total: assessmentIds.length
+    };
+    let masterPollInterval = null; 
+    let summaryTableRendered = false; // Flag to ensure table is rendered only once
+
+    function getQualityClass(negativeFindings, totalCriteria) {
+        if (typeof negativeFindings !== 'number' || typeof totalCriteria !== 'number' || totalCriteria === 0) return 'text-muted';
+        const ratio = negativeFindings / totalCriteria;
+        if (ratio <= 0.1) return 'quality-low';    
+        if (ratio <= 0.3) return 'quality-medium'; 
+        return 'quality-high';   
+    }
+
+    async function renderBatchSummaryTable() {
+        if (summaryTableRendered) return;
+        console.log("Fetching batch summary data...");
+        try {
+            const response = await fetch(batchSummaryApiUrl);
+            if (!response.ok) {
+                console.error("Failed to fetch batch summary:", response.status);
+                return;
+            }
+            const summaries = await response.json();
+            console.log("Batch summary data received:", summaries);
+
+            const tableBody = document.querySelector("#batch-summary-table tbody");
+            const summaryContainer = document.getElementById("batch-summary-table-container");
+            const individualProgressCard = document.getElementById("individual-assessments-card");
+            
+            if (!tableBody || !summaryContainer) return;
+            tableBody.innerHTML = ''; 
+
+            summaries.forEach(item => {
+                const row = tableBody.insertRow();
+                
+                const filenameCell = row.insertCell();
+                const filenameSpan = document.createElement('span');
+                filenameSpan.className = 'filename-truncate';
+                filenameSpan.title = item.filename;
+                filenameSpan.textContent = item.filename;
+                filenameCell.appendChild(filenameSpan);
+                
+                row.insertCell().textContent = item.document_type || 'N/A';
+                row.insertCell().textContent = item.tool_name || 'N/A';
+                
+                let qualityCell = row.insertCell();
+                // Check if summary_negative_findings and summary_total_criteria_evaluated are present
+                // This implies it's likely completed, even if item.status field from API is lagging slightly.
+                if (typeof item.negative_findings === 'number' && typeof item.total_criteria === 'number') {
+                    const qualityScoreText = `${item.negative_findings} / ${item.total_criteria}`;
+                    const qualityClass = getQualityClass(item.negative_findings, item.total_criteria);
+                    qualityCell.innerHTML = `<span class="quality-score ${qualityClass}">${qualityScoreText}</span>`;
+                } else {
+                    // Fallback to item.status if numeric summary fields are not available
+                    qualityCell.textContent = item.status ? item.status.replace('_',' ').toUpperCase() : 'Processing...';
+                }
+
+                const actionCell = row.insertCell();
+                const detailLink = document.createElement('a');
+                detailLink.href = "{{ url_for('.view_assessment_result', assessment_id='__ID__') }}".replace('__ID__', item.assessment_id);
+                detailLink.className = 'btn btn-sm btn-outline-info';
+                detailLink.textContent = 'Details';
+                actionCell.appendChild(detailLink);
+            });
+
+            summaryContainer.style.display = 'block';
+            if (individualProgressCard) individualProgressCard.style.display = 'none';
+            summaryTableRendered = true;
+
+        } catch (error) {
+            console.error("Error fetching or rendering batch summary table:", error);
+        }
+    }
+
+    function recalculateOverallProgress() {
+        let completed = 0, errors = 0, processing = 0, pending = 0;
+        assessmentIds.forEach(id => {
+            const state = assessmentStates[id];
+            switch (state) {
+                case 'completed': completed++; break;
+                case 'error': errors++; break;
+                case 'processing_assessment': processing++; break;
+                case 'pending_assessment': pending++; break;
+                default: pending++; 
+            }
+        });
+        overallProgress.completed = completed;
+        overallProgress.errors = errors;
+        overallProgress.processing = processing;
+        overallProgress.pending = pending;
+        updateOverallProgressUI();
+
+        if (completed + errors === overallProgress.total && overallProgress.total > 0) {
+            console.log("All batch items finalized. Stopping master poll and fetching summary table.");
+            if (masterPollInterval) clearInterval(masterPollInterval);
+            masterPollInterval = null;
+            
+            const overallStatusBar = document.getElementById('overall-batch-status');
+            const overallProgressBar = document.getElementById('overall-batch-progress-bar');
+            if (errors > 0) {
+                overallStatusBar.textContent = "Batch Completed with Errors";
+                overallStatusBar.className = "badge bg-warning";
+            } else {
+                overallStatusBar.textContent = "Batch Completed";
+                overallStatusBar.className = "badge bg-success";
+            }
+            if(overallProgressBar) overallProgressBar.classList.remove('progress-bar-animated');
+            
+            renderBatchSummaryTable(); // Fetch and render the summary table
+        }
+    }
+
+    function updateOverallProgressUI() {
+        const overallStatusBar = document.getElementById('overall-batch-status');
+        const overallProgressBar = document.getElementById('overall-batch-progress-bar');
+        const overallProgressText = document.getElementById('overall-batch-progress-text');
+
+        if (!overallStatusBar || !overallProgressBar || !overallProgressText) return;
+
+        let processedCount = overallProgress.completed + overallProgress.errors;
+        let percentage = 0;
+        if (overallProgress.total > 0) {
+            let effectiveProcessed = processedCount + (overallProgress.processing * 0.5); 
+            percentage = (effectiveProcessed / overallProgress.total) * 100;
+        }
+        percentage = Math.min(100, Math.max(0, percentage));
+
+        overallProgressBar.style.width = percentage + '%';
+        overallProgressBar.textContent = Math.round(percentage) + '%';
+        overallProgressBar.setAttribute('aria-valuenow', percentage);
+
+        overallProgressText.textContent = `Processed: ${processedCount} / ${overallProgress.total}. In Progress: ${overallProgress.processing}. Pending: ${overallProgress.pending}. Errors: ${overallProgress.errors}.`;
+
+        // Status badge update moved to recalculateOverallProgress for final state
+        if (!(overallProgress.completed + overallProgress.errors === overallProgress.total)) {
+             overallStatusBar.textContent = "Processing Batch";
+             overallStatusBar.className = "badge bg-info";
+        }
+    }
+
+    async function fetchAssessmentStatus(assessmentId) {
+        try {
+            const response = await fetch(`${statusApiUrlBase}${assessmentId}?_=${new Date().getTime()}`);
+            if (!response.ok) {
+                console.error(`API error for ${assessmentId}: ${response.status}`);
+                assessmentStates[assessmentId] = 'error'; 
+                updateAssessmentUI(assessmentId, { status: 'error', message: `API error ${response.status}` });
+                recalculateOverallProgress(); 
+                return null;
+            }
+            const data = await response.json();
+            assessmentStates[assessmentId] = data.status ? data.status.toLowerCase() : 'unknown'; 
+            updateAssessmentUI(assessmentId, data);
+            recalculateOverallProgress(); 
+            return data;
+        } catch (error) {
+            console.error(`Fetch error for ${assessmentId}:`, error);
+            assessmentStates[assessmentId] = 'error'; 
+            updateAssessmentUI(assessmentId, { status: 'error', message: 'Network/Fetch error' });
+            recalculateOverallProgress(); 
+            return null;
+        }
+    }
+
+    function updateAssessmentUI(assessmentId, data) {
+        const statusBadge = document.getElementById(`status-${assessmentId}`);
+        const progressBar = document.getElementById(`progress-bar-${assessmentId}`);
+        const progressText = document.getElementById(`progress-text-${assessmentId}`);
+        const detailLink = document.getElementById(`link-${assessmentId}`);
+
+        if (!statusBadge || !progressBar || !progressText) return;
+
+        let currentItemStatus = data.status ? data.status.toLowerCase() : 'unknown';
+        statusBadge.textContent = currentItemStatus.replace('_', ' ').toUpperCase();
+        statusBadge.className = `status-badge badge bg-secondary`; 
+
+        let itemProgressPercent = 0;
+        let itemProgressMsg = data.message || currentItemStatus.replace('_', ' ');
+        
+        // Reset progress bar classes first
+        progressBar.className = 'progress-bar progress-bar-striped'; // Keep striped, remove animated and old color
+
+        switch (currentItemStatus) {
+            case 'pending_assessment':
+                statusBadge.className = 'status-badge badge bg-light text-dark';
+                itemProgressMsg = data.progress?.message || "Queued for processing";
+                itemProgressPercent = 2;
+                progressBar.classList.add('bg-purple-pending', 'progress-bar-animated');
+                break;
+            case 'processing_assessment':
+                statusBadge.className = 'status-badge badge bg-info';
+                if (data.progress && data.progress.total > 0) {
+                    itemProgressPercent = (data.progress.current / data.progress.total) * 100;
+                    itemProgressMsg = data.progress.message || `Processing ${data.progress.current}/${data.progress.total}`;
+                } else {
+                    itemProgressPercent = 10; 
+                    itemProgressMsg = data.progress?.message || "Initializing assessment...";
+                }
+                progressBar.classList.add('bg-purple', 'progress-bar-animated');
+                break;
+            case 'completed':
+                statusBadge.className = 'status-badge badge bg-success';
+                itemProgressPercent = 100;
+                itemProgressMsg = "Assessment completed";
+                progressBar.classList.add('bg-success'); // Or bg-purple if you want completed to be purple too
+                if (detailLink) detailLink.classList.remove('disabled');
+                clearInterval(pollIntervals[assessmentId]); 
+                break;
+            case 'error':
+                statusBadge.className = 'status-badge badge bg-danger';
+                itemProgressMsg = data.message || "An error occurred";
+                itemProgressPercent = 100; 
+                progressBar.classList.add('bg-danger');
+                if (detailLink) detailLink.classList.add('disabled');
+                clearInterval(pollIntervals[assessmentId]); 
+                break;
+            default:
+                itemProgressMsg = "Unknown status";
+                itemProgressPercent = 0;
+                progressBar.classList.add('bg-secondary');
+        }
+        
+        progressBar.style.width = Math.min(100, Math.max(0, itemProgressPercent)) + '%';
+        progressBar.setAttribute('aria-valuenow', itemProgressPercent);
+        progressText.textContent = itemProgressMsg;
+    }
+
+    function pollAllAssessments() { // This function is now mainly for the master interval trigger
+        recalculateOverallProgress(); 
+    }
+
+    if (assessmentIds.length > 0) {
+        console.log("Initializing status checks for batch:", batchId, "with IDs:", assessmentIds);
+        assessmentIds.forEach(id => {
+            // Get the detail link for the current assessment ID
+            const currentDetailLink = document.getElementById(`link-${id}`);
+            if (currentDetailLink) { 
+                currentDetailLink.classList.add('disabled'); // Initially disable detail links
+            }
+            fetchAssessmentStatus(id); 
+            pollIntervals[id] = setInterval(() => {
+                const state = assessmentStates[id];
+                if (state !== 'completed' && state !== 'error') {
+                    fetchAssessmentStatus(id);
+                } else {
+                    clearInterval(pollIntervals[id]); 
+                }
+            }, 5000); 
+        });
+        
+        if (masterPollInterval) clearInterval(masterPollInterval);
+        masterPollInterval = setInterval(pollAllAssessments, 3000); 
+        recalculateOverallProgress(); 
+    } else {
+        document.getElementById('overall-batch-progress-text').textContent = "No documents were successfully queued for assessment in this batch.";
+        recalculateOverallProgress(); 
+    }
+
+</script>
+{% endblock %} 
