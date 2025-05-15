@@ -3,10 +3,15 @@ from . import quality_bp # Import the blueprint
 from werkzeug.utils import secure_filename # For securing filenames
 import os
 import json # Import Python's json library
+import uuid # For generating batch IDs
+from typing import Optional # Added for type hint
 
 # We will also need to import services and forms later
 from .services import process_uploaded_document, get_assessment_result, QUALITY_ASSESSMENT_TOOLS, _assessments_db, QA_PDF_UPLOAD_DIR
 # from .forms import DocumentUploadForm, AssessmentReviewForm 
+
+# Placeholder for batch assessments status (in a real app, use a database)
+_batch_assessments_status = {}
 
 # Allowed extensions for PDF files
 ALLOWED_EXTENSIONS = {'pdf'}
@@ -18,44 +23,82 @@ def allowed_file(filename):
 @quality_bp.route('/upload', methods=['GET', 'POST'])
 def upload_document_for_assessment():
     if request.method == 'POST':
-        if 'pdf_file' not in request.files:
-            flash('No PDF file part in the request.', 'error')
+        uploaded_files = request.files.getlist("pdf_files")
+        current_app.logger.info(f"BATCH_UPLOAD: Received {len(uploaded_files)} files in upload request.")
+        
+        if not uploaded_files or not any(f.filename for f in uploaded_files):
+            flash('No PDF files selected or all files are empty.', 'error')
+            current_app.logger.warning("BATCH_UPLOAD: No valid files found in submission.")
             return redirect(request.url)
-        
-        file = request.files['pdf_file']
-        
-        if file.filename == '':
-            flash('No PDF file selected.', 'error')
-            return redirect(request.url)
-        
-        if file and allowed_file(file.filename):
-            original_filename = secure_filename(file.filename)
-            
-            # Get the selected document type from the form
-            selected_document_type = request.form.get('document_type')
-            # If the value from select is "" (e.g. for "Let AI Decide / Not Specified")
-            # it will be passed as an empty string to process_uploaded_document,
-            # which then correctly sets it to "Unknown" if appropriate.
 
-            # The service function expects a file stream
-            assessment_id = process_uploaded_document(file.stream, original_filename, selected_document_type)
-            
-            # Check the actual status from the service layer after processing
-            current_assessment_status = _assessments_db.get(assessment_id, {}).get('status')
-            current_assessment_message = _assessments_db.get(assessment_id, {}).get('message', "Unknown error")
+        selected_document_type = request.form.get('document_type')
+        successful_uploads = []
+        failed_uploads = []
+        assessment_ids_in_batch = []
 
-            if assessment_id and current_assessment_status != 'error':
-                flash(f'Document \'{original_filename}\' uploaded. Assessment process initiated.', 'success')
-                return redirect(url_for('.view_assessment_result', assessment_id=assessment_id))
+        for file_storage in uploaded_files:
+            if file_storage and file_storage.filename and allowed_file(file_storage.filename):
+                original_filename = secure_filename(file_storage.filename)
+                try:
+                    file_storage.stream.seek(0)
+                    assessment_id = process_uploaded_document(file_storage.stream, original_filename, selected_document_type)
+                    current_assessment_status = _assessments_db.get(assessment_id, {}).get('status')
+                    if assessment_id and current_assessment_status != 'error':
+                        successful_uploads.append(original_filename)
+                        assessment_ids_in_batch.append(assessment_id)
+                        current_app.logger.info(f"BATCH_UPLOAD: Successfully processed and queued {original_filename} (ID: {assessment_id}).")
+                    else:
+                        failed_uploads.append(original_filename)
+                        current_app.logger.warning(f"BATCH_UPLOAD: Failed to queue {original_filename} (assessment_id: {assessment_id}, status: {current_assessment_status}).")
+                except Exception as e:
+                    current_app.logger.error(f"BATCH_UPLOAD: Error processing uploaded file {original_filename} in batch: {e}", exc_info=True)
+                    failed_uploads.append(original_filename)
+            elif file_storage and file_storage.filename:
+                failed_uploads.append(secure_filename(file_storage.filename) + " (invalid type)")
+                current_app.logger.warning(f"BATCH_UPLOAD: Skipped file {secure_filename(file_storage.filename)} due to invalid type.")
+        
+        if successful_uploads:
+            if len(successful_uploads) == 1 and not failed_uploads:
+                flash(f'Document \'{successful_uploads[0]}\' uploaded. Assessment process initiated.', 'success')
+                current_app.logger.info(f"BATCH_UPLOAD: Single file success ({successful_uploads[0]}), redirecting to individual result.")
+                return redirect(url_for('.view_assessment_result', assessment_id=assessment_ids_in_batch[0]))
             else:
-                flash(f'Error initiating assessment for \'{original_filename}\'. Reason: {current_assessment_message}', 'error')
-                return redirect(request.url)
-        else:
-            flash('Invalid file type. Only PDF files are allowed.', 'error')
+                batch_id = str(uuid.uuid4())
+                _batch_assessments_status[batch_id] = {
+                    "status": "processing",
+                    "assessment_ids": assessment_ids_in_batch,
+                    "total_files": len(assessment_ids_in_batch),
+                    "original_attempt_count": len(uploaded_files),
+                    "successful_filenames": successful_uploads,
+                    "failed_filenames": failed_uploads
+                }
+                flash(f'{len(successful_uploads)} document(s) queued for assessment. {len(failed_uploads)} failed.', 'info')
+                current_app.logger.info(f"BATCH_UPLOAD: Multiple files ({len(successful_uploads)} success, {len(failed_uploads)} failed). Batch ID: {batch_id}. Redirecting to batch status.")
+                current_app.logger.info(f"BATCH_UPLOAD: Batch data for {batch_id}: {_batch_assessments_status[batch_id]}")
+                return redirect(url_for('.view_batch_status', batch_id=batch_id))
+
+        elif failed_uploads:
+            flash(f'All file uploads failed. Reasons: {", ".join(failed_uploads)}', 'error')
+            current_app.logger.warning(f"BATCH_UPLOAD: All file uploads failed.")
+            return redirect(request.url)
+        else: 
+            flash('No files were processed.', 'warning')
+            current_app.logger.warning("BATCH_UPLOAD: No files were processed (edge case).")
             return redirect(request.url)
             
-    # For GET request, pass the QUALITY_ASSESSMENT_TOOLS to the template
     return render_template('quality_assessment_upload.html', assessment_tools_info=QUALITY_ASSESSMENT_TOOLS)
+
+@quality_bp.route('/batch_status/<batch_id>')
+def view_batch_status(batch_id):
+    current_app.logger.info(f"BATCH_STATUS_VIEW: Accessed for batch_id: {batch_id}")
+    batch_info = _batch_assessments_status.get(batch_id)
+    if not batch_info:
+        flash("Batch assessment not found or has expired (server may have restarted).", 'error')
+        current_app.logger.warning(f"BATCH_STATUS_VIEW: Batch ID {batch_id} not found in _batch_assessments_status.")
+        return redirect(url_for('.upload_document_for_assessment'))
+    
+    current_app.logger.info(f"BATCH_STATUS_VIEW: Rendering batch status for {batch_id} with info: {batch_info}")
+    return render_template('quality_assessment_batch_status.html', batch_info=batch_info, batch_id=batch_id)
 
 @quality_bp.route('/result/<assessment_id>')
 def view_assessment_result(assessment_id):
@@ -237,6 +280,42 @@ def serve_saved_pdf(assessment_id):
     except Exception as e:
         current_app.logger.error(f"Error serving PDF {saved_filename} for assessment {assessment_id}: {e}")
         return "Error serving PDF.", 500
+
+# --- NEW API for Batch Summary --- #
+@quality_bp.route('/batch_summary/<batch_id>')
+def get_batch_summary(batch_id):
+    batch_info = _batch_assessments_status.get(batch_id)
+    if not batch_info:
+        return jsonify({"error": "Batch not found"}), 404
+
+    summaries = []
+    assessment_ids = batch_info.get("assessment_ids", [])
+    
+    for idx, assessment_id in enumerate(assessment_ids):
+        result_data = get_assessment_result(assessment_id)
+        if result_data and result_data.get("status") == "completed":
+            doc_type = result_data.get("document_type", "Unknown")
+            tool_name = QUALITY_ASSESSMENT_TOOLS.get(doc_type, {}).get("tool_name", "N/A") 
+            filename = result_data.get("filename", batch_info.get("successful_filenames", [])[idx] if idx < len(batch_info.get("successful_filenames", [])) else "Unknown Filename")
+            
+            summary_item = {
+                "assessment_id": assessment_id,
+                "filename": filename,
+                "document_type": doc_type,
+                "tool_name": tool_name,
+                "total_criteria": result_data.get("summary_total_criteria_evaluated", 0),
+                "negative_findings": result_data.get("summary_negative_findings", 0)
+            }
+            summaries.append(summary_item)
+        elif result_data: # Still processing or error for this item
+             summaries.append({
+                "assessment_id": assessment_id,
+                "filename": batch_info.get("successful_filenames", [])[idx] if idx < len(batch_info.get("successful_filenames", [])) else "Unknown Filename",
+                "status": result_data.get("status", "Unknown")
+            })
+        # If result_data is None (shouldn't happen if it was in assessment_ids), it will be skipped
+
+    return jsonify(summaries)
 
 # We need to access _assessments_db for the flash message, either pass it or check status differently
 # For simplicity, let's import it here. In a real app, this would be a proper database call.
