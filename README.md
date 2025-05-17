@@ -340,7 +340,7 @@ brew install tesseract tesseract-lang
 Download installer from the [Tesseract GitHub page](https://github.com/UB-Mannheim/tesseract/wiki).
 
 ### Configuration Options
-Create an `.env` file in the project root directory:
+Create an `.env` file in the project root directory (use `.env.example` as a template):
 ```dotenv
 # --- LLM API Keys (Optional - can also be set through UI session) ---
 # DEEPSEEK_API_KEY=sk-your_deepseek_key_here
@@ -509,10 +509,10 @@ MetaScreener/
 ├── requirements.txt       # Dependency library list
 ├── README.md              # Project documentation
 ├── Procfile               # Render.com deployment configuration
-├── .env                   # Environment variable configuration (local development)
+├── .env.example           # Example environment variable configuration
 ├── static/                # Static resource directory
 │   └── images/            # Image resources
-│       └── logo.png       # Application logo
+│       └── logo_optimized.png       # Application logo
 ├── templates/             # HTML template directory
 │   ├── base.html          # Base template (contains common layout)
 │   ├── index.html         # Homepage template
