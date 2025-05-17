@@ -265,9 +265,11 @@ def _parse_llm_response(message_content: str) -> Dict[str, str]:
     return {"label": label, "justification": justification}
 
 
-def _call_openai_compatible_api(main_prompt: str, system_prompt: Optional[str], model_id: str, api_key: str, base_url: str, provider_name: str) -> \
+def _call_openai_compatible_api(main_prompt: str, system_prompt: Optional[str], model_id: str, api_key: str, base_url: Optional[str], provider_name: str) -> \
 Dict[str, str]:
-    api_endpoint = f"{base_url.rstrip('/')}/chat/completions"
+    # base_url might be None if caller did not provide one; fall back to provider default
+    effective_base_url = base_url or SUPPORTED_LLM_PROVIDERS.get(provider_name, {}).get("default_base_url", "")
+    api_endpoint = f"{effective_base_url.rstrip('/')}/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     messages = []
     if system_prompt:
@@ -367,7 +369,8 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
 
     try:
         if provider_name == "DeepSeek" or provider_name == "OpenAI_ChatGPT":
-            api_endpoint = f"{base_url.rstrip('/')}/chat/completions"
+            effective_base_url = base_url or SUPPORTED_LLM_PROVIDERS.get(provider_name, {}).get("default_base_url", "")
+            api_endpoint = f"{effective_base_url.rstrip('/')}/chat/completions"
             headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
             messages = []
             if system_prompt: messages.append({"role": "system", "content": system_prompt})
