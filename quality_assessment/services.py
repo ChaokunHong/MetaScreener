@@ -111,36 +111,120 @@ print(f"Initial _assessments_db keys after load: {list(_assessments_db.keys())}"
 # and potentially loaded from a configuration file or database.
 QUALITY_ASSESSMENT_TOOLS = {
     "Systematic Review": {
-        "tool_name": "AMSTAR 2 (Abbreviated)",
+        "tool_name": "AMSTAR 2",
         "criteria": [
             {"id": "sr_q1", "text": "Did the research questions and inclusion criteria for the review include the components of PICO?", "guidance": "PICO: Population, Intervention, Comparator, Outcome"},
             {"id": "sr_q2", "text": "Did the report of the review contain an explicit statement that the review methods were established prior to the conduct of the review and did the report justify any significant deviations from the protocol?", "guidance": "Look for mention of a protocol (e.g., PROSPERO registration, published protocol)."},
             {"id": "sr_q3", "text": "Did the review authors explain their selection of the study designs for inclusion in the review?", "guidance": "Consider if reasons are given for why certain study designs were included or excluded."},
             {"id": "sr_q4", "text": "Did the review authors use a comprehensive literature search strategy?", "guidance": "At least two databases, reference list searching, keywords and/or MeSH terms."},
-            {"id": "sr_q5", "text": "Did the review authors perform study selection in duplicate?", "guidance": "Look for mention of two independent reviewers for study selection."}
-            # ... more AMSTAR 2 items can be added here
+            {"id": "sr_q5", "text": "Did the review authors perform study selection in duplicate?", "guidance": "Look for mention of two independent reviewers for study selection."},
+            {"id": "sr_q6", "text": "Did the review authors perform data extraction in duplicate?", "guidance": "Look for mention of two independent reviewers for data extraction."},
+            {"id": "sr_q7", "text": "Did the review authors provide a list of excluded studies and justify the exclusions?", "guidance": "Check if a list of excluded studies with reasons is provided."},
+            {"id": "sr_q8", "text": "Did the review authors describe the included studies in adequate detail?", "guidance": "Look for PICO, research design, timeframe, funding sources."},
+            {"id": "sr_q9", "text": "Did the review authors use a satisfactory technique for assessing risk of bias (RoB) in individual studies?", "guidance": "Look for appropriate RoB assessment tools (e.g., Cochrane RoB, ROBINS-I)."},
+            {"id": "sr_q10", "text": "Did the review authors report sources of funding for individual studies?", "guidance": "Check if funding for included studies is reported."},
+            {"id": "sr_q11", "text": "If meta-analysis was performed, did the authors use appropriate methods for statistical combination of results?", "guidance": "Check if appropriate combination method based on study similarity (fixed/random effects)."},
+            {"id": "sr_q12", "text": "If meta-analysis was performed, did the authors assess the potential impact of RoB on the results?", "guidance": "Look for sensitivity analysis or impact discussion based on study quality."},
+            {"id": "sr_q13", "text": "Did the authors account for RoB when interpreting/discussing results?", "guidance": "Check if study quality is considered in conclusions."},
+            {"id": "sr_q14", "text": "Did the review authors provide a satisfactory explanation for and discussion of heterogeneity observed in the results?", "guidance": "Look for discussion of I² statistic, subgroup analyses, or meta-regression."},
+            {"id": "sr_q15", "text": "If quantitative synthesis was performed, did the review authors investigate publication bias and discuss its potential impact?", "guidance": "Check for funnel plot, Egger's test, or other methods."},
+            {"id": "sr_q16", "text": "Did the review authors report potential sources of conflict of interest, including funding?", "guidance": "Look for conflict of interest and funding statements."}
         ]
     },
     "RCT": {
-        "tool_name": "Cochrane RoB 2 (Simplified Domains)",
+        "tool_name": "Cochrane RoB 2",
         "criteria": [
-            {"id": "rct_d1_1", "text": "Was the allocation sequence random?", "domain": "D1: Randomization process"},
-            {"id": "rct_d1_2", "text": "Was the allocation sequence concealed until participants were enrolled and assigned to interventions?", "domain": "D1: Randomization process"},
-            {"id": "rct_d2_1", "text": "Were participants and personnel blind to intervention assignment?", "domain": "D2: Deviations from intended interventions (blinding of participants and personnel)"},
-            {"id": "rct_d3_1", "text": "Were outcome assessors blind to intervention assignment?", "domain": "D3: Missing outcome data (blinding of outcome assessors)"},
-            {"id": "rct_d4_1", "text": "Were incomplete outcome data adequately addressed?", "domain": "D4: Measurement of the outcome"},
-            {"id": "rct_d5_1", "text": "Were the study's outcomes reported selectively?", "domain": "D5: Selection of the reported result"}
-            # ... more RoB 2 items/domains can be added here
+            # Domain 1: Randomization process
+            {"id": "rct_d1_1", "text": "1.1 Was the allocation sequence random?", "domain": "D1: Randomization process", 
+             "guidance": "Look for description of random component in sequence generation (e.g., random number table, computer random number generator, coin tossing)."},
+            {"id": "rct_d1_2", "text": "1.2 Was the allocation sequence concealed until participants were enrolled and assigned to interventions?", "domain": "D1: Randomization process", 
+             "guidance": "Check if allocation was concealed by methods like central allocation, sequentially numbered sealed opaque envelopes."},
+            {"id": "rct_d1_3", "text": "1.3 Did baseline differences between intervention groups suggest a problem with the randomization process?", "domain": "D1: Randomization process", 
+             "guidance": "Examine if baseline characteristics are balanced between groups. Minor differences are expected by chance."},
+
+            # Domain 2: Deviations from intended interventions
+            {"id": "rct_d2_1", "text": "2.1 Were participants aware of their assigned intervention during the trial?", "domain": "D2: Deviations from intended interventions", 
+             "guidance": "Check if participants were blinded to intervention assignment (also called 'masking')."},
+            {"id": "rct_d2_2", "text": "2.2 Were carers and trial personnel aware of participants' assigned intervention during the trial?", "domain": "D2: Deviations from intended interventions", 
+             "guidance": "Check if healthcare providers, researchers and other personnel were blinded to intervention assignment."},
+            {"id": "rct_d2_3", "text": "2.3 If Y/PY/NI to 2.1 or 2.2: Were there deviations from the intended intervention beyond what would be expected in usual practice?", "domain": "D2: Deviations from intended interventions", 
+             "guidance": "Look for deviations from protocol or implementation problems beyond what would occur in routine care."},
+            {"id": "rct_d2_4", "text": "2.4 If Y/PY/NI to 2.3: Were these deviations likely to have affected the outcome?", "domain": "D2: Deviations from intended interventions", 
+             "guidance": "Consider if the deviations were substantial enough to impact the measured outcomes."},
+            {"id": "rct_d2_5", "text": "2.5 Were any participants analyzed in a group different from the one to which they were assigned?", "domain": "D2: Deviations from intended interventions", 
+             "guidance": "Check if intention-to-treat (ITT) analysis was used. Look for participants being analyzed according to original assignment regardless of adherence."},
+            {"id": "rct_d2_6", "text": "2.6 If Y/PY/NI to 2.5: Was there potential for a substantial impact on the result?", "domain": "D2: Deviations from intended interventions", 
+             "guidance": "Consider if the number of participants analyzed in the wrong group could substantially affect results."},
+
+            # Domain 3: Missing outcome data
+            {"id": "rct_d3_1", "text": "3.1 Were outcome data available for all, or nearly all, participants randomized?", "domain": "D3: Missing outcome data", 
+             "guidance": "Check completion rates. Look for <5% missing data for low risk, or 5-20% with appropriate imputation methods."},
+            {"id": "rct_d3_2", "text": "3.2 If N/PN/NI to 3.1: Is there evidence that the result was not biased by missing outcome data?", "domain": "D3: Missing outcome data", 
+             "guidance": "Look for sensitivity analyses showing robustness of results to different assumptions about missing data."},
+            {"id": "rct_d3_3", "text": "3.3 If N/PN to 3.2: Could missingness in the outcome depend on its true value?", "domain": "D3: Missing outcome data", 
+             "guidance": "Consider if participants might have dropped out due to poor outcomes or side effects related to the outcome being measured."},
+            {"id": "rct_d3_4", "text": "3.4 If Y/PY/NI to 3.3: Is it likely that missingness in the outcome depended on its true value?", "domain": "D3: Missing outcome data", 
+             "guidance": "Assess if there is strong evidence that missing data is related to the actual outcomes that would have been observed."},
+
+            # Domain 4: Measurement of the outcome
+            {"id": "rct_d4_1", "text": "4.1 Was the method of measuring the outcome inappropriate?", "domain": "D4: Measurement of the outcome", 
+             "guidance": "Check if outcome measures are validated, appropriate for the construct being measured, and used correctly."},
+            {"id": "rct_d4_2", "text": "4.2 Could measurement or ascertainment of the outcome have differed between intervention groups?", "domain": "D4: Measurement of the outcome", 
+             "guidance": "Determine if the same methods and thresholds were used for outcome assessment in all groups."},
+            {"id": "rct_d4_3", "text": "4.3 Were outcome assessors aware of the intervention received by study participants?", "domain": "D4: Measurement of the outcome", 
+             "guidance": "Check if those measuring outcomes were blinded to intervention assignment."},
+            {"id": "rct_d4_4", "text": "4.4 If Y/PY/NI to 4.3: Could assessment of the outcome have been influenced by knowledge of intervention received?", "domain": "D4: Measurement of the outcome", 
+             "guidance": "Consider if the outcome is subjective and could be influenced by knowing the intervention (e.g., pain scales vs. mortality)."},
+            {"id": "rct_d4_5", "text": "4.5 If Y/PY/NI to 4.4: Is it likely that assessment of the outcome was influenced by knowledge of intervention received?", "domain": "D4: Measurement of the outcome", 
+             "guidance": "Assess the degree to which outcome measurement could have been biased by lack of blinding."},
+
+            # Domain 5: Selection of the reported result
+            {"id": "rct_d5_1", "text": "5.1 Were the data that produced this result analyzed in accordance with a pre-specified analysis plan?", "domain": "D5: Selection of the reported result", 
+             "guidance": "Check for a pre-registered protocol or statistical analysis plan and if analyses followed it."},
+            {"id": "rct_d5_2", "text": "5.2 Is the numerical result being assessed likely to have been selected, on the basis of the results, from multiple outcome measurements?", "domain": "D5: Selection of the reported result", 
+             "guidance": "Look for multiple ways of measuring outcomes (e.g., different scales, time points) with selective reporting of favorable results."},
+            {"id": "rct_d5_3", "text": "5.3 Is the numerical result being assessed likely to have been selected, on the basis of the results, from multiple analyses of the data?", "domain": "D5: Selection of the reported result", 
+             "guidance": "Check for evidence of multiple analyses (subgroups, adjustments, statistical methods) with selective reporting of favorable results."}
         ]
     },
     "Diagnostic Study": {
-        "tool_name": "QUADAS-2 (Simplified Domains)",
+        "tool_name": "QUADAS-2",
         "criteria": [
-            {"id": "ds_d1_rb", "text": "Was a consecutive or random sample of patients enrolled? (Risk of Bias - Patient Selection)", "domain": "D1: Patient Selection"},
-            {"id": "ds_d1_ac", "text": "Did the study avoid inappropriate exclusions? (Applicability - Patient Selection)", "domain": "D1: Patient Selection"},
-            {"id": "ds_d2_rb", "text": "Were the index test results interpreted without knowledge of the results of the reference standard? (Risk of Bias - Index Test)", "domain": "D2: Index Test"},
-            {"id": "ds_d3_rb", "text": "Were the reference standard results interpreted without knowledge of the results of the index test? (Risk of Bias - Reference Standard)", "domain": "D3: Reference Standard"}
-            # ... more QUADAS-2 items can be added here
+            # Domain 1: Patient Selection
+            {"id": "ds_d1_1", "text": "1.1 Was a consecutive or random sample of patients enrolled? (Risk of Bias)", "domain": "D1: Patient Selection", 
+             "guidance": "Check if patients were selected consecutively or randomly to avoid selection bias."},
+            {"id": "ds_d1_2", "text": "1.2 Was a case-control design avoided? (Risk of Bias)", "domain": "D1: Patient Selection", 
+             "guidance": "Case-control designs are prone to bias for diagnostic accuracy studies. Check if the study enrolled patients with and without the target condition based on the reference standard."},
+            {"id": "ds_d1_3", "text": "1.3 Did the study avoid inappropriate exclusions? (Risk of Bias)", "domain": "D1: Patient Selection", 
+             "guidance": "Check if exclusions were appropriate and didn't systematically remove difficult-to-diagnose cases."},
+            {"id": "ds_d1_4", "text": "1.4 Are there concerns that the included patients do not match the review question? (Applicability)", "domain": "D1: Patient Selection", 
+             "guidance": "Assess if the study population matches the patients who would receive the test in practice."},
+
+            # Domain 2: Index Test
+            {"id": "ds_d2_1", "text": "2.1 Were the index test results interpreted without knowledge of the reference standard results? (Risk of Bias)", "domain": "D2: Index Test", 
+             "guidance": "Check if those interpreting the index test were blinded to the reference standard results."},
+            {"id": "ds_d2_2", "text": "2.2 If a threshold was used, was it pre-specified? (Risk of Bias)", "domain": "D2: Index Test", 
+             "guidance": "For tests with numerical results, thresholds should be defined before analyzing results."},
+            {"id": "ds_d2_3", "text": "2.3 Are there concerns that the index test, its conduct, or interpretation differ from the review question? (Applicability)", "domain": "D2: Index Test", 
+             "guidance": "Assess if the index test was performed and interpreted as it would be in clinical practice."},
+
+            # Domain 3: Reference Standard
+            {"id": "ds_d3_1", "text": "3.1 Is the reference standard likely to correctly classify the target condition? (Risk of Bias)", "domain": "D3: Reference Standard", 
+             "guidance": "Check if the reference standard is considered the best available method for identifying the target condition."},
+            {"id": "ds_d3_2", "text": "3.2 Were the reference standard results interpreted without knowledge of the index test results? (Risk of Bias)", "domain": "D3: Reference Standard", 
+             "guidance": "Check if those interpreting the reference standard were blinded to the index test results."},
+            {"id": "ds_d3_3", "text": "3.3 Are there concerns that the target condition as defined by the reference standard does not match the review question? (Applicability)", "domain": "D3: Reference Standard", 
+             "guidance": "Assess if the reference standard targets the same condition as that being questioned in clinical practice."},
+
+            # Domain 4: Flow and Timing
+            {"id": "ds_d4_1", "text": "4.1 Was there an appropriate interval between the index test and reference standard? (Risk of Bias)", "domain": "D4: Flow and Timing", 
+             "guidance": "Check if the time between tests was short enough that the condition would not change between assessments."},
+            {"id": "ds_d4_2", "text": "4.2 Did all patients receive a reference standard? (Risk of Bias)", "domain": "D4: Flow and Timing", 
+             "guidance": "All patients should receive verification of their disease status using the reference standard."},
+            {"id": "ds_d4_3", "text": "4.3 Did all patients receive the same reference standard? (Risk of Bias)", "domain": "D4: Flow and Timing", 
+             "guidance": "Differential verification (using different reference standards for different patients) can introduce bias."},
+            {"id": "ds_d4_4", "text": "4.4 Were all patients included in the analysis? (Risk of Bias)", "domain": "D4: Flow and Timing", 
+             "guidance": "Check for unaccounted patients or inappropriate exclusions from analysis."}
         ]
     },
     "Cohort Study": {
@@ -469,6 +553,76 @@ QUALITY_ASSESSMENT_TOOLS = {
                 "text": "How valuable is the research?",
                 "guidance": "Consider: if the researcher discusses the contribution the study makes to existing knowledge or understanding, if they identify new areas where research is necessary, and if they discuss how the findings can be transferred to other populations."
             }
+        ]
+    },
+    "Economic Evaluation": {
+        "tool_name": "CHEERS 2022",
+        "criteria": [
+            {"id": "ee_1", "text": "Was the study identified as an economic evaluation or use terms like cost-effectiveness?", 
+             "guidance": "Look for clear identification in title or abstract that this is an economic evaluation. Terms like cost-effectiveness, cost-benefit, or economic analysis should be present."},
+            {"id": "ee_2", "text": "Is there a structured abstract that includes context, setting, methods, results, and implications?", 
+             "guidance": "Check if the abstract contains these key components: context/background, study objectives, methods (perspective, time horizon, interventions, outcomes, etc.), results (costs, effects, incremental costs and effects), and implications for decision-making."},
+            {"id": "ee_3", "text": "Does the introduction describe what is already known and relevance to decision-makers?", 
+             "guidance": "The introduction should clearly explain the economic importance of the question, background on existing evidence, and why the study is needed for decision-making in the relevant context."},
+            {"id": "ee_4", "text": "Are target populations and subgroups clearly described?", 
+             "guidance": "Check if the study clearly defines the characteristics of the population(s) being analyzed, including any relevant demographic, clinical, or socioeconomic factors. Subgroup analyses should be explained if conducted."},
+            {"id": "ee_5", "text": "Are the setting and location relevant for the research question?", 
+             "guidance": "The healthcare setting (primary care, hospital, community), geographical location, and relevant characteristics of the healthcare system should be described and appropriate for the decision problem."},
+            {"id": "ee_6", "text": "Is the perspective of the study stated and justified?", 
+             "guidance": "The study should explicitly state which perspective was used (e.g., healthcare system, societal, payer, provider, patient) and justify why this perspective is appropriate for the research question."},
+            {"id": "ee_7", "text": "Are the interventions/strategies being compared clearly described?", 
+             "guidance": "All compared interventions should be described in sufficient detail to allow readers to understand exactly what is being compared. This includes standard care or 'do nothing' comparators."},
+            {"id": "ee_8", "text": "Is the time horizon appropriate and explained?", 
+             "guidance": "The time horizon should be long enough to capture all important differences in costs and outcomes between alternatives. Lifetime horizons are often appropriate for chronic conditions. The choice should be justified."},
+            {"id": "ee_9", "text": "Is the discount rate for costs and outcomes stated and justified?", 
+             "guidance": "For studies with time horizons longer than one year, future costs and outcomes should be discounted. The rate should be stated (typically 3-5%) and justified if different from standard rates in the setting."},
+            {"id": "ee_10", "text": "Are the outcomes clearly stated and relevant to the research question?", 
+             "guidance": "Economic evaluations should clearly state primary and secondary outcomes used. For cost-utility analyses, check if quality-adjusted life years (QALYs) or similar measures are used. Outcomes should be relevant to the decision problem."},
+            {"id": "ee_11", "text": "Are economic evaluation methods described and appropriate?", 
+             "guidance": "Check if the specific form of economic evaluation is described (cost-utility, cost-effectiveness, cost-benefit, cost-minimization). The methods should be appropriate for the research question and outcomes."},
+            {"id": "ee_12", "text": "Is uncertainty addressed through sensitivity analysis?", 
+             "guidance": "Look for deterministic and/or probabilistic sensitivity analyses that explore how results change when key parameters vary. Important assumptions should be tested through scenario analyses."},
+            {"id": "ee_13", "text": "Are incremental costs and outcomes reported?", 
+             "guidance": "Results should include both absolute and incremental costs and outcomes for all alternatives. The incremental cost-effectiveness ratio (ICER) should be calculated for the primary analysis."},
+            {"id": "ee_14", "text": "Are characterizations of uncertainty and heterogeneity provided?", 
+             "guidance": "Check if the uncertainty around the main results is quantified (e.g., confidence intervals, cost-effectiveness acceptability curves). Heterogeneity across subgroups should be explored if relevant."},
+            {"id": "ee_15", "text": "Does the discussion address the study limitations and generalizability?", 
+             "guidance": "Look for an honest discussion of key limitations, potential biases, and how they might affect interpretation. The discussion should address generalizability to other settings or populations."},
+            {"id": "ee_16", "text": "Are sources of funding and conflicts of interest declared?", 
+             "guidance": "Check if funding sources are disclosed and potential conflicts of interest for all authors are declared. The role of funders in the study should be described."}
+        ]
+    },
+    "Animal Research": {
+        "tool_name": "ARRIVE 2.0 Guidelines",
+        "criteria": [
+            {"id": "ar_1", "text": "Study design: Are specific objectives stated and primary/secondary outcomes defined?",
+             "guidance": "Check if the study has clear objectives, hypotheses where appropriate, and well-defined primary and secondary outcomes. Exploratory outcomes should be distinguished from confirmatory testing."},
+            {"id": "ar_2", "text": "Sample size: Was sample size determined and explained?",
+             "guidance": "Examine if the study explains how the number of animals was determined, including statistical power calculations where appropriate. If formal sample size calculations weren't performed, this should be stated."},
+            {"id": "ar_3", "text": "Inclusion and exclusion criteria: Are clear criteria defined?",
+             "guidance": "Check if the study describes inclusion and exclusion criteria for animals at each stage of the experiment, including criteria for removing animals during the study and whether any animals or data were excluded from analysis."},
+            {"id": "ar_4", "text": "Randomization: Was allocation to groups done randomly?",
+             "guidance": "Assess if the study describes the method of randomization, including any stratification factors. If randomization wasn't used, the study should state this and explain why."},
+            {"id": "ar_5", "text": "Blinding: Were investigators blinded during experiment and analysis?",
+             "guidance": "Check if the study describes who was blinded (e.g., investigators, caregivers, outcome assessors) and how blinding was maintained. If blinding wasn't performed, this should be stated with reasons."},
+            {"id": "ar_6", "text": "Animal characteristics: Are species, strain, sex, age, and weight described?",
+             "guidance": "Evaluate if the study provides detailed characteristics including species, strain, substrain, genetic background, sex, age range, and weight range. Source of animals and relevant permits should be included."},
+            {"id": "ar_7", "text": "Housing and husbandry: Are conditions properly described?",
+             "guidance": "Check if housing (type of facility, cage/housing type, material, group size), husbandry conditions (lighting, temperature, access to food and water), and environmental enrichment are described."},
+            {"id": "ar_8", "text": "Experimental procedures: Are procedures described in sufficient detail?",
+             "guidance": "Assess if procedures are described with sufficient detail to allow others to replicate them. This includes anesthesia/analgesia methods, surgical procedures, experimental protocols, and humane endpoints."},
+            {"id": "ar_9", "text": "Results: Are results clearly reported for each analysis with precision measures?",
+             "guidance": "Check if results are reported for each analysis with a measure of precision (e.g., standard error, confidence interval) and the statistical method used. Both raw and adjusted results should be available where applicable."},
+            {"id": "ar_10", "text": "Adverse events: Are adverse events reported?",
+             "guidance": "Evaluate if the study reports details of all important adverse events. This includes unexpected outcomes, deaths, protocol modifications, or interventions required to improve animal welfare."},
+            {"id": "ar_11", "text": "Ethics statement: Does the study include an ethics statement?",
+             "guidance": "Check if the study provides details of ethical review permissions, relevant licenses, and national or institutional guidelines for the care and use of animals."},
+            {"id": "ar_12", "text": "Declaration of interests: Are funding sources and conflicts of interest declared?",
+             "guidance": "Assess if the study declares all potential conflicts of interest, including financial and non-financial interests. Sources of funding and the role of funders should be clearly stated."},
+            {"id": "ar_13", "text": "Data access: Is there information on data accessibility?",
+             "guidance": "Check if the study provides a statement on whether and where data supporting the results are available, or explains any restrictions to data availability."},
+            {"id": "ar_14", "text": "Translation: Does the study discuss implications for human biology or medicine?",
+             "guidance": "For studies with potential translational applications, assess if the study discusses how the findings inform human biology or medicine and any limitations in translating the findings."}
         ]
     }
     # More document types can be added here
