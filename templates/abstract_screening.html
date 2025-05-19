@@ -447,40 +447,50 @@ document.addEventListener('DOMContentLoaded', function() {
             const el = document.getElementById(id);
             if (!el) {
                 console.warn(`Element with ID "${id}" not found, returning safe dummy`);
-                // Return a safe dummy element to prevent null errors
-                const dummy = document.createElement('div');
+                const dummy = document.createElement('div'); // Still create a div first
                 dummy.id = id + '-dummy';
                 dummy.style.display = 'none';
-                // Add any methods we might call
-                dummy.appendChild = function(child) { return child; };
-                dummy.removeChild = function(child) { return child; };
-                // Add style and classList properties
-                dummy.style = { width: '0%' };
+                
+                // Define properties and methods for the dummy object
+                dummy.appendChild = function(child) { /* console.log('Dummy appendChild called'); */ return child; };
+                dummy.removeChild = function(child) { /* console.log('Dummy removeChild called'); */ return child; };
+                dummy.innerHTML = ''; // Initialize innerHTML
+                dummy.style = { width: '0%' }; // Ensure style object exists
                 dummy.classList = { 
-                    add: function(){}, 
-                    remove: function(){},
+                    add: function(){ /* console.log('Dummy classList.add called'); */ }, 
+                    remove: function(){ /* console.log('Dummy classList.remove called'); */ },
                     contains: function(){ return false; }
                 };
                 dummy.scrollTop = 0;
                 dummy.scrollHeight = 0;
-                // Create children collection
-                dummy.children = { length: 0 };
-                // Add to body for potential future reference
-                try {
-                    document.body.appendChild(dummy);
-                } catch(e) { 
-                    // Ignore errors
+                dummy.children = { length: 0, item: function() { return null; }, namedItem: function() { return null; } }; // Make children more like a real HTMLCollection
+
+                // Safely append to body only if body exists
+                if (document.body) {
+                    try {
+                        document.body.appendChild(dummy);
+                    } catch(e) { 
+                        console.error(`Failed to append dummy element ${dummy.id} to document.body:`, e);
+                    }
+                } else {
+                    console.warn(`document.body not available when creating dummy for ID "${id}". Dummy will not be in DOM.`);
                 }
                 return dummy;
             }
             return el;
         } catch(e) {
-            console.error("Error in safeGetElement:", e);
+            console.error(`Critical error in safeGetElement for ID "${id}":`, e);
+            // Fallback to an even more basic dummy if createElement itself fails or other critical error
             return {
-                appendChild: function() { return null; },
+                id: id + '-critical-dummy',
+                appendChild: function() { /* console.log('Critical dummy appendChild'); */ return null; },
+                removeChild: function() { /* console.log('Critical dummy removeChild'); */ return null; },
                 style: {},
                 classList: { add: function(){}, remove: function(){} },
-                innerHTML: ''
+                innerHTML: '',
+                children: { length: 0, item: function() { return null; }, namedItem: function() { return null; } },
+                scrollTop: 0,
+                scrollHeight: 0
             };
         }
     }
@@ -903,17 +913,6 @@ document.addEventListener('DOMContentLoaded', function() {
                      const timeoutMsg = `[${new Date().toLocaleTimeString()}] Request finished but no completion message received. Processing may continue in the background. Check results later.`;
                      safeGetElement('progress_log').innerHTML += `<span style="color:darkorange;font-weight:bold;">${timeoutMsg}</span><br>`;
                  }
-                 
-                 finalizeButtons(); 
-             };
-             
-             xhr.onerror = function() { 
-                 console.error("XHR request error");
-                 safeGetElement('progress_status').textContent = "Network error occurred, but processing may continue in the background";
-                 
-                 // Set up recovery message
-                 const errorMsg = `[${new Date().toLocaleTimeString()}] Network error - processing may continue in the background. Refresh page and check results later.`;
-                 safeGetElement('progress_log').innerHTML += `<span style="color:red;font-weight:bold;">${errorMsg}</span><br>`;
                  
                  finalizeButtons(); 
              };

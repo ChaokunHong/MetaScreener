@@ -1190,7 +1190,7 @@ def get_current_criteria_object() -> Dict: # This returns the criteria data for 
         # If USER_CRITERIA is not set, not for the current framework, or missing criteria, initialize/reset
         USER_CRITERIA = {
             "framework": current_framework,
-            "criteria": get_default_criteria_for_framework(current_framework)
+            "criteria": get_blank_criteria_for_framework(current_framework)
         }
     return USER_CRITERIA["criteria"]
 
