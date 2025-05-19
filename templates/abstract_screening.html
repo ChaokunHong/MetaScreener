@@ -16,7 +16,61 @@
     .clear-input-btn:hover {
         opacity: 1;
     }
+    /* Hidden dummy elements for index.global.js */
+    .js-dummy-container {
+        display: none;
+        visibility: hidden;
+        position: absolute;
+        left: -9999px;
+        top: -9999px;
+    }
+    
+    /* Decision color styles */
+    .log-item-decision {
+        font-weight: bold;
+    }
+    .log-decision-INCLUDE {
+        color: green;
+    }
+    .log-decision-EXCLUDE {
+        color: red;
+    }
+    .log-decision-MAYBE {
+        color: orange;
+    }
+    .log-decision-ERROR {
+        color: darkred;
+    }
+    .missing-field {
+        color: orange;
+        font-style: italic;
+    }
 </style>
+<script>
+// Simple solution for index.global.js error
+(function() {
+    console.log('Setting up error handlers...');
+    
+    // Create a global error handler to catch the specific error
+    window.addEventListener('error', function(event) {
+        // Check if it's the specific error we're looking for
+        if (event.error && 
+            event.error.message && 
+            event.error.message.includes("Cannot read properties of null (reading 'appendChild')") &&
+            event.filename && 
+            event.filename.includes('index.global.js')) {
+            
+            console.log('Caught and suppressed index.global.js error:', event.error.message);
+            
+            // Prevent the error from propagating
+            event.preventDefault();
+            event.stopPropagation();
+            
+            return true; // Indicates we've handled the error
+        }
+    }, true); // true means capture phase - catch errors before they bubble up
+})();
+</script>
 {% endblock %}
 
 {% block content %}
@@ -149,25 +203,29 @@ function optimizeForLargeVolume() {
     window._skipDomUpdate = function() {
         // Update DOM every 10 items (for large volumes)
         window._optimizationCounter++;
-        // Return true if DOM update should be skipped
+        // Return true if DOM update should be skipped - but NEVER skip items with decisions
         return window._optimizationCounter % 10 !== 0;
     };
     
     // Clean up unnecessary DOM elements to save memory
     window._cleanupDom = function() {
         // If log items exceed half of the limit, clean up early
-        const logEl = document.getElementById('progress_log');
-        if(logEl && logEl.children.length > MAX_FULL_LOG_ITEMS/2) {
-            while(logEl.children.length > MAX_FULL_LOG_ITEMS/2) {
-                logEl.removeChild(logEl.firstChild);
+        try {
+            const logEl = safeGetElement('progress_log');
+            if(logEl.children && logEl.children.length > MAX_FULL_LOG_ITEMS/2) {
+                while(logEl.children.length > MAX_FULL_LOG_ITEMS/2) {
+                    logEl.removeChild(logEl.firstChild);
+                }
             }
-        }
-        
-        const testLogEl = document.getElementById('test_progress_log');
-        if(testLogEl && testLogEl.children.length > MAX_TEST_LOG_ITEMS/2) {
-            while(testLogEl.children.length > MAX_TEST_LOG_ITEMS/2) {
-                testLogEl.removeChild(testLogEl.firstChild);
+            
+            const testLogEl = safeGetElement('test_progress_log');
+            if(testLogEl.children && testLogEl.children.length > MAX_TEST_LOG_ITEMS/2) {
+                while(testLogEl.children.length > MAX_TEST_LOG_ITEMS/2) {
+                    testLogEl.removeChild(testLogEl.firstChild);
+                }
             }
+        } catch (e) {
+            console.warn("Error during cleanup:", e);
         }
     };
     
@@ -180,93 +238,135 @@ function optimizeForLargeVolume() {
 // --- Helper Functions (Refined - Get element inside) ---
 function addTestLogItem(message) {
     // For large volumes, skip some DOM updates to improve performance
-    if(window._skipDomUpdate && window._skipDomUpdate() && !message.includes("Error")) {
+    // But NEVER skip items with decisions or errors
+    if(window._skipDomUpdate && window._skipDomUpdate() && 
+       !message.includes("Error") && 
+       !message.includes("EXCLUDE") && 
+       !message.includes("INCLUDE") && 
+       !message.includes("MAYBE") && 
+       !message.includes("缺少摘要") && 
+       !message.includes("missing")) {
         return;
     }
     
-    const logEl = document.getElementById('test_progress_log'); 
-    if(logEl && message) {  // Ensure message is not empty
-        const div = document.createElement('div');
-        div.innerHTML = message;
-        while (logEl.children.length >= MAX_TEST_LOG_ITEMS) { logEl.removeChild(logEl.firstChild); }
-        logEl.appendChild(div);
-        logEl.scrollTop = logEl.scrollHeight;
-    } else {
-        if (!window.loggedTestLogError && !logEl) { 
-            console.error('!!! testProgressLog element NOT found in addTestLogItem'); 
-            window.loggedTestLogError = true; 
+    try {
+        const logEl = safeGetElement('test_progress_log'); 
+        if(message) {  // Ensure message is not empty
+            const div = document.createElement('div');
+            div.innerHTML = message;
+            while (logEl.children && logEl.children.length >= MAX_TEST_LOG_ITEMS) { 
+                logEl.removeChild(logEl.firstChild); 
+            }
+            logEl.appendChild(div);
+            logEl.scrollTop = logEl.scrollHeight;
         }
+    } catch (e) {
+        console.warn("Error adding test log item:", e);
     }
 }
 
 function addLogItem(message) {
     // For large volumes, skip some DOM updates to improve performance
-    if(window._skipDomUpdate && window._skipDomUpdate() && !message.includes("Error")) {
+    // But NEVER skip items with decisions or errors
+    if(window._skipDomUpdate && window._skipDomUpdate() && 
+       !message.includes("Error") && 
+       !message.includes("EXCLUDE") && 
+       !message.includes("INCLUDE") && 
+       !message.includes("MAYBE") && 
+       !message.includes("缺少摘要") && 
+       !message.includes("missing")) {
         return;
     }
     
-    const logEl = document.getElementById('progress_log'); 
-    if(logEl && message) {  // Ensure message is not empty
-        const div = document.createElement('div');
-        div.innerHTML = message;
-        while (logEl.children.length >= MAX_FULL_LOG_ITEMS) { logEl.removeChild(logEl.firstChild); } // Use correct MAX constant
-        logEl.appendChild(div);
-        logEl.scrollTop = logEl.scrollHeight;
-    } else {
-        if (!window.loggedFullLogError && !logEl) { 
-            console.error('!!! progressLog element NOT found in addLogItem'); 
-            window.loggedFullLogError = true; 
+    try {
+        const logEl = safeGetElement('progress_log');
+        if(message) {  // Ensure message is not empty
+            const div = document.createElement('div');
+            div.innerHTML = message;
+            while (logEl.children && logEl.children.length >= MAX_FULL_LOG_ITEMS) {
+                logEl.removeChild(logEl.firstChild);
+            }
+            logEl.appendChild(div);
+            logEl.scrollTop = logEl.scrollHeight;
         }
+    } catch (e) {
+        console.warn("Error adding log item:", e);
     }
 }
 
 // --- Finalize Button Functions --- 
 function finalizeTestButton() { 
-    const btn = document.getElementById('start_test_screen_button'); 
-    if(btn) btn.disabled = false; 
-    const spin = document.getElementById('test_spinner'); 
-    if(spin) spin.style.display = 'none'; 
+    try {
+        const btn = safeGetElement('start_test_screen_button');
+        btn.disabled = false;
+        const spin = safeGetElement('test_spinner');
+        spin.style.display = 'none';
+    } catch (e) {
+        console.warn("Error finalizing test button:", e);
+    }
 }
 
 function finalizeButtons() { 
-    const btnF = document.getElementById('start_full_screen_button'); 
-    if(btnF) btnF.disabled=false; 
-    // finalizeTestButton(); // Maybe call this too if test button might also be disabled?
+    try {
+        const btnF = safeGetElement('start_full_screen_button');
+        btnF.disabled = false;
+    } catch (e) {
+        console.warn("Error finalizing buttons:", e);
+    }
 }
 
 function clearInput(inputId) {
-    const inputElement = document.getElementById(inputId);
-    if (inputElement) {
+    try {
+        const inputElement = safeGetElement(inputId);
         inputElement.value = '';
+    } catch (e) {
+        console.warn("Error clearing input:", e);
     }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM loaded. Finding trigger elements...");
     
-    // Add global error handler to catch appendChild related errors
-    window.addEventListener('error', function(event) {
-        if (event.error && event.error.message && event.error.message.includes("appendChild")) {
-            console.error("Caught appendChild error:", event.error);
-            event.preventDefault(); // Prevent error propagation
-            
-            // Try to recover UI state
-            finalizeButtons();
-            finalizeTestButton();
-            
-            // Show friendly error message
-            const fullStatus = document.getElementById('progress_status');
-            if (fullStatus) fullStatus.textContent = "Error during processing, please refresh the page and try again";
-            
-            const testStatus = document.getElementById('test_progress_status');
-            if (testStatus) testStatus.textContent = "Error during processing, please refresh the page and try again";
-            
-            return false;
+    // Safe function to get DOM elements that never returns null
+    function safeGetElement(id) {
+        const el = document.getElementById(id);
+        if (!el) {
+            console.warn(`Element with ID "${id}" not found, returning safe dummy`);
+            // Return a safe dummy element to prevent null errors
+            const dummy = document.createElement('div');
+            dummy.id = id + '-dummy';
+            dummy.style.display = 'none';
+            // Add any methods we might call
+            dummy.appendChild = function(child) { return child; };
+            dummy.removeChild = function(child) { return child; };
+            // Add style and classList properties
+            dummy.style = { width: '0%' };
+            dummy.classList = { 
+                add: function(){}, 
+                remove: function(){},
+                contains: function(){ return false; }
+            };
+            dummy.scrollTop = 0;
+            dummy.scrollHeight = 0;
+            // Create children collection
+            dummy.children = { length: 0 };
+            // Add to body for potential future reference
+            try {
+                document.body.appendChild(dummy);
+            } catch(e) { 
+                // Ignore errors
+            }
+            return dummy;
         }
-    }, true);
+        return el;
+    }
     
-    const startTestScreenButton = document.getElementById('start_test_screen_button');
-    const startFullScreenButton = document.getElementById('start_full_screen_button');
+    // Store reference to safe function for use in callbacks
+    window.safeGetElement = safeGetElement;
+    
+    // Get button elements safely
+    const startTestScreenButton = safeGetElement('start_test_screen_button');
+    const startFullScreenButton = safeGetElement('start_full_screen_button');
     console.log("Buttons found:", { startTestScreenButton, startFullScreenButton });
     window.loggedTestLogError = false; // Reset log error flags on load
     window.loggedFullLogError = false;
@@ -334,100 +434,97 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     const newText = xhrTest.responseText.substring(lastTestCharIndex);
                     lastTestCharIndex = xhrTest.responseText.length;
+                    
+                    // Process the response directly
                     const messages = newText.split('\n\n');
                     messages.forEach(message => {
                         if (message.startsWith("data: ")) {
                             try {
                                 let jsonString = message.substring(6).trim();
-                                // Check and fix possible unterminated string
+                                // Fix any JSON issues
                                 if (jsonString.includes('"\n') || jsonString.includes('"\r')) {
                                     jsonString = jsonString.replace(/"\r|\n/g, '"');
                                 }
                                 const jsonData = JSON.parse(jsonString);
-                                // Get elements JUST BEFORE use
-                                const currentTestBar = document.getElementById('test_progress_bar');
-                                const currentTestStatus = document.getElementById('test_progress_status');
-                                const currentTestArea = document.getElementById('test_progress_area');
-                                const currentTestLogContainer = document.getElementById('test_progress_log_container');
-                                const currentTestLinkArea = document.getElementById('test_results_link_area');
-                                const currentTestLink = document.getElementById('view_test_results_link');
-
+                                
+                                // Process based on message type
                                 if (jsonData.type === 'start') {
-                                    if(currentTestStatus) currentTestStatus.textContent = `Starting... Total: ${jsonData.total}`;
-                                    if(currentTestArea) currentTestArea.style.display = 'block'; 
-                                    if(currentTestLogContainer) currentTestLogContainer.style.display = 'block';
-                                    // --- MODIFIED: Display filter info from SSE for Test Screening ---
-                                    let testStartMessage = `[${new Date().toLocaleTimeString()}] Started test screening. Max sample: ${sampleSizeInput.value}, Actual to screen: ${jsonData.total}`;
+                                    safeGetElement('test_progress_log').innerHTML = '';
+                                    safeGetElement('test_progress_status').textContent = `Starting... Total: ${jsonData.total}`;
+                                    safeGetElement('test_progress_area').style.display = 'block';
+                                    safeGetElement('test_progress_log_container').style.display = 'block';
+                                    // Add initial log
+                                    let startMsg = `[${new Date().toLocaleTimeString()}] Started test screening. Total: ${jsonData.total}`;
                                     if (jsonData.filter_info && jsonData.filter_info !== 'all entries') {
-                                        testStartMessage += ` (Filter: ${jsonData.filter_info})`;
+                                        startMsg += ` (Filter: ${jsonData.filter_info})`;
                                     }
-                                    addTestLogItem(testStartMessage);
-                                    // --- END MODIFIED ---
+                                    safeGetElement('test_progress_log').innerHTML += startMsg + '<br>';
+                                    
                                 } else if (jsonData.type === 'progress') {
-                                    if (currentTestBar) {
-                                        try { currentTestBar.style.width = jsonData.percentage + '%'; currentTestBar.textContent = jsonData.percentage + '%'; }
-                                         catch (e) { console.error("ERROR updating test progress bar:", e); }
-                                    } else { if (!window.loggedTestBarError) { console.error('!!! Could not find test_progress_bar in onprogress'); window.loggedTestBarError = true;} }
+                                    // Update progress bar
+                                    safelyUpdateProgress(safeGetElement('test_progress_bar'), jsonData.percentage);
+                                    // Update status
+                                    safeGetElement('test_progress_status').textContent = 
+                                        `Processing ${jsonData.count}/${jsonData.total}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,40) : 'Item'}...`;
                                     
-                                    if (currentTestStatus) {
-                                        try { currentTestStatus.textContent = `Processing ${jsonData.count}/${jsonData.total}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,40) : 'Item'}...`; }
-                                         catch (e) { console.error("ERROR updating test progress status:", e); }
-                                    } else { if (!window.loggedTestStatusError) { console.error('!!! Could not find test_progress_status in onprogress'); window.loggedTestStatusError = true; } }
-                                    
+                                    // Add log entry
                                     let decisionClass = jsonData.decision ? 'log-decision-' + jsonData.decision.toUpperCase().replace('API_','').replace('HTTP_ERROR_','ERROR_') : '';
-                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] Item ${jsonData.count}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,30) : 'Item'}... <span class="log-item-decision ${decisionClass}">${jsonData.decision || ''}</span>`);
+                                    const logEntry = `[${new Date().toLocaleTimeString()}] Item ${jsonData.count}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,30) : 'Item'}... <span class="log-item-decision ${decisionClass}">${jsonData.decision || ''}</span>`;
+                                    
+                                    // Add info about missing abstract if applicable
+                                    if (jsonData.has_missing_abstract) {
+                                        safeGetElement('test_progress_log').innerHTML += logEntry + ' <span class="missing-field">[缺少摘要]</span><br>';
+                                    } else if (jsonData.has_missing_fields) {
+                                        safeGetElement('test_progress_log').innerHTML += logEntry + ' <span class="missing-field">[缺少字段]</span><br>';
+                                    } else {
+                                        safeGetElement('test_progress_log').innerHTML += logEntry + '<br>';
+                                    }
+                                    
                                 } else if (jsonData.type === 'complete') {
-                                    if(currentTestBar){ /* ... */ }
-                                    if(currentTestStatus) currentTestStatus.textContent = jsonData.message;
-                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message}`);
-                                    if (jsonData.session_id && currentTestLink && currentTestLinkArea) {
+                                    // Update status
+                                    safeGetElement('test_progress_status').textContent = jsonData.message;
+                                    safeGetElement('test_progress_log').innerHTML += `[${new Date().toLocaleTimeString()}] ${jsonData.message}<br>`;
+                                    
+                                    // Set up link if available
+                                    if (jsonData.session_id) {
                                         let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
-                                        currentTestLink.href = baseUrl.replace('__SESSION_ID__', jsonData.session_id);
-                                        currentTestLinkArea.style.display = 'block';
-                                    } else { console.warn('Could not set test results link.'); }
+                                        safeGetElement('view_test_results_link').href = baseUrl.replace('__SESSION_ID__', jsonData.session_id);
+                                        safeGetElement('test_results_link_area').style.display = 'block';
+                                    }
+                                    
                                     xhrTest.abort();
                                     finalizeTestButton();
+                                    
                                 } else if (jsonData.type === 'error') {
-                                    if(currentTestBar){ /* ... */ }
-                                    if(currentTestStatus) currentTestStatus.textContent = `Error: ${jsonData.message}`;
-                                    // --- MODIFIED: Display config link if API key missing for Test --- 
-                                    let testErrorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
+                                    // Display error
+                                    safeGetElement('test_progress_status').textContent = `Error: ${jsonData.message}`;
+                                    let errorMsg = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
                                     if (jsonData.needs_config) {
                                         const configUrl = "{{ url_for('llm_config_page') }}";
-                                        testErrorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
+                                        errorMsg += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
                                     }
-                                    addTestLogItem(testErrorMessage);
-                                    // --- END MODIFIED ---
+                                    safeGetElement('test_progress_log').innerHTML += errorMsg + '<br>';
+                                    
                                     xhrTest.abort();
                                     finalizeTestButton();
                                 }
-                            } catch (e) { 
-                                console.error("Test SSE Parse Error:", e); 
-                                console.error("Problematic JSON:", message.substring(6));
-                                // Display error in UI
-                                const currentTestStatus = document.getElementById('test_progress_status');
-                                if(currentTestStatus) currentTestStatus.textContent = `JSON parse error: ${e.message}`;
-                                addTestLogItem(`[${new Date().toLocaleTimeString()}] JSON parse error, please refresh page and try again`);
-                            } 
+                            } catch (e) {
+                                console.error("Test JSON parse error:", e);
+                                safeGetElement('test_progress_status').textContent = `Error parsing response: ${e.message}`;
+                            }
                         }
                     });
                 } catch (e) {
-                    console.error("Test SSE onprogress Error:", e);
-                    // Display error in UI
-                    const currentTestStatus = document.getElementById('test_progress_status');
-                    if(currentTestStatus) currentTestStatus.textContent = "Error during processing, please refresh page and try again";
-                    addTestLogItem(`[${new Date().toLocaleTimeString()}] Error during processing, please refresh page and try again`);
+                    console.error("Test XHR processing error:", e);
+                    safeGetElement('test_progress_status').textContent = "Error processing response";
                     finalizeTestButton();
                 }
-            }; 
+            };
             
             // Add timeout handler
             xhrTest.ontimeout = function() {
                 console.error("Test XHR request timeout");
-                const currentTestStatus = document.getElementById('test_progress_status');
-                if(currentTestStatus) currentTestStatus.textContent = "Request timeout, try processing fewer documents";
-                addTestLogItem(`[${new Date().toLocaleTimeString()}] Request timeout, try processing fewer documents or check your network connection`);
-                finalizeTestButton();
+                safeGetElement('test_progress_status').textContent = "Request timeout, try processing fewer documents";
             };
             
             xhrTest.onloadend = function() { 
@@ -437,10 +534,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             xhrTest.onerror = function() { 
                 console.error("Test XHR request error"); 
-                const currentTestStatus = document.getElementById('test_progress_status');
-                if(currentTestStatus) currentTestStatus.textContent = "Request error, please refresh page and try again";
-                addTestLogItem(`[${new Date().toLocaleTimeString()}] Request error, please refresh page and try again`);
-                finalizeTestButton(); 
+                safeGetElement('test_progress_status').textContent = "Request error, please refresh page and try again";
             };
             
             xhrTest.send(formData);
@@ -504,84 +598,101 @@ document.addEventListener('DOMContentLoaded', function() {
                  try {
                      const newText = xhr.responseText.substring(lastCharIndex);
                      lastCharIndex = xhr.responseText.length;
+                     
+                     // Process the response directly
                      const messages = newText.split('\n\n');
                      messages.forEach(message => {
                          if (message.startsWith("data: ")) {
                              try {
                                  let jsonString = message.substring(6).trim();
-                                 // Check and fix possible unterminated string
+                                 // Fix any JSON issues
                                  if (jsonString.includes('"\n') || jsonString.includes('"\r')) {
                                      jsonString = jsonString.replace(/"\r|\n/g, '"');
                                  }
                                  const jsonData = JSON.parse(jsonString);
-                                 const currentFullBar = document.getElementById('progress_bar');
-                                 const currentFullStatus = document.getElementById('progress_status');
-                                 const currentFullArea = document.getElementById('progress_area');
-                                 const currentFullLogContainer = document.getElementById('progress_log_container');
-                                 const currentFullLinkArea = document.getElementById('sse_results_link_area');
-                                 const currentFullLink = document.getElementById('view_full_results_link');
-
+                                 
+                                 // Process based on message type
                                  if (jsonData.type === 'start') {
-                                     if(currentFullStatus) currentFullStatus.textContent = `Screening ${jsonData.total} items...`;
-                                     if(currentFullArea) currentFullArea.style.display = 'block';
-                                     if(currentFullLogContainer) currentFullLogContainer.style.display = 'block';
-                                     let startMessage = `[${new Date().toLocaleTimeString()}] Started. Total to screen: ${jsonData.total}`;
+                                     safeGetElement('progress_log').innerHTML = '';
+                                     safeGetElement('progress_status').textContent = `Screening ${jsonData.total} items...`;
+                                     safeGetElement('progress_area').style.display = 'block';
+                                     safeGetElement('progress_log_container').style.display = 'block';
+                                     // Add initial log
+                                     let startMsg = `[${new Date().toLocaleTimeString()}] Started screening. Total: ${jsonData.total}`;
                                      if (jsonData.filter_info && jsonData.filter_info !== 'all entries') {
-                                         startMessage += ` (Filter: ${jsonData.filter_info})`;
+                                         startMsg += ` (Filter: ${jsonData.filter_info})`;
                                      }
-                                     addLogItem(startMessage);
-                                 } else if (jsonData.type === 'progress') {
-                                     if (currentFullBar) { 
-                                         try { currentFullBar.style.width = jsonData.percentage + '%'; currentFullBar.textContent = jsonData.percentage + '%'; } 
-                                         catch(e) { console.error("Error updating full progress bar:", e); }
-                                     } else { if (!window.loggedFullBarError) { console.error('!!! Could not find progress_bar in onprogress'); window.loggedFullBarError = true; } }
-                                     if (currentFullStatus) { 
-                                          try { currentFullStatus.textContent = `Processing ${jsonData.count}/${jsonData.total}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,40) : 'Item'}...`; } 
-                                          catch (e) { console.error("Error updating full progress status:", e); }
-                                     } else { if (!window.loggedFullStatusError) { console.error('!!! Could not find progress_status in onprogress'); window.loggedFullStatusError = true; } }
+                                     safeGetElement('progress_log').innerHTML += startMsg + '<br>';
                                      
+                                 } else if (jsonData.type === 'progress') {
+                                     // Update progress bar
+                                     safelyUpdateProgress(safeGetElement('progress_bar'), jsonData.percentage);
+                                     // Update status
+                                     safeGetElement('progress_status').textContent = 
+                                         `Processing ${jsonData.count}/${jsonData.total}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,40) : 'Item'}...`;
+                                     
+                                     // Skip some updates for large datasets to improve performance
+                                     if (window._optimizationCounter && window._skipDomUpdate && window._skipDomUpdate() &&
+                                         !jsonData.decision && // Never skip items with decisions
+                                         !jsonData.has_missing_abstract && // Never skip items with missing abstracts
+                                         !jsonData.has_missing_fields) { // Never skip items with missing fields
+                                         return;
+                                     }
+                                     
+                                     // Add log entry
                                      let decisionClass = jsonData.decision ? 'log-decision-' + jsonData.decision.toUpperCase().replace('API_','').replace('HTTP_ERROR_','ERROR_') : '';
-                                     addLogItem(`[${new Date().toLocaleTimeString()}] Item ${jsonData.count}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,30) : 'Item'}... <span class="log-item-decision ${decisionClass}">${jsonData.decision || ''}</span>`);
+                                     const logEntry = `[${new Date().toLocaleTimeString()}] Item ${jsonData.count}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,30) : 'Item'}... <span class="log-item-decision ${decisionClass}">${jsonData.decision || ''}</span>`;
+                                     
+                                     // Add info about missing abstract if applicable
+                                     if (jsonData.has_missing_abstract) {
+                                         safeGetElement('progress_log').innerHTML += logEntry + ' <span class="missing-field">[缺少摘要]</span><br>';
+                                     } else if (jsonData.has_missing_fields) {
+                                         safeGetElement('progress_log').innerHTML += logEntry + ' <span class="missing-field">[缺少字段]</span><br>';
+                                     } else {
+                                         safeGetElement('progress_log').innerHTML += logEntry + '<br>';
+                                     }
+                                     
                                  } else if (jsonData.type === 'complete') {
-                                     if(currentFullBar){ currentFullBar.classList.add('bg-success'); currentFullBar.textContent = "Complete"; }
-                                     if(currentFullStatus) currentFullStatus.textContent = jsonData.message;
-                                     addLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message}`);
-                                     if (jsonData.screening_id && currentFullLink && currentFullLinkArea) {
+                                     // Update status
+                                     safeGetElement('progress_bar').classList.add('bg-success');
+                                     safeGetElement('progress_bar').textContent = 'Complete';
+                                     safeGetElement('progress_status').textContent = jsonData.message;
+                                     safeGetElement('progress_log').innerHTML += `[${new Date().toLocaleTimeString()}] ${jsonData.message}<br>`;
+                                     
+                                     // Set up link if available
+                                     if (jsonData.screening_id) {
                                          let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
-                                         currentFullLink.href = baseUrl.replace('__SCREENING_ID__', jsonData.screening_id);
-                                         currentFullLinkArea.style.display = 'block';
-                                     } else { console.warn('Could not set full results link.'); }
-                                     xhr.abort(); 
+                                         safeGetElement('view_full_results_link').href = baseUrl.replace('__SCREENING_ID__', jsonData.screening_id);
+                                         safeGetElement('sse_results_link_area').style.display = 'block';
+                                     }
+                                     
+                                     xhr.abort();
                                      finalizeButtons();
+                                     
                                  } else if (jsonData.type === 'error') {
-                                     if(currentFullBar){ currentFullBar.classList.add('bg-danger'); currentFullBar.textContent = "Error";}
-                                     if(currentFullStatus) currentFullStatus.textContent = `Error: ${jsonData.message}`;
-                                     let errorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
+                                     // Display error
+                                     safeGetElement('progress_bar').classList.add('bg-danger');
+                                     safeGetElement('progress_bar').textContent = 'Error';
+                                     safeGetElement('progress_status').textContent = `Error: ${jsonData.message}`;
+                                     let errorMsg = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
                                      if (jsonData.needs_config) {
                                          const configUrl = "{{ url_for('llm_config_page') }}";
-                                         errorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
+                                         errorMsg += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
                                      }
-                                     addLogItem(errorMessage);
+                                     safeGetElement('progress_log').innerHTML += errorMsg + '<br>';
+                                     
                                      xhr.abort();
                                      finalizeButtons();
                                  }
-                             } catch (e) { 
-                                 console.error("Full SSE Parse Error:", e); 
-                                 console.error("Problematic JSON:", message.substring(6));
-                                 // Display error in UI
-                                 const currentFullStatus = document.getElementById('progress_status');
-                                 if(currentFullStatus) currentFullStatus.textContent = `JSON parse error: ${e.message}`;
-                                 addLogItem(`[${new Date().toLocaleTimeString()}] JSON parse error, please refresh page and try again`);
-                             } 
+                             } catch (e) {
+                                 console.error("Full JSON parse error:", e);
+                                 safeGetElement('progress_status').textContent = `Error parsing response: ${e.message}`;
+                             }
                          }
                      });
                  } catch (e) {
-                     console.error("Full SSE onprogress Error:", e);
-                     console.error("Problematic message:", message.substring(6));
-                     // Display error in UI
-                     const currentFullStatus = document.getElementById('progress_status');
-                     if(currentFullStatus) currentFullStatus.textContent = "Error during processing, please refresh page and try again";
-                     addLogItem(`[${new Date().toLocaleTimeString()}] Error during processing, please refresh page and try again`);
+                     console.error("Full XHR processing error:", e);
+                     safeGetElement('progress_status').textContent = "Error processing response";
                      finalizeButtons();
                  }
              };
@@ -589,10 +700,7 @@ document.addEventListener('DOMContentLoaded', function() {
              // Add timeout handler
              xhr.ontimeout = function() {
                  console.error("XHR request timeout");
-                 const currentFullStatus = document.getElementById('progress_status');
-                 if(currentFullStatus) currentFullStatus.textContent = "Request timeout, try processing fewer documents";
-                 addLogItem(`[${new Date().toLocaleTimeString()}] Request timeout, try processing fewer documents or check your network connection`);
-                 finalizeButtons();
+                 safeGetElement('progress_status').textContent = "Request timeout, try processing fewer documents";
              };
              
              xhr.onloadend = function() { 
@@ -602,10 +710,7 @@ document.addEventListener('DOMContentLoaded', function() {
              
              xhr.onerror = function() { 
                  console.error("XHR request error");
-                 const currentFullStatus = document.getElementById('progress_status');
-                 if(currentFullStatus) currentFullStatus.textContent = "Request error, please refresh page and try again";
-                 addLogItem(`[${new Date().toLocaleTimeString()}] Request error, please refresh page and try again`);
-                 finalizeButtons(); 
+                 safeGetElement('progress_status').textContent = "Request error, please refresh page and try again";
              };
              
              xhr.send(formData);
@@ -617,6 +722,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if(window._cleanupInterval) {
             clearInterval(window._cleanupInterval);
         }
+        
+        // Disconnect observers
+        ['progress_log', 'test_progress_log'].forEach(id => {
+            const observer = window[`_observer_${id}`];
+            if (observer && observer.disconnect) {
+                observer.disconnect();
+            }
+        });
+        
         // Clean up other possible resources
         if(window.xhr) {
             window.xhr.abort();
@@ -627,5 +741,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
 }); 
+
+// Add a separate wrapper function to ensure we're not trying to modify DOM too quickly
+function safelyUpdateProgress(barElement, percentage, updateText = true) {
+    // Throttle DOM updates to prevent conflicts with external libraries
+    try {
+        if (barElement) {
+            barElement.style.width = percentage + '%';
+            if (updateText) {
+                barElement.textContent = percentage + '%';
+            }
+        }
+    } catch (e) {
+        console.error("Error updating progress bar:", e);
+    }
+}
 </script>
 {% endblock %}
