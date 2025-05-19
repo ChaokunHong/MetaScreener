@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Abstract Screening Actions - AI Literature Screening Assistant{% endblock %}
+{% block title %}Abstract Screening - AI Literature Screening Assistant{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -44,6 +44,36 @@
     .missing-field {
         color: orange;
         font-style: italic;
+    }
+
+    /* Stepper-like UI */
+    .step-card {
+        margin-bottom: 1.5rem;
+        border: 1px solid #dee2e6;
+        border-radius: .25rem;
+    }
+    .step-card .card-header {
+        background-color: #f8f9fa;
+        padding: 0.75rem 1.25rem;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .step-card .card-header h5 {
+        margin-bottom: 0;
+        font-weight: 600;
+    }
+    .step-card .card-body {
+        padding: 1.25rem;
+    }
+    .step-indicator {
+        font-size: 1.5rem;
+        color: var(--primary-color);
+        margin-right: 0.5rem;
+    }
+    .filter-options-toggle {
+        font-size: 0.9rem;
     }
 </style>
 <script>
@@ -123,7 +153,13 @@
                 return {
                     appendChild: function() { return null; },
                     style: {},
-                    classList: { add: function(){}, remove: function(){} }
+                    classList: { add: function(){}, remove: function(){} },
+                    // Add other necessary properties/methods if FullCalendar or other libs need them
+                    getElementsByTagName: function() { return []; },
+                    hasAttribute: function() { return false; },
+                    getAttribute: function() { return null; },
+                    setAttribute: function() {}, 
+                    removeAttribute: function() {}
                 };
             }
         }
@@ -133,118 +169,191 @@
 {% endblock %}
 
 {% block content %}
-{# --- Test Screening Section --- #}
-<div class="section-card">
-    <h2>Test Screening (Sampled Abstracts)</h2>
-    <p>Upload a .ris file to screen a sample of abstracts with progress updates. Compare AI decisions and view metrics.</p>
-    <form id="test_screen_form" enctype="multipart/form-data"> 
-        <div class="form-row">
-            <div class="form-group col-md-5">
-                <label for="test_file">Upload RIS File:</label>
-                <input type="file" name="file" id="test_file" class="form-control-file form-control-sm" required accept=".ris">
-            </div>
-            <div class="form-group col-md-2">
-                <label for="sample_size">Sample Size:</label> 
-                <input type="number" name="sample_size" id="sample_size" class="form-control form-control-sm" value="10" min="5" max="9999">
-            </div>
-        </div>
-        <!-- NEW FILTER FIELDS for Test Screening -->
-        <div class="form-row">
-            <div class="form-group col-md-6">
-                <label for="test_title_text_filter">Filter by Title (Optional):</label>
-                <div class="input-group input-group-sm">
-                    <input type="text" id="test_title_text_filter" name="title_text_filter" class="form-control form-control-sm" placeholder="Enter keywords from title">
-                    <div class="input-group-append">
-                        <button class="btn btn-outline-secondary clear-input-btn" type="button" onclick="clearInput('test_title_text_filter')">&times;</button>
-                    </div>
-                </div>
-            </div>
-            <div class="form-group col-md-6">
-                <label for="test_line_range_filter">Filter by Line Numbers (Optional, 1-based):</label>
-                <div class="input-group input-group-sm">
-                    <input type="text" id="test_line_range_filter" name="line_range_filter" class="form-control form-control-sm" placeholder="e.g., 5-10, 7, 1-20, 50-">
-                    <div class="input-group-append">
-                        <button class="btn btn-outline-secondary clear-input-btn" type="button" onclick="clearInput('test_line_range_filter')">&times;</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <small class="form-text text-muted mb-2">Filters are applied *before* sampling. If both title and line numbers are filled, title filter takes precedence.</small>
-        <!-- END NEW FILTER FIELDS for Test Screening -->
-
-        <button id="start_test_screen_button" type="button" class="btn btn-info btn-sm">
-            <span id="test_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
-            Start Test Screening with Progress
-        </button>
-    </form>
-    {# RESTORED: Detailed HTML for Test progress area #}
-    <div id="test_progress_area" class="mt-3" style="display: none;">
-        <h4>Test Screening Progress:</h4>
-        <div class="progress mb-2">
-            <div id="test_progress_bar" class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-        </div>
-        <p id="test_progress_status" class="mt-1 small text-muted"></p>
-        <div id="test_progress_log_container" style="display:none;">
-            <strong>Live Log (Test):</strong>
-            <div id="test_progress_log" style="max-height: 100px; overflow-y: auto; font-size: 0.8em; background-color: #f0f0f0; padding: 8px; border: 1px solid #ccc; margin-top:8px; border-radius: 4px; white-space: pre-line;"></div>
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col-12">
+            <h1>Abstract Screening</h1>
+            <p class="lead">Screen your literature abstracts efficiently. You can start with a test screening or proceed to screen the full dataset.</p>
+            <p>Ensure your <a href="{{ url_for('llm_config_page') }}">LLM is configured</a> and <a href="{{ url_for('screening_criteria_page') }}">screening criteria are set</a> before starting.</p>
         </div>
     </div>
-     <div id="test_results_link_area" class="mt-3" style="display:none;">
-        <a href="#" id="view_test_results_link" class="btn btn-primary">View Test Results & Assess</a>
+
+    <div id="abstractScreeningAccordion">
+        <!-- Step 1: Test Screening Section -->
+        <div class="step-card card">
+            <div class="card-header" id="headingTestScreening" data-toggle="collapse" data-target="#collapseTestScreening" aria-expanded="true" aria-controls="collapseTestScreening">
+                <h5><span class="step-indicator"><i class="bi bi-eyedropper"></i></span>1. Test Screening (Sampled Abstracts)</h5>
+                <button class="btn btn-link filter-options-toggle" type="button">
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+            </div>
+
+            <div id="collapseTestScreening" class="collapse show" aria-labelledby="headingTestScreening" data-parent="#abstractScreeningAccordion">
+                <div class="card-body">
+                    <p>Upload a .ris file to screen a sample of abstracts. This helps you test your criteria and AI performance with a smaller batch.</p>
+                    <form id="test_screen_form" enctype="multipart/form-data">
+                        <div class="form-row align-items-end">
+                            <div class="form-group col-md-6">
+                                <label for="test_file">Upload RIS File:</label>
+                                <input type="file" name="file" id="test_file" class="form-control-file form-control-sm" required accept=".ris">
+                                <small class="form-text text-muted">Select the .ris file containing abstracts for test screening.</small>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label for="sample_size">Sample Size:</label>
+                                <input type="number" name="sample_size" id="sample_size" class="form-control form-control-sm" value="10" min="5" max="9999">
+                                <small class="form-text text-muted">Number of abstracts to sample from the file.</small>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <button id="start_test_screen_button" type="button" class="btn btn-info btn-block">
+                                    <span id="test_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                                    <i class="bi bi-play-circle"></i> Start Test Screening
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <a class="filter-options-toggle" data-toggle="collapse" href="#testFilterOptions" role="button" aria-expanded="false" aria-controls="testFilterOptions">
+                                Advanced Filters (Optional) <i class="bi bi-chevron-down small"></i>
+                            </a>
+                        </div>
+
+                        <div class="collapse mt-2" id="testFilterOptions">
+                            <div class="card card-body bg-light p-3">
+                                <div class="form-row">
+                                    <div class="form-group col-md-6 mb-0">
+                                        <label for="test_title_text_filter">Filter by Title:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" id="test_title_text_filter" name="title_text_filter" class="form-control form-control-sm" placeholder="Enter keywords from title">
+                                            <div class="input-group-append">
+                                                <button class="btn btn-outline-secondary clear-input-btn" type="button" onclick="clearInput('test_title_text_filter')">&times;</button>
+                                            </div>
+                                        </div>
+                                        <small class="form-text text-muted">Filters are applied *before* sampling. Title filter takes precedence if both are filled.</small>
+                                    </div>
+                                    <div class="form-group col-md-6 mb-0">
+                                        <label for="test_line_range_filter">Filter by Line Numbers (1-based):</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" id="test_line_range_filter" name="line_range_filter" class="form-control form-control-sm" placeholder="e.g., 5-10, 7, 1-20, 50-">
+                                            <div class="input-group-append">
+                                                <button class="btn btn-outline-secondary clear-input-btn" type="button" onclick="clearInput('test_line_range_filter')">&times;</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div id="test_progress_area" class="mt-3" style="display: none;">
+                        <h5>Test Screening Progress:</h5>
+                        <div class="progress mb-2">
+                            <div id="test_progress_bar" class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                        </div>
+                        <p id="test_progress_status" class="mt-1 small text-muted"></p>
+                        <div class="mt-2">
+                             <a class="filter-options-toggle" data-toggle="collapse" href="#testLogContainer" role="button" aria-expanded="false" aria-controls="testLogContainer">
+                                Show Live Log <i class="bi bi-chevron-down small"></i>
+                            </a>
+                        </div>
+                        <div id="testLogContainer" class="collapse mt-2">
+                            <div id="test_progress_log_container" style="display:none;">
+                                <div id="test_progress_log" style="max-height: 150px; overflow-y: auto; font-size: 0.8em; background-color: #f8f9fa; padding: 10px; border: 1px solid #dee2e6; border-radius: .25rem; white-space: pre-line;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="test_results_link_area" class="mt-3" style="display:none;">
+                        <a href="#" id="view_test_results_link" class="btn btn-primary"><i class="bi bi-clipboard-check"></i> View Test Results & Assess</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Full Dataset Screening Section -->
+        <div class="step-card card">
+            <div class="card-header" id="headingFullScreening" data-toggle="collapse" data-target="#collapseFullScreening" aria-expanded="false" aria-controls="collapseFullScreening">
+                <h5><span class="step-indicator"><i class="bi bi-card-checklist"></i></span>2. Screen Full Dataset (All Abstracts)</h5>
+                 <button class="btn btn-link filter-options-toggle" type="button">
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+            </div>
+            <div id="collapseFullScreening" class="collapse" aria-labelledby="headingFullScreening" data-parent="#abstractScreeningAccordion">
+                <div class="card-body">
+                    <p>Upload your .ris file to screen all entries based on abstracts using the current settings. Progress will be displayed live.</p>
+                    <form id="full_screen_form_id" enctype="multipart/form-data">
+                        <div class="form-row align-items-end">
+                            <div class="form-group col-md-9">
+                                <label for="full_file_progress">Upload RIS File:</label>
+                                <input type="file" name="file" id="full_file_progress" class="form-control-file form-control-sm" required accept=".ris">
+                                <small class="form-text text-muted">Select the .ris file containing all abstracts for full screening.</small>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <button type="button" id="start_full_screen_button" class="btn btn-primary btn-block"><i class="bi bi-play-fill"></i> Screen Full File</button>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <a class="filter-options-toggle" data-toggle="collapse" href="#fullFilterOptions" role="button" aria-expanded="false" aria-controls="fullFilterOptions">
+                                Advanced Filters (Optional) <i class="bi bi-chevron-down small"></i>
+                            </a>
+                        </div>
+
+                        <div class="collapse mt-2" id="fullFilterOptions">
+                            <div class="card card-body bg-light p-3">
+                                <div class="form-row">
+                                    <div class="form-group col-md-6 mb-0">
+                                        <label for="title_text_filter">Filter by Title:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" id="title_text_filter" name="title_text_filter" class="form-control form-control-sm" placeholder="Enter keywords from title">
+                                            <div class="input-group-append">
+                                                <button class="btn btn-outline-secondary clear-input-btn" type="button" onclick="clearInput('title_text_filter')">&times;</button>
+                                            </div>
+                                        </div>
+                                        <small class="form-text text-muted">Title filter takes precedence if both are filled.</small>
+                                    </div>
+                                    <div class="form-group col-md-6 mb-0">
+                                        <label for="line_range_filter">Filter by Line Numbers (1-based):</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" id="line_range_filter" name="line_range_filter" class="form-control form-control-sm" placeholder="e.g., 5-10, 7, 1-20, 50-">
+                                            <div class="input-group-append">
+                                                <button class="btn btn-outline-secondary clear-input-btn" type="button" onclick="clearInput('line_range_filter')">&times;</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div id="progress_area" class="mt-3" style="display: none;">
+                        <h4>Screening Progress:</h4>
+                        <div class="progress mb-2">
+                            <div id="progress_bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                        </div>
+                        <p id="progress_status" class="mt-1 small text-muted"></p>
+                        <div class="mt-2">
+                            <a class="filter-options-toggle" data-toggle="collapse" href="#fullLogContainer" role="button" aria-expanded="false" aria-controls="fullLogContainer">
+                                Show Live Log <i class="bi bi-chevron-down small"></i>
+                            </a>
+                        </div>
+                         <div id="fullLogContainer" class="collapse mt-2">
+                            <div id="progress_log_container" style="display:none;">
+                                <div id="progress_log" style="max-height: 150px; overflow-y: auto; font-size: 0.8em; background-color: #f8f9fa; padding: 10px; border: 1px solid #dee2e6; border-radius: .25rem; white-space: pre-line;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="sse_results_link_area" class="mt-3" style="display:none;">
+                        <a href="#" id="view_full_results_link" class="btn btn-success"><i class="bi bi-check2-circle"></i> View Full Screening Results</a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
-{# --- Full Dataset (Abstracts) Screening Section --- #}
-<div class="section-card">
-    <h2>Screen Full Dataset (Abstracts)</h2>
-    <p>Upload your .ris file to screen all entries based on abstracts using the current settings. Progress is displayed live.</p>
-    <form id="full_screen_form_id" enctype="multipart/form-data">
-        <div class="form-group">
-            <label for="full_file_progress">Upload RIS File:</label>
-            <input type="file" name="file" id="full_file_progress" class="form-control-file form-control-sm" required accept=".ris">
-        </div>
-
-        <!-- NEW FILTER FIELDS -->
-        <div class="form-row">
-            <div class="form-group col-md-6">
-                <label for="title_text_filter">Filter by Title (Optional):</label>
-                <div class="input-group input-group-sm">
-                    <input type="text" id="title_text_filter" name="title_text_filter" class="form-control form-control-sm" placeholder="Enter keywords from title">
-                    <div class="input-group-append">
-                        <button class="btn btn-outline-secondary clear-input-btn" type="button" onclick="clearInput('title_text_filter')">&times;</button>
-                    </div>
-                </div>
-            </div>
-            <div class="form-group col-md-6">
-                <label for="line_range_filter">Filter by Line Numbers (Optional, 1-based):</label>
-                <div class="input-group input-group-sm">
-                    <input type="text" id="line_range_filter" name="line_range_filter" class="form-control form-control-sm" placeholder="e.g., 5-10, 7, 1-20, 50-">
-                    <div class="input-group-append">
-                        <button class="btn btn-outline-secondary clear-input-btn" type="button" onclick="clearInput('line_range_filter')">&times;</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <small class="form-text text-muted mb-2">If both title and line numbers are filled, title filter will take precedence.</small>
-        <!-- END NEW FILTER FIELDS -->
-
-        <button type="button" id="start_full_screen_button" class="btn btn-primary btn-sm">Screen Full File with Progress (SSE)</button>
-    </form>
-    {# RESTORED: Detailed HTML for Full progress area #}
-     <div id="progress_area" class="mt-3" style="display: none;">
-        <h4>Screening Progress:</h4>
-        <div class="progress mb-2">
-            <div id="progress_bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-        </div>
-        <p id="progress_status" class="mt-1 small text-muted"></p>
-        <div id="progress_log_container" style="display:none;">
-            <strong>Live Log (last few items):</strong>
-            <div id="progress_log" style="max-height: 150px; overflow-y: auto; font-size: 0.8em; background-color: #f0f0f0; padding: 8px; border: 1px solid #ccc; margin-top:8px; border-radius: 4px; white-space: pre-line;"></div> {# Note: ID is progress_log #}
-        </div>
-    </div>
-     <div id="sse_results_link_area" class="mt-3" style="display:none;">
-        <a href="#" id="view_full_results_link" class="btn btn-success">View Full Results from SSE Screening</a> 
-    </div>
+<div class="js-dummy-container">
+    <!-- Dummy elements for index.global.js -->
+    <div id="fc-dom-1"></div> 
+    <div id="fc-dom-2"></div> 
 </div>
 
 {% endblock %}
@@ -371,6 +480,9 @@ function finalizeButtons() {
     try {
         const btnF = safeGetElement('start_full_screen_button');
         btnF.disabled = false;
+        // Ensure spinner is hidden if one was added to full screen button
+        const fullSpinner = safeGetElement('full_spinner'); // Assuming an ID like 'full_spinner' if you add one
+        if (fullSpinner) fullSpinner.style.display = 'none';
     } catch (e) {
         console.warn("Error finalizing buttons:", e);
     }
@@ -958,20 +1070,30 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Disconnect observers
+        // No longer needed with direct log management
+        /*
         ['progress_log', 'test_progress_log'].forEach(id => {
             const observer = window[`_observer_${id}`];
             if (observer && observer.disconnect) {
                 observer.disconnect();
             }
         });
+        */
         
         // Clean up other possible resources
         if(window.xhr) {
-            window.xhr.abort();
+            try { window.xhr.abort(); } catch(e) { console.warn('Error aborting xhr', e); }
         }
         if(window.xhrTest) {
-            window.xhrTest.abort();
+            try { window.xhrTest.abort(); } catch(e) { console.warn('Error aborting xhrTest', e); }
         }
+    });
+
+    // Initialize accordion behavior
+    $('#abstractScreeningAccordion .collapse').on('show.bs.collapse', function () {
+        $(this).parent().find('.bi-chevron-down').removeClass('bi-chevron-down').addClass('bi-chevron-up');
+    }).on('hide.bs.collapse', function () {
+        $(this).parent().find('.bi-chevron-up').removeClass('bi-chevron-up').addClass('bi-chevron-down');
     });
 
 }); 

@@ -135,6 +135,7 @@ def allowed_file(filename):
 @app.route('/configure_llm', methods=['POST'])
 def configure_llm():
     app_logger.info("--- Entering configure_llm --- ")
+    action_successful = True # Initialize success flag
 
     # Check if the action is to clear a specific API key
     provider_to_clear = request.form.get('clear_api_key')
@@ -163,33 +164,38 @@ def configure_llm():
     providers_info = get_llm_providers_info()
     if not selected_provider or selected_provider not in providers_info:
         flash('Invalid LLM Provider selected.', 'error')
-        return redirect(url_for('llm_config_page'))
-
-    provider_config = providers_info[selected_provider]
-
-    session['selected_llm_provider'] = selected_provider
-    session['selected_llm_model_id'] = selected_model_id
-    flash_messages = [f'LLM Provider set to {selected_provider.replace("_"," ")} and Model to {selected_model_id}.']
-
-    # Handle API key submission for the selected provider
-    api_key_form_field = f"{selected_provider.lower()}_api_key"
-    user_api_key = request.form.get(api_key_form_field)
+        action_successful = False # Mark as failure
     
-    if user_api_key: # If user submitted a key for the currently selected provider
-        app_logger.debug(f"Attempting to save API key for {selected_provider}.")
-        session_key_for_api = provider_config.get("api_key_session_key")
-        if session_key_for_api:
-            session[session_key_for_api] = user_api_key
-            app_logger.info(f"Saved API key for {selected_provider} into session.")
-            flash_messages.append(f'API Key for {selected_provider.replace("_"," ")} updated in session.')
+    if action_successful: # Only proceed if provider is valid and no prior errors
+        provider_config = providers_info[selected_provider]
+        session['selected_llm_provider'] = selected_provider
+        session['selected_llm_model_id'] = selected_model_id
+        
+        # Handle API key submission for the selected provider
+        api_key_form_field = f"{selected_provider.lower()}_api_key"
+        user_api_key = request.form.get(api_key_form_field)
+        
+        if user_api_key: # If user submitted a key for the currently selected provider
+            app_logger.debug(f"Attempting to save API key for {selected_provider}.")
+            session_key_for_api = provider_config.get("api_key_session_key")
+            if session_key_for_api:
+                session[session_key_for_api] = user_api_key
+                app_logger.info(f"Saved API key for {selected_provider} into session.")
+            else:
+                app_logger.error(f"Could not find api_key_session_key in provider config for {selected_provider}!")
+                flash(f'Error: Configuration problem for {selected_provider} API key storage.', 'error')
+                action_successful = False # Mark as failure
         else:
-             app_logger.error(f"Could not find api_key_session_key in provider config for {selected_provider}!")
-             flash_messages.append(f'Error: Configuration problem for {selected_provider} API key storage.')
-    else:
-        app_logger.debug(f"No new API key submitted for {selected_provider}. Retaining existing session key if any.")
-
-    for msg in flash_messages:
-        flash(msg, 'success') # Use 'success' or 'info' based on message type
+            app_logger.debug(f"No new API key submitted for {selected_provider}. Retaining existing session key if any.")
+    
+    # Final flash message based on overall success
+    if action_successful:
+        flash('LLM configuration saved successfully.', 'success') # This is the key message for JS detection
+    # else: 
+        # Specific error messages should have been flashed above when action_successful was set to False.
+        # If no specific error was flashed but action_successful is False (shouldn't happen with current logic), 
+        # a general failure message could be added here, but it is better to flash specific errors.
+        # flash('Failed to save LLM configuration due to an unspecified error.', 'error') # Example fallback
 
     app_logger.debug(f"Session contents after configure_llm: {session}")
     return redirect(url_for('llm_config_page'))

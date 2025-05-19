@@ -18,11 +18,27 @@
         font-size: 0.8em;
         padding: 0.1rem 0.3rem;
     }
+
+    /* Page exit animation */
+    @keyframes pageFadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+    }
+
+    .page-is-exiting {
+        animation: pageFadeOut 0.5s forwards; /* 0.5s duration, keeps final state (opacity: 0) */
+        pointer-events: none; /* Disable interactions on the fading out page */
+    }
+
+    /* Ensure body has a default background for opacity transition to look good if needed */
+    body {
+        background-color: #fff; /* Or your page's main background color */
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="section-card">
+<div class="section-card" id="llmConfigMainContainer">
     <h2>LLM Configuration</h2>
     <p class="api-key-info">
         Select LLM and provide/manage API keys below. API keys are stored only in your browser session for the current visit.
@@ -165,9 +181,100 @@
         }
     }
 
+    // Helper function to show a centered loading indicator
+    function showCenteredLoading(message) {
+        const existingLoader = document.getElementById('pageCenteredLoader');
+        if (existingLoader) {
+            existingLoader.parentNode.removeChild(existingLoader);
+        }
+
+        const loaderDiv = document.createElement('div');
+        loaderDiv.id = 'pageCenteredLoader';
+        loaderDiv.style.position = 'fixed';
+        loaderDiv.style.left = '0';
+        loaderDiv.style.top = '0';
+        loaderDiv.style.width = '100%';
+        loaderDiv.style.height = '100%';
+        loaderDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.85)';
+        loaderDiv.style.display = 'flex';
+        loaderDiv.style.justifyContent = 'center';
+        loaderDiv.style.alignItems = 'center';
+        loaderDiv.style.zIndex = '2000';
+        loaderDiv.style.flexDirection = 'column';
+
+        const spinner = document.createElement('div');
+        spinner.style.border = '4px solid #f3f3f3'; 
+        spinner.style.borderTop = '4px solid #3498db'; 
+        spinner.style.borderRadius = '50%';
+        spinner.style.width = '40px';
+        spinner.style.height = '40px';
+        spinner.style.animation = 'spin 1s linear infinite';
+        spinner.style.marginBottom = '20px';
+
+        const messageP = document.createElement('p');
+        messageP.textContent = message;
+        messageP.style.fontSize = '1.2em';
+        messageP.style.color = '#333';
+
+        loaderDiv.appendChild(spinner);
+        loaderDiv.appendChild(messageP);
+        document.body.appendChild(loaderDiv);
+
+        const styleSheet = document.styleSheets[0] || document.head.appendChild(document.createElement('style')).sheet;
+        try {
+            let spinRuleExists = false;
+            for (let i = 0; i < styleSheet.cssRules.length; i++) {
+                if (styleSheet.cssRules[i].type === CSSRule.KEYFRAMES_RULE && styleSheet.cssRules[i].name === 'spin') {
+                    spinRuleExists = true;
+                    break;
+                }
+            }
+            if (!spinRuleExists) {
+                 styleSheet.insertRule('@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }', styleSheet.cssRules.length);
+            }
+        } catch (e) {
+            console.warn("Could not insert CSS spin keyframes via insertRule: ", e);
+            const existingSpinStyle = document.getElementById('spin-animation-style');
+            if (!existingSpinStyle) {
+                const spinStyle = document.createElement('style');
+                spinStyle.id = 'spin-animation-style';
+                spinStyle.innerHTML = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+                document.head.appendChild(spinStyle);
+            }
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const providerSelect = document.getElementById('llm_provider');
         const configForm = document.getElementById('llm_config_form');
+        const mainPageContainer = document.getElementById('llmConfigMainContainer');
+
+        // Check for success flash message and handle animated redirect
+        const flashMessages = document.querySelectorAll('.alert.alert-success'); 
+        let config_saved = false;
+        flashMessages.forEach(flash => {
+            if (flash.innerText.includes('LLM configuration saved successfully.')) {
+                config_saved = true;
+                // Optionally hide the flash message immediately as we are showing a full page transition
+                flash.style.display = 'none'; 
+            }
+        });
+
+        if (config_saved) {
+            if (mainPageContainer) {
+                mainPageContainer.classList.add('page-is-exiting');
+            } else {
+                document.body.classList.add('page-is-exiting');
+            }
+            
+            // Show centered loading indicator. It will appear on top of the fading out page.
+            showCenteredLoading("LLM configuration saved. Redirecting to Screening Criteria setup...");
+            
+            // Delay the redirect to allow fade-out animation to play
+            setTimeout(function() {
+                window.location.href = "{{ url_for('screening_criteria_page') }}";
+            }, 600); // Animation is 0.5s, so redirect after 0.6s
+        }
 
         if (currentProviderFromServer && llmProvidersData[currentProviderFromServer]) {
             updateModelOptions(currentProviderFromServer, currentModelIdFromServer);
@@ -213,8 +320,6 @@
             });
         }
         
-        // Re-attach onclick for any dynamically created elements if needed, or ensure direct binding like above.
-        // The existing `onclick="toggleApiKeyVisibility(...)"` in the HTML should work directly.
     });
 </script>
 {% endblock %} 
