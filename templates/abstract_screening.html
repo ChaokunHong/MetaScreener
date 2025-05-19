@@ -47,28 +47,87 @@
     }
 </style>
 <script>
-// Simple solution for index.global.js error
+// Enhanced error handling for cloud environments
 (function() {
-    console.log('Setting up error handlers...');
+    // Log environment information for debugging
+    console.log("Environment info:", {
+        url: window.location.href,
+        hostname: window.location.hostname,
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+    });
     
-    // Create a global error handler to catch the specific error
+    // Global error catcher - now with more comprehensive handling
     window.addEventListener('error', function(event) {
-        // Check if it's the specific error we're looking for
-        if (event.error && 
-            event.error.message && 
-            event.error.message.includes("Cannot read properties of null (reading 'appendChild')") &&
-            event.filename && 
-            event.filename.includes('index.global.js')) {
+        console.log("Caught global error:", event);
+        
+        // Handle the specific appendChild error from index.global.js
+        if (event.error && event.error.message && 
+            (event.error.message.includes("appendChild") || 
+             event.error.message.includes("null") || 
+             event.error.message.includes("undefined"))) {
             
-            console.log('Caught and suppressed index.global.js error:', event.error.message);
+            console.warn("Caught and suppressed DOM error:", event.error.message);
             
-            // Prevent the error from propagating
+            // Create a special recovery function
+            window._recoverFromDomError = function() {
+                try {
+                    console.log("Attempting DOM recovery...");
+                    
+                    // Check for any processing in progress and ensure buttons are enabled
+                    if (document.getElementById('start_full_screen_button')) {
+                        document.getElementById('start_full_screen_button').disabled = false;
+                    }
+                    
+                    if (document.getElementById('start_test_screen_button')) {
+                        document.getElementById('start_test_screen_button').disabled = false;
+                    }
+                    
+                    // Check if we need to update any progress indicators
+                    const progressArea = document.getElementById('progress_area');
+                    if (progressArea && progressArea.style.display !== 'none') {
+                        // There was an active screening
+                        const progressStatus = document.getElementById('progress_status');
+                        if (progressStatus) {
+                            progressStatus.textContent = "Processing is continuing in the background. Check results page later.";
+                        }
+                    }
+                } catch (e) {
+                    console.error("Recovery attempt failed:", e);
+                }
+            };
+            
+            // Schedule recovery
+            setTimeout(window._recoverFromDomError, 500);
+            
+            // Prevent error propagation
             event.preventDefault();
             event.stopPropagation();
-            
-            return true; // Indicates we've handled the error
+            return true;
         }
-    }, true); // true means capture phase - catch errors before they bubble up
+    }, true);
+    
+    // Override some troublesome DOM methods to prevent errors
+    const originalCreateElement = document.createElement;
+    document.createElement = function(tagName) {
+        try {
+            return originalCreateElement.call(document, tagName);
+        } catch (e) {
+            console.warn("Protected createElement failed:", e);
+            // Return a dummy div as fallback
+            try {
+                return originalCreateElement.call(document, 'div');
+            } catch (innerE) {
+                console.error("Even fallback createElement failed!");
+                // Last resort - create an object that mimics an element
+                return {
+                    appendChild: function() { return null; },
+                    style: {},
+                    classList: { add: function(){}, remove: function(){} }
+                };
+            }
+        }
+    };
 })();
 </script>
 {% endblock %}
@@ -198,6 +257,8 @@ const MAX_FULL_LOG_ITEMS = 7;
 
 // Add optimization function for handling large volume of literature
 function optimizeForLargeVolume() {
+    console.log("Activating performance optimizations for large volume processing");
+    
     // Reduce DOM update frequency to avoid lag
     window._optimizationCounter = 0;
     window._skipDomUpdate = function() {
@@ -327,38 +388,101 @@ function clearInput(inputId) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM loaded. Finding trigger elements...");
     
+    // Check for any previous screening session that might have been interrupted
+    try {
+        const lastComplete = sessionStorage.getItem('lastScreeningComplete');
+        const lastScreeningId = sessionStorage.getItem('lastScreeningId');
+        const lastScreeningTime = sessionStorage.getItem('lastScreeningTime');
+        const lastState = sessionStorage.getItem('lastScreeningState');
+        
+        // If we have a completed screening but user hasn't viewed results yet
+        if (lastComplete === 'true' && lastScreeningId) {
+            console.log("Found previous completed screening:", lastScreeningId);
+            
+            // Show a notification that results are available
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-success';
+            notification.innerHTML = `
+                <strong>Previous screening completed!</strong> 
+                Your last screening completed at ${new Date(lastScreeningTime).toLocaleString()}. 
+                <a href="{{ url_for('show_screening_results', screening_id='__ID__') }}" class="alert-link">
+                    Click here to view results
+                </a>.
+            `.replace('__ID__', lastScreeningId);
+            
+            // Insert at top of page
+            const firstCard = document.querySelector('.section-card');
+            if (firstCard && firstCard.parentNode) {
+                firstCard.parentNode.insertBefore(notification, firstCard);
+            }
+        }
+        // If we have an interrupted screening
+        else if (lastState) {
+            const state = JSON.parse(lastState);
+            console.log("Found interrupted screening state:", state);
+            
+            // Show a notification
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-warning';
+            notification.innerHTML = `
+                <strong>Previous screening interrupted!</strong> 
+                Your last screening was processing item ${state.count} of ${state.total} 
+                when the connection was interrupted. The screening may have continued in the background.
+                Please check the results page for recently completed screenings.
+            `;
+            
+            // Insert at top of page
+            const firstCard = document.querySelector('.section-card');
+            if (firstCard && firstCard.parentNode) {
+                firstCard.parentNode.insertBefore(notification, firstCard);
+            }
+        }
+    } catch (e) {
+        console.error("Error checking previous screening state:", e);
+    }
+    
     // Safe function to get DOM elements that never returns null
     function safeGetElement(id) {
-        const el = document.getElementById(id);
-        if (!el) {
-            console.warn(`Element with ID "${id}" not found, returning safe dummy`);
-            // Return a safe dummy element to prevent null errors
-            const dummy = document.createElement('div');
-            dummy.id = id + '-dummy';
-            dummy.style.display = 'none';
-            // Add any methods we might call
-            dummy.appendChild = function(child) { return child; };
-            dummy.removeChild = function(child) { return child; };
-            // Add style and classList properties
-            dummy.style = { width: '0%' };
-            dummy.classList = { 
-                add: function(){}, 
-                remove: function(){},
-                contains: function(){ return false; }
-            };
-            dummy.scrollTop = 0;
-            dummy.scrollHeight = 0;
-            // Create children collection
-            dummy.children = { length: 0 };
-            // Add to body for potential future reference
-            try {
-                document.body.appendChild(dummy);
-            } catch(e) { 
-                // Ignore errors
+        try {
+            const el = document.getElementById(id);
+            if (!el) {
+                console.warn(`Element with ID "${id}" not found, returning safe dummy`);
+                // Return a safe dummy element to prevent null errors
+                const dummy = document.createElement('div');
+                dummy.id = id + '-dummy';
+                dummy.style.display = 'none';
+                // Add any methods we might call
+                dummy.appendChild = function(child) { return child; };
+                dummy.removeChild = function(child) { return child; };
+                // Add style and classList properties
+                dummy.style = { width: '0%' };
+                dummy.classList = { 
+                    add: function(){}, 
+                    remove: function(){},
+                    contains: function(){ return false; }
+                };
+                dummy.scrollTop = 0;
+                dummy.scrollHeight = 0;
+                // Create children collection
+                dummy.children = { length: 0 };
+                // Add to body for potential future reference
+                try {
+                    document.body.appendChild(dummy);
+                } catch(e) { 
+                    // Ignore errors
+                }
+                return dummy;
             }
-            return dummy;
+            return el;
+        } catch(e) {
+            console.error("Error in safeGetElement:", e);
+            return {
+                appendChild: function() { return null; },
+                style: {},
+                classList: { add: function(){}, remove: function(){} },
+                innerHTML: ''
+            };
         }
-        return el;
     }
     
     // Store reference to safe function for use in callbacks
@@ -435,6 +559,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     const newText = xhrTest.responseText.substring(lastTestCharIndex);
                     lastTestCharIndex = xhrTest.responseText.length;
                     
+                    // Check for empty or invalid response 
+                    if (!newText || newText.trim() === '') {
+                        return; // Skip processing empty updates
+                    }
+                    
+                    // Set a flag to track if any message was processed
+                    let processedAnyMessage = false;
+                    
                     // Process the response directly
                     const messages = newText.split('\n\n');
                     messages.forEach(message => {
@@ -445,7 +577,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (jsonString.includes('"\n') || jsonString.includes('"\r')) {
                                     jsonString = jsonString.replace(/"\r|\n/g, '"');
                                 }
+                                
+                                // Validate JSON before parsing
+                                if (!jsonString || jsonString === '' || 
+                                    !jsonString.includes('{') || !jsonString.includes('}')) {
+                                    console.warn("Skipping invalid JSON:", jsonString);
+                                    return;
+                                }
+                                
                                 const jsonData = JSON.parse(jsonString);
+                                processedAnyMessage = true;
                                 
                                 // Process based on message type
                                 if (jsonData.type === 'start') {
@@ -590,7 +731,7 @@ document.addEventListener('DOMContentLoaded', function() {
              console.log("Initiating Full XHR Request...");
              xhr.open("POST", "{{ url_for('stream_screen_file') }}", true);
              // Add timeout setting
-             xhr.timeout = 3600000; // 1 hour timeout
+             xhr.timeout = 7200000; // 2 hours timeout
              let lastCharIndex = 0;
              
              // Use try-catch around all DOM operations in XHR callback
@@ -598,6 +739,14 @@ document.addEventListener('DOMContentLoaded', function() {
                  try {
                      const newText = xhr.responseText.substring(lastCharIndex);
                      lastCharIndex = xhr.responseText.length;
+                     
+                     // Check for empty or invalid response 
+                     if (!newText || newText.trim() === '') {
+                         return; // Skip processing empty updates
+                     }
+                     
+                     // Set a flag to track if any message was processed
+                     let processedAnyMessage = false;
                      
                      // Process the response directly
                      const messages = newText.split('\n\n');
@@ -609,7 +758,24 @@ document.addEventListener('DOMContentLoaded', function() {
                                  if (jsonString.includes('"\n') || jsonString.includes('"\r')) {
                                      jsonString = jsonString.replace(/"\r|\n/g, '"');
                                  }
+                                 
+                                 // Validate JSON before parsing
+                                 if (!jsonString || jsonString === '' || 
+                                     !jsonString.includes('{') || !jsonString.includes('}')) {
+                                     console.warn("Skipping invalid JSON:", jsonString);
+                                     return;
+                                 }
+                                 
                                  const jsonData = JSON.parse(jsonString);
+                                 processedAnyMessage = true;
+                                 
+                                 // Store last processed data for recovery
+                                 window._lastProcessedData = {
+                                     type: jsonData.type,
+                                     count: jsonData.count,
+                                     total: jsonData.total,
+                                     timestamp: new Date().getTime()
+                                 };
                                  
                                  // Process based on message type
                                  if (jsonData.type === 'start') {
@@ -659,6 +825,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                      safeGetElement('progress_status').textContent = jsonData.message;
                                      safeGetElement('progress_log').innerHTML += `[${new Date().toLocaleTimeString()}] ${jsonData.message}<br>`;
                                      
+                                     // Store success info in sessionStorage for recovery
+                                     try {
+                                         sessionStorage.setItem('lastScreeningComplete', 'true');
+                                         sessionStorage.setItem('lastScreeningId', jsonData.screening_id || '');
+                                         sessionStorage.setItem('lastScreeningTime', new Date().toISOString());
+                                     } catch (e) {
+                                         console.warn("Could not save to sessionStorage:", e);
+                                     }
+                                     
                                      // Set up link if available
                                      if (jsonData.screening_id) {
                                          let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
@@ -697,21 +872,76 @@ document.addEventListener('DOMContentLoaded', function() {
                  }
              };
              
-             // Add timeout handler
+             // Add timeout handler with much longer timeout for cloud environment
+             xhr.timeout = 7200000; // 2 hours timeout
              xhr.ontimeout = function() {
                  console.error("XHR request timeout");
-                 safeGetElement('progress_status').textContent = "Request timeout, try processing fewer documents";
+                 safeGetElement('progress_status').textContent = "Request timeout, processing may be continuing in the background";
+                 
+                 // Store last state in sessionStorage
+                 try {
+                     if (window._lastProcessedData) {
+                         sessionStorage.setItem('lastScreeningState', JSON.stringify(window._lastProcessedData));
+                     }
+                 } catch (e) {
+                     console.warn("Could not save state to sessionStorage:", e);
+                 }
+                 
+                 // Set up recovery message
+                 const recoveryMsg = `[${new Date().toLocaleTimeString()}] Connection timeout - processing may continue in the background. Refresh page and check results later.`;
+                 safeGetElement('progress_log').innerHTML += `<span style="color:darkorange;font-weight:bold;">${recoveryMsg}</span><br>`;
+                 
+                 finalizeButtons();
              };
              
              xhr.onloadend = function() { 
                  console.log("XHR request finished");
+                 
+                 // Check if we actually got a complete response
+                 if (!sessionStorage.getItem('lastScreeningComplete')) {
+                     console.log("Request finished but no completion message received");
+                     const timeoutMsg = `[${new Date().toLocaleTimeString()}] Request finished but no completion message received. Processing may continue in the background. Check results later.`;
+                     safeGetElement('progress_log').innerHTML += `<span style="color:darkorange;font-weight:bold;">${timeoutMsg}</span><br>`;
+                 }
+                 
                  finalizeButtons(); 
-             }; 
+             };
              
              xhr.onerror = function() { 
                  console.error("XHR request error");
-                 safeGetElement('progress_status').textContent = "Request error, please refresh page and try again";
+                 safeGetElement('progress_status').textContent = "Network error occurred, but processing may continue in the background";
+                 
+                 // Set up recovery message
+                 const errorMsg = `[${new Date().toLocaleTimeString()}] Network error - processing may continue in the background. Refresh page and check results later.`;
+                 safeGetElement('progress_log').innerHTML += `<span style="color:red;font-weight:bold;">${errorMsg}</span><br>`;
+                 
+                 finalizeButtons(); 
              };
+             
+             // Add a watchdog to detect stalled connections
+             window._progressWatchdog = setTimeout(function() {
+                 console.log("Watchdog checking connection status...");
+                 
+                 // Check if we haven't received updates in the last 2 minutes
+                 const now = new Date().getTime();
+                 const lastUpdate = window._lastProcessedData ? window._lastProcessedData.timestamp : 0;
+                 
+                 if (now - lastUpdate > 120000) { // 2 minutes
+                     console.warn("Connection appears stalled - last update was more than 2 minutes ago");
+                     
+                     // Is XHR still active?
+                     if (xhr.readyState !== 4) {
+                         console.log("XHR still active but no updates - suggesting to check results later");
+                         safeGetElement('progress_status').textContent = "Connection is slow - processing continues in background";
+                         
+                         const stalledMsg = `[${new Date().toLocaleTimeString()}] Connection is slow - processing continues in the background. Check results page later.`;
+                         safeGetElement('progress_log').innerHTML += `<span style="color:darkorange;font-weight:bold;">${stalledMsg}</span><br>`;
+                     }
+                 }
+                 
+                 // Reschedule the watchdog
+                 window._progressWatchdog = setTimeout(arguments.callee, 60000); // Check every minute
+             }, 120000); // First check after 2 minutes
              
              xhr.send(formData);
         }); 
@@ -721,6 +951,11 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('beforeunload', function() {
         if(window._cleanupInterval) {
             clearInterval(window._cleanupInterval);
+        }
+        
+        // Clean up watchdog timer
+        if(window._progressWatchdog) {
+            clearTimeout(window._progressWatchdog);
         }
         
         // Disconnect observers
