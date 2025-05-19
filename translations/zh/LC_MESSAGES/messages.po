@@ -1,0 +1,86 @@
+msgid "Home"
+msgstr "主页"
+
+msgid "LLM Configuration"
+msgstr "LLM配置"
+
+msgid "Screening Criteria"
+msgstr "筛选标准"
+
+msgid "Screening Actions"
+msgstr "筛选操作"
+
+msgid "Data Extraction"
+msgstr "数据提取"
+
+msgid "Quality Assessment"
+msgstr "质量评估"
+
+msgid "Disclaimer"
+msgstr "免责声明"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "MetaScreener is provided 'as-is' without any warranties of any kind, express or implied. The accuracy of AI-driven screening and data extraction heavily depends on the chosen LLM, the quality of the input data, and the clarity of the defined criteria."
+msgstr "MetaScreener 按“原样”提供，不附带任何明示或暗示的保证。AI 驱动的筛选和数据提取的准确性在很大程度上取决于所选择的 LLM、输入数据的质量以及所定义标准的清晰度。"
+
+msgid "Users are solely responsible for verifying all results and making final decisions. The developers assume no liability for any outcomes resulting from the use of this software."
+msgstr "用户应自行核实所有结果并做出最终决定。开发者对使用本软件造成的任何后果不承担责任。"
+
+msgid "Please use responsibly and in accordance with all applicable ethical guidelines and institutional policies."
+msgstr "请负责任地使用，并遵守所有适用的伦理准则和机构政策。"
+
+msgid "Invalid LLM Provider selected."
+msgstr "选择的 LLM 提供商无效。"
+
+msgid "LLM configuration saved successfully."
+msgstr "LLM 配置已成功保存。"
+
+msgid "Screening criteria and settings successfully saved!"
+msgstr "筛选标准和设置已成功保存！"
+
+msgid "Screening criteria have been reset to default values."
+msgstr "筛选标准已恢复为默认值。"
+
+msgid "Test session not found or expired."
+msgstr "测试会话未找到或已过期。"
+
+msgid "Test session data missing."
+msgstr "缺少测试会话数据。"
+
+msgid "No valid decisions (I/M/E) for comparison. Ensure you selected human decisions for some items."
+msgstr "没有可用于比较的有效决策(I/M/E)。请确保为部分条目选择了人工决策。"
+
+msgid "Screening results not found or may have expired."
+msgstr "未找到筛选结果或可能已过期。"
+
+msgid "Test session not found or expired. Please start a new test."
+msgstr "测试会话未找到或已过期。请开始新的测试。"
+
+msgid "Test screening is now handled via the progress button."
+msgstr "测试筛选现在通过进度按钮处理。"
+
+msgid "Could not find screening results data to download (it might have expired or been viewed already without download)."
+msgstr "无法找到可供下载的筛选结果数据（可能已过期或已被查看）。"
+
+msgid "No results found within the screening data to download."
+msgstr "筛选数据中没有可供下载的结果。"
+
+msgid "Failed to construct prompt..."
+msgstr "构建提示失败..."
+
+msgid "PDF screening result not found. It might have expired or was not processed correctly."
+msgstr "未找到 PDF 筛选结果。可能已过期或处理不正确。"
+
+msgid "No valid data extraction fields were defined."
+msgstr "未定义有效的数据提取字段。"
+
+msgid "Batch PDF screening results not found or may have expired."
+msgstr "批量 PDF 筛选结果未找到或可能已过期。"
+
+msgid "Batch PDF screening results for download not found or may have expired."
+msgstr "批量 PDF 筛选下载结果未找到或可能已过期。"
+
+msgid "No result items found within the batch data to download."
+msgstr "批量数据中没有可下载的结果项。"

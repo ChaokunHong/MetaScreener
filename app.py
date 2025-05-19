@@ -19,6 +19,7 @@ from cachetools import TTLCache # <-- Import TTLCache
 import logging # <-- Import logging
 import fitz # PyMuPDF - ADDED for metadata title extraction
 from apscheduler.schedulers.background import BackgroundScheduler # <-- Import APScheduler
+from flask_babel import Babel, _
 import atexit # <-- To shut down scheduler gracefully
 
 # --- Configure logging ---
@@ -68,8 +69,17 @@ app.executor = ThreadPoolExecutor(max_workers=5)
 
 # --- Register the Blueprint ---
 app.register_blueprint(quality_bp, url_prefix='/quality') # Added a URL prefix for clarity
+app.config["BABEL_DEFAULT_LOCALE"] = "en"
+app.config["BABEL_SUPPORTED_LOCALES"] = ["en", "zh"]
+babel = Babel(app)
 
+@babel.localeselector
+def get_locale():
+    return session.get("lang", "en")
 
+@app.context_processor
+def inject_languages():
+    return dict(languages=app.config["BABEL_SUPPORTED_LOCALES"])
 # --- ADDED: Helper function to parse line ranges ---
 def parse_line_range(range_str: str, max_items: int) -> tuple[int, int]:
     """
@@ -190,7 +200,7 @@ def configure_llm():
     
     # Final flash message based on overall success
     if action_successful:
-        flash('LLM configuration saved successfully.', 'success') # This is the key message for JS detection
+        flash(_('LLM configuration saved successfully.'), 'success') # This is the key message for JS detection
     # else: 
         # Specific error messages should have been flashed above when action_successful was set to False.
         # If no specific error was flashed but action_successful is False (shouldn't happen with current logic), 
@@ -214,6 +224,13 @@ def get_models_for_provider_route(provider_name):
 def index():
     # return redirect(url_for('llm_config_page')) # Old: Redirect to LLM config
     return render_template('index.html', current_year=datetime.datetime.now().year) # New: Render the new landing page
+
+@app.route("/set_language", methods=["POST"])
+def set_language():
+    lang = request.form.get("language")
+    if lang in app.config["BABEL_SUPPORTED_LOCALES"]:
+        session["lang"] = lang
+    return redirect(request.referrer or url_for("index"))
 
 
 # --- New Page Routes ---
@@ -346,7 +363,7 @@ def set_criteria():
 
         # Persist criteria for the user
         set_user_criteria(selected_framework, criteria_dict)
-        flash('Screening criteria and settings successfully saved!', 'success')
+        flash(_('Screening criteria and settings successfully saved!'), 'success')
     except Exception as e:
         flash(f'Error saving screening criteria: {e}', 'error')
         app_logger.exception("Error saving screening criteria") # Replaces traceback.print_exc()
@@ -356,7 +373,7 @@ def set_criteria():
 @app.route('/reset_criteria')
 def reset_criteria():
     reset_to_default_criteria()
-    flash('Screening criteria have been reset to default values.', 'info')
+    flash(_('Screening criteria have been reset to default values.'), 'info')
     return redirect(url_for('screening_criteria_page')) # MODIFIED REDIRECT
 
 
@@ -396,7 +413,7 @@ def _perform_screening_on_abstract(abstract_text, criteria_prompt_text, provider
 @app.route('/test_screening', methods=['POST'], endpoint='test_screening')
 def test_screening():
     # Option 1: Disable this route completely
-    flash("Test screening is now handled via the progress button.", "info")
+    flash(_("Test screening is now handled via the progress button."), "info")
     return redirect(url_for('abstract_screening_page'))
     # Option 2: Keep it as a non-SSE fallback (less ideal now)
     # Option 3: Remove it entirely if the button is gone / SSE is stable
@@ -404,9 +421,9 @@ def test_screening():
 
 @app.route('/screen_full_dataset/<session_id>')
 def screen_full_dataset(session_id):
-    if not session_id or session_id not in test_sessions: flash('Test session not found or expired.', 'error'); return redirect(url_for('abstract_screening_page'))
+    if not session_id or session_id not in test_sessions: flash(_('Test session not found or expired.'), 'error'); return redirect(url_for('abstract_screening_page'))
     session_data = test_sessions.get(session_id)
-    if not session_data: flash('Test session data missing.', 'error'); return redirect(url_for('abstract_screening_page'))
+    if not session_data: flash(_('Test session data missing.'), 'error'); return redirect(url_for('abstract_screening_page'))
     df = session_data['df']; filename = session_data['file_name']
     results_list = []
     try:
@@ -611,11 +628,11 @@ def calculate_performance_metrics(ai_decisions, human_decisions, labels_order=['
 def calculate_metrics_route():
     session_id = request.form.get('test_session_id')
     if not session_id or session_id not in test_sessions:
-        flash('Test session not found.', 'error');
+        flash(_('Test session not found.'), 'error');
         return redirect(url_for('abstract_screening_page')) # CORRECTED
     session_data = test_sessions.get(session_id)
     if not session_data:
-        flash('Test session data missing.', 'error');
+        flash(_('Test session data missing.'), 'error');
         return redirect(url_for('abstract_screening_page')) # CORRECTED
 
     stored_test_items = session_data.get('test_items_data', [])
@@ -642,7 +659,7 @@ def calculate_metrics_route():
             })
 
     if not ai_decisions_all or not human_decisions_all: # This check is crucial
-        flash('No valid decisions (I/M/E) for comparison. Ensure you selected human decisions for some items.', 'warning') # Updated flash message
+        flash(_('No valid decisions (I/M/E) for comparison. Ensure you selected human decisions for some items.'), 'warning') # Updated flash message
         # Pass necessary variables even if empty, or metrics_results.html might break
         default_empty_matrix = {
             'labels': valid_decision_labels, 
@@ -898,7 +915,7 @@ def show_screening_results(screening_id):
     session_data = full_screening_sessions.get(screening_id)
     
     if not session_data:
-        flash("Screening results not found or may have expired.", "warning")
+        flash(_("Screening results not found or may have expired."), "warning")
         return redirect(url_for('abstract_screening_page')) 
         
     results = session_data.get('results', [])
@@ -1092,7 +1109,7 @@ def stream_test_screen_file():
 @app.route('/show_test_results/<session_id>', endpoint='show_test_results')
 def show_test_results(session_id):
     if not session_id or session_id not in test_sessions:
-        flash('Test session not found or expired. Please start a new test.', 'error')
+        flash(_('Test session not found or expired. Please start a new test.'), 'error')
         return redirect(url_for('abstract_screening_page'))
 
     session_data = test_sessions.get(session_id)
@@ -1117,7 +1134,7 @@ def download_results(screening_id, format):
     session_data = full_screening_sessions.get(screening_id)
     
     if not session_data:
-        flash("Could not find screening results data to download (it might have expired or been viewed already without download).", "error")
+        flash(_("Could not find screening results data to download (it might have expired or been viewed already without download)."), "error")
         return redirect(request.referrer or url_for('abstract_screening_page')) 
         
     results_list = session_data.get('results', [])
@@ -1126,8 +1143,8 @@ def download_results(screening_id, format):
     filename_base = filename_base.replace('.ris', '').replace('.txt', '')
     
     if not results_list:
-         flash("No results found within the screening data to download.", "warning")
-         return redirect(request.referrer or url_for('abstract_screening_page'))
+        flash(_("No results found within the screening data to download."), "warning")
+        return redirect(request.referrer or url_for('abstract_screening_page'))
          
     # Convert list of dicts to DataFrame for easier export
     try:
@@ -1135,8 +1152,8 @@ def download_results(screening_id, format):
         # Select/rename columns if desired for export
         # df_export = df[['index', 'title', 'authors', 'decision', 'reasoning']] 
     except Exception as e:
-         flash(f"Error converting results to DataFrame: {e}", "error")
-         return redirect(request.referrer or url_for('abstract_screening_page'))
+        flash(f"Error converting results to DataFrame: {e}", "error")
+        return redirect(request.referrer or url_for('abstract_screening_page'))
 
     # Prepare file in memory
     output_buffer = None
@@ -1252,7 +1269,7 @@ def screen_pdf_decision():
             # We might need a construct_fulltext_prompt later.
             prompt_data = construct_llm_prompt(full_text, criteria_full_text)
             if not prompt_data:
-                flash("Failed to construct prompt...", "error")
+                flash(_("Failed to construct prompt..."), "error")
                 return redirect(url_for('full_text_screening_page'))
 
             # Call LLM (Synchronous)
@@ -1281,9 +1298,7 @@ def show_pdf_result(pdf_screening_id):
     result_data = pdf_screening_results.get(pdf_screening_id) # Use .get() to keep the entry for PDF serving
     
     if not result_data:
-        flash("PDF screening result not found. It might have expired or was not processed correctly.", "warning") # Adjusted message
-        return redirect(url_for('full_text_screening_page'))
-        
+        flash(_("PDF screening result not found. It might have expired or was not processed correctly."), "warning") # Adjusted message
     current_year = datetime.datetime.now().year
     return render_template('pdf_result.html',
                            pdf_id=pdf_screening_id, # Pass the ID itself
@@ -1338,7 +1353,7 @@ def extract_data_pdf():
                 else:
                     break # Stop when fields are no longer found
             if not extraction_fields:
-                flash("No valid data extraction fields were defined.", "error")
+                flash(_("No valid data extraction fields were defined."), "error")
                 return redirect(url_for('data_extraction_page'))
 
             # --- Build Dynamic Extraction Prompt --- 
@@ -1738,7 +1753,7 @@ def show_batch_pdf_results(batch_session_id):
 
     if not batch_data or not batch_data.get('is_batch_pdf_result', False):
         app_logger.warning(f"Batch PDF results not found or invalid for ID: {batch_session_id}")
-        flash("Batch PDF screening results not found or may have expired.", "warning")
+        flash(_("Batch PDF screening results not found or may have expired."), "warning")
         return redirect(url_for('full_text_screening_page'))
     
     results = batch_data.get('results', [])
@@ -1773,9 +1788,8 @@ def download_batch_pdf_results(batch_session_id, format):
 
     if not batch_data or not batch_data.get('is_batch_pdf_result', False):
         app_logger.warning(f"Download Batch PDF: Results not found or invalid for ID: {batch_session_id}")
-        flash("Batch PDF screening results for download not found or may have expired.", "warning")
         # Redirect to the page where they might have come from or a sensible default
-        return redirect(request.referrer or url_for('full_text_screening_page'))
+        flash(_("Batch PDF screening results for download not found or may have expired."), "warning")
         
     results_list = batch_data.get('results', [])
     # Use a generic base name or derive from batch info if available
@@ -1784,14 +1798,11 @@ def download_batch_pdf_results(batch_session_id, format):
     if not filename_base: filename_base = "batch_pdf_results"
 
     if not results_list:
-         app_logger.warning(f"Download Batch PDF: No actual result items found in batch data for ID: {batch_session_id}")
-         flash("No result items found within the batch data to download.", "warning")
-         return redirect(request.referrer or url_for('full_text_screening_page'))
-    
+        app_logger.warning(f"Download Batch PDF: No actual result items found in batch data for ID: {batch_session_id}")
+        flash(_("No result items found within the batch data to download."), "warning")
+        return redirect(request.referrer or url_for('full_text_screening_page'))
+
     try:
-        # The results_list should be a list of dicts, suitable for DataFrame
-        # Ensure we are selecting relevant columns for download, including 'title_for_display'
-        df_export_data = []
         for item in results_list:
             df_export_data.append({
                 'Filename (Original)': item.get('filename'),

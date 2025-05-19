@@ -61,24 +61,31 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav mr-auto">
                 <li class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">
-                    <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                    <a class="nav-link" href="{{ url_for('index') }}">{{ _("Home") }}</a>
                 </li>
                 <li class="nav-item {% if request.endpoint == 'llm_config_page' %}active{% endif %}">
-                    <a class="nav-link" href="{{ url_for('llm_config_page') }}">LLM Configuration</a>
+                    <a class="nav-link" href="{{ url_for('llm_config_page') }}">{{ _("LLM Configuration") }}</a>
                 </li>
                 <li class="nav-item {% if request.endpoint == 'screening_criteria_page' %}active{% endif %}">
-                    <a class="nav-link" href="{{ url_for('screening_criteria_page') }}">Screening Criteria</a>
+                    <a class="nav-link" href="{{ url_for('screening_criteria_page') }}">{{ _("Screening Criteria") }}</a>
                 </li>
                 <li class="nav-item {% if request.endpoint == 'abstract_screening_page' or request.endpoint == 'full_text_screening_page' or request.endpoint == 'screening_actions_page' %}active{% endif %}">
-                    <a class="nav-link" href="{{ url_for('screening_actions_page') }}">Screening Actions</a>
+                    <a class="nav-link" href="{{ url_for('screening_actions_page') }}">{{ _("Screening Actions") }}</a>
                 </li>
                 <li class="nav-item {% if request.endpoint == 'data_extraction_page' %}active{% endif %}">
-                    <a class="nav-link" href="{{ url_for('data_extraction_page') }}">Data Extraction</a>
+                    <a class="nav-link" href="{{ url_for('data_extraction_page') }}">{{ _("Data Extraction") }}</a>
                 </li>
                 <li class="nav-item {% if request.blueprint == 'quality_assessment' %}active{% endif %}">
-                    <a class="nav-link" href="{{ url_for('quality_assessment.upload_document_for_assessment') }}">Quality Assessment</a>
+                    <a class="nav-link" href="{{ url_for('quality_assessment.upload_document_for_assessment') }}">{{ _("Quality Assessment") }}</a>
                 </li>
             </ul>
+            <form class="form-inline my-2 my-lg-0" method="post" action="{{ url_for("set_language") }}">
+                <select class="form-control" name="language" onchange="this.form.submit()">
+                    {% for lang in languages %}
+                    <option value="{{ lang }}" {% if get_locale() == lang %}selected{% endif %}>{{ lang }}</option>
+                    {% endfor %}
+                </select>
+            </form>
         </div>
     </nav>
 
@@ -106,7 +113,7 @@
                     <span>© {{ current_year if current_year else namespace(current_year=2024).current_year }} MetaScreener. Use responsibly.</span>
                 </div>
                 <div class="col-md-6 text-center text-md-right">
-                    <a href="#" class="mr-3" data-toggle="modal" data-target="#disclaimerModal">Disclaimer</a>
+                    <a href="#" class="mr-3" data-toggle="modal" data-target="#disclaimerModal">{{ _("Disclaimer") }}</a>
                     <a href="https://www.metascreener.net/" class="mr-3" target="_blank">Official Website</a>
                     <a href="https://metascreener.onrender.com" target="_blank">Alternative Site</a>
                 </div>
@@ -147,18 +154,17 @@
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="disclaimerModalLabel">Disclaimer</h5>
+                    <h5 class="modal-title" id="disclaimerModalLabel">{{ _("Disclaimer") }}</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <div class="modal-body">
-                    <p>MetaScreener is provided "as-is" without any warranties of any kind, express or implied. The accuracy of AI-driven screening and data extraction heavily depends on the chosen LLM, the quality of the input data, and the clarity of the defined criteria.</p>
-                    <p>Users are solely responsible for verifying all results and making final decisions. The developers assume no liability for any outcomes resulting from the use of this software.</p>
-                    <p>Please use responsibly and in accordance with all applicable ethical guidelines and institutional policies.</p>
-                </div>
+                    <p>{{ _("MetaScreener is provided 'as-is' without any warranties of any kind, express or implied. The accuracy of AI-driven screening and data extraction heavily depends on the chosen LLM, the quality of the input data, and the clarity of the defined criteria.") }}</p>
+                    <p>{{ _("Users are solely responsible for verifying all results and making final decisions. The developers assume no liability for any outcomes resulting from the use of this software.") }}</p>
+                    <p>{{ _("Please use responsibly and in accordance with all applicable ethical guidelines and institutional policies.") }}</p>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ _("Close") }}</button>
                 </div>
             </div>
         </div>

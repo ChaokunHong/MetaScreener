@@ -10,6 +10,7 @@ distro==1.9.0
 et_xmlfile==2.0.0
 Flask>=2.0
 google-ai-generativelanguage==0.6.15
+Flask-Babel>=4.0.0
 google-api-core
 google-api-python-client==2.169.0
 google-auth==2.40.1

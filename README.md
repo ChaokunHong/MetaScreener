@@ -358,6 +358,9 @@ Create an `.env` file in the project root directory (use `.env.example` as a tem
 
 # --- Log Level (Optional) ---
 # LOGLEVEL=DEBUG  # More detailed logs (default is INFO)
+### Language Support
+MetaScreener supports English and Chinese user interfaces. Use the dropdown in the navigation bar to switch languages. Translations are stored in the `translations/` directory and managed with Flask-Babel.
+
 ```
 
 ## 📘 Usage Guide
