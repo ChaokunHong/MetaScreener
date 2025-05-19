@@ -142,10 +142,50 @@
 const MAX_TEST_LOG_ITEMS = 5;
 const MAX_FULL_LOG_ITEMS = 7;
 
+// Add optimization function for handling large volume of literature
+function optimizeForLargeVolume() {
+    // Reduce DOM update frequency to avoid lag
+    window._optimizationCounter = 0;
+    window._skipDomUpdate = function() {
+        // Update DOM every 10 items (for large volumes)
+        window._optimizationCounter++;
+        // Return true if DOM update should be skipped
+        return window._optimizationCounter % 10 !== 0;
+    };
+    
+    // Clean up unnecessary DOM elements to save memory
+    window._cleanupDom = function() {
+        // If log items exceed half of the limit, clean up early
+        const logEl = document.getElementById('progress_log');
+        if(logEl && logEl.children.length > MAX_FULL_LOG_ITEMS/2) {
+            while(logEl.children.length > MAX_FULL_LOG_ITEMS/2) {
+                logEl.removeChild(logEl.firstChild);
+            }
+        }
+        
+        const testLogEl = document.getElementById('test_progress_log');
+        if(testLogEl && testLogEl.children.length > MAX_TEST_LOG_ITEMS/2) {
+            while(testLogEl.children.length > MAX_TEST_LOG_ITEMS/2) {
+                testLogEl.removeChild(testLogEl.firstChild);
+            }
+        }
+    };
+    
+    // Clean up every 30 seconds
+    window._cleanupInterval = setInterval(window._cleanupDom, 30000);
+    
+    return true;
+}
+
 // --- Helper Functions (Refined - Get element inside) ---
 function addTestLogItem(message) {
+    // For large volumes, skip some DOM updates to improve performance
+    if(window._skipDomUpdate && window._skipDomUpdate() && !message.includes("Error")) {
+        return;
+    }
+    
     const logEl = document.getElementById('test_progress_log'); 
-    if(logEl && message) {  // 确保message不为空
+    if(logEl && message) {  // Ensure message is not empty
         const div = document.createElement('div');
         div.innerHTML = message;
         while (logEl.children.length >= MAX_TEST_LOG_ITEMS) { logEl.removeChild(logEl.firstChild); }
@@ -160,8 +200,13 @@ function addTestLogItem(message) {
 }
 
 function addLogItem(message) {
+    // For large volumes, skip some DOM updates to improve performance
+    if(window._skipDomUpdate && window._skipDomUpdate() && !message.includes("Error")) {
+        return;
+    }
+    
     const logEl = document.getElementById('progress_log'); 
-    if(logEl && message) {  // 确保message不为空
+    if(logEl && message) {  // Ensure message is not empty
         const div = document.createElement('div');
         div.innerHTML = message;
         while (logEl.children.length >= MAX_FULL_LOG_ITEMS) { logEl.removeChild(logEl.firstChild); } // Use correct MAX constant
@@ -198,6 +243,28 @@ function clearInput(inputId) {
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM loaded. Finding trigger elements...");
+    
+    // Add global error handler to catch appendChild related errors
+    window.addEventListener('error', function(event) {
+        if (event.error && event.error.message && event.error.message.includes("appendChild")) {
+            console.error("Caught appendChild error:", event.error);
+            event.preventDefault(); // Prevent error propagation
+            
+            // Try to recover UI state
+            finalizeButtons();
+            finalizeTestButton();
+            
+            // Show friendly error message
+            const fullStatus = document.getElementById('progress_status');
+            if (fullStatus) fullStatus.textContent = "Error during processing, please refresh the page and try again";
+            
+            const testStatus = document.getElementById('test_progress_status');
+            if (testStatus) testStatus.textContent = "Error during processing, please refresh the page and try again";
+            
+            return false;
+        }
+    }, true);
+    
     const startTestScreenButton = document.getElementById('start_test_screen_button');
     const startFullScreenButton = document.getElementById('start_full_screen_button');
     console.log("Buttons found:", { startTestScreenButton, startFullScreenButton });
@@ -218,6 +285,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!testFileInput.files || testFileInput.files.length === 0) { alert('Please select a file for test screening.'); return; }
             const sampleSize = sampleSizeInput.value || 10;
             console.log(`Test Screening initiated. Sample size: ${sampleSize}`);
+            
+            // Check sample size and optimize if it's large
+            if(sampleSize > 50) { // Samples larger than 50 are considered large
+                console.log("Large sample detected, activating performance optimization mode");
+                optimizeForLargeVolume();
+            }
 
             // Reset UI (Get elements here for reset)
             const testProgressArea = document.getElementById('test_progress_area');
@@ -252,91 +325,124 @@ document.addEventListener('DOMContentLoaded', function() {
             const xhrTest = new XMLHttpRequest(); 
             console.log("Initiating Test XHR Request...");
             xhrTest.open("POST", "{{ url_for('stream_test_screen_file') }}", true);
+            // Add timeout setting
+            xhrTest.timeout = 1800000; // 30 minutes timeout
             let lastTestCharIndex = 0;
 
+            // Use try-catch around all DOM operations in XHR callback
             xhrTest.onprogress = function() {
-                const newText = xhrTest.responseText.substring(lastTestCharIndex);
-                lastTestCharIndex = xhrTest.responseText.length;
-                const messages = newText.split('\n\n');
-                messages.forEach(message => {
-                    if (message.startsWith("data: ")) {
-                        try {
-                            let jsonString = message.substring(6).trim();
-                            // 检查并修复可能的未终止字符串
-                            if (jsonString.includes('"\n') || jsonString.includes('"\r')) {
-                                jsonString = jsonString.replace(/"\r|\n/g, '"');
-                            }
-                            const jsonData = JSON.parse(jsonString);
-                            // Get elements JUST BEFORE use
-                            const currentTestBar = document.getElementById('test_progress_bar');
-                            const currentTestStatus = document.getElementById('test_progress_status');
-                            const currentTestArea = document.getElementById('test_progress_area');
-                            const currentTestLogContainer = document.getElementById('test_progress_log_container');
-                            const currentTestLinkArea = document.getElementById('test_results_link_area');
-                            const currentTestLink = document.getElementById('view_test_results_link');
+                try {
+                    const newText = xhrTest.responseText.substring(lastTestCharIndex);
+                    lastTestCharIndex = xhrTest.responseText.length;
+                    const messages = newText.split('\n\n');
+                    messages.forEach(message => {
+                        if (message.startsWith("data: ")) {
+                            try {
+                                let jsonString = message.substring(6).trim();
+                                // Check and fix possible unterminated string
+                                if (jsonString.includes('"\n') || jsonString.includes('"\r')) {
+                                    jsonString = jsonString.replace(/"\r|\n/g, '"');
+                                }
+                                const jsonData = JSON.parse(jsonString);
+                                // Get elements JUST BEFORE use
+                                const currentTestBar = document.getElementById('test_progress_bar');
+                                const currentTestStatus = document.getElementById('test_progress_status');
+                                const currentTestArea = document.getElementById('test_progress_area');
+                                const currentTestLogContainer = document.getElementById('test_progress_log_container');
+                                const currentTestLinkArea = document.getElementById('test_results_link_area');
+                                const currentTestLink = document.getElementById('view_test_results_link');
 
-                            if (jsonData.type === 'start') {
-                                if(currentTestStatus) currentTestStatus.textContent = `Starting... Total: ${jsonData.total}`;
-                                if(currentTestArea) currentTestArea.style.display = 'block'; 
-                                if(currentTestLogContainer) currentTestLogContainer.style.display = 'block';
-                                // --- MODIFIED: Display filter info from SSE for Test Screening ---
-                                let testStartMessage = `[${new Date().toLocaleTimeString()}] Started test screening. Max sample: ${sampleSizeInput.value}, Actual to screen: ${jsonData.total}`;
-                                if (jsonData.filter_info && jsonData.filter_info !== 'all entries') {
-                                    testStartMessage += ` (Filter: ${jsonData.filter_info})`;
+                                if (jsonData.type === 'start') {
+                                    if(currentTestStatus) currentTestStatus.textContent = `Starting... Total: ${jsonData.total}`;
+                                    if(currentTestArea) currentTestArea.style.display = 'block'; 
+                                    if(currentTestLogContainer) currentTestLogContainer.style.display = 'block';
+                                    // --- MODIFIED: Display filter info from SSE for Test Screening ---
+                                    let testStartMessage = `[${new Date().toLocaleTimeString()}] Started test screening. Max sample: ${sampleSizeInput.value}, Actual to screen: ${jsonData.total}`;
+                                    if (jsonData.filter_info && jsonData.filter_info !== 'all entries') {
+                                        testStartMessage += ` (Filter: ${jsonData.filter_info})`;
+                                    }
+                                    addTestLogItem(testStartMessage);
+                                    // --- END MODIFIED ---
+                                } else if (jsonData.type === 'progress') {
+                                    if (currentTestBar) {
+                                        try { currentTestBar.style.width = jsonData.percentage + '%'; currentTestBar.textContent = jsonData.percentage + '%'; }
+                                         catch (e) { console.error("ERROR updating test progress bar:", e); }
+                                    } else { if (!window.loggedTestBarError) { console.error('!!! Could not find test_progress_bar in onprogress'); window.loggedTestBarError = true;} }
+                                    
+                                    if (currentTestStatus) {
+                                        try { currentTestStatus.textContent = `Processing ${jsonData.count}/${jsonData.total}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,40) : 'Item'}...`; }
+                                         catch (e) { console.error("ERROR updating test progress status:", e); }
+                                    } else { if (!window.loggedTestStatusError) { console.error('!!! Could not find test_progress_status in onprogress'); window.loggedTestStatusError = true; } }
+                                    
+                                    let decisionClass = jsonData.decision ? 'log-decision-' + jsonData.decision.toUpperCase().replace('API_','').replace('HTTP_ERROR_','ERROR_') : '';
+                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] Item ${jsonData.count}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,30) : 'Item'}... <span class="log-item-decision ${decisionClass}">${jsonData.decision || ''}</span>`);
+                                } else if (jsonData.type === 'complete') {
+                                    if(currentTestBar){ /* ... */ }
+                                    if(currentTestStatus) currentTestStatus.textContent = jsonData.message;
+                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message}`);
+                                    if (jsonData.session_id && currentTestLink && currentTestLinkArea) {
+                                        let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
+                                        currentTestLink.href = baseUrl.replace('__SESSION_ID__', jsonData.session_id);
+                                        currentTestLinkArea.style.display = 'block';
+                                    } else { console.warn('Could not set test results link.'); }
+                                    xhrTest.abort();
+                                    finalizeTestButton();
+                                } else if (jsonData.type === 'error') {
+                                    if(currentTestBar){ /* ... */ }
+                                    if(currentTestStatus) currentTestStatus.textContent = `Error: ${jsonData.message}`;
+                                    // --- MODIFIED: Display config link if API key missing for Test --- 
+                                    let testErrorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
+                                    if (jsonData.needs_config) {
+                                        const configUrl = "{{ url_for('llm_config_page') }}";
+                                        testErrorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
+                                    }
+                                    addTestLogItem(testErrorMessage);
+                                    // --- END MODIFIED ---
+                                    xhrTest.abort();
+                                    finalizeTestButton();
                                 }
-                                addTestLogItem(testStartMessage);
-                                // --- END MODIFIED ---
-                            } else if (jsonData.type === 'progress') {
-                                if (currentTestBar) {
-                                    try { currentTestBar.style.width = jsonData.percentage + '%'; currentTestBar.textContent = jsonData.percentage + '%'; }
-                                     catch (e) { console.error("ERROR updating test progress bar:", e); }
-                                } else { if (!window.loggedTestBarError) { console.error('!!! Could not find test_progress_bar in onprogress'); window.loggedTestBarError = true;} }
-                                
-                                if (currentTestStatus) {
-                                    try { currentTestStatus.textContent = `Processing ${jsonData.count}/${jsonData.total}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,40) : 'Item'}...`; }
-                                     catch (e) { console.error("ERROR updating test progress status:", e); }
-                                } else { if (!window.loggedTestStatusError) { console.error('!!! Could not find test_progress_status in onprogress'); window.loggedTestStatusError = true; } }
-                                
-                                let decisionClass = jsonData.decision ? 'log-decision-' + jsonData.decision.toUpperCase().replace('API_','').replace('HTTP_ERROR_','ERROR_') : '';
-                                addTestLogItem(`[${new Date().toLocaleTimeString()}] Item ${jsonData.count}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,30) : 'Item'}... <span class="log-item-decision ${decisionClass}">${jsonData.decision || ''}</span>`);
-                            } else if (jsonData.type === 'complete') {
-                                if(currentTestBar){ /* ... */ }
-                                if(currentTestStatus) currentTestStatus.textContent = jsonData.message;
-                                addTestLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message}`);
-                                if (jsonData.session_id && currentTestLink && currentTestLinkArea) {
-                                    let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
-                                    currentTestLink.href = baseUrl.replace('__SESSION_ID__', jsonData.session_id);
-                                    currentTestLinkArea.style.display = 'block';
-                                } else { console.warn('Could not set test results link.'); }
-                                xhrTest.abort();
-                                finalizeTestButton();
-                            } else if (jsonData.type === 'error') {
-                                if(currentTestBar){ /* ... */ }
-                                if(currentTestStatus) currentTestStatus.textContent = `Error: ${jsonData.message}`;
-                                // --- MODIFIED: Display config link if API key missing for Test --- 
-                                let testErrorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
-                                if (jsonData.needs_config) {
-                                    const configUrl = "{{ url_for('llm_config_page') }}";
-                                    testErrorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
-                                }
-                                addTestLogItem(testErrorMessage);
-                                // --- END MODIFIED ---
-                                xhrTest.abort();
-                                finalizeTestButton();
-                            }
-                        } catch (e) { 
-                            console.error("Test SSE Parse Error:", e); 
-                            console.error("Problematic JSON:", message.substring(6));
-                            // 在UI中显示错误
-                            const currentTestStatus = document.getElementById('test_progress_status');
-                            if(currentTestStatus) currentTestStatus.textContent = `JSON解析错误: ${e.message}`;
-                            addTestLogItem(`[${new Date().toLocaleTimeString()}] JSON解析错误，请刷新页面重试`);
-                        } 
-                    }
-                });
+                            } catch (e) { 
+                                console.error("Test SSE Parse Error:", e); 
+                                console.error("Problematic JSON:", message.substring(6));
+                                // Display error in UI
+                                const currentTestStatus = document.getElementById('test_progress_status');
+                                if(currentTestStatus) currentTestStatus.textContent = `JSON parse error: ${e.message}`;
+                                addTestLogItem(`[${new Date().toLocaleTimeString()}] JSON parse error, please refresh page and try again`);
+                            } 
+                        }
+                    });
+                } catch (e) {
+                    console.error("Test SSE onprogress Error:", e);
+                    // Display error in UI
+                    const currentTestStatus = document.getElementById('test_progress_status');
+                    if(currentTestStatus) currentTestStatus.textContent = "Error during processing, please refresh page and try again";
+                    addTestLogItem(`[${new Date().toLocaleTimeString()}] Error during processing, please refresh page and try again`);
+                    finalizeTestButton();
+                }
             }; 
-            xhrTest.onloadend = function() { console.log("xhrTest.onloadend"); finalizeTestButton(); }; 
-            xhrTest.onerror = function() { console.error("xhrTest.onerror"); finalizeTestButton(); }; 
+            
+            // Add timeout handler
+            xhrTest.ontimeout = function() {
+                console.error("Test XHR request timeout");
+                const currentTestStatus = document.getElementById('test_progress_status');
+                if(currentTestStatus) currentTestStatus.textContent = "Request timeout, try processing fewer documents";
+                addTestLogItem(`[${new Date().toLocaleTimeString()}] Request timeout, try processing fewer documents or check your network connection`);
+                finalizeTestButton();
+            };
+            
+            xhrTest.onloadend = function() { 
+                console.log("Test XHR request finished"); 
+                finalizeTestButton(); 
+            }; 
+            
+            xhrTest.onerror = function() { 
+                console.error("Test XHR request error"); 
+                const currentTestStatus = document.getElementById('test_progress_status');
+                if(currentTestStatus) currentTestStatus.textContent = "Request error, please refresh page and try again";
+                addTestLogItem(`[${new Date().toLocaleTimeString()}] Request error, please refresh page and try again`);
+                finalizeTestButton(); 
+            };
+            
             xhrTest.send(formData);
         }); 
     }
@@ -349,6 +455,13 @@ document.addEventListener('DOMContentLoaded', function() {
              const fileInput = document.getElementById('full_file_progress');
              if (!fileInput || !fileInput.files || fileInput.files.length === 0) { alert('Select file...'); return; }
              console.log("Full Screening initiated.");
+             
+             // Check file size, optimize if large
+             const fileSize = fileInput.files[0].size;
+             if(fileSize > 500000) { // Files larger than 500KB are considered large
+                 console.log("Large file detected, activating performance optimization mode");
+                 optimizeForLargeVolume();
+             }
              
              // Reset UI 
              const progressArea = document.getElementById('progress_area');
@@ -382,88 +495,136 @@ document.addEventListener('DOMContentLoaded', function() {
              const xhr = new XMLHttpRequest(); 
              console.log("Initiating Full XHR Request...");
              xhr.open("POST", "{{ url_for('stream_screen_file') }}", true);
+             // Add timeout setting
+             xhr.timeout = 3600000; // 1 hour timeout
              let lastCharIndex = 0;
              
+             // Use try-catch around all DOM operations in XHR callback
              xhr.onprogress = function() {
-                 const newText = xhr.responseText.substring(lastCharIndex);
-                 lastCharIndex = xhr.responseText.length;
-                 const messages = newText.split('\n\n');
-                 messages.forEach(message => {
-                     if (message.startsWith("data: ")) {
-                         try {
-                             let jsonString = message.substring(6).trim();
-                             // 检查并修复可能的未终止字符串
-                             if (jsonString.includes('"\n') || jsonString.includes('"\r')) {
-                                 jsonString = jsonString.replace(/"\r|\n/g, '"');
-                             }
-                             const jsonData = JSON.parse(jsonString);
-                             const currentFullBar = document.getElementById('progress_bar');
-                             const currentFullStatus = document.getElementById('progress_status');
-                             const currentFullArea = document.getElementById('progress_area');
-                             const currentFullLogContainer = document.getElementById('progress_log_container');
-                             const currentFullLinkArea = document.getElementById('sse_results_link_area');
-                             const currentFullLink = document.getElementById('view_full_results_link');
+                 try {
+                     const newText = xhr.responseText.substring(lastCharIndex);
+                     lastCharIndex = xhr.responseText.length;
+                     const messages = newText.split('\n\n');
+                     messages.forEach(message => {
+                         if (message.startsWith("data: ")) {
+                             try {
+                                 let jsonString = message.substring(6).trim();
+                                 // Check and fix possible unterminated string
+                                 if (jsonString.includes('"\n') || jsonString.includes('"\r')) {
+                                     jsonString = jsonString.replace(/"\r|\n/g, '"');
+                                 }
+                                 const jsonData = JSON.parse(jsonString);
+                                 const currentFullBar = document.getElementById('progress_bar');
+                                 const currentFullStatus = document.getElementById('progress_status');
+                                 const currentFullArea = document.getElementById('progress_area');
+                                 const currentFullLogContainer = document.getElementById('progress_log_container');
+                                 const currentFullLinkArea = document.getElementById('sse_results_link_area');
+                                 const currentFullLink = document.getElementById('view_full_results_link');
 
-                             if (jsonData.type === 'start') {
-                                 if(currentFullStatus) currentFullStatus.textContent = `Screening ${jsonData.total} items...`;
-                                 if(currentFullArea) currentFullArea.style.display = 'block';
-                                 if(currentFullLogContainer) currentFullLogContainer.style.display = 'block';
-                                 let startMessage = `[${new Date().toLocaleTimeString()}] Started. Total to screen: ${jsonData.total}`;
-                                 if (jsonData.filter_info && jsonData.filter_info !== 'all entries') {
-                                     startMessage += ` (Filter: ${jsonData.filter_info})`;
+                                 if (jsonData.type === 'start') {
+                                     if(currentFullStatus) currentFullStatus.textContent = `Screening ${jsonData.total} items...`;
+                                     if(currentFullArea) currentFullArea.style.display = 'block';
+                                     if(currentFullLogContainer) currentFullLogContainer.style.display = 'block';
+                                     let startMessage = `[${new Date().toLocaleTimeString()}] Started. Total to screen: ${jsonData.total}`;
+                                     if (jsonData.filter_info && jsonData.filter_info !== 'all entries') {
+                                         startMessage += ` (Filter: ${jsonData.filter_info})`;
+                                     }
+                                     addLogItem(startMessage);
+                                 } else if (jsonData.type === 'progress') {
+                                     if (currentFullBar) { 
+                                         try { currentFullBar.style.width = jsonData.percentage + '%'; currentFullBar.textContent = jsonData.percentage + '%'; } 
+                                         catch(e) { console.error("Error updating full progress bar:", e); }
+                                     } else { if (!window.loggedFullBarError) { console.error('!!! Could not find progress_bar in onprogress'); window.loggedFullBarError = true; } }
+                                     if (currentFullStatus) { 
+                                          try { currentFullStatus.textContent = `Processing ${jsonData.count}/${jsonData.total}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,40) : 'Item'}...`; } 
+                                          catch (e) { console.error("Error updating full progress status:", e); }
+                                     } else { if (!window.loggedFullStatusError) { console.error('!!! Could not find progress_status in onprogress'); window.loggedFullStatusError = true; } }
+                                     
+                                     let decisionClass = jsonData.decision ? 'log-decision-' + jsonData.decision.toUpperCase().replace('API_','').replace('HTTP_ERROR_','ERROR_') : '';
+                                     addLogItem(`[${new Date().toLocaleTimeString()}] Item ${jsonData.count}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,30) : 'Item'}... <span class="log-item-decision ${decisionClass}">${jsonData.decision || ''}</span>`);
+                                 } else if (jsonData.type === 'complete') {
+                                     if(currentFullBar){ currentFullBar.classList.add('bg-success'); currentFullBar.textContent = "Complete"; }
+                                     if(currentFullStatus) currentFullStatus.textContent = jsonData.message;
+                                     addLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message}`);
+                                     if (jsonData.screening_id && currentFullLink && currentFullLinkArea) {
+                                         let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
+                                         currentFullLink.href = baseUrl.replace('__SCREENING_ID__', jsonData.screening_id);
+                                         currentFullLinkArea.style.display = 'block';
+                                     } else { console.warn('Could not set full results link.'); }
+                                     xhr.abort(); 
+                                     finalizeButtons();
+                                 } else if (jsonData.type === 'error') {
+                                     if(currentFullBar){ currentFullBar.classList.add('bg-danger'); currentFullBar.textContent = "Error";}
+                                     if(currentFullStatus) currentFullStatus.textContent = `Error: ${jsonData.message}`;
+                                     let errorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
+                                     if (jsonData.needs_config) {
+                                         const configUrl = "{{ url_for('llm_config_page') }}";
+                                         errorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
+                                     }
+                                     addLogItem(errorMessage);
+                                     xhr.abort();
+                                     finalizeButtons();
                                  }
-                                 addLogItem(startMessage);
-                             } else if (jsonData.type === 'progress') {
-                                 if (currentFullBar) { 
-                                     try { currentFullBar.style.width = jsonData.percentage + '%'; currentFullBar.textContent = jsonData.percentage + '%'; } 
-                                     catch(e) { console.error("Error updating full progress bar:", e); }
-                                 } else { if (!window.loggedFullBarError) { console.error('!!! Could not find progress_bar in onprogress'); window.loggedFullBarError = true; } }
-                                 if (currentFullStatus) { 
-                                      try { currentFullStatus.textContent = `Processing ${jsonData.count}/${jsonData.total}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,40) : 'Item'}...`; } 
-                                      catch (e) { console.error("Error updating full progress status:", e); }
-                                 } else { if (!window.loggedFullStatusError) { console.error('!!! Could not find progress_status in onprogress'); window.loggedFullStatusError = true; } }
-                                 
-                                 let decisionClass = jsonData.decision ? 'log-decision-' + jsonData.decision.toUpperCase().replace('API_','').replace('HTTP_ERROR_','ERROR_') : '';
-                                 addLogItem(`[${new Date().toLocaleTimeString()}] Item ${jsonData.count}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,30) : 'Item'}... <span class="log-item-decision ${decisionClass}">${jsonData.decision || ''}</span>`);
-                             } else if (jsonData.type === 'complete') {
-                                 if(currentFullBar){ currentFullBar.classList.add('bg-success'); currentFullBar.textContent = "Complete"; }
-                                 if(currentFullStatus) currentFullStatus.textContent = jsonData.message;
-                                 addLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message}`);
-                                 if (jsonData.screening_id && currentFullLink && currentFullLinkArea) {
-                                     let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
-                                     currentFullLink.href = baseUrl.replace('__SCREENING_ID__', jsonData.screening_id);
-                                     currentFullLinkArea.style.display = 'block';
-                                 } else { console.warn('Could not set full results link.'); }
-                                 xhr.abort(); 
-                                 finalizeButtons();
-                             } else if (jsonData.type === 'error') {
-                                 if(currentFullBar){ currentFullBar.classList.add('bg-danger'); currentFullBar.textContent = "Error";}
-                                 if(currentFullStatus) currentFullStatus.textContent = `Error: ${jsonData.message}`;
-                                 let errorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
-                                 if (jsonData.needs_config) {
-                                     const configUrl = "{{ url_for('llm_config_page') }}";
-                                     errorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
-                                 }
-                                 addLogItem(errorMessage);
-                                 xhr.abort();
-                                 finalizeButtons();
-                             }
-                         } catch (e) { 
-                             console.error("Full SSE Parse Error:", e); 
-                             console.error("Problematic JSON:", message.substring(6));
-                             // 在UI中显示错误
-                             const currentFullStatus = document.getElementById('progress_status');
-                             if(currentFullStatus) currentFullStatus.textContent = `JSON解析错误: ${e.message}`;
-                             addLogItem(`[${new Date().toLocaleTimeString()}] JSON解析错误，请刷新页面重试`);
-                         } 
-                     }
-                 });
+                             } catch (e) { 
+                                 console.error("Full SSE Parse Error:", e); 
+                                 console.error("Problematic JSON:", message.substring(6));
+                                 // Display error in UI
+                                 const currentFullStatus = document.getElementById('progress_status');
+                                 if(currentFullStatus) currentFullStatus.textContent = `JSON parse error: ${e.message}`;
+                                 addLogItem(`[${new Date().toLocaleTimeString()}] JSON parse error, please refresh page and try again`);
+                             } 
+                         }
+                     });
+                 } catch (e) {
+                     console.error("Full SSE onprogress Error:", e);
+                     console.error("Problematic message:", message.substring(6));
+                     // Display error in UI
+                     const currentFullStatus = document.getElementById('progress_status');
+                     if(currentFullStatus) currentFullStatus.textContent = "Error during processing, please refresh page and try again";
+                     addLogItem(`[${new Date().toLocaleTimeString()}] Error during processing, please refresh page and try again`);
+                     finalizeButtons();
+                 }
              };
-             xhr.onloadend = function() { finalizeButtons(); }; 
-             xhr.onerror = function() { finalizeButtons(); }; 
+             
+             // Add timeout handler
+             xhr.ontimeout = function() {
+                 console.error("XHR request timeout");
+                 const currentFullStatus = document.getElementById('progress_status');
+                 if(currentFullStatus) currentFullStatus.textContent = "Request timeout, try processing fewer documents";
+                 addLogItem(`[${new Date().toLocaleTimeString()}] Request timeout, try processing fewer documents or check your network connection`);
+                 finalizeButtons();
+             };
+             
+             xhr.onloadend = function() { 
+                 console.log("XHR request finished");
+                 finalizeButtons(); 
+             }; 
+             
+             xhr.onerror = function() { 
+                 console.error("XHR request error");
+                 const currentFullStatus = document.getElementById('progress_status');
+                 if(currentFullStatus) currentFullStatus.textContent = "Request error, please refresh page and try again";
+                 addLogItem(`[${new Date().toLocaleTimeString()}] Request error, please refresh page and try again`);
+                 finalizeButtons(); 
+             };
+             
              xhr.send(formData);
         }); 
     } 
+
+    // Clean up timers and other resources when page unloads
+    window.addEventListener('beforeunload', function() {
+        if(window._cleanupInterval) {
+            clearInterval(window._cleanupInterval);
+        }
+        // Clean up other possible resources
+        if(window.xhr) {
+            window.xhr.abort();
+        }
+        if(window.xhrTest) {
+            window.xhrTest.abort();
+        }
+    });
 
 }); 
 </script>
