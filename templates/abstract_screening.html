@@ -145,27 +145,33 @@ const MAX_FULL_LOG_ITEMS = 7;
 // --- Helper Functions (Refined - Get element inside) ---
 function addTestLogItem(message) {
     const logEl = document.getElementById('test_progress_log'); 
-    if(logEl) {
+    if(logEl && message) {  // 确保message不为空
         const div = document.createElement('div');
         div.innerHTML = message;
         while (logEl.children.length >= MAX_TEST_LOG_ITEMS) { logEl.removeChild(logEl.firstChild); }
         logEl.appendChild(div);
         logEl.scrollTop = logEl.scrollHeight;
     } else {
-        if (!window.loggedTestLogError) { console.error('!!! testProgressLog element NOT found in addTestLogItem'); window.loggedTestLogError = true; }
+        if (!window.loggedTestLogError && !logEl) { 
+            console.error('!!! testProgressLog element NOT found in addTestLogItem'); 
+            window.loggedTestLogError = true; 
+        }
     }
 }
 
 function addLogItem(message) {
     const logEl = document.getElementById('progress_log'); 
-     if(logEl) {
+    if(logEl && message) {  // 确保message不为空
         const div = document.createElement('div');
         div.innerHTML = message;
         while (logEl.children.length >= MAX_FULL_LOG_ITEMS) { logEl.removeChild(logEl.firstChild); } // Use correct MAX constant
         logEl.appendChild(div);
         logEl.scrollTop = logEl.scrollHeight;
     } else {
-        if (!window.loggedFullLogError) { console.error('!!! progressLog element NOT found in addLogItem'); window.loggedFullLogError = true; }
+        if (!window.loggedFullLogError && !logEl) { 
+            console.error('!!! progressLog element NOT found in addLogItem'); 
+            window.loggedFullLogError = true; 
+        }
     }
 }
 
@@ -255,7 +261,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 messages.forEach(message => {
                     if (message.startsWith("data: ")) {
                         try {
-                            const jsonData = JSON.parse(message.substring(6));
+                            let jsonString = message.substring(6).trim();
+                            // 检查并修复可能的未终止字符串
+                            if (jsonString.includes('"\n') || jsonString.includes('"\r')) {
+                                jsonString = jsonString.replace(/"\r|\n/g, '"');
+                            }
+                            const jsonData = JSON.parse(jsonString);
                             // Get elements JUST BEFORE use
                             const currentTestBar = document.getElementById('test_progress_bar');
                             const currentTestStatus = document.getElementById('test_progress_status');
@@ -313,7 +324,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 xhrTest.abort();
                                 finalizeTestButton();
                             }
-                        } catch (e) { console.error("Test SSE Parse Error:", e); } 
+                        } catch (e) { 
+                            console.error("Test SSE Parse Error:", e); 
+                            console.error("Problematic JSON:", message.substring(6));
+                            // 在UI中显示错误
+                            const currentTestStatus = document.getElementById('test_progress_status');
+                            if(currentTestStatus) currentTestStatus.textContent = `JSON解析错误: ${e.message}`;
+                            addTestLogItem(`[${new Date().toLocaleTimeString()}] JSON解析错误，请刷新页面重试`);
+                        } 
                     }
                 });
             }; 
@@ -373,7 +391,12 @@ document.addEventListener('DOMContentLoaded', function() {
                  messages.forEach(message => {
                      if (message.startsWith("data: ")) {
                          try {
-                             const jsonData = JSON.parse(message.substring(6));
+                             let jsonString = message.substring(6).trim();
+                             // 检查并修复可能的未终止字符串
+                             if (jsonString.includes('"\n') || jsonString.includes('"\r')) {
+                                 jsonString = jsonString.replace(/"\r|\n/g, '"');
+                             }
+                             const jsonData = JSON.parse(jsonString);
                              const currentFullBar = document.getElementById('progress_bar');
                              const currentFullStatus = document.getElementById('progress_status');
                              const currentFullArea = document.getElementById('progress_area');
@@ -425,7 +448,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                  xhr.abort();
                                  finalizeButtons();
                              }
-                         } catch (e) { console.error("Full SSE Parse Error:", e); } 
+                         } catch (e) { 
+                             console.error("Full SSE Parse Error:", e); 
+                             console.error("Problematic JSON:", message.substring(6));
+                             // 在UI中显示错误
+                             const currentFullStatus = document.getElementById('progress_status');
+                             if(currentFullStatus) currentFullStatus.textContent = `JSON解析错误: ${e.message}`;
+                             addLogItem(`[${new Date().toLocaleTimeString()}] JSON解析错误，请刷新页面重试`);
+                         } 
                      }
                  });
              };
