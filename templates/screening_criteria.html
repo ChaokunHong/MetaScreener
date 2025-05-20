@@ -263,6 +263,78 @@
             width: 100%;
         }
     }
+    
+    /* Page Exit Animation */
+    .page-transition-exit {
+        opacity: 1;
+        transition: opacity 0.8s cubic-bezier(0.19, 1, 0.22, 1), transform 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+    }
+    .page-transition-exit-active {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    
+    /* Enhanced Transition message styles */
+    .transition-message {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.95);
+        background: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        color: white;
+        padding: 20px 40px;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        opacity: 0;
+        transition: all 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+        font-size: 18px;
+        font-weight: 500;
+        letter-spacing: 0.2px;
+        text-align: center;
+        min-width: 300px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .transition-message.show {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    
+    /* Modern Pulse Dot Animation */
+    .loading-spinner {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 15px;
+        height: 24px;
+        vertical-align: middle;
+    }
+    .loading-spinner .dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        margin: 0 3px;
+        border-radius: 50%;
+        background-color: #ffffff;
+        animation: pulse 1.4s infinite ease-in-out;
+    }
+    .loading-spinner .dot:nth-child(1) {
+        animation-delay: -0.32s;
+    }
+    .loading-spinner .dot:nth-child(2) {
+        animation-delay: -0.16s;
+    }
+    @keyframes pulse {
+        0%, 80%, 100% { 
+            transform: scale(0.6);
+            opacity: 0.6;
+        }
+        40% { 
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -458,6 +530,19 @@
         </div>
     </form>
 </div>
+
+<!-- Enhanced transition message that shows during page transition -->
+<div id="transitionMessage" class="transition-message">
+    <div>Criteria saved successfully!</div>
+    <div style="margin-top: 8px; display: flex; align-items: center; justify-content: center;">
+        Redirecting to Screening Actions
+        <div class="loading-spinner">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -465,6 +550,27 @@
 const CRITERIA_SETS_KEY = 'metaScreenerCriteriaSets';
 let currentlyLoadedSetName = null; 
 let formDirty = false; 
+
+// Enhanced smooth page transition when redirecting
+function smoothRedirect(url, delay = 500) {
+    // Show transition message - no need to set text content as it's already in the HTML
+    const transitionMsg = document.getElementById('transitionMessage');
+    transitionMsg.classList.add('show');
+    
+    // Start the exit animation
+    const mainContent = document.querySelector('.section-card');
+    mainContent.classList.add('page-transition-exit');
+    
+    // Wait a short moment for animation to start
+    setTimeout(() => {
+        mainContent.classList.add('page-transition-exit-active');
+        
+        // Wait for animation to complete before redirecting
+        setTimeout(() => {
+            window.location.href = url;
+        }, delay);
+    }, 50);
+}
 
 function onFrameworkChange(newFw){
     if(!newFw) return;
@@ -662,6 +768,54 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     populateSavedCriteriaDropdown();
+    
+    // 添加表单AJAX提交处理
+    const criteriaForm = document.getElementById('criteriaForm');
+    if (criteriaForm) {
+        criteriaForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(this);
+            const submitButton = criteriaForm.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.innerHTML;
+            submitButton.disabled = true;
+            submitButton.innerHTML = 'Saving... <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            
+            fetch('{{ url_for("set_criteria") }}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                return response.json().then(data => ({ok: response.ok, status: response.status, data}));
+            })
+            .then(result => {
+                const data = result.data;
+                
+                if (result.ok && data.status === 'success') {
+                    if (data.redirect_url) {
+                        smoothRedirect(data.redirect_url);
+                    } else {
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = originalButtonText;
+                        window.location.href = '{{ url_for("screening_actions_page") }}';
+                    }
+                } else {
+                    alert(data.message || 'An unexpected error occurred.');
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                }
+            })
+            .catch(error => {
+                console.error('Error submitting criteria:', error);
+                alert('A network error occurred. Please try again.');
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+            });
+        });
+    }
 
     if (typeof $ !== 'undefined' && typeof $.fn.popover !== 'undefined') {
         try {

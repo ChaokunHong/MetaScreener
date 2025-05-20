@@ -18,15 +18,129 @@
         font-size: 0.8em;
         padding: 0.1rem 0.3rem;
     }
+    /* Styles for AJAX messages and animations */
+    .form-message {
+        padding: 10px;
+        margin-top: 15px; /* Add some space above */
+        margin-bottom: 15px;
+        border-radius: 4px;
+        /* display: none;  Will be controlled by JS adding/removing 'show' */
+        opacity: 0; /* Start fully transparent */
+        max-height: 0; /* Start with no height */
+        overflow: hidden; /* Hide content when max-height is 0 */
+        transition: opacity 0.5s ease-in-out, max-height 0.5s ease-in-out, padding 0.5s ease-in-out, margin 0.5s ease-in-out;
+        box-sizing: border-box; /* Ensure padding doesn't add to height weirdly */
+
+    }
+    .form-message.show {
+        /* display: block; */ /* Not needed if using max-height for transition */
+        opacity: 1;
+        max-height: 100px; /* Adjust as needed for message content */
+        padding: 10px; /* Restore padding */
+        margin-top: 15px; /* Restore margin */
+        margin-bottom: 15px;
+    }
+    .form-message.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    .form-message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    /* Add transition for page exit */
+    .page-transition-exit {
+        opacity: 1;
+        transition: opacity 0.5s ease-out;
+    }
+    .page-transition-exit-active {
+        opacity: 0;
+    }
+    /* Enhanced Transition message styles */
+    .transition-message {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.95);
+        background: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        color: white;
+        padding: 20px 40px;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        opacity: 0;
+        transition: all 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+        font-size: 18px;
+        font-weight: 500;
+        letter-spacing: 0.2px;
+        text-align: center;
+        min-width: 300px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .transition-message.show {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    
+    /* Modern Pulse Dot Animation */
+    .loading-spinner {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 15px;
+        height: 24px;
+        vertical-align: middle;
+    }
+    .loading-spinner .dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        margin: 0 3px;
+        border-radius: 50%;
+        background-color: #ffffff;
+        animation: pulse 1.4s infinite ease-in-out;
+    }
+    .loading-spinner .dot:nth-child(1) {
+        animation-delay: -0.32s;
+    }
+    .loading-spinner .dot:nth-child(2) {
+        animation-delay: -0.16s;
+    }
+    @keyframes pulse {
+        0%, 80%, 100% { 
+            transform: scale(0.6);
+            opacity: 0.6;
+        }
+        40% { 
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+    
+    /* Page Exit Animation Enhancement */
+    .page-transition-exit {
+        opacity: 1;
+        transition: opacity 0.8s cubic-bezier(0.19, 1, 0.22, 1), transform 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+    }
+    .page-transition-exit-active {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="section-card">
+<div class="section-card" id="main-content">
     <h2>LLM Configuration</h2>
     <p class="api-key-info">
         Select LLM and provide/manage API keys below. API keys are stored only in your browser session for the current visit.
     </p>
+    <!-- Message area for AJAX responses -->
+    <div id="llmConfigMessage" class="form-message"></div>
+
     <form id="llm_config_form" method="POST" action="{{ url_for('configure_llm') }}">
         <div class="row">
             <div class="col-md-6"><div class="form-group">
@@ -49,8 +163,9 @@
             <label for="{{ provider_name_key.lower() }}_api_key">{{ provider_name_key.replace('_', ' ') }} API Key:</label>
             <div class="input-group input-group-sm">
                 <input type="password" name="{{ provider_name_key.lower() }}_api_key" id="{{ provider_name_key.lower() }}_api_key" class="form-control form-control-sm" placeholder="Enter API Key here">
-                 <div class="input-group-append">
+                <div class="input-group-append">
                     <button class="btn btn-outline-secondary btn-sm" type="button" onclick="toggleApiKeyVisibility('{{ provider_name_key.lower() }}_api_key')">Show</button>
+                    <button class="btn btn-outline-primary btn-sm ml-1" type="button" onclick="testApiKey('{{ provider_name_key }}', '{{ provider_name_key.lower() }}_api_key')">Test Key</button>
                 </div>
             </div>
             <div class="mt-1">
@@ -86,6 +201,19 @@
         {% endfor %}
         <button type="submit" name="save_llm_config" value="true" class="btn btn-primary btn-sm">Save LLM Config & API Key</button>
     </form>
+</div>
+
+<!-- Enhanced transition message that shows during page transition -->
+<div id="transitionMessage" class="transition-message">
+    <div>Configuration successful!</div>
+    <div style="margin-top: 8px; display: flex; align-items: center; justify-content: center;">
+        Redirecting to Screening Criteria
+        <div class="loading-spinner">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -165,9 +293,86 @@
         }
     }
 
+    function testApiKey(provider, apiKeyInputId) {
+        const apiKeyInput = document.getElementById(apiKeyInputId);
+        const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+        const messageDiv = document.getElementById('llmConfigMessage');
+        
+        if (!apiKey) {
+            messageDiv.textContent = 'Please enter an API key before testing.';
+            messageDiv.className = 'form-message error show';
+            return;
+        }
+        
+        // Show testing message
+        messageDiv.textContent = `Testing ${provider.replace('_', ' ')} API key...`;
+        messageDiv.className = 'form-message show';
+        
+        // Get the test button and disable it during test
+        const testButton = apiKeyInput.parentElement.querySelector('button[onclick^="testApiKey"]');
+        const originalButtonText = testButton.textContent;
+        testButton.disabled = true;
+        testButton.innerHTML = 'Testing... <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+        
+        // Create form data for API request
+        const formData = new FormData();
+        formData.append('test_api_key', 'true');
+        formData.append('provider', provider);
+        formData.append(`${provider.toLowerCase()}_api_key`, apiKey);
+        
+        // Send request to test the API key
+        fetch('{{ url_for("test_api_key") }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            testButton.disabled = false;
+            testButton.textContent = originalButtonText;
+            
+            if (data.status === 'success') {
+                messageDiv.textContent = data.message || 'API key validated successfully!';
+                messageDiv.className = 'form-message success show';
+            } else {
+                messageDiv.textContent = data.message || 'API key validation failed. Please check your key.';
+                messageDiv.className = 'form-message error show';
+            }
+        })
+        .catch(error => {
+            console.error('Error testing API key:', error);
+            testButton.disabled = false;
+            testButton.textContent = originalButtonText;
+            
+            messageDiv.textContent = 'A network error occurred while testing the API key. Please try again.';
+            messageDiv.className = 'form-message error show';
+        });
+    }
+
+    // Enhanced smooth page transition when redirecting
+    function smoothRedirect(url, delay = 500) {
+        // Show transition message - no need to set text content as it's already in the HTML
+        const transitionMsg = document.getElementById('transitionMessage');
+        transitionMsg.classList.add('show');
+        
+        // Start the exit animation
+        const mainContent = document.getElementById('main-content');
+        mainContent.classList.add('page-transition-exit');
+        
+        // Wait a short moment for animation to start
+        setTimeout(() => {
+            mainContent.classList.add('page-transition-exit-active');
+            
+            // Wait for animation to complete before redirecting
+            setTimeout(() => {
+                window.location.href = url;
+            }, delay);
+        }, 50);
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const providerSelect = document.getElementById('llm_provider');
         const configForm = document.getElementById('llm_config_form');
+        const messageDiv = document.getElementById('llmConfigMessage'); // Get the message div
 
         if (currentProviderFromServer && llmProvidersData[currentProviderFromServer]) {
             updateModelOptions(currentProviderFromServer, currentModelIdFromServer);
@@ -191,30 +396,82 @@
         if (configForm) {
             configForm.addEventListener('submit', function(event) {
                 const clickedButton = event.submitter;
+
+                // If "Clear Key" was clicked, allow default form submission
                 if (clickedButton && clickedButton.name === 'clear_api_key') {
-                    return; 
+                    // No event.preventDefault(), allow traditional submit
+                    return;
                 }
 
-                const selectedProvider = providerSelect.value;
-                if (!selectedProvider) { 
-                    alert('Please select an LLM Provider.'); 
-                    event.preventDefault(); 
-                    return; 
-                }
-                const apiKeyInputId = selectedProvider.toLowerCase() + '_api_key';
-                const apiKeyInput = document.getElementById(apiKeyInputId);
+                event.preventDefault(); // Prevent default submission for LLM config saving
+
+                const formData = new FormData(this);
+                const saveButton = configForm.querySelector('button[name="save_llm_config"]');
+                const originalButtonText = saveButton.innerHTML;
+                saveButton.disabled = true;
+                saveButton.innerHTML = 'Saving... <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+                // Clear previous messages
+                messageDiv.textContent = '';
+                messageDiv.className = 'form-message'; // Reset classes
                 
-                const currentStatus = apiKeyStatuses[selectedProvider] || 'Not set';
-                if (currentStatus === 'Not set' && apiKeyInput && apiKeyInput.value.trim() === '') {
-                    alert("API Key for " + selectedProvider.replace('_',' ') + " is required if not already set. Please enter the key or obtain one from the provider.");
-                    event.preventDefault(); 
-                    apiKeyInput.focus(); 
-                } 
+                fetch('{{ url_for("configure_llm") }}', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    // Try to parse JSON regardless of response.ok, as backend might send JSON for errors
+                    return response.json().then(data => ({ok: response.ok, status: response.status, data}));
+                })
+                .then(result => {
+                    const data = result.data;
+                    
+                    if (result.ok && data.status === 'success') {
+                        // Validate that the user has provided an API key for the selected provider
+                        const selectedProvider = document.getElementById('llm_provider').value;
+                        const apiKeyInput = document.getElementById(`${selectedProvider.toLowerCase()}_api_key`);
+                        const currentStatus = apiKeyStatuses[selectedProvider] || 'Not set';
+                        
+                        // If no key is set or provided, warn the user
+                        if (currentStatus === 'Not set' && (!apiKeyInput || !apiKeyInput.value.trim())) {
+                            messageDiv.textContent = `Warning: No API key set for ${selectedProvider.replace('_', ' ')}. You may encounter errors when using the application.`;
+                            messageDiv.className = 'form-message error show';
+                            saveButton.disabled = false;
+                            saveButton.innerHTML = originalButtonText;
+                            
+                            // Ask if user wants to continue without a key
+                            if (confirm(`No API key is set for ${selectedProvider.replace('_', ' ')}. Would you like to set up an API key before continuing?`)) {
+                                return; // Stop and let the user input a key
+                            }
+                        }
+                        
+                        // Proceed with redirect
+                        if (data.redirect_url) {
+                            smoothRedirect(data.redirect_url);
+                        } else {
+                            // Fallback if no redirect URL (shouldn't happen)
+                            messageDiv.textContent = data.message || 'Configuration saved successfully.';
+                            messageDiv.className = 'form-message success show';
+                            saveButton.disabled = false;
+                            saveButton.innerHTML = originalButtonText;
+                        }
+                    } else {
+                        // Handle errors
+                        messageDiv.textContent = data.message || 'An unexpected error occurred.';
+                        messageDiv.className = 'form-message error show';
+                        saveButton.disabled = false;
+                        saveButton.innerHTML = originalButtonText;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error submitting LLM config:', error);
+                    messageDiv.textContent = 'A network error occurred. Please try again.';
+                    messageDiv.className = 'form-message error show';
+                    saveButton.disabled = false;
+                    saveButton.innerHTML = originalButtonText;
+                });
             });
         }
-        
-        // Re-attach onclick for any dynamically created elements if needed, or ensure direct binding like above.
-        // The existing `onclick="toggleApiKeyVisibility(...)"` in the HTML should work directly.
     });
 </script>
 {% endblock %} 
