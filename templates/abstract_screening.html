@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 let decisionClass = jsonData.decision ? 'log-decision-' + jsonData.decision.toUpperCase().replace('API_','').replace('HTTP_ERROR_','ERROR_') : '';
                                 addTestLogItem(`[${new Date().toLocaleTimeString()}] Item ${jsonData.count}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,30) : 'Item'}... <span class="log-item-decision ${decisionClass}">${jsonData.decision || ''}</span>`);
                             } else if (jsonData.type === 'complete') {
-                                if(currentTestBar){ /* ... */ }
+                                if(currentTestBar){ currentTestBar.classList.add('bg-success'); currentTestBar.textContent = "Complete"; }
                                 if(currentTestStatus) currentTestStatus.textContent = jsonData.message;
                                 addTestLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message}`);
                                 if (jsonData.session_id && currentTestLink && currentTestLinkArea) {
@@ -477,12 +477,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                     currentTestLink.href = baseUrl.replace('__SESSION_ID__', jsonData.session_id);
                                     currentTestLinkArea.style.display = 'block';
                                     // Add to test screening history with complete results
-                                    addToHistory('test', jsonData.session_id, file.filename || 'Test screening', jsonData.client_results);
+                                    addToHistory('test', jsonData.session_id, testFileInput.files[0].name || 'Test screening', jsonData.client_results);
                                 } else { 
                                     console.warn('Could not set test results link.'); 
                                     addTestLogItem(`<span style="color:red">Warning: Could not set test results link. Please refresh the page or check console.</span>`);
                                     // Still add to history even if UI elements not found
-                                    addToHistory('test', jsonData.session_id, file.filename || 'Test screening', jsonData.client_results);
+                                    if (jsonData.session_id) {
+                                        addToHistory('test', jsonData.session_id, testFileInput.files[0].name || 'Test screening', jsonData.client_results);
+                                    }
                                 }
                                 xhrTest.abort();
                                 finalizeTestButton();
