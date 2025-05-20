@@ -21,6 +21,11 @@ import fitz # PyMuPDF - ADDED for metadata title extraction
 from apscheduler.schedulers.background import BackgroundScheduler # <-- Import APScheduler
 import atexit # <-- To shut down scheduler gracefully
 from datetime import timedelta # ADDED for session lifetime
+from flask_redis import FlaskRedis
+import pickle
+
+# 初始化Redis客户端
+redis_client = FlaskRedis()
 
 # --- Configure logging ---
 logging.basicConfig(
