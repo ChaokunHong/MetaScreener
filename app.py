@@ -863,7 +863,8 @@ def calculate_metrics_route():
 # --- SSE Progress Streaming Route ---
 def generate_progress_events(total_items, items_iterator_func):
     processed_count = 0
-    yield f"data: {json.dumps({'type': 'start', 'total': total_items})}\n\n"
+    start_data = {'type': 'start', 'total': total_items}
+    yield f"data: {json.dumps(start_data)}\n\n"
     try:
         for item_index, screening_output in items_iterator_func():  # Expecting item_index and the full screening_output dict
             processed_count += 1
@@ -877,11 +878,14 @@ def generate_progress_events(total_items, items_iterator_func):
             yield f"data: {json.dumps(progress_data)}\n\n"
             time.sleep(0.02)
     except Exception as e:
-        yield f"data: {json.dumps({'type': 'error', 'message': f'Error during item processing: {str(e)}'})}\n\n"
+        error_message = f"Error during item processing: {str(e)}"
+        error_data = {'type': 'error', 'message': error_message}
+        yield f"data: {json.dumps(error_data)}\n\n"
         traceback.print_exc()
         return
 
-    yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.'})}\n\n"
+    complete_data = {'type': 'complete', 'message': 'Screening finished.'}
+    yield f"data: {json.dumps(complete_data)}\n\n"
 
 
 @app.route('/stream_screen_file', methods=['POST'])
@@ -895,7 +899,8 @@ def stream_screen_file():
 
     def generate_response():
         # 立即发送初始化事件
-        yield f"data: {json.dumps({'type': 'init', 'message': 'Processing upload, please wait...'})}\n\n"
+        init_message = {'type': 'init', 'message': 'Processing upload, please wait...'}
+        yield f"data: {json.dumps(init_message)}\n\n"
         
         try:
             # 获取过滤条件
@@ -957,7 +962,7 @@ def stream_screen_file():
             model_id = current_llm_config_data['model_id']
             base_url = get_base_url_for_provider(provider_name)
             provider_info = get_llm_providers_info().get(provider_name, {})
-            session_key_name = provider_info.get("api_key_session_key") 
+            session_key_name = provider_info.get("api_key_session_key")
             api_key = session.get(session_key_name) if session_key_name else None
 
             if not api_key:
@@ -1084,18 +1089,19 @@ def show_screening_results(screening_id):
 @app.route('/stream_test_screen_file', methods=['POST'], endpoint='stream_test_screen_file')
 def stream_test_screen_file():
     if 'file' not in request.files:
-        error_message_text = 'No file part.'
-        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
+        error_message = {'type': 'error', 'message': 'No file part.'}
+        return Response(f"data: {json.dumps(error_message)}\n\n", mimetype='text/event-stream')
 
     file = request.files['file']
     if file.filename == '' or not allowed_file(file.filename):
-        error_message_text = 'No selected/invalid file.'
-        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
+        error_message = {'type': 'error', 'message': 'No selected/invalid file.'}
+        return Response(f"data: {json.dumps(error_message)}\n\n", mimetype='text/event-stream')
 
     # Early initialization response generator
     def quick_start_response_generator():
         # Send an immediate initialization response to let the client know the request is being processed
-        yield f"data: {json.dumps({'type': 'init', 'message': 'Processing upload, please wait...'})}\n\n"
+        init_message = {'type': 'init', 'message': 'Processing upload, please wait...'}
+        yield f"data: {json.dumps(init_message)}\n\n"
         
         # --- Get ALL form fields first, ensuring they are defined before the main try block ---
         try:
@@ -1125,13 +1131,13 @@ def stream_test_screen_file():
                     app_logger.warning(f"Could not delete temp file: {e_cleanup}")
                 
                 if df is None or df.empty:
-                    error_message_text = 'Failed to load RIS or file empty.'
-                    yield f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n"
+                    error_message = {'type': 'error', 'message': 'Failed to load RIS or file empty.'}
+                    yield f"data: {json.dumps(error_message)}\n\n"
                     return
                     
                 if 'abstract' not in df.columns:
-                    error_message_text = 'RIS missing abstract column.'
-                    yield f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n"
+                    error_message = {'type': 'error', 'message': 'RIS missing abstract column.'}
+                    yield f"data: {json.dumps(error_message)}\n\n"
                     return
                     
                 df['title'] = df.get('title', pd.Series(["Title Not Found"] * len(df))).fillna("Title Not Found")
@@ -1139,7 +1145,7 @@ def stream_test_screen_file():
                 df['authors'] = df['authors'].apply(lambda x: x if isinstance(x, list) else [])
 
                 # --- Apply filters before sampling for Test Screening ---
-                df_for_sampling = df.copy()
+                df_for_screening = df.copy()
                 original_df_count = len(df)
                 filter_description = "all entries"
 
@@ -1148,29 +1154,34 @@ def stream_test_screen_file():
                     filter_description = f"entries matching title '{title_filter_input}'"
                     if df_for_screening.empty:
                         error_message = f"No articles found matching title: '{title_filter_input}'"
-                        yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\n\n"
+                        error_data = {'type': 'error', 'message': error_message}
+                        yield f"data: {json.dumps(error_data)}\n\n"
                         return
-
+                
                 elif line_range_input:
                     try:
                         start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                         if start_idx >= end_idx:
                             error_message = f"The range '{line_range_input}' is invalid or results in no articles."
-                            yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\n\n"
+                            error_data = {'type': 'error', 'message': error_message}
+                            yield f"data: {json.dumps(error_data)}\n\n"
                             return
                         df_for_screening = df_for_screening.iloc[start_idx:end_idx]
                         filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
                         if df_for_screening.empty:
                             error_message = f"The range '{line_range_input}' resulted in no articles to screen."
-                            yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\n\n"
+                            error_data = {'type': 'error', 'message': error_message}
+                            yield f"data: {json.dumps(error_data)}\n\n"
                             return
                     except ValueError as e:
                         error_message = f"Invalid range format for '{line_range_input}': {str(e)}"
-                        yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\n\n"
+                        error_data = {'type': 'error', 'message': error_message}
+                        yield f"data: {json.dumps(error_data)}\n\n"
                         return
                 
                 if df_for_screening.empty:
-                    yield f"data: {json.dumps({'type': 'error', 'message': 'No articles found after applying filters to sample from.'})}\n\n"
+                    error_data = {'type': 'error', 'message': 'No articles found after applying filters to sample from.'}
+                    yield f"data: {json.dumps(error_data)}\n\n"
                     return
 
                 sample_df = df_for_screening.head(min(sample_size, len(df_for_screening)))
@@ -1178,7 +1189,8 @@ def stream_test_screen_file():
                 # --- END NEW ---
 
                 if actual_sample_size == 0:
-                    yield f"data: {json.dumps({'type': 'error', 'message': 'No entries found in the file to sample (after filters if any).'})}\n\n"
+                    error_data = {'type': 'error', 'message': 'No entries found in the file to sample (after filters if any).'}
+                    yield f"data: {json.dumps(error_data)}\n\n"
                     return
 
                 criteria_prompt_text = get_screening_criteria()
@@ -1193,7 +1205,8 @@ def stream_test_screen_file():
 
                 if not api_key:
                     error_message = f"API Key for {provider_name} must be provided via the configuration form for this session."
-                    yield f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\n\n"
+                    error_data = {'type': 'error', 'message': error_message, 'needs_config': True}
+                    yield f"data: {json.dumps(error_data)}\n\n"
                     return
 
                 session_id = str(uuid.uuid4())
@@ -1205,7 +1218,8 @@ def stream_test_screen_file():
                 })
 
                 # Now send the official start event
-                yield f"data: {json.dumps({'type': 'start', 'total': actual_sample_size, 'filter_info': filter_description})}\n\n"
+                start_data = {'type': 'start', 'total': actual_sample_size, 'filter_info': filter_description}
+                yield f"data: {json.dumps(start_data)}\n\n"
 
                 # Continue with normal screening process
                 processed_count = 0
@@ -1234,7 +1248,8 @@ def stream_test_screen_file():
                         try:
                             screening_result = future.result()
                             if screening_result['decision'] == "CONFIG_ERROR":
-                                raise Exception(f"CONFIG_ERROR from worker: {screening_result['reasoning']}")
+                                error_message = f"CONFIG_ERROR from worker: {screening_result['reasoning']}"
+                                raise Exception(error_message)
 
                             processed_count += 1
                             progress_percentage = int((processed_count / actual_sample_size) * 100) if actual_sample_size > 0 else 0
@@ -1262,7 +1277,7 @@ def stream_test_screen_file():
                                 'type': 'progress', 'count': processed_count, 'total': actual_sample_size,
                                 'percentage': progress_percentage, 'current_item_title': title,
                                 'decision': 'ITEM_ERROR', 
-                                'error_detail': error_message_text_item_test # Optionally send detail
+                                'error_detail': error_message_text_item_test
                             }
                             yield f"data: {json.dumps(progress_data)}\n\n"
                             temp_results_list.append({
@@ -1276,17 +1291,21 @@ def stream_test_screen_file():
                 if session_data:
                     session_data['test_items_data'] = temp_results_list
                     store_test_session(session_id, session_data)
-                yield f"data: {json.dumps({'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id})}\n\n"
+                complete_data = {'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id}
+                yield f"data: {json.dumps(complete_data)}\n\n"
                 
             except Exception as e:
                 app_logger.exception("Error processing RIS file")
-                yield f"data: {json.dumps({'type': 'error', 'message': f'Error processing RIS file: {e}'})}\n\n"
+                error_message = f"Error processing RIS file: {e}"
+                error_data = {'type': 'error', 'message': error_message}
+                yield f"data: {json.dumps(error_data)}\n\n"
                 return
                 
         except Exception as e: 
             app_logger.exception("Server error during test streaming processing")
-            error_message_text_server_test = f'Server error during test streaming processing: {str(e)}'
-            yield f"data: {json.dumps({'type': 'error', 'message': error_message_text_server_test})}\n\n"
+            error_message = f"Server error during test streaming processing: {str(e)}"
+            error_data = {'type': 'error', 'message': error_message}
+            yield f"data: {json.dumps(error_data)}\n\n"
             return
     
     return Response(quick_start_response_generator(), mimetype='text/event-stream')
