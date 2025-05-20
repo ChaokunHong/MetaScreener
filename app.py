@@ -939,15 +939,16 @@ def stream_screen_file():
                 try:
                     start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                     if start_idx >= end_idx:
-                        yield f"data: {json.dumps({'type': 'error', 'message': f'The range \"{line_range_input}\" is invalid or results in no articles.'})}\n\n"
+                        message_text = f'The range "{line_range_input}" is invalid or results in no articles.'
+                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\\n\\n"
                         return
                     df_for_screening = df_for_screening.iloc[start_idx:end_idx]
                     filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
                     if df_for_screening.empty:
-                        yield f"data: {json.dumps({'type': 'error', 'message': f'The range \"{line_range_input}\" resulted in no articles to screen.'})}\n\n"
+                        yield f"data: {json.dumps({'type': 'error', 'message': f'The range "{line_range_input}" resulted in no articles to screen.'})}\n\n"
                         return
                 except ValueError as e:
-                    yield f"data: {json.dumps({'type': 'error', 'message': f'Invalid range format for \"{line_range_input}\": {str(e)}'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'error', 'message': f'Invalid range format for "{line_range_input}": {str(e)}'})}\n\n"
                     return
 
             total_entries_to_screen = len(df_for_screening)
@@ -1162,9 +1163,8 @@ def stream_test_screen_file():
                     try:
                         start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                         if start_idx >= end_idx:
-                            error_message = f"The range '{line_range_input}' is invalid or results in no articles."
-                            error_data = {'type': 'error', 'message': error_message}
-                            yield f"data: {json.dumps(error_data)}\n\n"
+                            message_text = f'The range "{line_range_input}" is invalid or results in no articles.'
+                            yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\\n\\n"
                             return
                         df_for_screening = df_for_screening.iloc[start_idx:end_idx]
                         filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
