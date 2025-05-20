@@ -263,8 +263,8 @@ const FULL_SCREEN_HISTORY_KEY = 'screen_history_full';
 const TEST_SCREEN_HISTORY_KEY = 'screen_history_test';
 const MAX_HISTORY_ITEMS = 10;
 
-// Add a new item to history
-function addToHistory(type, id, filename) {
+// Add to history and store complete results
+function addToHistory(type, id, filename, resultsData = null) {
     const historyKey = type === 'full' ? FULL_SCREEN_HISTORY_KEY : TEST_SCREEN_HISTORY_KEY;
     let history = JSON.parse(localStorage.getItem(historyKey) || '[]');
     
@@ -288,6 +288,13 @@ function addToHistory(type, id, filename) {
     }
     
     localStorage.setItem(historyKey, JSON.stringify(history));
+    
+    // Store complete results data if provided
+    if (resultsData) {
+        const resultsKey = type === 'full' ? 'full_screening_results_' + id : 'test_screening_results_' + id;
+        localStorage.setItem(resultsKey, JSON.stringify(resultsData));
+        console.log(`Stored complete results data for ${type} screening ${id}`);
+    }
     
     // Update UI
     refreshHistoryDisplay();
@@ -469,13 +476,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                     let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
                                     currentTestLink.href = baseUrl.replace('__SESSION_ID__', jsonData.session_id);
                                     currentTestLinkArea.style.display = 'block';
-                                    // Add to test screening history
-                                    addToHistory('test', jsonData.session_id, file.filename || 'Test screening');
+                                    // Add to test screening history with complete results
+                                    addToHistory('test', jsonData.session_id, file.filename || 'Test screening', jsonData.client_results);
                                 } else { 
                                     console.warn('Could not set test results link.'); 
                                     addTestLogItem(`<span style="color:red">Warning: Could not set test results link. Please refresh the page or check console.</span>`);
                                     // Still add to history even if UI elements not found
-                                    addToHistory('test', jsonData.session_id, file.filename || 'Test screening');
+                                    addToHistory('test', jsonData.session_id, file.filename || 'Test screening', jsonData.client_results);
                                 }
                                 xhrTest.abort();
                                 finalizeTestButton();
@@ -590,14 +597,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                      let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
                                      currentFullLink.href = baseUrl.replace('__SCREENING_ID__', jsonData.screening_id);
                                      currentFullLinkArea.style.display = 'block';
-                                     // Add to full screening history
-                                     addToHistory('full', jsonData.screening_id, fileInput.files[0].name || 'Full screening');
+                                     // Add to full screening history with complete results
+                                     addToHistory('full', jsonData.screening_id, fileInput.files[0].name || 'Full screening', jsonData.client_results);
                                  } else { 
                                      console.warn('Could not set full results link.'); 
                                      // Still log error but in English
                                      addLogItem(`<span style="color:red">Warning: Could not set results link. Please refresh the page or check console.</span>`);
                                      // Still add to history even if UI elements not found
-                                     addToHistory('full', jsonData.screening_id, fileInput.files[0].name || 'Full screening');
+                                     addToHistory('full', jsonData.screening_id, fileInput.files[0].name || 'Full screening', jsonData.client_results);
                                  }
                                  xhr.abort(); 
                                  finalizeButtons();

@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Retrieving Results{% endblock %}
+
+{% block extra_head %}
+<style>
+    .loading-container {
+        text-align: center;
+        padding: 40px;
+    }
+    .spinner {
+        display: inline-block;
+        width: 50px;
+        height: 50px;
+        border: 3px solid rgba(0, 123, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #007bff;
+        animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    .message {
+        margin-top: 20px;
+        font-size: 18px;
+    }
+    .error-message {
+        color: #dc3545;
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="loading-container">
+        <div class="spinner" id="loading-spinner"></div>
+        <div class="message" id="status-message">Checking for saved results...</div>
+        <div class="error-message" id="error-message" style="display: none;"></div>
+        <div class="mt-3" id="fallback-links" style="display: none;">
+            <a href="{{ url_for('abstract_screening_page') }}" class="btn btn-primary">Return to Screening Page</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const spinner = document.getElementById('loading-spinner');
+    const statusMessage = document.getElementById('status-message');
+    const errorMessage = document.getElementById('error-message');
+    const fallbackLinks = document.getElementById('fallback-links');
+    
+    const checkType = "{{ check_type }}"; // 'full' or 'test'
+    
+    {% if check_type == 'full' %}
+    const id = "{{ screening_id }}";
+    const STORAGE_KEY = 'screen_history_full';
+    const RESULTS_KEY = 'full_screening_results_' + id;
+    {% else %}
+    const id = "{{ session_id }}";
+    const STORAGE_KEY = 'screen_history_test';
+    const RESULTS_KEY = 'test_screening_results_' + id;
+    {% endif %}
+    
+    // Try to find the session in history
+    const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const historyItem = history.find(item => item.id === id);
+    
+    // Try to find the saved results
+    const savedResults = localStorage.getItem(RESULTS_KEY);
+    
+    if (savedResults) {
+        statusMessage.textContent = "Found saved results! Rendering...";
+        setTimeout(() => {
+            try {
+                const results = JSON.parse(savedResults);
+                
+                {% if check_type == 'full' %}
+                // Create a form to post the results for rendering
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ url_for("render_local_results") }}';
+                form.style.display = 'none';
+                
+                const resultInput = document.createElement('input');
+                resultInput.type = 'hidden';
+                resultInput.name = 'results_data';
+                resultInput.value = savedResults;
+                
+                const typeInput = document.createElement('input');
+                typeInput.type = 'hidden';
+                typeInput.name = 'results_type';
+                typeInput.value = 'full';
+                
+                const csrfToken = document.createElement('input');
+                csrfToken.type = 'hidden';
+                csrfToken.name = 'csrf_token';
+                csrfToken.value = '{{ csrf_token() }}';
+                
+                form.appendChild(resultInput);
+                form.appendChild(typeInput);
+                form.appendChild(csrfToken);
+                document.body.appendChild(form);
+                form.submit();
+                {% else %}
+                // Create a form to post the test results for rendering
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ url_for("render_local_results") }}';
+                form.style.display = 'none';
+                
+                const resultInput = document.createElement('input');
+                resultInput.type = 'hidden';
+                resultInput.name = 'results_data';
+                resultInput.value = savedResults;
+                
+                const typeInput = document.createElement('input');
+                typeInput.type = 'hidden';
+                typeInput.name = 'results_type';
+                typeInput.value = 'test';
+                
+                const csrfToken = document.createElement('input');
+                csrfToken.type = 'hidden';
+                csrfToken.name = 'csrf_token';
+                csrfToken.value = '{{ csrf_token() }}';
+                
+                form.appendChild(resultInput);
+                form.appendChild(typeInput);
+                form.appendChild(csrfToken);
+                document.body.appendChild(form);
+                form.submit();
+                {% endif %}
+            } catch (e) {
+                console.error("Error parsing saved results:", e);
+                showError("Error parsing saved results: " + e.message);
+            }
+        }, 1000); // Brief delay for better UX
+    } else if (historyItem) {
+        // We have history record but no saved results
+        statusMessage.textContent = "Found in history but no saved data...";
+        showError("Results for this session were found in history but detailed data is not available locally.");
+    } else {
+        // No record at all
+        showError("No results found for this session. The server may have restarted or the data has expired.");
+    }
+    
+    function showError(message) {
+        spinner.style.display = 'none';
+        errorMessage.textContent = message;
+        errorMessage.style.display = 'block';
+        fallbackLinks.style.display = 'block';
+    }
+});
+</script>
+{% endblock %} 

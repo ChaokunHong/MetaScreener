@@ -869,14 +869,31 @@ def stream_screen_file():
 
             # After loop, store results in global dict
             temp_results_list.sort(key=lambda x: x.get('index', float('inf')))
-            full_screening_sessions[screening_id] = {
-                'filename': original_filename, 
-                'results': temp_results_list,
-                'filter_applied': current_filter_desc # Store filter info with results
-            }
+            client_results = None
+            
+            if temp_results_list:
+                full_screening_sessions[screening_id] = {
+                    'filename': original_filename, 
+                    'results': temp_results_list,
+                    'filter_applied': current_filter_desc, # Store filter info with results
+                    'timestamp': datetime.datetime.now().isoformat()  # Add timestamp for debugging
+                }
+                
+                # Create client-safe version of results to store in localStorage
+                client_results = {
+                    'filename': original_filename,
+                    'results': temp_results_list,
+                    'filter_applied': current_filter_desc,
+                    'timestamp': datetime.datetime.now().isoformat()
+                }
             
             # Send completion event
-            yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id})}\n\n"
+            yield f"data: {json.dumps({
+                'type': 'complete', 
+                'message': 'Screening finished.', 
+                'screening_id': screening_id,
+                'client_results': client_results  # Include results for client-side storage
+            })}\n\n"
 
         # Return the Response using the new generator    
         # MODIFIED: Pass df_for_screening, total_entries_to_screen, and filter_description
@@ -895,8 +912,21 @@ def show_screening_results(screening_id):
         
         if not session_data:
             app_logger.warning(f"Screening results not found for screening_id: {screening_id}")
-            flash("Screening results not found or may have expired.", "warning")
-            return redirect(url_for('abstract_screening_page')) 
+            
+            # Check if the request accepts JSON - this would indicate it's an API call to check existence
+            if request.headers.get('Accept') == 'application/json':
+                return jsonify({
+                    'status': 'not_found',
+                    'message': 'Screening results not found on server',
+                    'screening_id': screening_id
+                }), 404
+                
+            # Normal browser request - flash message and redirect
+            flash("Screening results not found or may have expired. Checking browser storage...", "warning")
+            return render_template('check_local_storage.html', 
+                                  screening_id=screening_id, 
+                                  check_type='full',
+                                  current_year=datetime.datetime.now().year)
             
         results = session_data.get('results', [])
         if not results:
@@ -1013,7 +1043,8 @@ def stream_test_screen_file():
              'file_name': file.filename,
              'sample_size': actual_sample_size, 
              'test_items_data': [],
-             'filter_applied': filter_description 
+             'filter_applied': filter_description,
+             'timestamp': datetime.datetime.now().isoformat()  # Add timestamp for debugging
          }
 
         def generate_test_progress(current_sample_df, num_actual_sample_items, current_filter_desc):
@@ -1084,7 +1115,22 @@ def stream_test_screen_file():
             temp_results_list.sort(key=lambda x: x.get('original_index', float('inf')))
             if session_id in test_sessions:
                  test_sessions[session_id]['test_items_data'] = temp_results_list
-            yield f"data: {json.dumps({'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id})}\n\n"
+                 
+                 # Create a client-safe version of results to store in localStorage
+                 client_results = {
+                    'file_name': file.filename,
+                    'sample_size': actual_sample_size,
+                    'test_items_data': temp_results_list,
+                    'filter_applied': filter_description,
+                    'timestamp': datetime.datetime.now().isoformat()
+                 }
+                 
+            yield f"data: {json.dumps({
+                'type': 'complete', 
+                'message': 'Test screening finished.',
+                'session_id': session_id,
+                'client_results': client_results  # Include results data for client-side storage
+            })}\n\n"
 
         return Response(generate_test_progress(sample_df, actual_sample_size, filter_description), mimetype='text/event-stream')
 
@@ -1100,8 +1146,21 @@ def show_test_results(session_id):
     try:
         if not session_id or session_id not in test_sessions:
             app_logger.warning(f"Test session not found for session_id: {session_id}")
-            flash('Test session not found or expired. Please start a new test.', 'error')
-            return redirect(url_for('abstract_screening_page'))
+            
+            # Check if the request accepts JSON - this would indicate it's an API call to check existence
+            if request.headers.get('Accept') == 'application/json':
+                return jsonify({
+                    'status': 'not_found',
+                    'message': 'Test screening results not found on server',
+                    'session_id': session_id
+                }), 404
+                
+            # Normal browser request - flash message and redirect to local storage check
+            flash("Test session not found or expired. Checking browser storage...", "warning")
+            return render_template('check_local_storage.html', 
+                                  session_id=session_id, 
+                                  check_type='test',
+                                  current_year=datetime.datetime.now().year)
 
         session_data = test_sessions.get(session_id)
         if not session_data:
@@ -1967,4 +2026,44 @@ if os.environ.get('WERKZEUG_RUN_MAIN') != 'true': # Avoid running in Flask reloa
 if __name__ == '__main__':
     app_logger.info("Starting Flask app in debug mode...") # Example for __main__
     app.run(debug=True, host='0.0.0.0', port=5050)#test
+
+# --- Add a new route to render locally saved results ---
+@app.route('/render_local_results', methods=['POST'])
+def render_local_results():
+    data = request.form.get('results_data')
+    results_type = request.form.get('results_type', 'full')
+    
+    if not data:
+        flash("No results data provided.", "error")
+        return redirect(url_for('abstract_screening_page'))
+    
+    try:
+        results_data = json.loads(data)
+        current_year = datetime.datetime.now().year
+        
+        if results_type == 'full':
+            # Full screening results
+            return render_template('results.html',
+                                  results=results_data.get('results', []),
+                                  filename=results_data.get('filename', 'Local Results'),
+                                  screening_id=None,  # No server-side ID anymore
+                                  current_year=current_year,
+                                  filter_applied=results_data.get('filter_applied', 'all entries'),
+                                  from_local_storage=True)  # Flag to indicate local data
+        else:
+            # Test screening results
+            return render_template('test_results.html',
+                                  test_items=results_data.get('test_items_data', []),
+                                  session_id=None,  # No server-side ID anymore
+                                  current_year=current_year,
+                                  filter_applied=results_data.get('filter_applied', 'all entries'),
+                                  from_local_storage=True)  # Flag to indicate local data
+                                  
+    except json.JSONDecodeError:
+        flash("Invalid results data format.", "error")
+        return redirect(url_for('abstract_screening_page'))
+    except Exception as e:
+        app_logger.exception(f"Error rendering local results: {e}")
+        flash(f"Error rendering local results: {str(e)}", "error")
+        return redirect(url_for('abstract_screening_page'))
 
