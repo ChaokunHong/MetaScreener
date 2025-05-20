@@ -519,8 +519,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             }; 
-            xhrTest.onloadend = function() { console.log("xhrTest.onloadend"); finalizeTestButton(); }; 
-            xhrTest.onerror = function() { console.error("xhrTest.onerror"); finalizeTestButton(); }; 
+            xhrTest.onloadend = function() {
+                console.log("xhrTest.onloadend triggered.");
+                console.log(`xhrTest.readyState: ${xhrTest.readyState}, xhrTest.status: ${xhrTest.status}`);
+                if (xhrTest.status !== 200 && xhrTest.responseText) {
+                    console.log("xhrTest.responseText (on non-200 status):", xhrTest.responseText);
+                }
+                finalizeTestButton();
+            }; 
+            xhrTest.onerror = function() {
+                console.error("xhrTest.onerror triggered.");
+                console.error(`xhrTest.readyState: ${xhrTest.readyState}, xhrTest.status: ${xhrTest.status}`);
+                if (xhrTest.responseText) {
+                     console.error("xhrTest.responseText (on error):", xhrTest.responseText);
+                }
+                finalizeTestButton();
+            }; 
             xhrTest.send(formData);
         }); 
     }
@@ -656,8 +670,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                  }
              };
-             xhr.onloadend = function() { finalizeButtons(); }; 
-             xhr.onerror = function() { finalizeButtons(); }; 
+             xhr.onloadend = function() {
+                console.log("xhr.onloadend triggered (Full Screening).");
+                console.log(`xhr.readyState: ${xhr.readyState}, xhr.status: ${xhr.status}`);
+                 if (xhr.status !== 200 && xhr.responseText) {
+                    console.log("xhr.responseText (on non-200 status Full Screening):", xhr.responseText);
+                }
+                finalizeButtons();
+             }; 
+             xhr.onerror = function() {
+                console.error("xhr.onerror triggered (Full Screening).");
+                console.error(`xhr.readyState: ${xhr.readyState}, xhr.status: ${xhr.status}`);
+                if (xhr.responseText) {
+                     console.error("xhr.responseText (on error Full Screening):", xhr.responseText);
+                }
+                finalizeButtons();
+             }; 
              xhr.send(formData);
         }); 
     } 
