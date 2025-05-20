@@ -141,6 +141,7 @@
 // Define MAX log items globally in the script block
 const MAX_TEST_LOG_ITEMS = 5;
 const MAX_FULL_LOG_ITEMS = 7;
+const INIT_TIMEOUT_MS = 15000; // 15 seconds timeout for initialization phase
 
 // --- Helper Functions (Refined - Get element inside) ---
 function addTestLogItem(message) {
@@ -219,17 +220,43 @@ document.addEventListener('DOMContentLoaded', function() {
             const testProgressStatus = document.getElementById('test_progress_status');
             const testProgressLogContainer = document.getElementById('test_progress_log_container');
             const testResultsLinkArea = document.getElementById('test_results_link_area');
+            const testSpinner = document.getElementById('test_spinner');
+            
             if(testProgressArea) testProgressArea.style.display = 'block';
             if(testProgressLogContainer) testProgressLogContainer.style.display = 'block';
+            if(testSpinner) testSpinner.style.display = 'inline-block'; // Show spinner
+            
             // Reset log content using helper
             addTestLogItem(""); // Clears by potentially removing old items if list was full
             const initialLogEl = document.getElementById('test_progress_log'); if(initialLogEl) initialLogEl.innerHTML = ''; // Explicit clear
             
             if(testProgressBar) { testProgressBar.style.width = '0%'; testProgressBar.textContent = '0%'; testProgressBar.classList.remove('bg-success', 'bg-danger'); testProgressBar.classList.add('bg-info'); }
-            if(testProgressStatus) testProgressStatus.textContent = 'Initializing test screening...';
+            if(testProgressStatus) {
+                testProgressStatus.textContent = 'Initializing test screening...';
+                testProgressStatus.dataset.status = 'initializing';
+            }
             if(testResultsLinkArea) testResultsLinkArea.style.display = 'none';
             startTestScreenButton.disabled = true;
             window.loggedTestLogError = false; // Reset log flag for this run
+
+            // Add initialization timer update
+            let initializationTimer = 0;
+            const initInterval = setInterval(() => {
+                initializationTimer += 1000;
+                if (testProgressStatus && testProgressStatus.dataset.status === 'initializing') {
+                    let dots = '.'.repeat((initializationTimer / 1000) % 4);
+                    testProgressStatus.textContent = `Initializing test screening${dots} (${Math.floor(initializationTimer/1000)}s)`;
+                    addTestLogItem(`[${new Date().toLocaleTimeString()}] File upload and processing in progress, please wait...`);
+                    
+                    // After timeout, show a message but don't abort yet
+                    if (initializationTimer >= INIT_TIMEOUT_MS) {
+                        clearInterval(initInterval);
+                        addTestLogItem(`[${new Date().toLocaleTimeString()}] Still working - large files may take a while. Please be patient.`);
+                    }
+                } else {
+                    clearInterval(initInterval);
+                }
+            }, 1000);
 
             const formData = new FormData(); 
             formData.append('file', testFileInput.files[0]); 
@@ -266,6 +293,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                             // Process based on event type
                             if (jsonData.type === 'start') {
+                                // Clear the initialization interval
+                                clearInterval(initInterval);
+                                if(currentTestStatus) currentTestStatus.dataset.status = 'processing';
+                                
                                 if(currentTestBar) { currentTestBar.style.width = '0%'; currentTestBar.textContent = '0%'; }
                                 if(currentTestStatus) currentTestStatus.textContent = 'Starting test screening...';
                                 addTestLogItem(`[${new Date().toLocaleTimeString()}] Starting to screen ${jsonData.total} sampled entries.`);
@@ -302,6 +333,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 }
                                 finalizeTestButton();
                             } else if (jsonData.type === 'error') {
+                                clearInterval(initInterval);
                                 if(currentTestBar){ currentTestBar.classList.add('bg-danger'); currentTestBar.textContent = "Error"; }
                                 if(currentTestStatus) currentTestStatus.textContent = `Error: ${jsonData.message}`;
                                 // --- MODIFIED: Display config link if API key missing for Test --- 
@@ -328,6 +360,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }; 
             xhrTest.onloadend = function() { 
                 console.log("xhrTest.onloadend called");
+                clearInterval(initInterval);
                 const currentTestLinkArea = document.getElementById('test_results_link_area');
                 const currentTestLink = document.getElementById('view_test_results_link');
                 
@@ -352,6 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }; 
             xhrTest.onerror = function() { 
                 console.error("xhrTest.onerror called"); 
+                clearInterval(initInterval);
                 addTestLogItem(`[${new Date().toLocaleTimeString()}] Network error occurred during test screening.`);
                 finalizeTestButton(); 
             }; 
@@ -381,10 +415,32 @@ document.addEventListener('DOMContentLoaded', function() {
              const initialFullLogEl = document.getElementById('progress_log'); if(initialFullLogEl) initialFullLogEl.innerHTML = '';
 
              if(progressBar) {progressBar.style.width = '0%'; progressBar.textContent = '0%'; progressBar.classList.remove('bg-success','bg-danger');}
-             if(progressStatus) progressStatus.textContent = 'Initializing...';
+             if(progressStatus) {
+                 progressStatus.textContent = 'Initializing...';
+                 progressStatus.dataset.status = 'initializing';
+             }
              if(sseResultsLinkArea) sseResultsLinkArea.style.display = 'none';
              startFullScreenButton.disabled = true;
              window.loggedFullLogError = false; 
+             
+             // Add initialization timer update
+             let initializationTimer = 0;
+             const initInterval = setInterval(() => {
+                 initializationTimer += 1000;
+                 if (progressStatus && progressStatus.dataset.status === 'initializing') {
+                     let dots = '.'.repeat((initializationTimer / 1000) % 4);
+                     progressStatus.textContent = `Initializing${dots} (${Math.floor(initializationTimer/1000)}s)`;
+                     addLogItem(`[${new Date().toLocaleTimeString()}] File upload and processing in progress, please wait...`);
+                     
+                     // After timeout, show a message but don't abort yet
+                     if (initializationTimer >= INIT_TIMEOUT_MS) {
+                         clearInterval(initInterval);
+                         addLogItem(`[${new Date().toLocaleTimeString()}] Still working - large files may take a while. Please be patient.`);
+                     }
+                 } else {
+                     clearInterval(initInterval);
+                 }
+             }, 1000);
              
              const formData = new FormData(); 
              formData.append('file', fileInput.files[0]);
@@ -418,6 +474,10 @@ document.addEventListener('DOMContentLoaded', function() {
                              
                              // Different types of events
                              if (jsonData.type === 'start') {
+                                 // Clear the initialization interval
+                                 clearInterval(initInterval);
+                                 if(currentFullStatus) currentFullStatus.dataset.status = 'processing';
+                                 
                                  if(currentFullBar) { currentFullBar.style.width = '0%'; currentFullBar.textContent = '0%'; }
                                  if(currentFullStatus) currentFullStatus.textContent = 'Starting full screening...';
                                  addLogItem(`[${new Date().toLocaleTimeString()}] Starting to screen ${jsonData.total} items.`);
@@ -465,6 +525,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                  }
                                  finalizeButtons();
                              } else if (jsonData.type === 'error') {
+                                 clearInterval(initInterval);
                                  if(currentFullBar){ currentFullBar.classList.add('bg-danger'); currentFullBar.textContent = "Error";}
                                  if(currentFullStatus) currentFullStatus.textContent = `Error: ${jsonData.message}`;
                                  let errorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
@@ -486,6 +547,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             xhr.onloadend = function() { 
                 console.log("Full XHR onloadend called");
+                clearInterval(initInterval);
                 const currentFullLinkArea = document.getElementById('sse_results_link_area');
                 const currentFullLink = document.getElementById('view_full_results_link');
                 
@@ -510,6 +572,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             xhr.onerror = function() { 
                 console.error("Full XHR onerror called"); 
+                clearInterval(initInterval);
                 addLogItem(`[${new Date().toLocaleTimeString()}] Network error occurred during screening.`);
                 finalizeButtons(); 
             };
