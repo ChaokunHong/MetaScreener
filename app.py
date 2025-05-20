@@ -164,7 +164,7 @@ def configure_llm():
         else:
             app_logger.warning(f"Attempted to clear key for invalid provider: {provider_to_clear}")
             flash(f'Invalid provider specified for clearing API key.', 'error')
-        return redirect(url_for('llm_config_page')) # Redirect after clearing
+        return redirect(url_for('llm_config_page')) # Redirect after clearing - REMAINS UNCHANGED FOR NOW
 
     # If not clearing, proceed with saving/updating LLM config and API key
     selected_provider = request.form.get('llm_provider')
@@ -173,14 +173,19 @@ def configure_llm():
 
     providers_info = get_llm_providers_info()
     if not selected_provider or selected_provider not in providers_info:
-        flash('Invalid LLM Provider selected.', 'error')
-        return redirect(url_for('llm_config_page'))
+        # For AJAX, this should also be a JSON response
+        # flash('Invalid LLM Provider selected.', 'error') # Keep flash for non-JS fallback if any
+        return jsonify({
+            'status': 'error',
+            'message': 'Invalid LLM Provider selected. Please select a valid provider.'
+        }), 400 # Bad Request
 
     provider_config = providers_info[selected_provider]
 
     session['selected_llm_provider'] = selected_provider
     session['selected_llm_model_id'] = selected_model_id
-    flash_messages = [f'LLM Provider set to {selected_provider.replace("_"," ")} and Model to {selected_model_id}.']
+    # flash_messages are now part of the JSON response message
+    success_message_parts = [f'LLM Provider set to {selected_provider.replace("_"," ")} and Model to {selected_model_id}.']
 
     # Handle API key submission for the selected provider
     api_key_form_field = f"{selected_provider.lower()}_api_key"
@@ -192,22 +197,32 @@ def configure_llm():
         if session_key_for_api:
             session[session_key_for_api] = user_api_key
             app_logger.info(f"Saved API key for {selected_provider} into session.")
-            flash_messages.append(f'API Key for {selected_provider.replace("_"," ")} updated in session.')
+            success_message_parts.append(f'API Key for {selected_provider.replace("_"," ")} updated in session.')
         else:
              app_logger.error(f"Could not find api_key_session_key in provider config for {selected_provider}!")
-             flash_messages.append(f'Error: Configuration problem for {selected_provider} API key storage.')
+             # This is an internal error, should be handled appropriately
+             return jsonify({
+                'status': 'error',
+                'message': f'Error: Configuration problem for {selected_provider} API key storage.'
+             }), 500 # Internal Server Error
     else:
         app_logger.debug(f"No new API key submitted for {selected_provider}. Retaining existing session key if any.")
 
-    for msg in flash_messages:
-        flash(msg, 'success') # Use 'success' or 'info' based on message type
+    # Join messages for the final success message
+    final_success_message = " ".join(success_message_parts)
+    final_success_message += " Configuration saved! Redirecting..."
 
     # If any key was set or LLM provider/model was changed, mark session as permanent
     if request.form.get('llm_provider') or any(key.endswith('_api_key') for key in request.form if request.form.get(key)):
         session.permanent = True
 
     app_logger.debug(f"Session contents after configure_llm: {session}")
-    return redirect(url_for('llm_config_page'))
+    # return redirect(url_for('screening_criteria_page')) # Old redirect
+    return jsonify({
+        'status': 'success',
+        'message': final_success_message,
+        'redirect_url': url_for('screening_criteria_page')
+    }), 200
 
 
 @app.route('/get_models_for_provider/<provider_name>')
@@ -256,6 +271,73 @@ def llm_config_page():
                            current_llm_model_id=current_llm['model_id'],
                            api_key_status=api_key_status,
                            current_year=current_year)
+
+# Route to test if an API key is valid
+@app.route('/test_api_key', methods=['POST'])
+def test_api_key():
+    app_logger.info("--- Testing API Key --- ")
+    
+    if not request.form.get('test_api_key'):
+        return jsonify({
+            'status': 'error',
+            'message': 'Invalid request. Missing test_api_key parameter.'
+        }), 400
+    
+    # Get provider and API key from request
+    provider = request.form.get('provider')
+    api_key = request.form.get(f"{provider.lower()}_api_key")
+    
+    if not provider or not api_key:
+        return jsonify({
+            'status': 'error',
+            'message': 'Missing provider or API key.'
+        }), 400
+    
+    providers_info = get_llm_providers_info()
+    if provider not in providers_info:
+        return jsonify({
+            'status': 'error',
+            'message': f'Invalid provider: {provider}'
+        }), 400
+    
+    # Get model for testing - use first available model or a specific test model
+    provider_models = providers_info[provider].get('models', [])
+    if not provider_models:
+        return jsonify({
+            'status': 'error',
+            'message': f'No models available for {provider}'
+        }), 400
+    
+    test_model_id = provider_models[0]['id']  # Use first model
+    base_url = get_base_url_for_provider(provider)
+    
+    # Create a simple test prompt with the proper structure
+    test_prompt = {
+        "system_prompt": "You are a helpful AI assistant.",
+        "main_prompt": "Hello, please respond with 'OK' if you can receive this message."
+    }
+    
+    try:
+        # Test the API key with a minimal request
+        api_result = call_llm_api_raw_content(test_prompt, provider, test_model_id, api_key, base_url, max_tokens_override=20)
+        
+        if api_result and isinstance(api_result, str) and len(api_result) > 0 and not api_result.startswith("API_ERROR:"):
+            return jsonify({
+                'status': 'success',
+                'message': f'API key for {provider.replace("_", " ")} is valid!'
+            }), 200
+        else:
+            error_details = api_result if isinstance(api_result, str) else "No response received"
+            return jsonify({
+                'status': 'error',
+                'message': f'API key for {provider.replace("_", " ")} appears to be invalid. Please check your key. Details: {error_details}'
+            }), 200
+    except Exception as e:
+        app_logger.error(f"Error testing API key for {provider}: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error testing API key: {str(e)}'
+        }), 200  # Still return 200 to handle error in frontend
 
 @app.route('/criteria', methods=['GET'], endpoint='screening_criteria_page')
 def screening_criteria_page():
@@ -355,11 +437,25 @@ def set_criteria():
 
         # Persist criteria for the user
         set_user_criteria(selected_framework, criteria_dict)
+        # Return JSON response for AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'status': 'success',
+                'message': 'Screening criteria and settings successfully saved! Redirecting...',
+                'redirect_url': url_for('screening_actions_page')
+            }), 200
+        # Standard redirect for non-AJAX requests
         flash('Screening criteria and settings successfully saved!', 'success')
+        return redirect(url_for('screening_actions_page')) # New redirect to screening actions page
     except Exception as e:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'status': 'error',
+                'message': f'Error saving screening criteria: {e}'
+            }), 500
         flash(f'Error saving screening criteria: {e}', 'error')
         app_logger.exception("Error saving screening criteria") # Replaces traceback.print_exc()
-    return redirect(url_for('screening_criteria_page'))
+        return redirect(url_for('screening_criteria_page'))
 
 
 @app.route('/reset_criteria')
@@ -1614,7 +1710,7 @@ def batch_screen_pdfs_stream():
 
     total_files_to_process = len(files_ready_for_threads) 
     def generate_processing_progress():
-        yield f"data: {json.dumps({'type': 'start', 'total_uploaded': len(initial_manifest), 'total_to_process': total_files_to_process, 'filter_info': filter_description})}\n\n"
+        yield f"data: {json.dumps({'type': 'start', 'total_uploaded': len(initial_manifest), 'total_to_process': total_files_to_process, 'filter_info': filter_description})}\n"
         processed_files_results = []
         futures_map = {}
         with ThreadPoolExecutor(max_workers=4) as executor:
@@ -1639,10 +1735,15 @@ def batch_screen_pdfs_stream():
                     screening_result = future.result() # This result dict should now include original_index
                     processed_files_results.append(screening_result)
                     processed_count += 1
-                    yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total_to_process': total_files_to_process, 'percentage': int((processed_count / total_files_to_process) * 100), 'current_file_name': screening_result.get('filename', original_filename_for_log), 'decision': screening_result.get('decision', 'ERROR')})}\n\n"
+                    yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total_to_process': total_files_to_process, 'percentage': int((processed_count / total_files_to_process) * 100), 'current_file_name': screening_result.get('filename', original_filename_for_log), 'decision': screening_result.get('decision', 'ERROR')})}\n"
                 except Exception as e_future:
                     processed_count += 1 
                     app_logger.error(f"Batch PDF: Exception processing future for {original_filename_for_log}: {e_future}")
+                    
+                    error_percentage = 0
+                    if total_files_to_process > 0:
+                        error_percentage = int((processed_count / total_files_to_process) * 100)
+                    
                     processed_files_results.append({
                         'original_index': completed_item_manifest['original_index'], # Ensure original_index is here for sorting
                         'filename': original_filename_for_log, 
@@ -1650,7 +1751,20 @@ def batch_screen_pdfs_stream():
                         'decision': 'WORKER_THREAD_ERROR',
                         'reasoning': str(e_future)
                     })
-                    yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total_to_process': total_files_to_process, 'percentage': int((processed_count / total_files_to_process) * 100), 'current_file_name': original_filename_for_log, 'decision': 'WORKER_THREAD_ERROR'})}\n\n"
+
+                    # Create the data dictionary separately
+                    event_data_dict = {
+                        'type': 'progress',
+                        'count': processed_count,
+                        'total_to_process': total_files_to_process,
+                        'percentage': error_percentage,
+                        'current_file_name': original_filename_for_log,
+                        'decision': 'WORKER_THREAD_ERROR'
+                    }
+                    # Serialize it to JSON string
+                    json_string = json.dumps(event_data_dict)
+                    # Now the f-string expression is just a simple variable
+                    yield f"data: {json_string}\n"
         
         # --- NEW: Sort results by original_index before storing --- 
         processed_files_results.sort(key=lambda x: x.get('original_index', float('inf')))
@@ -1667,7 +1781,7 @@ def batch_screen_pdfs_stream():
             app_logger.info(f"Batch PDF Stream: Stored {len(processed_files_results)} results under batch ID {batch_session_id}")
         else:
             app_logger.warning("Batch PDF Stream: No results were processed or collected.")
-        yield f"data: {json.dumps({'type': 'complete', 'message': 'Batch PDF processing finished.', 'batch_session_id': batch_session_id if processed_files_results else None})}\n\n"
+        yield f"data: {json.dumps({'type': 'complete', 'message': 'Batch PDF processing finished.', 'batch_session_id': batch_session_id if processed_files_results else None})}\n"
         app_logger.info(f"Batch PDF stream: Processing SSE finished. Batch ID: {batch_session_id if processed_files_results else 'N/A'}")
     return Response(generate_processing_progress(), mimetype='text/event-stream')
 
