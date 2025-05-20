@@ -514,10 +514,17 @@ def test_screening():
 
 @app.route('/screen_full_dataset/<session_id>')
 def screen_full_dataset(session_id):
-    if not session_id or session_id not in test_sessions: flash('Test session not found or expired.', 'error'); return redirect(url_for('abstract_screening_page'))
-    session_data = test_sessions.get(session_id)
-    if not session_data: flash('Test session data missing.', 'error'); return redirect(url_for('abstract_screening_page'))
-    df = session_data['df']; filename = session_data['file_name']
+    session_data = get_test_session(session_id)
+    if not session_data:
+        flash('Test session not found or expired.', 'error')
+        return redirect(url_for('abstract_screening_page'))
+    
+    df = session_data.get('df')
+    filename = session_data.get('file_name')
+    if not df:
+        flash('Test session data missing dataframe.', 'error')
+        return redirect(url_for('abstract_screening_page'))
+    
     results_list = []
     try:
         criteria_prompt_text = get_screening_criteria()
@@ -528,9 +535,11 @@ def screen_full_dataset(session_id):
         provider_info = get_llm_providers_info().get(provider_name, {})
         session_key_name = provider_info.get("api_key_session_key")
         api_key = session.get(session_key_name) if session_key_name else None
-        if not api_key: flash(f"API Key for {provider_name} must be provided via the configuration form for this session.", "error"); return redirect(url_for('llm_config_page'))
+        if not api_key: 
+            flash(f"API Key for {provider_name} must be provided via the configuration form for this session.", "error")
+            return redirect(url_for('llm_config_page'))
 
-        results_map = {} # To store results keyed by index
+        results_map = {}
         with ThreadPoolExecutor(max_workers=8) as executor:
             future_to_index = {}
             futures = []
@@ -551,7 +560,7 @@ def screen_full_dataset(session_id):
                     screening_result = future.result()
                     if screening_result['decision'] == "CONFIG_ERROR":
                          flash(f"Config error for item at index {index}: {screening_result['reasoning']}", "error")
-                         if session_id in test_sessions: del test_sessions[session_id]
+                         delete_test_session(session_id)
                          return redirect(url_for('llm_config_page'))
                     results_map[index] = screening_result # Store result associated with its original index
                 except Exception as exc:
@@ -571,15 +580,14 @@ def screen_full_dataset(session_id):
                       'reasoning': result_data['reasoning']
                   })
 
-        if session_id in test_sessions: del test_sessions[session_id]
+        delete_test_session(session_id)
         current_year = datetime.datetime.now().year
         return render_template('results.html', results=results_list, filename=filename, current_year=current_year)
 
     except Exception as e:
         app_logger.exception(f"Error during full screening for session {session_id}")
         flash(f"Error during full screening: {e}.", 'error')
-        if session_id in test_sessions:
-            del test_sessions[session_id]
+        delete_test_session(session_id)
         return redirect(url_for('abstract_screening_page'))
 
 
@@ -984,11 +992,11 @@ def stream_screen_file():
 
             # After loop, store results in global dict
             temp_results_list.sort(key=lambda x: x.get('index', float('inf')))
-            full_screening_sessions[screening_id] = {
+            store_full_screening_session(screening_id, {
                 'filename': original_filename, 
                 'results': temp_results_list,
                 'filter_applied': current_filter_desc # Store filter info with results
-            }
+            })
             
             # Send completion event
             yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id})}\n\n"
@@ -1005,7 +1013,7 @@ def stream_screen_file():
 
 @app.route('/show_screening_results/<screening_id>', endpoint='show_screening_results') 
 def show_screening_results(screening_id):
-    session_data = full_screening_sessions.get(screening_id)
+    session_data = get_full_screening_session(screening_id)
     
     if not session_data:
         flash("Screening results not found or may have expired.", "warning")
@@ -1020,8 +1028,7 @@ def show_screening_results(screening_id):
                            filename=filename,
                            screening_id=screening_id, 
                            current_year=current_year,
-                           filter_applied=session_data.get('filter_applied', 'all entries') # Pass filter info to results page
-                          )
+                           filter_applied=session_data.get('filter_applied', 'all entries'))
 
 
 # --- New Test Screening SSE Route ---
@@ -1113,12 +1120,12 @@ def stream_test_screen_file():
             return Response(f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\n\n", mimetype='text/event-stream')
 
         session_id = str(uuid.uuid4())
-        test_sessions[session_id] = {
+        store_test_session(session_id, {
              'file_name': file.filename,
              'sample_size': actual_sample_size, 
              'test_items_data': [],
              'filter_applied': filter_description 
-         }
+        })
 
         def generate_test_progress(current_sample_df, num_actual_sample_items, current_filter_desc):
             processed_count = 0
@@ -1186,8 +1193,10 @@ def stream_test_screen_file():
                         })
             
             temp_results_list.sort(key=lambda x: x.get('original_index', float('inf')))
-            if session_id in test_sessions:
-                 test_sessions[session_id]['test_items_data'] = temp_results_list
+            session_data = get_test_session(session_id)
+            if session_data:
+                session_data['test_items_data'] = temp_results_list
+                store_test_session(session_id, session_data)
             yield f"data: {json.dumps({'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id})}\n\n"
 
         return Response(generate_test_progress(sample_df, actual_sample_size, filter_description), mimetype='text/event-stream')
@@ -1201,13 +1210,14 @@ def stream_test_screen_file():
 # --- New Route to Show Test Results ---
 @app.route('/show_test_results/<session_id>', endpoint='show_test_results')
 def show_test_results(session_id):
-    if not session_id or session_id not in test_sessions:
+    session_data = get_test_session(session_id)
+    
+    if not session_data:
         flash('Test session not found or expired. Please start a new test.', 'error')
         return redirect(url_for('abstract_screening_page'))
 
-    session_data = test_sessions.get(session_id)
     test_items = session_data.get('test_items_data')
-
+    
     if not test_items: # If empty list or key missing
          flash('No test items found in session for display.', 'warning')
          return redirect(url_for('abstract_screening_page'))
@@ -1217,14 +1227,13 @@ def show_test_results(session_id):
                            test_items=test_items,
                            session_id=session_id,
                            current_year=current_year,
-                           # --- ADDED: Pass filter_applied to test_results.html ---
                            filter_applied=session_data.get('filter_applied', 'all entries'))
 
 
 # --- New Download Route --- 
 @app.route('/download_results/<screening_id>/<format>', endpoint='download_results')
 def download_results(screening_id, format):
-    session_data = full_screening_sessions.get(screening_id)
+    session_data = get_full_screening_session(screening_id)
     
     if not session_data:
         flash("Could not find screening results data to download (it might have expired or been viewed already without download).", "error")
@@ -1777,12 +1786,12 @@ def batch_screen_pdfs_stream():
 
         batch_session_id = str(uuid.uuid4())
         if processed_files_results: 
-            full_screening_sessions[batch_session_id] = { 
+            store_full_screening_session(batch_session_id, { 
                 'filename': f"Batch PDF Results ({len(processed_files_results)} of {total_files_to_process} processed)", 
                 'filter_applied': filter_description,
                 'results': processed_files_results,
                 'is_batch_pdf_result': True 
-            }
+            })
             app_logger.info(f"Batch PDF Stream: Stored {len(processed_files_results)} results under batch ID {batch_session_id}")
         else:
             app_logger.warning("Batch PDF Stream: No results were processed or collected.")
