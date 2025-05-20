@@ -428,7 +428,7 @@ document.addEventListener('DOMContentLoaded', function() {
             xhrTest.open("POST", "{{ url_for('stream_test_screen_file') }}", true);
             
             let testSseBuffer = ""; // Buffer for Test Screening SSE
-            let lastProcessedResponseLengthTest = 0; // Tracks how much of responseText has been processed
+            let lastProcessedResponseLengthTest = 0;
 
             xhrTest.onprogress = function() {
                 const newChunk = xhrTest.responseText.substring(lastProcessedResponseLengthTest);
@@ -436,15 +436,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 testSseBuffer += newChunk;
 
                 let eolIndex;
-                while ((eolIndex = testSseBuffer.indexOf('\\n\\n')) >= 0) {
-                    const messageToProcess = testSseBuffer.substring(0, eolIndex);
+                while ((eolIndex = testSseBuffer.indexOf('\n\n')) >= 0) {
+                    let messageBlock = testSseBuffer.substring(0, eolIndex);
                     testSseBuffer = testSseBuffer.substring(eolIndex + 2);
 
-                    if (messageToProcess.startsWith("data: ")) {
-                        const jsonDataString = messageToProcess.substring(6);
+                    const lines = messageBlock.split('\n');
+                    let jsonDataString = null;
+
+                    for (const line of lines) {
+                        const trimmedLine = line.trim();
+                        if (trimmedLine.startsWith("data:")) {
+                            jsonDataString = trimmedLine.substring(5).trim(); 
+                            break; 
+                        }
+                    }
+
+                    if (jsonDataString) {
                         try {
                             const jsonData = JSON.parse(jsonDataString);
-                            // Get elements JUST BEFORE use
                             const currentTestBar = document.getElementById('test_progress_bar');
                             const currentTestStatus = document.getElementById('test_progress_status');
                             const currentTestArea = document.getElementById('test_progress_area');
@@ -456,13 +465,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if(currentTestStatus) currentTestStatus.textContent = `Starting... Total: ${jsonData.total}`;
                                 if(currentTestArea) currentTestArea.style.display = 'block'; 
                                 if(currentTestLogContainer) currentTestLogContainer.style.display = 'block';
-                                // --- MODIFIED: Display filter info from SSE for Test Screening ---
                                 let testStartMessage = `[${new Date().toLocaleTimeString()}] Started test screening. Max sample: ${sampleSizeInput.value}, Actual to screen: ${jsonData.total}`;
                                 if (jsonData.filter_info && jsonData.filter_info !== 'all entries') {
                                     testStartMessage += ` (Filter: ${jsonData.filter_info})`;
                                 }
                                 addTestLogItem(testStartMessage);
-                                // --- END MODIFIED ---
                             } else if (jsonData.type === 'progress') {
                                 if (currentTestBar) {
                                     try { currentTestBar.style.width = jsonData.percentage + '%'; currentTestBar.textContent = jsonData.percentage + '%'; }
@@ -484,12 +491,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                     let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
                                     currentTestLink.href = baseUrl.replace('__SESSION_ID__', jsonData.session_id);
                                     currentTestLinkArea.style.display = 'block';
-                                    // Add to test screening history with complete results
                                     addToHistory('test', jsonData.session_id, testFileInput.files[0].name || 'Test screening', jsonData.client_results);
                                 } else { 
-                                    console.warn('Could not set test results link.'); 
-                                    addTestLogItem(`<span style="color:red">Warning: Could not set test results link. Please refresh the page or check console.</span>`);
-                                    // Still add to history even if UI elements not found
+                                    console.warn('Could not set test results link. Session ID: ' + jsonData.session_id);
+                                    addTestLogItem(`<span style="color:red">Warning: Could not set test results link. Please refresh or check console.</span>`);
                                     if (jsonData.session_id) {
                                         addToHistory('test', jsonData.session_id, testFileInput.files[0].name || 'Test screening', jsonData.client_results);
                                     }
@@ -497,16 +502,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 xhrTest.abort();
                                 finalizeTestButton();
                             } else if (jsonData.type === 'error') {
-                                if(currentTestBar){ /* ... */ }
+                                if(currentTestBar){ currentTestBar.classList.add('bg-danger'); currentTestBar.textContent = "Error";}
                                 if(currentTestStatus) currentTestStatus.textContent = `Error: ${jsonData.message}`;
-                                // --- MODIFIED: Display config link if API key missing for Test --- 
                                 let testErrorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
                                 if (jsonData.needs_config) {
                                     const configUrl = "{{ url_for('llm_config_page') }}";
                                     testErrorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
                                 }
                                 addTestLogItem(testErrorMessage);
-                                // --- END MODIFIED ---
                                 xhrTest.abort();
                                 finalizeTestButton();
                             }
@@ -514,8 +517,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             console.error("Test SSE Parse Error:", e, "Problematic JSON string:", jsonDataString); 
                             addTestLogItem(`<span style="color:red">Error parsing server update (Test). See console.</span>`);
                         } 
-                    } else if (messageToProcess.trim() !== "") {
-                        console.warn("Test SSE: Received non-data line:", messageToProcess);
+                    } else if (messageBlock.trim() !== "") {
+                        console.warn("Test SSE: Received message block with no data lines:", messageBlock);
                     }
                 }
             }; 
@@ -582,7 +585,7 @@ document.addEventListener('DOMContentLoaded', function() {
              xhr.open("POST", "{{ url_for('stream_screen_file') }}", true);
 
              let fullSseBuffer = ""; // Buffer for Full Screening SSE
-             let lastProcessedResponseLengthFull = 0; // Tracks how much of responseText has been processed
+             let lastProcessedResponseLengthFull = 0;
              
              xhr.onprogress = function() {
                  const newChunk = xhr.responseText.substring(lastProcessedResponseLengthFull);
@@ -590,12 +593,22 @@ document.addEventListener('DOMContentLoaded', function() {
                  fullSseBuffer += newChunk;
 
                  let eolIndex;
-                 while ((eolIndex = fullSseBuffer.indexOf('\\n\\n')) >= 0) {
-                    const messageToProcess = fullSseBuffer.substring(0, eolIndex);
+                 while ((eolIndex = fullSseBuffer.indexOf('\n\n')) >= 0) {
+                    let messageBlock = fullSseBuffer.substring(0, eolIndex);
                     fullSseBuffer = fullSseBuffer.substring(eolIndex + 2);
 
-                    if (messageToProcess.startsWith("data: ")) {
-                        const jsonDataString = messageToProcess.substring(6);
+                    const lines = messageBlock.split('\n');
+                    let jsonDataString = null;
+
+                    for (const line of lines) {
+                        const trimmedLine = line.trim();
+                        if (trimmedLine.startsWith("data:")) {
+                            jsonDataString = trimmedLine.substring(5).trim();
+                            break;
+                        }
+                    }
+
+                    if (jsonDataString) {
                         try {
                             const jsonData = JSON.parse(jsonDataString);
                             const currentFullBar = document.getElementById('progress_bar');
@@ -620,10 +633,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                     catch(e) { console.error("Error updating full progress bar:", e); }
                                 } else { if (!window.loggedFullBarError) { console.error('!!! Could not find progress_bar in onprogress'); window.loggedFullBarError = true; } }
                                 if (currentFullStatus) { 
-                                      try { currentFullStatus.textContent = `Processing ${jsonData.count}/${jsonData.total}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,40) : 'Item'}...`; } 
-                                      catch (e) { console.error("Error updating full progress status:", e); }
-                                 } else { if (!window.loggedFullStatusError) { console.error('!!! Could not find progress_status in onprogress'); window.loggedFullStatusError = true; } }
-                                 
+                                     try { currentFullStatus.textContent = `Processing ${jsonData.count}/${jsonData.total}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,40) : 'Item'}...`; } 
+                                     catch (e) { console.error("Error updating full progress status:", e); }
+                                } else { if (!window.loggedFullStatusError) { console.error('!!! Could not find progress_status in onprogress'); window.loggedFullStatusError = true; } }
+                                
                                 let decisionClass = jsonData.decision ? 'log-decision-' + jsonData.decision.toUpperCase().replace('API_','').replace('HTTP_ERROR_','ERROR_') : '';
                                 addLogItem(`[${new Date().toLocaleTimeString()}] Item ${jsonData.count}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,30) : 'Item'}... <span class="log-item-decision ${decisionClass}">${jsonData.decision || ''}</span>`);
                             } else if (jsonData.type === 'complete') {
@@ -634,17 +647,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                     let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
                                     currentFullLink.href = baseUrl.replace('__SCREENING_ID__', jsonData.screening_id);
                                     currentFullLinkArea.style.display = 'block';
-                                    // Add to full screening history with complete results
                                     addToHistory('full', jsonData.screening_id, fileInput.files[0].name || 'Full screening', jsonData.client_results);
                                 } else { 
-                                    console.warn('Could not set full results link. Screening ID: ' + jsonData.screening_id); 
-                                    addLogItem(`<span style="color:red">Warning: Could not set results link. Please refresh the page or check console.</span>`);
-                                    // Still add to history ONLY IF screening_id is valid
+                                    console.warn('Could not set full results link. Screening ID: ' + jsonData.screening_id);
+                                    addLogItem(`<span style="color:red">Warning: Could not set results link. Please refresh or check console.</span>`);
                                     if (jsonData.screening_id) {
                                         addToHistory('full', jsonData.screening_id, fileInput.files[0].name || 'Full screening', jsonData.client_results);
                                     } else {
-                                        console.error('Full screening completed but screening_id was missing. History not saved for this entry.');
-                                        addLogItem(`<span style="color:red">Error: Screening ID missing, history entry not saved.</span>`);
+                                        console.error('Full screening completed but screening_id was missing. History not saved.');
+                                        addLogItem(`<span style="color:red">Error: Screening ID missing, history not saved.</span>`);
                                     }
                                 }
                                 xhr.abort(); 
@@ -665,8 +676,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             console.error("Full SSE Parse Error:", e, "Problematic JSON string:", jsonDataString); 
                             addLogItem(`<span style="color:red">Error parsing server update (Full). See console.</span>`);
                         } 
-                    } else if (messageToProcess.trim() !== "") {
-                        console.warn("Full SSE: Received non-data line:", messageToProcess);
+                    } else if (messageBlock.trim() !== "") {
+                        console.warn("Full SSE: Received message block with no data lines:", messageBlock);
                     }
                  }
              };
