@@ -602,11 +602,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                      // Add to full screening history with complete results
                                      addToHistory('full', jsonData.screening_id, fileInput.files[0].name || 'Full screening', jsonData.client_results);
                                  } else { 
-                                     console.warn('Could not set full results link.'); 
-                                     // Still log error but in English
+                                     console.warn('Could not set full results link. Screening ID: ' + jsonData.screening_id); 
                                      addLogItem(`<span style="color:red">Warning: Could not set results link. Please refresh the page or check console.</span>`);
-                                     // Still add to history even if UI elements not found
-                                     addToHistory('full', jsonData.screening_id, fileInput.files[0].name || 'Full screening', jsonData.client_results);
+                                     // Still add to history ONLY IF screening_id is valid
+                                     if (jsonData.screening_id) {
+                                         addToHistory('full', jsonData.screening_id, fileInput.files[0].name || 'Full screening', jsonData.client_results);
+                                     } else {
+                                         console.error('Full screening completed but screening_id was missing. History not saved for this entry.');
+                                         addLogItem(`<span style="color:red">Error: Screening ID missing, history entry not saved.</span>`);
+                                     }
                                  }
                                  xhr.abort(); 
                                  finalizeButtons();

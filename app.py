@@ -966,23 +966,30 @@ def stream_screen_file():
 
             # After loop, store results in global dict
             temp_results_list.sort(key=lambda x: x.get('index', float('inf')))
-            client_results = None
             
-            if temp_results_list:
+            # Always create client_results, ensure 'results' is a list (possibly empty)
+            client_results = {
+                'filename': original_filename,
+                'results': temp_results_list if temp_results_list else [], # Ensure 'results' is a list
+                'filter_applied': current_filter_desc,
+                'timestamp': datetime.datetime.now().isoformat()
+            }
+
+            if temp_results_list: # Only store in server session if there are actual results
                 full_screening_sessions[screening_id] = {
                     'filename': original_filename, 
                     'results': temp_results_list,
                     'filter_applied': current_filter_desc, # Store filter info with results
                     'timestamp': datetime.datetime.now().isoformat()  # Add timestamp for debugging
                 }
-                
-                # Create client-safe version of results to store in localStorage
-                client_results = {
-                    'filename': original_filename,
-                    'results': temp_results_list,
-                    'filter_applied': current_filter_desc,
-                    'timestamp': datetime.datetime.now().isoformat()
-                }
+            # else: # Optional: could store a placeholder for empty screenings if server-side tracking is needed
+            #     full_screening_sessions[screening_id] = {
+            #         'filename': original_filename,
+            #         'results': [],
+            #         'filter_applied': current_filter_desc,
+            #         'timestamp': datetime.datetime.now().isoformat(),
+            #         'status': 'completed_empty' # Example status
+            #     }
             
             # Send completion event
             yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id, 'client_results': client_results})}\n\n"
