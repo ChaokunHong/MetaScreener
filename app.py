@@ -50,7 +50,8 @@ from config import (
 from quality_assessment import quality_bp
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+# app.secret_key = os.urandom(24) # Old way
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'e8a3f2c9b7d5e6a1c3b8d7e9f0a2b5c7d8e9f1a3b6c8d0e2') # New way with example key
 
 # Session configuration
 app.config.update(
