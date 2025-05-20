@@ -912,16 +912,20 @@ def stream_screen_file():
             # title_filter_input = request.form.get('title_text_filter', '').strip() # OLD
             line_range_input = line_range_filter
             title_filter_input = title_text_filter
+
+            yield f"data: {json.dumps({'type': 'status', 'message': 'Reading and parsing file content...'})}\\n\\n"
             
             # 直接从流加载，避免保存临时文件
             df = load_literature_ris(file.stream)
             if df is None or df.empty:
-                yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\\n\\n"
                 return
             
             if 'abstract' not in df.columns:
-                yield f"data: {json.dumps({'type': 'error', 'message': 'RIS missing abstract column.'})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'RIS missing abstract column.'})}\\n\\n"
                 return
+            
+            yield f"data: {json.dumps({'type': 'status', 'message': 'File parsed. Preparing data for screening...'})}\\n\\n"
                 
             # 填充缺失值
             df['title'] = df.get('title', pd.Series(["Title Not Found"] * len(df))).fillna("Title Not Found")
@@ -938,7 +942,7 @@ def stream_screen_file():
                 filter_description = f"entries matching title '{title_filter_input}'"
                 if df_for_screening.empty:
                     error_message = f"No articles found matching title: '{title_filter_input}'"
-                    yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\n\n"
+                    yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\\n\\n"
                     return
 
             elif line_range_input:
@@ -946,18 +950,20 @@ def stream_screen_file():
                     start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                     if start_idx >= end_idx:
                         message_text = f'The range "{line_range_input}" is invalid or results in no articles.'
-                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
+                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\\n\\n"
                         return
                     df_for_screening = df_for_screening.iloc[start_idx:end_idx]
                     filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
                     if df_for_screening.empty:
                         message_text = f'The range "{line_range_input}" resulted in no articles to screen.'
-                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
+                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\\n\\n"
                         return
                 except ValueError as e:
                     message_text = f'Invalid range format for "{line_range_input}": {str(e)}'
-                    yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
+                    yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\\n\\n"
                     return
+
+            yield f"data: {json.dumps({'type': 'status', 'message': 'Filters applied. Counting entries for screening...'})}\\n\\n"
 
             total_entries_to_screen = len(df_for_screening)
             if total_entries_to_screen == 0:
