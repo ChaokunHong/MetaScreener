@@ -915,6 +915,18 @@ def stream_screen_file():
     line_range_input_val = request.form.get('line_range_filter', '').strip()
     title_filter_input_val = request.form.get('title_text_filter', '').strip()
 
+    # --- Pre-fetch all request-bound data BEFORE generator definition ---
+    criteria_prompt_text_val_full = get_screening_criteria()
+    current_llm_config_data_val_full = get_current_llm_config(session)
+    provider_name_val_full = current_llm_config_data_val_full['provider_name']
+    model_id_val_full = current_llm_config_data_val_full['model_id']
+    base_url_val_full = get_base_url_for_provider(provider_name_val_full)
+    
+    provider_info_val_full = get_llm_providers_info().get(provider_name_val_full, {})
+    session_key_name_val_full = provider_info_val_full.get("api_key_session_key")
+    api_key_val_full = session.get(session_key_name_val_full) if session_key_name_val_full else None
+    # --- End pre-fetch ---
+
     # Save the uploaded file to a temporary path *before* starting the generator
     temp_file_path_full_screen = os.path.join(UPLOAD_FOLDER, f"temp_full_{uuid.uuid4()}.ris")
     try:
@@ -927,7 +939,8 @@ def stream_screen_file():
 
     original_filename_for_session = uploaded_file_full.filename # Store for session
 
-    def generate_response(line_range_filter, title_text_filter, saved_temp_file_path, original_filename):
+    def generate_response(line_range_filter, title_text_filter, saved_temp_file_path, original_filename,
+                          criteria_prompt, llm_provider, llm_model, llm_base_url, llm_api_key):
         overall_start_time = time.time()
         app_logger.info("PERF: generate_response (full screen) started.")
         current_temp_file_path = saved_temp_file_path # Path to the file saved by the main route function
@@ -1007,33 +1020,22 @@ def stream_screen_file():
                 yield f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\\n\\n"
                 return
 
-            # 获取配置
-            config_fetch_start_time = time.time()
-            criteria_prompt_text = get_screening_criteria()
-            current_llm_config_data = get_current_llm_config(session)
-            provider_name = current_llm_config_data['provider_name']
-            model_id = current_llm_config_data['model_id']
-            base_url = get_base_url_for_provider(provider_name)
-            provider_info = get_llm_providers_info().get(provider_name, {})
-            session_key_name = provider_info.get("api_key_session_key")
-            api_key = session.get(session_key_name) if session_key_name else None
-            config_fetch_end_time = time.time()
-            app_logger.info(f"PERF: Fetching criteria and LLM config took {config_fetch_end_time - config_fetch_start_time:.4f} seconds.")
+            # 获取配置 (Use pre-fetched values)
+            # config_fetch_start_time = time.time() # Already logged before this generator
+            # criteria_prompt_text = get_screening_criteria() # OLD
+            # current_llm_config_data = get_current_llm_config(session) # OLD
+            # provider_name = current_llm_config_data['provider_name'] # OLD
+            # model_id = current_llm_config_data['model_id'] # OLD
+            # base_url = get_base_url_for_provider(provider_name) # OLD
+            # provider_info = get_llm_providers_info().get(provider_name, {}) # OLD
+            # session_key_name = provider_info.get("api_key_session_key") # OLD
+            # api_key = session.get(session_key_name) if session_key_name else None # OLD
+            # config_fetch_end_time = time.time()
+            # app_logger.info(f"PERF: Fetching criteria and LLM config took {config_fetch_end_time - config_fetch_start_time:.4f} seconds.")
 
 
-            if not api_key:
-                yield f"data: {json.dumps({'type': 'error', 'message': f'API Key for {provider_name} must be provided via the configuration form for this session.', 'needs_config': True})}\n\n"
-                # No return here, as finally block needs to run to clean up temp file
-                # Instead, raise an exception or ensure no further processing that needs API key.
-                # For simplicity, let the code proceed, but it will likely fail at LLM call or be a no-op.
-                # A better way would be to yield error and then ensure graceful exit from generator.
-                # For now, this matches existing logic pattern of yielding error and then continuing to finally.
-                # However, if API key is missing, further processing is futile. Let's make it clearer.
-                # The original code did a `return` here. If we return, finally won't be hit by this path.
-                # If we yield and then allow to proceed, it implies we might do more work.
-                # The safest is to yield error and then ensure generator termination. 
-                # For now, let the subsequent code handle it if it tries to use a None API key
-                # (which _perform_screening_on_abstract should handle by returning CONFIG_ERROR)
+            if not llm_api_key: # Use the passed-in llm_api_key
+                yield f"data: {json.dumps({'type': 'error', 'message': f'API Key for {llm_provider} must be provided via the configuration form for this session.', 'needs_config': True})}\n\n"
                 pass # Allow to proceed to ThreadPool; worker will handle no API key
 
             screening_id = str(uuid.uuid4())
@@ -1064,8 +1066,8 @@ def stream_screen_file():
                         abstract = row.get('abstract')
                         future = executor.submit(
                             _perform_screening_on_abstract,
-                            abstract, criteria_prompt_text,
-                            provider_name, model_id, api_key, base_url
+                            abstract, criteria_prompt, # Use passed criteria_prompt
+                            llm_provider, llm_model, llm_api_key, llm_base_url # Use passed LLM params
                         )
                         futures_map[future] = {'index': index, 'row': row, 'submit_time': time.time()}
 
@@ -1155,7 +1157,9 @@ def stream_screen_file():
                 except Exception as e_cleanup:
                     app_logger.warning(f"Could not delete temp file (full screening): {current_temp_file_path} - {e_cleanup}")
 
-    return Response(generate_response(line_range_input_val, title_filter_input_val, temp_file_path_full_screen, original_filename_for_session), mimetype='text/event-stream')
+    return Response(generate_response(line_range_input_val, title_filter_input_val, temp_file_path_full_screen, original_filename_for_session,
+                                      criteria_prompt_text_val_full, provider_name_val_full, model_id_val_full, base_url_val_full, api_key_val_full),
+                   mimetype='text/event-stream')
 
 
 @app.route('/show_screening_results/<screening_id>', endpoint='show_screening_results') 
@@ -1204,6 +1208,18 @@ def stream_test_screen_file():
     line_range_input_val = request.form.get('line_range_filter', '').strip()
     title_filter_input_val = request.form.get('title_text_filter', '').strip()
 
+    # --- Pre-fetch all request-bound data BEFORE generator definition ---
+    criteria_prompt_text_val_full = get_screening_criteria()
+    current_llm_config_data_val_full = get_current_llm_config(session)
+    provider_name_val_full = current_llm_config_data_val_full['provider_name']
+    model_id_val_full = current_llm_config_data_val_full['model_id']
+    base_url_val_full = get_base_url_for_provider(provider_name_val_full)
+    
+    provider_info_val_full = get_llm_providers_info().get(provider_name_val_full, {})
+    session_key_name_val_full = provider_info_val_full.get("api_key_session_key")
+    api_key_val_full = session.get(session_key_name_val_full) if session_key_name_val_full else None
+    # --- End pre-fetch ---
+
     # Save the uploaded file to a temporary path *before* starting the generator
     temp_file_path_for_generator = os.path.join(UPLOAD_FOLDER, f"temp_test_{uuid.uuid4()}.ris")
     try:
@@ -1216,7 +1232,8 @@ def stream_test_screen_file():
         return Response(f"data: {json.dumps(error_message)}\n\n", mimetype='text/event-stream')
 
     # Early initialization response generator
-    def quick_start_response_generator(sample_size, line_range_filter_from_form, title_filter_from_form, saved_temp_file_path):
+    def quick_start_response_generator(sample_size, line_range_filter_from_form, title_filter_from_form, saved_temp_file_path, 
+                                     criteria_prompt, llm_provider, llm_model, llm_base_url, llm_api_key):
         # Send an immediate initialization response to let the client know the request is being processed
         init_message = {'type': 'init', 'message': 'Processing upload, please wait...'}
         yield f"data: {json.dumps(init_message)}\n\n"
@@ -1294,18 +1311,19 @@ def stream_test_screen_file():
                 yield f"data: {json.dumps(error_data)}\n\n"
                 return
 
-            criteria_prompt_text = get_screening_criteria()
-            current_llm_config_data = get_current_llm_config(session)
-            provider_name = current_llm_config_data['provider_name']
-            model_id = current_llm_config_data['model_id']
-            base_url = get_base_url_for_provider(provider_name)
-            
-            provider_info = get_llm_providers_info().get(provider_name, {})
-            session_key_name = provider_info.get("api_key_session_key")
-            api_key = session.get(session_key_name) if session_key_name else None
+            # Use pre-fetched config instead of accessing session here
+            # criteria_prompt_text = get_screening_criteria() # OLD
+            # current_llm_config_data = get_current_llm_config(session) # OLD
+            # provider_name = current_llm_config_data['provider_name'] # OLD
+            # model_id = current_llm_config_data['model_id'] # OLD
+            # base_url = get_base_url_for_provider(provider_name) # OLD
+            # 
+            # provider_info = get_llm_providers_info().get(provider_name, {}) # OLD
+            # session_key_name = provider_info.get("api_key_session_key") # OLD
+            # api_key = session.get(session_key_name) if session_key_name else None # OLD
 
-            if not api_key:
-                error_message = f"API Key for {provider_name} must be provided via the configuration form for this session."
+            if not api_key_val_full:
+                error_message = f"API Key for {llm_provider} must be provided via the configuration form for this session."
                 error_data = {'type': 'error', 'message': error_message, 'needs_config': True}
                 yield f"data: {json.dumps(error_data)}\n\n"
                 return
@@ -1332,8 +1350,8 @@ def stream_test_screen_file():
                     abstract = row.get('abstract')
                     future = executor.submit(
                         _perform_screening_on_abstract,
-                        abstract, criteria_prompt_text,
-                        provider_name, model_id, api_key, base_url
+                        abstract, criteria_prompt_text_val_full, # Use passed criteria_prompt
+                        llm_provider, llm_model, llm_api_key, llm_base_url # Use passed LLM params
                     )
                     futures_map[future] = {'index': index, 'row': row}
 
@@ -1410,7 +1428,9 @@ def stream_test_screen_file():
                 except Exception as e_cleanup:
                     app_logger.warning(f"Could not delete temp file (test screening): {current_temp_file_path} - {e_cleanup}")
     
-    return Response(quick_start_response_generator(sample_size_val, line_range_input_val, title_filter_input_val, temp_file_path_for_generator), mimetype='text/event-stream')
+    return Response(quick_start_response_generator(sample_size_val, line_range_input_val, title_filter_input_val, temp_file_path_for_generator,
+                                                 criteria_prompt_text_val_full, provider_name_val_full, model_id_val_full, base_url_val_full, api_key_val_full), 
+                  mimetype='text/event-stream')
 
 
 @app.route('/show_test_results/<session_id>', endpoint='show_test_results')
