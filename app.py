@@ -518,6 +518,9 @@ def reset_criteria():
 
 # --- Screening Logic Helper ---
 def _perform_screening_on_abstract(abstract_text, criteria_prompt_text, provider_name, model_id, api_key, base_url):
+    func_start_time = time.time()
+    app_logger.info(f"PERF: _perform_screening_on_abstract started for abstract: {abstract_text[:50]}...") # Log first 50 chars
+
     # Check if essential config is provided (already checked before calling usually, but good safeguard)
     if not api_key:
         # This case should ideally be caught before calling this helper
@@ -530,10 +533,17 @@ def _perform_screening_on_abstract(abstract_text, criteria_prompt_text, provider
         ai_decision = "NO_ABSTRACT"
         ai_reasoning = "Abstract is missing or empty."
     else:
+        prompt_construct_start_time = time.time()
         prompt = construct_llm_prompt(abstract_text, criteria_prompt_text)
+        prompt_construct_end_time = time.time()
+        app_logger.info(f"PERF: construct_llm_prompt took {prompt_construct_end_time - prompt_construct_start_time:.4f} seconds.")
+
         if prompt:
+            llm_call_start_time = time.time()
             # Use passed-in parameters for the API call
             api_result = call_llm_api(prompt, provider_name, model_id, api_key, base_url)
+            llm_call_end_time = time.time()
+            app_logger.info(f"PERF: call_llm_api for provider {provider_name} model {model_id} took {llm_call_end_time - llm_call_start_time:.4f} seconds.")
 
             if api_result and isinstance(api_result, dict):
                 ai_decision = api_result.get('label', 'API_ERROR')
@@ -544,7 +554,9 @@ def _perform_screening_on_abstract(abstract_text, criteria_prompt_text, provider
         else:
             ai_decision = "PROMPT_ERROR"
             ai_reasoning = "Failed to construct LLM prompt."
-
+    
+    func_end_time = time.time()
+    app_logger.info(f"PERF: _perform_screening_on_abstract finished in {func_end_time - func_start_time:.4f} seconds. Decision: {ai_decision}")
     return {"decision": ai_decision, "reasoning": ai_reasoning}
 
 
@@ -902,21 +914,26 @@ def stream_screen_file():
     title_filter_input_val = request.form.get('title_text_filter', '').strip()
 
     def generate_response(line_range_filter, title_text_filter):
+        overall_start_time = time.time()
+        app_logger.info("PERF: generate_response started.")
+
         # 立即发送初始化事件
         init_message = {'type': 'init', 'message': 'Processing upload, please wait...'}
-        yield f"data: {json.dumps(init_message)}\n\n"
+        yield f"data: {json.dumps(init_message)}\\n\\n"
         
         try:
             # 获取过滤条件 (use passed-in values)
-            # line_range_input = request.form.get('line_range_filter', '').strip() # OLD
-            # title_filter_input = request.form.get('title_text_filter', '').strip() # OLD
             line_range_input = line_range_filter
             title_filter_input = title_text_filter
 
             yield f"data: {json.dumps({'type': 'status', 'message': 'Reading and parsing file content...'})}\\n\\n"
             
+            load_ris_start_time = time.time()
             # 直接从流加载，避免保存临时文件
             df = load_literature_ris(file.stream)
+            load_ris_end_time = time.time()
+            app_logger.info(f"PERF: load_literature_ris took {load_ris_end_time - load_ris_start_time:.4f} seconds.")
+
             if df is None or df.empty:
                 yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\\n\\n"
                 return
@@ -926,7 +943,8 @@ def stream_screen_file():
                 return
             
             yield f"data: {json.dumps({'type': 'status', 'message': 'File parsed. Preparing data for screening...'})}\\n\\n"
-                
+            
+            data_prep_start_time = time.time()
             # 填充缺失值
             df['title'] = df.get('title', pd.Series(["Title Not Found"] * len(df))).fillna("Title Not Found")
             df['authors'] = df.get('authors', pd.Series([[] for _ in range(len(df))]))
@@ -962,15 +980,19 @@ def stream_screen_file():
                     message_text = f'Invalid range format for "{line_range_input}": {str(e)}'
                     yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\\n\\n"
                     return
+            
+            data_prep_end_time = time.time()
+            app_logger.info(f"PERF: Data preparation and filtering took {data_prep_end_time - data_prep_start_time:.4f} seconds.")
 
             yield f"data: {json.dumps({'type': 'status', 'message': 'Filters applied. Counting entries for screening...'})}\\n\\n"
 
             total_entries_to_screen = len(df_for_screening)
             if total_entries_to_screen == 0:
-                yield f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\\n\\n"
                 return
 
             # 获取配置
+            config_fetch_start_time = time.time()
             criteria_prompt_text = get_screening_criteria()
             current_llm_config_data = get_current_llm_config(session)
             provider_name = current_llm_config_data['provider_name']
@@ -979,16 +1001,21 @@ def stream_screen_file():
             provider_info = get_llm_providers_info().get(provider_name, {})
             session_key_name = provider_info.get("api_key_session_key")
             api_key = session.get(session_key_name) if session_key_name else None
+            config_fetch_end_time = time.time()
+            app_logger.info(f"PERF: Fetching criteria and LLM config took {config_fetch_end_time - config_fetch_start_time:.4f} seconds.")
+
 
             if not api_key:
-                yield f"data: {json.dumps({'type': 'error', 'message': f'API Key for {provider_name} must be provided via the configuration form for this session.', 'needs_config': True})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': f'API Key for {provider_name} must be provided via the configuration form for this session.', 'needs_config': True})}\\n\\n"
                 return
 
             screening_id = str(uuid.uuid4())
             original_filename = file.filename
 
             # 发送开始事件
-            yield f"data: {json.dumps({'type': 'start', 'total': total_entries_to_screen, 'filter_info': filter_description})}\n\n"
+            yield f"data: {json.dumps({'type': 'start', 'total': total_entries_to_screen, 'filter_info': filter_description})}\\n\\n"
+            app_logger.info(f"PERF: Starting ThreadPoolExecutor for {total_entries_to_screen} items.")
+            thread_pool_start_time = time.time()
 
             # 处理和筛选
             processed_count = 0
@@ -999,82 +1026,99 @@ def stream_screen_file():
             with ThreadPoolExecutor(max_workers=4) as executor:
                 # 将任务分批提交，避免一次提交太多任务
                 batch_size = min(20, total_entries_to_screen)  # 每批最多20条
-                for start_idx in range(0, total_entries_to_screen, batch_size):
-                    end_idx = min(start_idx + batch_size, total_entries_to_screen)
-                    batch_df = df_for_screening.iloc[start_idx:end_idx]
+                item_submit_idx = 0
+                for start_idx_batch in range(0, total_entries_to_screen, batch_size):
+                    end_idx_batch = min(start_idx_batch + batch_size, total_entries_to_screen)
+                    batch_df = df_for_screening.iloc[start_idx_batch:end_idx_batch]
                     
                     for index, row in batch_df.iterrows():
+                        item_submit_idx += 1
+                        app_logger.info(f"PERF: Submitting item {item_submit_idx}/{total_entries_to_screen} (original index {index}) to executor.")
                         abstract = row.get('abstract')
                         future = executor.submit(
                             _perform_screening_on_abstract,
                             abstract, criteria_prompt_text,
                             provider_name, model_id, api_key, base_url
                         )
-                        futures_map[future] = {'index': index, 'row': row}
+                        futures_map[future] = {'index': index, 'row': row, 'submit_time': time.time()}
 
                     # 处理当前批次的结果
-                    for future in as_completed(list(futures_map.keys())):
-                        original_data = futures_map.pop(future)  # 及时从映射中移除处理完的任务
-                        index = original_data['index']
-                        row = original_data['row']
-                        title = row.get('title', "N/A")
-                        authors_list = row.get('authors', [])
-                        authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
+                    # For performance logging, we'll log when each future completes.
+                    # The as_completed loop processes them as they finish.
 
-                        try:
-                            screening_result = future.result()
-                            if screening_result['decision'] == "CONFIG_ERROR":
-                                raise Exception(f"CONFIG_ERROR from worker: {screening_result['reasoning']}")
+                for future in as_completed(list(futures_map.keys())):
+                    future_data = futures_map.pop(future)  # 及时从映射中移除处理完的任务
+                    index = future_data['index']
+                    row = future_data['row']
+                    title = row.get('title', "N/A")
+                    authors_list = row.get('authors', [])
+                    authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
+                    submit_time = future_data['submit_time']
+                    completion_time = time.time()
+                    app_logger.info(f"PERF: Future for item (original index {index}, title: {title[:30]}...) completed. Time in executor: {completion_time - submit_time:.4f} seconds.")
 
-                            processed_count += 1
-                            progress_percentage = int((processed_count / total_entries_to_screen) * 100) if total_entries_to_screen > 0 else 0
-                            output_data = {
-                                'index': index + 1, 'title': title, 'authors': authors_str,
-                                'decision': screening_result['decision'], 'reasoning': screening_result['reasoning'],
-                                'abstract': row.get('abstract', '')  # 添加abstract字段以便在结果页面显示
-                            }
-                            temp_results_list.append(output_data)
-                            progress_event = {
-                                'type': 'progress', 'count': processed_count, 'total': total_entries_to_screen,
-                                'percentage': progress_percentage, 'current_item_title': title,
-                                'decision': screening_result['decision']
-                            }
-                            yield f"data: {json.dumps(progress_event)}\n\n"
-                            # 添加短暂延迟，减轻浏览器负担
-                            time.sleep(0.01)
 
-                        except Exception as e:
-                            processed_count += 1
-                            progress_percentage = int((processed_count / total_entries_to_screen) * 100) if total_entries_to_screen > 0 else 0
-                            error_message_text_item = f"Error processing item '{title[:30]}...': {e}"
-                            app_logger.error(f"Error processing item (original index {index}): {e}")
-                            progress_event_data = {
-                                'type': 'progress', 'count': processed_count, 'total': total_entries_to_screen,
-                                'percentage': progress_percentage, 'current_item_title': title,
-                                'decision': 'ITEM_ERROR'
-                            }
-                            yield f"data: {json.dumps(progress_event_data)}\n\n"
-                            temp_results_list.append({
-                                'index': index + 1, 'title': title, 'authors': authors_str,
-                                'decision': 'ITEM_ERROR', 'reasoning': str(e),
-                                'abstract': row.get('abstract', '')  # 在错误处理中也添加abstract字段
-                            })
+                    try:
+                        screening_result = future.result() # This call itself might block if future.result() was not called before, but as_completed ensures it's done.
+                        if screening_result['decision'] == "CONFIG_ERROR":
+                            raise Exception(f"CONFIG_ERROR from worker: {screening_result['reasoning']}")
+
+                        processed_count += 1
+                        progress_percentage = int((processed_count / total_entries_to_screen) * 100) if total_entries_to_screen > 0 else 0
+                        output_data = {
+                            'index': index + 1, 'title': title, 'authors': authors_str,
+                            'decision': screening_result['decision'], 'reasoning': screening_result['reasoning'],
+                            'abstract': row.get('abstract', '')  # 添加abstract字段以便在结果页面显示
+                        }
+                        temp_results_list.append(output_data)
+                        progress_event = {
+                            'type': 'progress', 'count': processed_count, 'total': total_entries_to_screen,
+                            'percentage': progress_percentage, 'current_item_title': title,
+                            'decision': screening_result['decision']
+                        }
+                        yield f"data: {json.dumps(progress_event)}\\n\\n"
+                        # 添加短暂延迟，减轻浏览器负担
+                        time.sleep(0.01)
+
+                    except Exception as e:
+                        processed_count += 1
+                        progress_percentage = int((processed_count / total_entries_to_screen) * 100) if total_entries_to_screen > 0 else 0
+                        error_message_text_item = f"Error processing item '{title[:30]}...': {e}"
+                        app_logger.error(f"Error processing item (original index {index}): {e}")
+                        progress_event_data = {
+                            'type': 'progress', 'count': processed_count, 'total': total_entries_to_screen,
+                            'percentage': progress_percentage, 'current_item_title': title,
+                            'decision': 'ITEM_ERROR'
+                        }
+                        yield f"data: {json.dumps(progress_event_data)}\\n\\n"
+                        temp_results_list.append({
+                            'index': index + 1, 'title': title, 'authors': authors_str,
+                            'decision': 'ITEM_ERROR', 'reasoning': str(e),
+                            'abstract': row.get('abstract', '')  # 在错误处理中也添加abstract字段
+                        })
+            
+            thread_pool_end_time = time.time()
+            app_logger.info(f"PERF: ThreadPoolExecutor finished all tasks in {thread_pool_end_time - thread_pool_start_time:.4f} seconds.")
 
             # 处理并保存结果
+            results_processing_start_time = time.time()
             temp_results_list.sort(key=lambda x: x.get('index', float('inf')))
             store_full_screening_session(screening_id, {
                 'filename': original_filename, 
                 'results': temp_results_list,
                 'filter_applied': filter_description
             })
+            results_processing_end_time = time.time()
+            app_logger.info(f"PERF: Storing full screening session took {results_processing_end_time - results_processing_start_time:.4f} seconds.")
             
             # 发送完成事件
-            yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id})}\n\n"
-            app_logger.info(f"Full screening completed for {screening_id}, processed {processed_count} items.")
+            yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id})}\\n\\n"
+            overall_end_time = time.time()
+            app_logger.info(f"PERF: Full screening completed for {screening_id}, processed {processed_count} items. Total time: {overall_end_time - overall_start_time:.4f} seconds.")
             
         except Exception as e:
             app_logger.exception("Server error during full screening processing")
-            yield f"data: {json.dumps({'type': 'error', 'message': f'Server error during processing: {str(e)}'})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Server error during processing: {str(e)}'})}\\n\\n"
             return
 
     return Response(generate_response(line_range_input_val, title_filter_input_val), mimetype='text/event-stream')
