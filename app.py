@@ -7,7 +7,19 @@ import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from sklearn.metrics import confusion_matrix, cohen_kappa_score, f1_score, precision_score, recall_score, \
     multilabel_confusion_matrix
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, Response, send_file
+from flask import (
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    flash,
+    session,
+    jsonify,
+    Response,
+    send_file,
+    stream_with_context,
+)
 from werkzeug.utils import secure_filename
 import traceback
 import json  # For SSE
@@ -60,6 +72,12 @@ full_screening_sessions = {} # ADDED: For holding full screening results tempora
 pdf_screening_results = TTLCache(maxsize=500, ttl=7200)
 pdf_extraction_results = {} # ADDED: For extraction results
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Headers for server-sent events
+SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    "X-Accel-Buffering": "no",
+}
 
 # Initialize ThreadPoolExecutor
 # Adjust max_workers based on your server capacity and typical workload
@@ -811,18 +829,38 @@ def generate_progress_events(total_items, items_iterator_func):
 
 @app.route('/stream_screen_file', methods=['POST'])
 def stream_screen_file():
-    if 'file' not in request.files: return Response(f"data: {json.dumps({'type': 'error', 'message': 'No file part.'})}\\n\\n", mimetype='text/event-stream')
+    if 'file' not in request.files:
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': 'No file part.'})}\\n\\n",
+            content_type='text/event-stream',
+            headers=SSE_HEADERS,
+        )
     file = request.files['file']
-    if file.filename == '' or not allowed_file(file.filename): return Response(f"data: {json.dumps({'type': 'error', 'message': 'No selected/invalid file.'})}\\n\\n", mimetype='text/event-stream')
+    if file.filename == '' or not allowed_file(file.filename):
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': 'No selected/invalid file.'})}\\n\\n",
+            content_type='text/event-stream',
+            headers=SSE_HEADERS,
+        )
 
     line_range_input = request.form.get('line_range_filter', '').strip()
     title_filter_input = request.form.get('title_text_filter', '').strip()
 
     try:
         df = load_literature_ris(file.stream)
-        if df is None or df.empty: return Response(f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\\n\\n", mimetype='text/event-stream')
-        
-        if 'abstract' not in df.columns: return Response(f"data: {json.dumps({'type': 'error', 'message': 'RIS missing abstract.'})}\\n\\n", mimetype='text/event-stream')
+        if df is None or df.empty:
+            return Response(
+                f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\\n\\n",
+                content_type='text/event-stream',
+                headers=SSE_HEADERS,
+            )
+
+        if 'abstract' not in df.columns:
+            return Response(
+                f"data: {json.dumps({'type': 'error', 'message': 'RIS missing abstract.'})}\\n\\n",
+                content_type='text/event-stream',
+                headers=SSE_HEADERS,
+            )
         if 'title' not in df.columns: df['title'] = pd.Series(["Title Not Found"] * len(df))
         else: df['title'] = df['title'].fillna("Title Not Found")
         if 'authors' not in df.columns: df['authors'] = pd.Series([[] for _ in range(len(df))])
@@ -840,7 +878,8 @@ def stream_screen_file():
                 message = f'No articles found matching title: "{title_filter_input}"'
                 return Response(
                     f"data: {json.dumps({'type': 'error', 'message': message})}\\n\\n",
-                    mimetype='text/event-stream'
+                    content_type='text/event-stream',
+                    headers=SSE_HEADERS,
                 )
         elif line_range_input:
             try:
@@ -849,7 +888,8 @@ def stream_screen_file():
                     message = f'The range "{line_range_input}" is invalid or results in no articles.'
                     return Response(
                         f"data: {json.dumps({'type': 'error', 'message': message})}\\n\\n",
-                        mimetype='text/event-stream'
+                        content_type='text/event-stream',
+                        headers=SSE_HEADERS,
                     )
                 df_for_screening = df_for_screening.iloc[start_idx:end_idx]
                 filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
@@ -857,20 +897,23 @@ def stream_screen_file():
                     message = f'The range "{line_range_input}" resulted in no articles to screen.'
                     return Response(
                         f"data: {json.dumps({'type': 'error', 'message': message})}\\n\\n",
-                        mimetype='text/event-stream'
+                        content_type='text/event-stream',
+                        headers=SSE_HEADERS,
                     )
             except ValueError as e:
                 message = f'Invalid range format for "{line_range_input}": {str(e)}'
                 return Response(
                     f"data: {json.dumps({'type': 'error', 'message': message})}\\n\\n",
-                    mimetype='text/event-stream'
+                    content_type='text/event-stream',
+                    headers=SSE_HEADERS,
                 )
 
         total_entries_to_screen = len(df_for_screening)
         if total_entries_to_screen == 0:
             return Response(
                 f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\\n\\n",
-                mimetype='text/event-stream'
+                content_type='text/event-stream',
+                headers=SSE_HEADERS,
             )
 
         criteria_prompt_text = get_screening_criteria()
@@ -884,7 +927,11 @@ def stream_screen_file():
 
         if not api_key:
             error_message = f"API Key for {provider_name} must be provided via the configuration form for this session."
-            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\\n\\n", mimetype='text/event-stream')
+            return Response(
+                f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\\n\\n",
+                content_type='text/event-stream',
+                headers=SSE_HEADERS,
+            )
 
         screening_id = str(uuid.uuid4())
         original_filename = file.filename
@@ -996,23 +1043,31 @@ def stream_screen_file():
                 app_logger.info(f"FULL SSE STREAM ({screening_id_param}): Exiting generate_full_screening_progress function.")
 
         app_logger.info(f"STREAM_SCREEN_FILE: Calling generate_full_screening_progress for SID: {screening_id}")
-        return Response(generate_full_screening_progress(
-            df_for_screening, 
-            total_entries_to_screen, 
-            filter_description,
-            original_filename,
-            screening_id,
-            criteria_prompt_text,
-            provider_name,
-            model_id,
-            api_key,
-            base_url
-        ), mimetype='text/event-stream')
+        return Response(
+            stream_with_context(generate_full_screening_progress(
+                df_for_screening,
+                total_entries_to_screen,
+                filter_description,
+                original_filename,
+                screening_id,
+                criteria_prompt_text,
+                provider_name,
+                model_id,
+                api_key,
+                base_url
+            )),
+            content_type='text/event-stream',
+            headers=SSE_HEADERS,
+        )
     
     except Exception as e:
         app_logger.exception("Server error before full streaming")
         error_message_text_server = f'Server error before full streaming: {str(e)}'
-        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text_server})}\\n\\n", mimetype='text/event-stream')
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': error_message_text_server})}\\n\\n",
+            content_type='text/event-stream',
+            headers=SSE_HEADERS,
+        )
 
 
 @app.route('/show_screening_results/<screening_id>', endpoint='show_screening_results') 
@@ -1065,12 +1120,20 @@ def show_screening_results(screening_id):
 def stream_test_screen_file():
     if 'file' not in request.files:
         error_message_text = 'No file part.'
-        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n",
+            content_type='text/event-stream',
+            headers=SSE_HEADERS,
+        )
 
-    file_obj = request.files['file'] 
+    file_obj = request.files['file']
     if file_obj.filename == '' or not allowed_file(file_obj.filename):
         error_message_text = 'No selected/invalid file.'
-        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n",
+            content_type='text/event-stream',
+            headers=SSE_HEADERS,
+        )
 
     try:
         sample_size_str = request.form.get('sample_size', '10') 
@@ -1086,10 +1149,18 @@ def stream_test_screen_file():
         df = load_literature_ris(file_obj.stream)
         if df is None or df.empty:
             error_message_text = 'Failed to load RIS or file empty.'
-            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
+            return Response(
+                f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n",
+                content_type='text/event-stream',
+                headers=SSE_HEADERS,
+            )
         if 'abstract' not in df.columns:
             error_message_text = 'RIS missing abstract column.'
-            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
+            return Response(
+                f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n",
+                content_type='text/event-stream',
+                headers=SSE_HEADERS,
+            )
         df['title'] = df.get('title', pd.Series(["Title Not Found"] * len(df))).fillna("Title Not Found")
         df['authors'] = df.get('authors', pd.Series([[] for _ in range(len(df))]))
         df['authors'] = df['authors'].apply(lambda x: x if isinstance(x, list) else [])
@@ -1103,30 +1174,54 @@ def stream_test_screen_file():
             filter_description = f"entries matching title '{title_filter_input}'"
             if df_for_sampling.empty:
                 msg = f'No articles found matching title: "{title_filter_input}" to sample from.'
-                return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\\n\\n", mimetype='text/event-stream')
+                return Response(
+                    f"data: {json.dumps({'type': 'error', 'message': msg})}\\n\\n",
+                    content_type='text/event-stream',
+                    headers=SSE_HEADERS,
+                )
         elif line_range_input:
             try:
                 start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                 if start_idx >= end_idx:
                     msg = f'The range "{line_range_input}" is invalid or results in no articles to sample from.'
-                    return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\\n\\n", mimetype='text/event-stream')
+                    return Response(
+                        f"data: {json.dumps({'type': 'error', 'message': msg})}\\n\\n",
+                        content_type='text/event-stream',
+                        headers=SSE_HEADERS,
+                    )
                 df_for_sampling = df_for_sampling.iloc[start_idx:end_idx]
                 filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
                 if df_for_sampling.empty:
                     msg = f'The range "{line_range_input}" resulted in no articles to sample from.'
-                    return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\\n\\n", mimetype='text/event-stream')
+                    return Response(
+                        f"data: {json.dumps({'type': 'error', 'message': msg})}\\n\\n",
+                        content_type='text/event-stream',
+                        headers=SSE_HEADERS,
+                    )
             except ValueError as e:
                 msg = f'Invalid range format for "{line_range_input}": {str(e)}'
-                return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\\n\\n", mimetype='text/event-stream')
+                return Response(
+                    f"data: {json.dumps({'type': 'error', 'message': msg})}\\n\\n",
+                    content_type='text/event-stream',
+                    headers=SSE_HEADERS,
+                )
         
         if df_for_sampling.empty:
-             return Response(f"data: {json.dumps({'type': 'error', 'message': 'No articles found after applying filters to sample from.'})}\\n\\n", mimetype='text/event-stream')
+             return Response(
+                 f"data: {json.dumps({'type': 'error', 'message': 'No articles found after applying filters to sample from.'})}\\n\\n",
+                 content_type='text/event-stream',
+                 headers=SSE_HEADERS,
+             )
 
         sample_df = df_for_sampling.head(min(sample_size, len(df_for_sampling)))
         actual_sample_size_val = len(sample_df) # Renamed for clarity and to pass as param
 
         if actual_sample_size_val == 0:
-             return Response(f"data: {json.dumps({'type': 'error', 'message': 'No entries found in the file to sample (after filters if any).'})}\\n\\n", mimetype='text/event-stream')
+             return Response(
+                 f"data: {json.dumps({'type': 'error', 'message': 'No entries found in the file to sample (after filters if any).'})}\\n\\n",
+                 content_type='text/event-stream',
+                 headers=SSE_HEADERS,
+             )
 
         criteria_prompt_text_local = get_screening_criteria() # Renamed to avoid conflict with param
         current_llm_config_data_local = get_current_llm_config(session) # Renamed
@@ -1140,7 +1235,11 @@ def stream_test_screen_file():
 
         if not api_key_local:
             error_message = f"API Key for {provider_name_local} must be provided via the configuration form for this session."
-            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\\n\\n", mimetype='text/event-stream')
+            return Response(
+                f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\\n\\n",
+                content_type='text/event-stream',
+                headers=SSE_HEADERS,
+            )
 
         session_id_val = str(uuid.uuid4()) # Renamed to avoid conflict with param
         test_sessions[session_id_val] = {
@@ -1260,24 +1359,34 @@ def stream_test_screen_file():
                 app_logger.info(f"TEST SSE STREAM ({session_id_param}): Exiting generate_test_progress function.")
 
         app_logger.info(f"STREAM_TEST_SCREEN_FILE: Calling generate_test_progress for SID: {session_id_val}")
-        return Response(generate_test_progress(
-            sample_df, 
-            actual_sample_size_val, 
-            filter_description,
-            session_id_val,      
-            file_obj,          
-            actual_sample_size_val, 
-            criteria_prompt_text_local, 
-            provider_name_local,
-            model_id_local,
-            api_key_local,
-            base_url_local
-            ), mimetype='text/event-stream')
+        return Response(
+            stream_with_context(
+                generate_test_progress(
+                    sample_df,
+                    actual_sample_size_val,
+                    filter_description,
+                    session_id_val,
+                    file_obj,
+                    actual_sample_size_val,
+                    criteria_prompt_text_local,
+                    provider_name_local,
+                    model_id_local,
+                    api_key_local,
+                    base_url_local,
+                )
+            ),
+            content_type='text/event-stream',
+            headers=SSE_HEADERS,
+        )
 
     except Exception as e: 
         app_logger.exception("Server error during test streaming processing")
         error_message_text_server_test = f'Server error during test streaming processing: {str(e)}'
-        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text_server_test})}\\n\\n", mimetype='text/event-stream')
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': error_message_text_server_test})}\\n\\n",
+            content_type='text/event-stream',
+            headers=SSE_HEADERS,
+        )
 
 
 # --- New Route to Show Test Results ---
