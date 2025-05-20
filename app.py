@@ -948,7 +948,8 @@ def stream_screen_file():
                         yield f"data: {json.dumps({'type': 'error', 'message': f'The range "{line_range_input}" resulted in no articles to screen.'})}\n\n"
                         return
                 except ValueError as e:
-                    yield f"data: {json.dumps({'type': 'error', 'message': f'Invalid range format for "{line_range_input}": {str(e)}'})}\n\n"
+                    message_text = f'Invalid range format for "{line_range_input}": {str(e)}'
+                    yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\\n\\n"
                     return
 
             total_entries_to_screen = len(df_for_screening)
