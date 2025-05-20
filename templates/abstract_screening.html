@@ -208,11 +208,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const testTitleFilterInput = document.getElementById('test_title_text_filter');
             const testLineRangeInput = document.getElementById('test_line_range_filter');
 
-            if (!testFileInput.files || testFileInput.files.length === 0) { alert('请选择一个文件进行测试筛选。'); return; }
+            if (!testFileInput.files || testFileInput.files.length === 0) { alert('Please select a file for test screening.'); return; }
             const sampleSize = sampleSizeInput.value || 10;
             console.log(`Test Screening initiated. Sample size: ${sampleSize}`);
 
-            // 重置UI
+            // Reset UI
             const testProgressArea = document.getElementById('test_progress_area');
             const testProgressBar = document.getElementById('test_progress_bar');
             const testProgressStatus = document.getElementById('test_progress_status');
@@ -224,7 +224,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if(testProgressLogContainer) testProgressLogContainer.style.display = 'block';
             if(testSpinner) testSpinner.style.display = 'inline-block';
             
-            // 清除日志
+            // Clear logs
             const initialLogEl = document.getElementById('test_progress_log'); 
             if(initialLogEl) initialLogEl.innerHTML = '';
             
@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if(testProgressStatus) {
-                testProgressStatus.textContent = '初始化测试筛选...';
+                testProgressStatus.textContent = 'Initializing test screening...';
                 testProgressStatus.dataset.status = 'initializing';
             }
             
@@ -244,18 +244,18 @@ document.addEventListener('DOMContentLoaded', function() {
             startTestScreenButton.disabled = true;
             window.loggedTestLogError = false;
 
-            // 简化初始化计时器
+            // Simplified initialization timer
             let initTimer = null;
             let dots = '';
             
             initTimer = setInterval(() => {
                 if (testProgressStatus && testProgressStatus.dataset.status === 'initializing') {
                     dots = dots.length >= 3 ? '' : dots + '.';
-                    testProgressStatus.textContent = `初始化测试筛选${dots}`;
+                    testProgressStatus.textContent = `Initializing test screening${dots}`;
                     
-                    // 避免频繁更新日志
-                    if (Math.floor(Math.random() * 5) === 0) { // 只有20%概率添加日志
-                        addTestLogItem(`[${new Date().toLocaleTimeString()}] 文件上传和处理中，请稍候...`);
+                    // Avoid frequent log updates
+                    if (Math.floor(Math.random() * 5) === 0) { // Only 20% chance to add log
+                        addTestLogItem(`[${new Date().toLocaleTimeString()}] File upload and processing in progress, please wait...`);
                     }
                 } else {
                     clearInterval(initTimer);
@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
             xhrTest.onprogress = function() {
                 const newText = xhrTest.responseText.substring(lastTestCharIndex);
                 lastTestCharIndex = xhrTest.responseText.length;
-                if (!newText) return; // 如果没有新内容，直接返回
+                if (!newText) return; // If no new content, return directly
                 
                 const messages = newText.split('\n\n');
                 for (const message of messages) {
@@ -290,23 +290,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         try {
                             const jsonData = JSON.parse(message.substring(6));
                             
-                            // 获取需要的DOM元素
+                            // Get needed DOM elements
                             const currentTestBar = document.getElementById('test_progress_bar');
                             const currentTestStatus = document.getElementById('test_progress_status');
                             const currentTestLinkArea = document.getElementById('test_results_link_area');
                             const currentTestLink = document.getElementById('view_test_results_link');
 
-                            // 处理事件类型
+                            // Process event types
                             switch (jsonData.type) {
                                 case 'init':
-                                    // 初始化事件
+                                    // Initialization event
                                     if(currentTestStatus) {
-                                        currentTestStatus.textContent = jsonData.message || '处理上传，请稍候...';
+                                        currentTestStatus.textContent = jsonData.message || 'Processing upload, please wait...';
                                     }
                                     break;
                                 
                                 case 'start':
-                                    // 清除初始化计时器
+                                    // Clear initialization timer
                                     if (initTimer) {
                                         clearInterval(initTimer);
                                         initTimer = null;
@@ -314,7 +314,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     
                                     if(currentTestStatus) {
                                         currentTestStatus.dataset.status = 'processing';
-                                        currentTestStatus.textContent = '开始测试筛选...';
+                                        currentTestStatus.textContent = 'Starting test screening...';
                                     }
                                     
                                     if(currentTestBar) { 
@@ -322,8 +322,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                         currentTestBar.textContent = '0%'; 
                                     }
                                     
-                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] 开始筛选 ${jsonData.total} 条样本条目。`);
-                                    console.log(`测试筛选已开始：${jsonData.total} 条目...`);
+                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] Starting to screen ${jsonData.total} sampled entries.`);
+                                    console.log(`Test screening started: ${jsonData.total} entries...`);
                                     break;
                                 
                                 case 'progress':
@@ -334,24 +334,24 @@ document.addEventListener('DOMContentLoaded', function() {
                                     }
                                     
                                     if(currentTestStatus) {
-                                        currentTestStatus.textContent = `筛选 ${jsonData.count} / ${jsonData.total}。当前: ${jsonData.current_item_title}`;
+                                        currentTestStatus.textContent = `Screening ${jsonData.count} / ${jsonData.total}. Current: ${jsonData.current_item_title}`;
                                     }
                                     
-                                    const decisionOutput = jsonData.decision ? `决定: ${jsonData.decision}` : '';
-                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] 条目: ${jsonData.current_item_title} - ${decisionOutput}`);
+                                    const decisionOutput = jsonData.decision ? `Decision: ${jsonData.decision}` : '';
+                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] Item: ${jsonData.current_item_title} - ${decisionOutput}`);
                                     break;
                                 
                                 case 'complete':
                                     if(currentTestBar) { 
                                         currentTestBar.classList.add('bg-success'); 
-                                        currentTestBar.textContent = "完成"; 
+                                        currentTestBar.textContent = "Complete"; 
                                     }
                                     
                                     if(currentTestStatus) {
-                                        currentTestStatus.textContent = jsonData.message || '测试筛选已完成。';
+                                        currentTestStatus.textContent = jsonData.message || 'Test screening complete.';
                                     }
                                     
-                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message || '测试筛选已完成。'}`);
+                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message || 'Test screening complete.'}`);
                                     
                                     if (jsonData.session_id && currentTestLink && currentTestLinkArea) {
                                         let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
@@ -359,12 +359,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                         currentTestLinkArea.style.display = 'block';
                                     }
                                     
-                                    try { xhrTest.abort(); } catch (e) { console.warn("错误中止测试XHR:", e); }
+                                    try { xhrTest.abort(); } catch (e) { console.warn("Error aborting test XHR:", e); }
                                     finalizeTestButton();
                                     break;
                                 
                                 case 'error':
-                                    // 清除初始化计时器
+                                    // Clear initialization timer
                                     if (initTimer) {
                                         clearInterval(initTimer);
                                         initTimer = null;
@@ -372,27 +372,27 @@ document.addEventListener('DOMContentLoaded', function() {
                                     
                                     if(currentTestBar) { 
                                         currentTestBar.classList.add('bg-danger'); 
-                                        currentTestBar.textContent = "错误"; 
+                                        currentTestBar.textContent = "Error"; 
                                     }
                                     
                                     if(currentTestStatus) {
-                                        currentTestStatus.textContent = `错误: ${jsonData.message}`;
+                                        currentTestStatus.textContent = `Error: ${jsonData.message}`;
                                     }
                                     
-                                    let testErrorMessage = `[${new Date().toLocaleTimeString()}] 错误: ${jsonData.message}`;
+                                    let testErrorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
                                     if (jsonData.needs_config) {
                                         const configUrl = "{{ url_for('llm_config_page') }}";
-                                        testErrorMessage += ` <a href="${configUrl}" target="_blank">请配置API密钥。</a>`;
+                                        testErrorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
                                     }
                                     
                                     addTestLogItem(testErrorMessage);
-                                    try { xhrTest.abort(); } catch (e) { console.warn("错误中止测试XHR:", e); }
+                                    try { xhrTest.abort(); } catch (e) { console.warn("Error aborting test XHR:", e); }
                                     finalizeTestButton();
                                     break;
                             }
                             
                         } catch (e) { 
-                            console.error("测试SSE解析错误:", e, "原始消息:", message); 
+                            console.error("Test SSE parse error:", e, "Original message:", message); 
                             finalizeTestButton();
                         } 
                     }
@@ -400,7 +400,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }; 
             
             xhrTest.onloadend = function() { 
-                // 清除初始化计时器
+                // Clear initialization timer
                 if (initTimer) {
                     clearInterval(initTimer);
                     initTimer = null;
@@ -419,7 +419,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             currentTestLinkArea.style.display = 'block';
                         }
                     } catch (e) {
-                        console.error("在onloadend中设置测试结果链接时出错:", e);
+                        console.error("Error setting up test results link in onloadend:", e);
                     }
                 }
                 
@@ -427,13 +427,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }; 
             
             xhrTest.onerror = function() { 
-                // 清除初始化计时器
+                // Clear initialization timer
                 if (initTimer) {
                     clearInterval(initTimer);
                     initTimer = null;
                 }
                 
-                addTestLogItem(`[${new Date().toLocaleTimeString()}] 测试筛选过程中发生网络错误。`);
+                addTestLogItem(`[${new Date().toLocaleTimeString()}] Network error occurred during test screening.`);
                 finalizeTestButton(); 
             }; 
             
@@ -446,10 +446,10 @@ document.addEventListener('DOMContentLoaded', function() {
         startFullScreenButton.addEventListener('click', function() {
              console.log(">>> Full Screen Button CLICKED!");
              const fileInput = document.getElementById('full_file_progress');
-             if (!fileInput || !fileInput.files || fileInput.files.length === 0) { alert('请选择文件...'); return; }
-             console.log("全量筛选已启动。");
+             if (!fileInput || !fileInput.files || fileInput.files.length === 0) { alert('Please select file...'); return; }
+             console.log("Full screening initiated.");
              
-             // 重置UI
+             // Reset UI
              const progressArea = document.getElementById('progress_area');
              const progressLogContainer = document.getElementById('progress_log_container');
              const progressBar = document.getElementById('progress_bar');
@@ -459,7 +459,7 @@ document.addEventListener('DOMContentLoaded', function() {
              if(progressArea) progressArea.style.display = 'block';
              if(progressLogContainer) progressLogContainer.style.display = 'block';
              
-             // 清除日志
+             // Clear logs
              const initialFullLogEl = document.getElementById('progress_log'); 
              if(initialFullLogEl) initialFullLogEl.innerHTML = '';
 
@@ -470,7 +470,7 @@ document.addEventListener('DOMContentLoaded', function() {
              }
              
              if(progressStatus) {
-                 progressStatus.textContent = '初始化...';
+                 progressStatus.textContent = 'Initializing...';
                  progressStatus.dataset.status = 'initializing';
              }
              
@@ -478,18 +478,18 @@ document.addEventListener('DOMContentLoaded', function() {
              startFullScreenButton.disabled = true;
              window.loggedFullLogError = false; 
              
-             // 简化初始化计时器
+             // Simplified initialization timer
              let initTimer = null;
              let dots = '';
              
              initTimer = setInterval(() => {
                  if (progressStatus && progressStatus.dataset.status === 'initializing') {
                      dots = dots.length >= 3 ? '' : dots + '.';
-                     progressStatus.textContent = `初始化${dots}`;
+                     progressStatus.textContent = `Initializing${dots}`;
                      
-                     // 避免频繁更新日志
-                     if (Math.floor(Math.random() * 5) === 0) { // 只有20%概率添加日志
-                         addLogItem(`[${new Date().toLocaleTimeString()}] 文件上传和处理中，请稍候...`);
+                     // Avoid frequent log updates
+                     if (Math.floor(Math.random() * 5) === 0) { // Only 20% chance to add log
+                         addLogItem(`[${new Date().toLocaleTimeString()}] File upload and processing in progress, please wait...`);
                      }
                  } else {
                      clearInterval(initTimer);
@@ -518,7 +518,7 @@ document.addEventListener('DOMContentLoaded', function() {
              xhr.onprogress = function() {
                  const newText = xhr.responseText.substring(lastCharIndex);
                  lastCharIndex = xhr.responseText.length;
-                 if (!newText) return; // 如果没有新内容，直接返回
+                 if (!newText) return; // If no new content, return directly
                  
                  const messages = newText.split('\n\n');
                  for (const message of messages) {
@@ -526,23 +526,23 @@ document.addEventListener('DOMContentLoaded', function() {
                          try {
                              const jsonData = JSON.parse(message.substring(6));
                              
-                             // 获取需要的DOM元素
+                             // Get needed DOM elements
                              const currentFullBar = document.getElementById('progress_bar');
                              const currentFullStatus = document.getElementById('progress_status');
                              const currentFullLinkArea = document.getElementById('sse_results_link_area');
                              const currentFullLink = document.getElementById('view_full_results_link');
                              
-                             // 处理事件类型
+                             // Process event types
                              switch (jsonData.type) {
                                  case 'init':
-                                     // 初始化事件
+                                     // Initialization event
                                      if(currentFullStatus) {
-                                         currentFullStatus.textContent = jsonData.message || '处理上传，请稍候...';
+                                         currentFullStatus.textContent = jsonData.message || 'Processing upload, please wait...';
                                      }
                                      break;
                                  
                                  case 'start':
-                                     // 清除初始化计时器
+                                     // Clear initialization timer
                                      if (initTimer) {
                                          clearInterval(initTimer);
                                          initTimer = null;
@@ -550,7 +550,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      
                                      if(currentFullStatus) {
                                          currentFullStatus.dataset.status = 'processing';
-                                         currentFullStatus.textContent = '开始全量筛选...';
+                                         currentFullStatus.textContent = 'Starting full screening...';
                                      }
                                      
                                      if(currentFullBar) { 
@@ -558,7 +558,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          currentFullBar.textContent = '0%'; 
                                      }
                                      
-                                     addLogItem(`[${new Date().toLocaleTimeString()}] 开始筛选 ${jsonData.total} 个条目。`);
+                                     addLogItem(`[${new Date().toLocaleTimeString()}] Starting to screen ${jsonData.total} items.`);
                                      break;
                                  
                                  case 'progress':
@@ -569,10 +569,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                      }
                                      
                                      if(currentFullStatus) {
-                                         currentFullStatus.textContent = `筛选 ${jsonData.count} / ${jsonData.total}。当前: ${jsonData.current_item_title}`;
+                                         currentFullStatus.textContent = `Screening ${jsonData.count} / ${jsonData.total}. Current: ${jsonData.current_item_title}`;
                                      }
                                      
-                                     // 只有决策已知时才添加日志（跳过准备事件）
+                                     // Only add log items if decision is known (skip preparatory events)
                                      if (jsonData.decision) {
                                          let decisionClass = "";
                                          if(jsonData.decision === "INCLUDE") decisionClass = "include";
@@ -580,7 +580,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          else if(jsonData.decision === "MAYBE") decisionClass = "maybe";
                                          else decisionClass = "error";
                                          
-                                         // 构造带颜色的决策日志消息
+                                         // Construct color-coded decision log message
                                          const logMessage = `[${new Date().toLocaleTimeString()}] <span class="log-decision-${jsonData.decision}">${jsonData.decision}</span>: ${jsonData.current_item_title}`;
                                          addLogItem(logMessage);
                                      }
@@ -589,14 +589,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                  case 'complete':
                                      if(currentFullBar) { 
                                          currentFullBar.classList.add('bg-success'); 
-                                         currentFullBar.textContent = "完成"; 
+                                         currentFullBar.textContent = "Complete"; 
                                      }
                                      
                                      if(currentFullStatus) {
-                                         currentFullStatus.textContent = jsonData.message || '全量筛选已完成。';
+                                         currentFullStatus.textContent = jsonData.message || 'Full screening complete.';
                                      }
                                      
-                                     addLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message || '全量筛选已完成。'}`);
+                                     addLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message || 'Full screening complete.'}`);
                                      
                                      if (jsonData.screening_id && currentFullLink && currentFullLinkArea) {
                                          let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
@@ -604,12 +604,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                          currentFullLinkArea.style.display = 'block';
                                      }
                                      
-                                     try { xhr.abort(); } catch (e) { console.warn("错误中止全量筛选XHR:", e); }
+                                     try { xhr.abort(); } catch (e) { console.warn("Error aborting full screening XHR:", e); }
                                      finalizeButtons();
                                      break;
                                  
                                  case 'error':
-                                     // 清除初始化计时器
+                                     // Clear initialization timer
                                      if (initTimer) {
                                          clearInterval(initTimer);
                                          initTimer = null;
@@ -617,27 +617,27 @@ document.addEventListener('DOMContentLoaded', function() {
                                      
                                      if(currentFullBar) { 
                                          currentFullBar.classList.add('bg-danger'); 
-                                         currentFullBar.textContent = "错误"; 
+                                         currentFullBar.textContent = "Error"; 
                                      }
                                      
                                      if(currentFullStatus) {
-                                         currentFullStatus.textContent = `错误: ${jsonData.message}`;
+                                         currentFullStatus.textContent = `Error: ${jsonData.message}`;
                                      }
                                      
-                                     let errorMessage = `[${new Date().toLocaleTimeString()}] 错误: ${jsonData.message}`;
+                                     let errorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
                                      if (jsonData.needs_config) {
                                          const configUrl = "{{ url_for('llm_config_page') }}";
-                                         errorMessage += ` <a href="${configUrl}" target="_blank">请配置API密钥。</a>`;
+                                         errorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
                                      }
                                      
                                      addLogItem(errorMessage);
-                                     try { xhr.abort(); } catch (e) { console.warn("错误中止全量筛选XHR:", e); }
+                                     try { xhr.abort(); } catch (e) { console.warn("Error aborting full screening XHR:", e); }
                                      finalizeButtons();
                                      break;
                              }
                              
                         } catch (e) { 
-                            console.error("全量筛选SSE解析错误:", e, "原始消息:", message); 
+                            console.error("Full screening SSE parse error:", e, "Original message:", message); 
                             finalizeButtons(); 
                         }
                     }
@@ -645,7 +645,7 @@ document.addEventListener('DOMContentLoaded', function() {
              };
             
              xhr.onloadend = function() { 
-                 // 清除初始化计时器
+                 // Clear initialization timer
                  if (initTimer) {
                      clearInterval(initTimer);
                      initTimer = null;
@@ -664,7 +664,7 @@ document.addEventListener('DOMContentLoaded', function() {
                              currentFullLinkArea.style.display = 'block';
                          }
                      } catch (e) {
-                         console.error("在onloadend中设置全量筛选结果链接时出错:", e);
+                         console.error("Error setting up full screening results link in onloadend:", e);
                      }
                  }
                  
@@ -672,13 +672,13 @@ document.addEventListener('DOMContentLoaded', function() {
              };
             
              xhr.onerror = function() { 
-                 // 清除初始化计时器
+                 // Clear initialization timer
                  if (initTimer) {
                      clearInterval(initTimer);
                      initTimer = null;
                  }
                  
-                 addLogItem(`[${new Date().toLocaleTimeString()}] 全量筛选过程中发生网络错误。`);
+                 addLogItem(`[${new Date().toLocaleTimeString()}] Network error occurred during screening.`);
                  finalizeButtons(); 
              };
              
