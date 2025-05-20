@@ -769,31 +769,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     populateSavedCriteriaDropdown();
     
-    // Check for URL parameter to load a specific history set
-    const urlParams = new URLSearchParams(window.location.search);
-    const historySetToLoad = urlParams.get('load_history_set');
-    if (historySetToLoad) {
-        const criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
-        const selectedCriteria = criteriaSets[historySetToLoad];
-        if (selectedCriteria) {
-            getAllCriteriaFieldIds().forEach(id => {
-                const element = document.getElementById(id);
-                if (element && selectedCriteria[id] !== undefined) {
-                    element.value = selectedCriteria[id];
-                }
-            });
-            currentlyLoadedSetName = historySetToLoad; // Set as currently loaded
-            setFormDirty(false); // Mark form as not dirty initially
-            updateButtonStates(); // Update button states (e.g., show 'Update' button if applicable)
-            // Optionally, provide feedback to the user
-            // alert(`Loaded criteria from history: '${historySetToLoad.replace('History - ', '')}'`);
-            // Remove the query parameter from URL to avoid reloading on refresh if not desired
-            window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
-        } else {
-            alert(`Error: Could not find the history set '${historySetToLoad}' to load.`);
-        }
-    }
-
     // 添加表单AJAX提交处理
     const criteriaForm = document.getElementById('criteriaForm');
     if (criteriaForm) {
@@ -820,35 +795,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = result.data;
                 
                 if (result.ok && data.status === 'success') {
-                    // Auto-save history
-                    const now = new Date();
-                    const timestamp = now.getFullYear() + '-' + 
-                                    ('0' + (now.getMonth() + 1)).slice(-2) + '-' + 
-                                    ('0' + now.getDate()).slice(-2) + ' ' + 
-                                    ('0' + now.getHours()).slice(-2) + ':' + 
-                                    ('0' + now.getMinutes()).slice(-2) + ':' + 
-                                    ('0' + now.getSeconds()).slice(-2);
-                    const historySetName = `History - ${timestamp}`;
-                    saveCriteriaToLocalStorage(historySetName, false); // Save without overwrite confirm
-
-                    // Limit history (e.g., keep last 10)
-                    try {
-                        let criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
-                        const historyKeys = Object.keys(criteriaSets)
-                            .filter(key => key.startsWith('History -'))
-                            .sort((a, b) => new Date(b.substring(10)).getTime() - new Date(a.substring(10)).getTime()); // Sort descending by date
-
-                        const MAX_HISTORY_ITEMS = 10;
-                        if (historyKeys.length > MAX_HISTORY_ITEMS) {
-                            for (let i = MAX_HISTORY_ITEMS; i < historyKeys.length; i++) {
-                                delete criteriaSets[historyKeys[i]];
-                            }
-                            localStorage.setItem(CRITERIA_SETS_KEY, JSON.stringify(criteriaSets));
-                        }
-                    } catch (e) {
-                        console.error("Error managing history limit:", e);
-                    }
-
                     if (data.redirect_url) {
                         smoothRedirect(data.redirect_url);
                     } else {
