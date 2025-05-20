@@ -1149,32 +1149,37 @@ def show_screening_results(screening_id):
 def stream_test_screen_file():
     if 'file' not in request.files:
         error_message = {'type': 'error', 'message': 'No file part.'}
-        return Response(f"data: {json.dumps(error_message)}\\n\\n", mimetype='text/event-stream')
+        return Response(f"data: {json.dumps(error_message)}\n\n", mimetype='text/event-stream')
 
     file = request.files['file']
     if file.filename == '' or not allowed_file(file.filename):
         error_message = {'type': 'error', 'message': 'No selected/invalid file.'}
-        return Response(f"data: {json.dumps(error_message)}\\n\\n", mimetype='text/event-stream')
+        return Response(f"data: {json.dumps(error_message)}\n\n", mimetype='text/event-stream')
+
+    # Extract form data *before* defining the generator
+    try:
+        sample_size_str_val = request.form.get('sample_size', '10') 
+        sample_size_val = int(sample_size_str_val)
+        sample_size_val = max(5, min(9999, sample_size_val)) 
+    except ValueError: 
+        sample_size_val = 10 # Default if conversion fails
+    
+    line_range_input_val = request.form.get('line_range_filter', '').strip()
+    title_filter_input_val = request.form.get('title_text_filter', '').strip()
+
 
     # Early initialization response generator
-    def quick_start_response_generator():
+    def quick_start_response_generator(sample_size, line_range_filter_from_form, title_filter_from_form):
         # Send an immediate initialization response to let the client know the request is being processed
         init_message = {'type': 'init', 'message': 'Processing upload, please wait...'}
-        yield f"data: {json.dumps(init_message)}\\n\\n"
+        yield f"data: {json.dumps(init_message)}\n\n"
         
         temp_file_path = None # Initialize temp_file_path to ensure it's defined in finally
         try:
-            # --- Get ALL form fields first, ensuring they are defined before the main try block ---
-            try:
-                sample_size_str = request.form.get('sample_size', '10') 
-                sample_size = int(sample_size_str)
-                sample_size = max(5, min(9999, sample_size)) 
-            except ValueError: 
-                sample_size = 10 # Default if conversion fails
-            
-            # These must be defined at this level to be accessible in the subsequent try block's main logic
-            line_range_input = request.form.get('line_range_filter', '').strip()
-            title_filter_input = request.form.get('title_text_filter', '').strip()
+            # Use passed-in values
+            current_sample_size = sample_size
+            line_range_input = line_range_filter_from_form
+            title_filter_input = title_filter_from_form
         
             # Save file to a temporary location for faster processing
             temp_file_path = os.path.join(UPLOAD_FOLDER, f"temp_{uuid.uuid4()}.ris")
@@ -1186,12 +1191,12 @@ def stream_test_screen_file():
             
             if df is None or df.empty:
                 error_message = {'type': 'error', 'message': 'Failed to load RIS or file empty.'}
-                yield f"data: {json.dumps(error_message)}\\n\\n"
+                yield f"data: {json.dumps(error_message)}\n\n"
                 return
             
             if 'abstract' not in df.columns:
                 error_message = {'type': 'error', 'message': 'RIS missing abstract column.'}
-                yield f"data: {json.dumps(error_message)}\\n\\n"
+                yield f"data: {json.dumps(error_message)}\n\n"
                 return
                 
             df['title'] = df.get('title', pd.Series(["Title Not Found"] * len(df))).fillna("Title Not Found")
@@ -1209,7 +1214,7 @@ def stream_test_screen_file():
                 if df_for_screening.empty:
                     error_message = f"No articles found matching title: '{title_filter_input}'"
                     error_data = {'type': 'error', 'message': error_message}
-                    yield f"data: {json.dumps(error_data)}\\n\\n"
+                    yield f"data: {json.dumps(error_data)}\n\n"
                     return
 
             elif line_range_input: # Make sure this is elif if title_filter_input takes precedence
@@ -1217,32 +1222,32 @@ def stream_test_screen_file():
                     start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                     if start_idx >= end_idx:
                         message_text = f'The range "{line_range_input}" is invalid or results in no articles.'
-                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\\n\\n"
+                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
                         return
                     df_for_screening = df_for_screening.iloc[start_idx:end_idx]
                     filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
                     if df_for_screening.empty:
                         message_text = f'The range "{line_range_input}" resulted in no articles to screen.'
-                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\\n\\n"
+                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
                         return
                 except ValueError as e:
                     message_text = f'Invalid range format for "{line_range_input}": {str(e)}'
                     error_data = {'type': 'error', 'message': message_text}
-                    yield f"data: {json.dumps(error_data)}\\n\\n"
+                    yield f"data: {json.dumps(error_data)}\n\n"
                     return
 
             if df_for_screening.empty and (title_filter_input or line_range_input) : # Check if empty *after* filters
                 error_data = {'type': 'error', 'message': 'No articles found after applying filters to sample from.'}
-                yield f"data: {json.dumps(error_data)}\\n\\n"
+                yield f"data: {json.dumps(error_data)}\n\n"
                 return
 
-            sample_df = df_for_screening.head(min(sample_size, len(df_for_screening)))
+            sample_df = df_for_screening.head(min(sample_size_val, len(df_for_screening)))
             actual_sample_size = len(sample_df)
             # --- END NEW ---
 
             if actual_sample_size == 0:
                 error_data = {'type': 'error', 'message': 'No entries found in the file to sample (after filters if any).'}
-                yield f"data: {json.dumps(error_data)}\\n\\n"
+                yield f"data: {json.dumps(error_data)}\n\n"
                 return
 
             criteria_prompt_text = get_screening_criteria()
@@ -1258,7 +1263,7 @@ def stream_test_screen_file():
             if not api_key:
                 error_message = f"API Key for {provider_name} must be provided via the configuration form for this session."
                 error_data = {'type': 'error', 'message': error_message, 'needs_config': True}
-                yield f"data: {json.dumps(error_data)}\\n\\n"
+                yield f"data: {json.dumps(error_data)}\n\n"
                 return
 
             session_id = str(uuid.uuid4())
@@ -1271,7 +1276,7 @@ def stream_test_screen_file():
 
             # Now send the official start event
             start_data = {'type': 'start', 'total': actual_sample_size, 'filter_info': filter_description}
-            yield f"data: {json.dumps(start_data)}\\n\\n"
+            yield f"data: {json.dumps(start_data)}\n\n"
 
             # Continue with normal screening process
             processed_count = 0
@@ -1317,7 +1322,7 @@ def stream_test_screen_file():
                             'percentage': progress_percentage, 'current_item_title': title,
                             'decision': screening_result['decision']
                         }
-                        yield f"data: {json.dumps(progress_data)}\\n\\n"
+                        yield f"data: {json.dumps(progress_data)}\n\n"
 
                     except Exception as e:
                         processed_count += 1
@@ -1331,7 +1336,7 @@ def stream_test_screen_file():
                             'decision': 'ITEM_ERROR', 
                             'error_detail': error_message_text_item_test
                         }
-                        yield f"data: {json.dumps(progress_data)}\\n\\n"
+                        yield f"data: {json.dumps(progress_data)}\n\n"
                         temp_results_list.append({
                             'id': str(uuid.uuid4()), 'original_index': index, 'title': title,
                             'authors': authors_str, 'abstract': abstract_text,
@@ -1344,13 +1349,13 @@ def stream_test_screen_file():
                 session_data['test_items_data'] = temp_results_list
                 store_test_session(session_id, session_data)
             complete_data = {'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id}
-            yield f"data: {json.dumps(complete_data)}\\n\\n"
+            yield f"data: {json.dumps(complete_data)}\n\n"
             
         except Exception as e: 
             app_logger.exception("Server error during test streaming processing")
             error_message = f"Server error during test streaming processing: {str(e)}"
             error_data = {'type': 'error', 'message': error_message}
-            yield f"data: {json.dumps(error_data)}\\n\\n"
+            yield f"data: {json.dumps(error_data)}\n\n"
             # No return here, finally will execute
         finally:
             if temp_file_path and os.path.exists(temp_file_path):
@@ -1360,7 +1365,7 @@ def stream_test_screen_file():
                 except Exception as e_cleanup:
                     app_logger.warning(f"Could not delete temp file: {temp_file_path} - {e_cleanup}")
     
-    return Response(quick_start_response_generator(), mimetype='text/event-stream')
+    return Response(quick_start_response_generator(sample_size_val, line_range_input_val, title_filter_input_val), mimetype='text/event-stream')
 
 
 @app.route('/show_test_results/<session_id>', endpoint='show_test_results')
