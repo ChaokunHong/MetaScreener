@@ -893,114 +893,96 @@ def stream_screen_file():
     if file.filename == '' or not allowed_file(file.filename):
         return Response(f"data: {json.dumps({'type': 'error', 'message': 'No selected/invalid file.'})}\n\n", mimetype='text/event-stream')
 
-    # Early initialization response generator
-    def quick_start_full_response_generator():
-        # Send an immediate initialization response
+    def generate_response():
+        # 立即发送初始化事件
         yield f"data: {json.dumps({'type': 'init', 'message': 'Processing upload, please wait...'})}\n\n"
         
-        # --- Get filter inputs from form ---
-        line_range_input = request.form.get('line_range_filter', '').strip()
-        title_filter_input = request.form.get('title_text_filter', '').strip()
-
         try:
-            # Save file to a temporary location for faster processing
-            temp_file_path = os.path.join(UPLOAD_FOLDER, f"temp_{uuid.uuid4()}.ris")
-            file.save(temp_file_path)
+            # 获取过滤条件
+            line_range_input = request.form.get('line_range_filter', '').strip()
+            title_filter_input = request.form.get('title_text_filter', '').strip()
             
-            try:
-                with open(temp_file_path, 'rb') as f:
-                    df = load_literature_ris(f)
+            # 直接从流加载，避免保存临时文件
+            df = load_literature_ris(file.stream)
+            if df is None or df.empty:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\n\n"
+                return
+            
+            if 'abstract' not in df.columns:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'RIS missing abstract column.'})}\n\n"
+                return
                 
-                # Clean up temp file
+            # 填充缺失值
+            df['title'] = df.get('title', pd.Series(["Title Not Found"] * len(df))).fillna("Title Not Found")
+            df['authors'] = df.get('authors', pd.Series([[] for _ in range(len(df))]))
+            df['authors'] = df['authors'].apply(lambda x: x if isinstance(x, list) else [])
+
+            # 应用过滤条件
+            df_for_screening = df.copy()
+            original_df_count = len(df)
+            filter_description = "all entries"
+
+            if title_filter_input:
+                df_for_screening = df_for_screening[df_for_screening['title'].str.contains(title_filter_input, case=False, na=False)]
+                filter_description = f"entries matching title '{title_filter_input}'"
+                if df_for_screening.empty:
+                    yield f"data: {json.dumps({'type': 'error', 'message': f'No articles found matching title: \"{title_filter_input}\"'})}\n\n"
+                    return
+
+            elif line_range_input:
                 try:
-                    os.unlink(temp_file_path)
-                except Exception as e_cleanup:
-                    app_logger.warning(f"Could not delete temp file: {e_cleanup}")
-                
-                if df is None or df.empty:
-                    yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\n\n"
-                    return
-                
-                # Ensure essential columns exist, and fill if not
-                if 'abstract' not in df.columns:
-                    yield f"data: {json.dumps({'type': 'error', 'message': 'RIS missing abstract.'})}\n\n"
-                    return
-                    
-                if 'title' not in df.columns:
-                    df['title'] = pd.Series(["Title Not Found"] * len(df))
-                else:
-                    df['title'] = df['title'].fillna("Title Not Found")
-                    
-                if 'authors' not in df.columns:
-                    df['authors'] = pd.Series([[] for _ in range(len(df))])
-                else:
-                    df['authors'] = df['authors'].apply(lambda x: x if isinstance(x, list) else [])
-
-                # --- Apply filters ---
-                df_for_screening = df.copy()  # Operate on a copy
-                original_df_count = len(df)
-                filter_description = "all entries"
-
-                if title_filter_input:
-                    df_for_screening = df_for_screening[
-                        df_for_screening['title'].str.contains(title_filter_input, case=False, na=False)]
-                    filter_description = f"entries matching title '{title_filter_input}'"
+                    start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
+                    if start_idx >= end_idx:
+                        yield f"data: {json.dumps({'type': 'error', 'message': f'The range \"{line_range_input}\" is invalid or results in no articles.'})}\n\n"
+                        return
+                    df_for_screening = df_for_screening.iloc[start_idx:end_idx]
+                    filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
                     if df_for_screening.empty:
-                        message = f'No articles found matching title: "{title_filter_input}"'
-                        yield f"data: {json.dumps({'type': 'error', 'message': message})}\n\n"
+                        yield f"data: {json.dumps({'type': 'error', 'message': f'The range \"{line_range_input}\" resulted in no articles to screen.'})}\n\n"
                         return
-
-                elif line_range_input:
-                    try:
-                        start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
-                        if start_idx >= end_idx:
-                            message = f'The range "{line_range_input}" is invalid or results in no articles.'
-                            yield f"data: {json.dumps({'type': 'error', 'message': message})}\n\n"
-                            return
-                        df_for_screening = df_for_screening.iloc[start_idx:end_idx]
-                        filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
-                        if df_for_screening.empty:
-                            message = f'The range "{line_range_input}" resulted in no articles to screen.'
-                            yield f"data: {json.dumps({'type': 'error', 'message': message})}\n\n"
-                            return
-                    except ValueError as e:
-                        message = f'Invalid range format for "{line_range_input}": {str(e)}'
-                        yield f"data: {json.dumps({'type': 'error', 'message': message})}\n\n"
-                        return
-
-                total_entries_to_screen = len(df_for_screening)
-                if total_entries_to_screen == 0:
-                    yield f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\n\n"
+                except ValueError as e:
+                    yield f"data: {json.dumps({'type': 'error', 'message': f'Invalid range format for \"{line_range_input}\": {str(e)}'})}\n\n"
                     return
 
-                criteria_prompt_text = get_screening_criteria()
-                current_llm_config_data = get_current_llm_config(session)
-                provider_name = current_llm_config_data['provider_name']
-                model_id = current_llm_config_data['model_id']
-                base_url = get_base_url_for_provider(provider_name)
-                provider_info = get_llm_providers_info().get(provider_name, {})
-                session_key_name = provider_info.get("api_key_session_key")
-                api_key = session.get(session_key_name) if session_key_name else None
+            total_entries_to_screen = len(df_for_screening)
+            if total_entries_to_screen == 0:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\n\n"
+                return
 
-                if not api_key:
-                    error_message = f"API Key for {provider_name} must be provided via the configuration form for this session."
-                    yield f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\n\n"
-                    return
+            # 获取配置
+            criteria_prompt_text = get_screening_criteria()
+            current_llm_config_data = get_current_llm_config(session)
+            provider_name = current_llm_config_data['provider_name']
+            model_id = current_llm_config_data['model_id']
+            base_url = get_base_url_for_provider(provider_name)
+            provider_info = get_llm_providers_info().get(provider_name, {})
+            session_key_name = provider_info.get("api_key_session_key") 
+            api_key = session.get(session_key_name) if session_key_name else None
 
-                screening_id = str(uuid.uuid4())
-                original_filename = file.filename
+            if not api_key:
+                yield f"data: {json.dumps({'type': 'error', 'message': f'API Key for {provider_name} must be provided via the configuration form for this session.', 'needs_config': True})}\n\n"
+                return
 
-                # Now send the official start event
-                yield f"data: {json.dumps({'type': 'start', 'total': total_entries_to_screen, 'filter_info': filter_description})}\n\n"
+            screening_id = str(uuid.uuid4())
+            original_filename = file.filename
 
-                # Continue with normal full screening process
-                processed_count = 0
-                temp_results_list = []
-                futures_map = {}
+            # 发送开始事件
+            yield f"data: {json.dumps({'type': 'start', 'total': total_entries_to_screen, 'filter_info': filter_description})}\n\n"
 
-                with ThreadPoolExecutor(max_workers=8) as executor:
-                    # Iterate over the (potentially filtered) DataFrame
-                    for index, row in df_for_screening.iterrows():
+            # 处理和筛选
+            processed_count = 0
+            temp_results_list = []
+            futures_map = {}
+
+            # 使用更小的线程池减少资源消耗
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                # 将任务分批提交，避免一次提交太多任务
+                batch_size = min(20, total_entries_to_screen)  # 每批最多20条
+                for start_idx in range(0, total_entries_to_screen, batch_size):
+                    end_idx = min(start_idx + batch_size, total_entries_to_screen)
+                    batch_df = df_for_screening.iloc[start_idx:end_idx]
+                    
+                    for index, row in batch_df.iterrows():
                         abstract = row.get('abstract')
                         future = executor.submit(
                             _perform_screening_on_abstract,
@@ -1009,9 +991,9 @@ def stream_screen_file():
                         )
                         futures_map[future] = {'index': index, 'row': row}
 
-                    # Process futures as they complete
-                    for future in as_completed(futures_map):
-                        original_data = futures_map[future]
+                    # 处理当前批次的结果
+                    for future in as_completed(list(futures_map.keys())):
+                        original_data = futures_map.pop(future)  # 及时从映射中移除处理完的任务
                         index = original_data['index']
                         row = original_data['row']
                         title = row.get('title', "N/A")
@@ -1037,49 +1019,44 @@ def stream_screen_file():
                                 'decision': screening_result['decision']
                             }
                             yield f"data: {json.dumps(progress_event)}\n\n"
+                            # 添加短暂延迟，减轻浏览器负担
+                            time.sleep(0.01)
 
                         except Exception as e:
-                            processed_count += 1 # Still increment for progress tracking
+                            processed_count += 1
                             progress_percentage = int((processed_count / total_entries_to_screen) * 100) if total_entries_to_screen > 0 else 0
                             error_message_text_item = f"Error processing item '{title[:30]}...': {e}"
                             app_logger.error(f"Error processing item (original index {index}): {e}")
                             progress_event_data = {
                                 'type': 'progress', 'count': processed_count, 'total': total_entries_to_screen,
                                 'percentage': progress_percentage, 'current_item_title': title,
-                                'decision': 'ITEM_ERROR', # Keep this simple for the event
-                                'error_detail': error_message_text_item # Optionally send detail if frontend can use it
+                                'decision': 'ITEM_ERROR'
                             }
                             yield f"data: {json.dumps(progress_event_data)}\n\n"
-                            # Optionally, add a placeholder to temp_results_list for this error
                             temp_results_list.append({
                                 'index': index + 1, 'title': title, 'authors': authors_str,
                                 'decision': 'ITEM_ERROR', 'reasoning': str(e),
                                 'abstract': row.get('abstract', '')  # 在错误处理中也添加abstract字段
                             })
 
-                # After loop, store results in global dict
-                temp_results_list.sort(key=lambda x: x.get('index', float('inf')))
-                store_full_screening_session(screening_id, {
-                    'filename': original_filename, 
-                    'results': temp_results_list,
-                    'filter_applied': filter_description # Store filter info with results
-                })
-                
-                # Send completion event
-                yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id})}\n\n"
-                
-            except Exception as e:
-                app_logger.exception("Error processing RIS file")
-                yield f"data: {json.dumps({'type': 'error', 'message': f'Error processing RIS file: {e}'})}\n\n"
-                return
-        
+            # 处理并保存结果
+            temp_results_list.sort(key=lambda x: x.get('index', float('inf')))
+            store_full_screening_session(screening_id, {
+                'filename': original_filename, 
+                'results': temp_results_list,
+                'filter_applied': filter_description
+            })
+            
+            # 发送完成事件
+            yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id})}\n\n"
+            app_logger.info(f"Full screening completed for {screening_id}, processed {processed_count} items.")
+            
         except Exception as e:
-            app_logger.exception("Server error before full streaming")
-            error_message_text_server = f'Server error before full streaming: {str(e)}'
-            yield f"data: {json.dumps({'type': 'error', 'message': error_message_text_server})}\n\n"
+            app_logger.exception("Server error during full screening processing")
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Server error during processing: {str(e)}'})}\n\n"
             return
 
-    return Response(quick_start_full_response_generator(), mimetype='text/event-stream')
+    return Response(generate_response(), mimetype='text/event-stream')
 
 
 @app.route('/show_screening_results/<screening_id>', endpoint='show_screening_results') 
