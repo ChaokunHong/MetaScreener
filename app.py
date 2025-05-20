@@ -947,14 +947,14 @@ def stream_screen_file():
 
         # 立即发送初始化事件
         init_message = {'type': 'init', 'message': 'Processing upload, please wait...'}
-        yield f"data: {json.dumps(init_message)}\n\n"
+        yield f"data: {json.dumps(init_message)}\n\n" # Ensure single backslash for newline
         
         try:
             # 获取过滤条件 (use passed-in values)
             line_range_input = line_range_filter
             title_filter_input = title_text_filter
 
-            yield f"data: {json.dumps({'type': 'status', 'message': 'Reading and parsing file content...'})}\n\n"
+            yield f"data: {json.dumps({'type': 'status', 'message': 'Reading and parsing file content...'})}\n\n" # Ensure single backslash
             
             load_ris_start_time = time.time()
             # 直接从已保存的临时文件加载
@@ -964,14 +964,14 @@ def stream_screen_file():
             app_logger.info(f"PERF: load_literature_ris from {current_temp_file_path} took {load_ris_end_time - load_ris_start_time:.4f} seconds.")
 
             if df is None or df.empty:
-                yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\n\n"
-                return
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\n\n" # Ensure single backslash
+                return # Return here to ensure finally is hit correctly for cleanup.
             
             if 'abstract' not in df.columns:
-                yield f"data: {json.dumps({'type': 'error', 'message': 'RIS missing abstract column.'})}\n\n"
-                return
+                yield f"data: {json.dumps({'type': 'error', 'message': 'RIS missing abstract column.'})}\n\n" # Ensure single backslash
+                return # Return here for cleanup.
             
-            yield f"data: {json.dumps({'type': 'status', 'message': 'File parsed. Preparing data for screening...'})}\\n\\n"
+            yield f"data: {json.dumps({'type': 'status', 'message': 'File parsed. Preparing data for screening...'})}\n\n" # Ensure single backslash
             
             data_prep_start_time = time.time()
             # 填充缺失值
@@ -989,36 +989,36 @@ def stream_screen_file():
                 filter_description = f"entries matching title '{title_filter_input}'"
                 if df_for_screening.empty:
                     error_message = f"No articles found matching title: '{title_filter_input}'"
-                    yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\\n\\n"
-                    return
+                    yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\n\n" # Ensure single backslash
+                    return # Return here for cleanup.
 
             elif line_range_input:
                 try:
                     start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                     if start_idx >= end_idx:
                         message_text = f'The range "{line_range_input}" is invalid or results in no articles.'
-                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\\n\\n"
-                        return
+                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n" # Ensure single backslash
+                        return # Return here for cleanup.
                     df_for_screening = df_for_screening.iloc[start_idx:end_idx]
                     filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
                     if df_for_screening.empty:
                         message_text = f'The range "{line_range_input}" resulted in no articles to screen.'
-                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\\n\\n"
-                        return
+                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n" # Ensure single backslash
+                        return # Return here for cleanup.
                 except ValueError as e:
                     message_text = f'Invalid range format for "{line_range_input}": {str(e)}'
-                    yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\\n\\n"
-                    return
+                    yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n" # Ensure single backslash
+                    return # Return here for cleanup.
             
             data_prep_end_time = time.time()
             app_logger.info(f"PERF: Data preparation and filtering took {data_prep_end_time - data_prep_start_time:.4f} seconds.")
 
-            yield f"data: {json.dumps({'type': 'status', 'message': 'Filters applied. Counting entries for screening...'})}\\n\\n"
+            yield f"data: {json.dumps({'type': 'status', 'message': 'Filters applied. Counting entries for screening...'})}\n\n" # Ensure single backslash
 
             total_entries_to_screen = len(df_for_screening)
             if total_entries_to_screen == 0:
-                yield f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\\n\\n"
-                return
+                yield f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\n\n" # Ensure single backslash
+                return # Return here for cleanup.
 
             # 获取配置 (Use pre-fetched values)
             # config_fetch_start_time = time.time() # Already logged before this generator
@@ -1035,14 +1035,16 @@ def stream_screen_file():
 
 
             if not llm_api_key: # Use the passed-in llm_api_key
-                yield f"data: {json.dumps({'type': 'error', 'message': f'API Key for {llm_provider} must be provided via the configuration form for this session.', 'needs_config': True})}\n\n"
-                pass # Allow to proceed to ThreadPool; worker will handle no API key
+                yield f"data: {json.dumps({'type': 'error', 'message': f'API Key for {llm_provider} must be provided via the configuration form for this session.', 'needs_config': True})}\n\n" # Ensure single backslash
+                # If API key is missing, we should not proceed with screening. 
+                # Returning here ensures finally block cleans up the temp file.
+                return 
 
             screening_id = str(uuid.uuid4())
-            # original_filename = file.filename # Use passed original_filename
+            # original_filename is already passed as an argument
 
             # 发送开始事件
-            yield f"data: {json.dumps({'type': 'start', 'total': total_entries_to_screen, 'filter_info': filter_description})}\\n\\n"
+            yield f"data: {json.dumps({'type': 'start', 'total': total_entries_to_screen, 'filter_info': filter_description})}\n\n" # Ensure single backslash
             app_logger.info(f"PERF: Starting ThreadPoolExecutor for {total_entries_to_screen} items.")
             thread_pool_start_time = time.time()
 
@@ -1105,7 +1107,7 @@ def stream_screen_file():
                             'percentage': progress_percentage, 'current_item_title': title,
                             'decision': screening_result['decision']
                         }
-                        yield f"data: {json.dumps(progress_event)}\\n\\n"
+                        yield f"data: {json.dumps(progress_event)}\n\n" # Ensure single backslash
                         # 添加短暂延迟，减轻浏览器负担
                         time.sleep(0.01)
 
@@ -1119,7 +1121,7 @@ def stream_screen_file():
                             'percentage': progress_percentage, 'current_item_title': title,
                             'decision': 'ITEM_ERROR'
                         }
-                        yield f"data: {json.dumps(progress_event_data)}\\n\\n"
+                        yield f"data: {json.dumps(progress_event_data)}\n\n" # Ensure single backslash
                         temp_results_list.append({
                             'index': index + 1, 'title': title, 'authors': authors_str,
                             'decision': 'ITEM_ERROR', 'reasoning': str(e),
@@ -1141,14 +1143,14 @@ def stream_screen_file():
             app_logger.info(f"PERF: Storing full screening session took {results_processing_end_time - results_processing_start_time:.4f} seconds.")
             
             # 发送完成事件
-            yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id})}\\n\\n"
+            yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id})}\n\n" # Ensure single backslash
             overall_end_time = time.time()
             app_logger.info(f"PERF: Full screening completed for {screening_id}, processed {processed_count} items. Total time: {overall_end_time - overall_start_time:.4f} seconds.")
             
         except Exception as e:
             app_logger.exception("Server error during full screening processing")
-            yield f"data: {json.dumps({'type': 'error', 'message': f'Server error during processing: {str(e)}'})}\n\n"
-            # return # Do not return from except block if finally needs to run
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Server error during processing: {str(e)}'})}\n\n" # Ensure single backslash
+            # No explicit return here, exception means generator terminates, finally runs.
         finally:
             if current_temp_file_path and os.path.exists(current_temp_file_path):
                 try:
