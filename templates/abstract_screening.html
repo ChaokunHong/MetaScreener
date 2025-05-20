@@ -205,16 +205,14 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("Test Screen Button CLICKED!");
             const testFileInput = document.getElementById('test_file');
             const sampleSizeInput = document.getElementById('sample_size');
-            // --- NEW: Get filter inputs for Test Screening ---
             const testTitleFilterInput = document.getElementById('test_title_text_filter');
             const testLineRangeInput = document.getElementById('test_line_range_filter');
-            // --- END NEW ---
 
-            if (!testFileInput.files || testFileInput.files.length === 0) { alert('Please select a file for test screening.'); return; }
+            if (!testFileInput.files || testFileInput.files.length === 0) { alert('请选择一个文件进行测试筛选。'); return; }
             const sampleSize = sampleSizeInput.value || 10;
             console.log(`Test Screening initiated. Sample size: ${sampleSize}`);
 
-            // Reset UI (Get elements here for reset)
+            // 重置UI
             const testProgressArea = document.getElementById('test_progress_area');
             const testProgressBar = document.getElementById('test_progress_bar');
             const testProgressStatus = document.getElementById('test_progress_status');
@@ -224,51 +222,57 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if(testProgressArea) testProgressArea.style.display = 'block';
             if(testProgressLogContainer) testProgressLogContainer.style.display = 'block';
-            if(testSpinner) testSpinner.style.display = 'inline-block'; // Show spinner
+            if(testSpinner) testSpinner.style.display = 'inline-block';
             
-            // Reset log content using helper
-            addTestLogItem(""); // Clears by potentially removing old items if list was full
-            const initialLogEl = document.getElementById('test_progress_log'); if(initialLogEl) initialLogEl.innerHTML = ''; // Explicit clear
+            // 清除日志
+            const initialLogEl = document.getElementById('test_progress_log'); 
+            if(initialLogEl) initialLogEl.innerHTML = '';
             
-            if(testProgressBar) { testProgressBar.style.width = '0%'; testProgressBar.textContent = '0%'; testProgressBar.classList.remove('bg-success', 'bg-danger'); testProgressBar.classList.add('bg-info'); }
+            if(testProgressBar) { 
+                testProgressBar.style.width = '0%'; 
+                testProgressBar.textContent = '0%'; 
+                testProgressBar.classList.remove('bg-success', 'bg-danger'); 
+                testProgressBar.classList.add('bg-info'); 
+            }
+            
             if(testProgressStatus) {
-                testProgressStatus.textContent = 'Initializing test screening...';
+                testProgressStatus.textContent = '初始化测试筛选...';
                 testProgressStatus.dataset.status = 'initializing';
             }
+            
             if(testResultsLinkArea) testResultsLinkArea.style.display = 'none';
             startTestScreenButton.disabled = true;
-            window.loggedTestLogError = false; // Reset log flag for this run
+            window.loggedTestLogError = false;
 
-            // Add initialization timer update
-            let initializationTimer = 0;
-            const initInterval = setInterval(() => {
-                initializationTimer += 1000;
+            // 简化初始化计时器
+            let initTimer = null;
+            let dots = '';
+            
+            initTimer = setInterval(() => {
                 if (testProgressStatus && testProgressStatus.dataset.status === 'initializing') {
-                    let dots = '.'.repeat((initializationTimer / 1000) % 4);
-                    testProgressStatus.textContent = `Initializing test screening${dots} (${Math.floor(initializationTimer/1000)}s)`;
-                    addTestLogItem(`[${new Date().toLocaleTimeString()}] File upload and processing in progress, please wait...`);
+                    dots = dots.length >= 3 ? '' : dots + '.';
+                    testProgressStatus.textContent = `初始化测试筛选${dots}`;
                     
-                    // After timeout, show a message but don't abort yet
-                    if (initializationTimer >= INIT_TIMEOUT_MS) {
-                        clearInterval(initInterval);
-                        addTestLogItem(`[${new Date().toLocaleTimeString()}] Still working - large files may take a while. Please be patient.`);
+                    // 避免频繁更新日志
+                    if (Math.floor(Math.random() * 5) === 0) { // 只有20%概率添加日志
+                        addTestLogItem(`[${new Date().toLocaleTimeString()}] 文件上传和处理中，请稍候...`);
                     }
                 } else {
-                    clearInterval(initInterval);
+                    clearInterval(initTimer);
+                    initTimer = null;
                 }
-            }, 1000);
+            }, 500);
 
             const formData = new FormData(); 
             formData.append('file', testFileInput.files[0]); 
             formData.append('sample_size', sampleSize);
-            // --- NEW: Append filter data to FormData for Test Screening ---
+            
             if (testTitleFilterInput && testTitleFilterInput.value) {
                 formData.append('title_text_filter', testTitleFilterInput.value.trim());
             }
             if (testLineRangeInput && testLineRangeInput.value) {
                 formData.append('line_range_filter', testLineRangeInput.value.trim());
             }
-            // --- END NEW ---
 
             const xhrTest = new XMLHttpRequest(); 
             console.log("Initiating Test XHR Request...");
@@ -278,177 +282,230 @@ document.addEventListener('DOMContentLoaded', function() {
             xhrTest.onprogress = function() {
                 const newText = xhrTest.responseText.substring(lastTestCharIndex);
                 lastTestCharIndex = xhrTest.responseText.length;
+                if (!newText) return; // 如果没有新内容，直接返回
+                
                 const messages = newText.split('\n\n');
-                messages.forEach(message => {
+                for (const message of messages) {
                     if (message.startsWith("data: ")) {
                         try {
                             const jsonData = JSON.parse(message.substring(6));
-                            // Get elements JUST BEFORE use
+                            
+                            // 获取需要的DOM元素
                             const currentTestBar = document.getElementById('test_progress_bar');
                             const currentTestStatus = document.getElementById('test_progress_status');
-                            const currentTestArea = document.getElementById('test_progress_area');
-                            const currentTestLogContainer = document.getElementById('test_progress_log_container');
                             const currentTestLinkArea = document.getElementById('test_results_link_area');
                             const currentTestLink = document.getElementById('view_test_results_link');
 
-                            // Process based on event type
-                            if (jsonData.type === 'start') {
-                                // Clear the initialization interval
-                                clearInterval(initInterval);
-                                if(currentTestStatus) currentTestStatus.dataset.status = 'processing';
+                            // 处理事件类型
+                            switch (jsonData.type) {
+                                case 'init':
+                                    // 初始化事件
+                                    if(currentTestStatus) {
+                                        currentTestStatus.textContent = jsonData.message || '处理上传，请稍候...';
+                                    }
+                                    break;
                                 
-                                if(currentTestBar) { currentTestBar.style.width = '0%'; currentTestBar.textContent = '0%'; }
-                                if(currentTestStatus) currentTestStatus.textContent = 'Starting test screening...';
-                                addTestLogItem(`[${new Date().toLocaleTimeString()}] Starting to screen ${jsonData.total} sampled entries.`);
-                                console.log(`Test screening started: ${jsonData.total} entries...`);
-                            } else if (jsonData.type === 'progress') {
-                                if(currentTestBar) {
-                                    const percentComplete = jsonData.percentage || Math.floor((jsonData.count / jsonData.total) * 100);
-                                    currentTestBar.style.width = `${percentComplete}%`;
-                                    currentTestBar.textContent = `${percentComplete}%`;
-                                }
-                                if(currentTestStatus) currentTestStatus.textContent = `Screening ${jsonData.count} of ${jsonData.total}. Current item: ${jsonData.current_item_title}`;
-                                const decisionOutput = jsonData.decision ? `Decision: ${jsonData.decision}` : '';
-                                addTestLogItem(`[${new Date().toLocaleTimeString()}] Item: ${jsonData.current_item_title} - ${decisionOutput}`);
-                            } else if (jsonData.type === 'complete') {
-                                if(currentTestBar){ currentTestBar.classList.add('bg-success'); currentTestBar.textContent = "Complete"; }
-                                if(currentTestStatus) currentTestStatus.textContent = jsonData.message;
-                                addTestLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message}`);
-                                if (jsonData.session_id && currentTestLink && currentTestLinkArea) {
-                                    let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
-                                    currentTestLink.href = baseUrl.replace('__SESSION_ID__', jsonData.session_id);
-                                    currentTestLinkArea.style.display = 'block';
-                                    console.log("Test results link set up with session ID:", jsonData.session_id);
-                                } else { 
-                                    console.warn('Could not set test results link.', {
-                                        session_id: jsonData.session_id, 
-                                        linkElement: currentTestLink,
-                                        linkAreaElement: currentTestLinkArea
-                                    }); 
-                                }
-                                try {
-                                    xhrTest.abort();
-                                } catch (e) {
-                                    console.warn("Error aborting test XHR:", e);
-                                }
-                                finalizeTestButton();
-                            } else if (jsonData.type === 'error') {
-                                clearInterval(initInterval);
-                                if(currentTestBar){ currentTestBar.classList.add('bg-danger'); currentTestBar.textContent = "Error"; }
-                                if(currentTestStatus) currentTestStatus.textContent = `Error: ${jsonData.message}`;
-                                // --- MODIFIED: Display config link if API key missing for Test --- 
-                                let testErrorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
-                                if (jsonData.needs_config) {
-                                    const configUrl = "{{ url_for('llm_config_page') }}";
-                                    testErrorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
-                                }
-                                addTestLogItem(testErrorMessage);
-                                // --- END MODIFIED ---
-                                try {
-                                    xhrTest.abort();
-                                } catch (e) {
-                                    console.warn("Error aborting test XHR on error:", e);
-                                }
-                                finalizeTestButton();
+                                case 'start':
+                                    // 清除初始化计时器
+                                    if (initTimer) {
+                                        clearInterval(initTimer);
+                                        initTimer = null;
+                                    }
+                                    
+                                    if(currentTestStatus) {
+                                        currentTestStatus.dataset.status = 'processing';
+                                        currentTestStatus.textContent = '开始测试筛选...';
+                                    }
+                                    
+                                    if(currentTestBar) { 
+                                        currentTestBar.style.width = '0%'; 
+                                        currentTestBar.textContent = '0%'; 
+                                    }
+                                    
+                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] 开始筛选 ${jsonData.total} 条样本条目。`);
+                                    console.log(`测试筛选已开始：${jsonData.total} 条目...`);
+                                    break;
+                                
+                                case 'progress':
+                                    if(currentTestBar) {
+                                        const percentComplete = jsonData.percentage || Math.floor((jsonData.count / jsonData.total) * 100);
+                                        currentTestBar.style.width = `${percentComplete}%`;
+                                        currentTestBar.textContent = `${percentComplete}%`;
+                                    }
+                                    
+                                    if(currentTestStatus) {
+                                        currentTestStatus.textContent = `筛选 ${jsonData.count} / ${jsonData.total}。当前: ${jsonData.current_item_title}`;
+                                    }
+                                    
+                                    const decisionOutput = jsonData.decision ? `决定: ${jsonData.decision}` : '';
+                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] 条目: ${jsonData.current_item_title} - ${decisionOutput}`);
+                                    break;
+                                
+                                case 'complete':
+                                    if(currentTestBar) { 
+                                        currentTestBar.classList.add('bg-success'); 
+                                        currentTestBar.textContent = "完成"; 
+                                    }
+                                    
+                                    if(currentTestStatus) {
+                                        currentTestStatus.textContent = jsonData.message || '测试筛选已完成。';
+                                    }
+                                    
+                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message || '测试筛选已完成。'}`);
+                                    
+                                    if (jsonData.session_id && currentTestLink && currentTestLinkArea) {
+                                        let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
+                                        currentTestLink.href = baseUrl.replace('__SESSION_ID__', jsonData.session_id);
+                                        currentTestLinkArea.style.display = 'block';
+                                    }
+                                    
+                                    try { xhrTest.abort(); } catch (e) { console.warn("错误中止测试XHR:", e); }
+                                    finalizeTestButton();
+                                    break;
+                                
+                                case 'error':
+                                    // 清除初始化计时器
+                                    if (initTimer) {
+                                        clearInterval(initTimer);
+                                        initTimer = null;
+                                    }
+                                    
+                                    if(currentTestBar) { 
+                                        currentTestBar.classList.add('bg-danger'); 
+                                        currentTestBar.textContent = "错误"; 
+                                    }
+                                    
+                                    if(currentTestStatus) {
+                                        currentTestStatus.textContent = `错误: ${jsonData.message}`;
+                                    }
+                                    
+                                    let testErrorMessage = `[${new Date().toLocaleTimeString()}] 错误: ${jsonData.message}`;
+                                    if (jsonData.needs_config) {
+                                        const configUrl = "{{ url_for('llm_config_page') }}";
+                                        testErrorMessage += ` <a href="${configUrl}" target="_blank">请配置API密钥。</a>`;
+                                    }
+                                    
+                                    addTestLogItem(testErrorMessage);
+                                    try { xhrTest.abort(); } catch (e) { console.warn("错误中止测试XHR:", e); }
+                                    finalizeTestButton();
+                                    break;
                             }
+                            
                         } catch (e) { 
-                            console.error("Test SSE Parse Error:", e, "Original message:", message); 
+                            console.error("测试SSE解析错误:", e, "原始消息:", message); 
                             finalizeTestButton();
                         } 
                     }
-                });
+                }
             }; 
+            
             xhrTest.onloadend = function() { 
-                console.log("xhrTest.onloadend called");
-                clearInterval(initInterval);
+                // 清除初始化计时器
+                if (initTimer) {
+                    clearInterval(initTimer);
+                    initTimer = null;
+                }
+                
                 const currentTestLinkArea = document.getElementById('test_results_link_area');
                 const currentTestLink = document.getElementById('view_test_results_link');
                 
-                // If we have a session ID but the link isn't displayed yet, try to display it
                 if (xhrTest.responseText && xhrTest.responseText.includes('"session_id"') && 
                     currentTestLinkArea && currentTestLinkArea.style.display === 'none') {
                     try {
-                        // Find the session ID from the response
                         const match = xhrTest.responseText.match(/"session_id":"([^"]+)"/);
                         if (match && match[1] && currentTestLink) {
-                            console.log("Found session ID in response:", match[1]);
                             let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
                             currentTestLink.href = baseUrl.replace('__SESSION_ID__', match[1]);
                             currentTestLinkArea.style.display = 'block';
                         }
                     } catch (e) {
-                        console.error("Error setting up test results link in onloadend:", e);
+                        console.error("在onloadend中设置测试结果链接时出错:", e);
                     }
                 }
                 
                 finalizeTestButton(); 
             }; 
+            
             xhrTest.onerror = function() { 
-                console.error("xhrTest.onerror called"); 
-                clearInterval(initInterval);
-                addTestLogItem(`[${new Date().toLocaleTimeString()}] Network error occurred during test screening.`);
+                // 清除初始化计时器
+                if (initTimer) {
+                    clearInterval(initTimer);
+                    initTimer = null;
+                }
+                
+                addTestLogItem(`[${new Date().toLocaleTimeString()}] 测试筛选过程中发生网络错误。`);
                 finalizeTestButton(); 
             }; 
+            
             xhrTest.send(formData);
         }); 
     }
 
-    // --- Full Screening SSE Logic (Apply same pattern) ---
+    // --- Full Screening SSE Logic ---
     if (startFullScreenButton) {
-        console.log("Adding listener to Full Screen Button."); 
         startFullScreenButton.addEventListener('click', function() {
              console.log(">>> Full Screen Button CLICKED!");
              const fileInput = document.getElementById('full_file_progress');
-             if (!fileInput || !fileInput.files || fileInput.files.length === 0) { alert('Select file...'); return; }
-             console.log("Full Screening initiated.");
+             if (!fileInput || !fileInput.files || fileInput.files.length === 0) { alert('请选择文件...'); return; }
+             console.log("全量筛选已启动。");
              
-             // Reset UI 
+             // 重置UI
              const progressArea = document.getElementById('progress_area');
              const progressLogContainer = document.getElementById('progress_log_container');
-             const progressLog = document.getElementById('progress_log');
              const progressBar = document.getElementById('progress_bar');
              const progressStatus = document.getElementById('progress_status');
              const sseResultsLinkArea = document.getElementById('sse_results_link_area');
+             
              if(progressArea) progressArea.style.display = 'block';
              if(progressLogContainer) progressLogContainer.style.display = 'block';
-             addLogItem(""); 
-             const initialFullLogEl = document.getElementById('progress_log'); if(initialFullLogEl) initialFullLogEl.innerHTML = '';
+             
+             // 清除日志
+             const initialFullLogEl = document.getElementById('progress_log'); 
+             if(initialFullLogEl) initialFullLogEl.innerHTML = '';
 
-             if(progressBar) {progressBar.style.width = '0%'; progressBar.textContent = '0%'; progressBar.classList.remove('bg-success','bg-danger');}
+             if(progressBar) {
+                 progressBar.style.width = '0%'; 
+                 progressBar.textContent = '0%'; 
+                 progressBar.classList.remove('bg-success','bg-danger');
+             }
+             
              if(progressStatus) {
-                 progressStatus.textContent = 'Initializing...';
+                 progressStatus.textContent = '初始化...';
                  progressStatus.dataset.status = 'initializing';
              }
+             
              if(sseResultsLinkArea) sseResultsLinkArea.style.display = 'none';
              startFullScreenButton.disabled = true;
              window.loggedFullLogError = false; 
              
-             // Add initialization timer update
-             let initializationTimer = 0;
-             const initInterval = setInterval(() => {
-                 initializationTimer += 1000;
+             // 简化初始化计时器
+             let initTimer = null;
+             let dots = '';
+             
+             initTimer = setInterval(() => {
                  if (progressStatus && progressStatus.dataset.status === 'initializing') {
-                     let dots = '.'.repeat((initializationTimer / 1000) % 4);
-                     progressStatus.textContent = `Initializing${dots} (${Math.floor(initializationTimer/1000)}s)`;
-                     addLogItem(`[${new Date().toLocaleTimeString()}] File upload and processing in progress, please wait...`);
+                     dots = dots.length >= 3 ? '' : dots + '.';
+                     progressStatus.textContent = `初始化${dots}`;
                      
-                     // After timeout, show a message but don't abort yet
-                     if (initializationTimer >= INIT_TIMEOUT_MS) {
-                         clearInterval(initInterval);
-                         addLogItem(`[${new Date().toLocaleTimeString()}] Still working - large files may take a while. Please be patient.`);
+                     // 避免频繁更新日志
+                     if (Math.floor(Math.random() * 5) === 0) { // 只有20%概率添加日志
+                         addLogItem(`[${new Date().toLocaleTimeString()}] 文件上传和处理中，请稍候...`);
                      }
                  } else {
-                     clearInterval(initInterval);
+                     clearInterval(initTimer);
+                     initTimer = null;
                  }
-             }, 1000);
+             }, 500);
              
              const formData = new FormData(); 
              formData.append('file', fileInput.files[0]);
              const titleFilterInput = document.getElementById('title_text_filter');
              const lineRangeInput = document.getElementById('line_range_filter');
+             
              if (titleFilterInput && titleFilterInput.value) {
                  formData.append('title_text_filter', titleFilterInput.value.trim());
              }
+             
              if (lineRangeInput && lineRangeInput.value) {
                  formData.append('line_range_filter', lineRangeInput.value.trim());
              }
@@ -461,124 +518,173 @@ document.addEventListener('DOMContentLoaded', function() {
              xhr.onprogress = function() {
                  const newText = xhr.responseText.substring(lastCharIndex);
                  lastCharIndex = xhr.responseText.length;
+                 if (!newText) return; // 如果没有新内容，直接返回
+                 
                  const messages = newText.split('\n\n');
-                 messages.forEach(message => {
+                 for (const message of messages) {
                      if (message.startsWith("data: ")) {
                          try {
                              const jsonData = JSON.parse(message.substring(6));
-                             // Get elements again inside to ensure current references
+                             
+                             // 获取需要的DOM元素
                              const currentFullBar = document.getElementById('progress_bar');
                              const currentFullStatus = document.getElementById('progress_status');
                              const currentFullLinkArea = document.getElementById('sse_results_link_area');
                              const currentFullLink = document.getElementById('view_full_results_link');
                              
-                             // Different types of events
-                             if (jsonData.type === 'start') {
-                                 // Clear the initialization interval
-                                 clearInterval(initInterval);
-                                 if(currentFullStatus) currentFullStatus.dataset.status = 'processing';
+                             // 处理事件类型
+                             switch (jsonData.type) {
+                                 case 'init':
+                                     // 初始化事件
+                                     if(currentFullStatus) {
+                                         currentFullStatus.textContent = jsonData.message || '处理上传，请稍候...';
+                                     }
+                                     break;
                                  
-                                 if(currentFullBar) { currentFullBar.style.width = '0%'; currentFullBar.textContent = '0%'; }
-                                 if(currentFullStatus) currentFullStatus.textContent = 'Starting full screening...';
-                                 addLogItem(`[${new Date().toLocaleTimeString()}] Starting to screen ${jsonData.total} items.`);
-                             } else if (jsonData.type === 'progress') {
-                                 // Only update UI if we have these elements
-                                 if(currentFullBar) {
-                                     const percentComplete = jsonData.percentage || Math.floor((jsonData.count / jsonData.total) * 100);
-                                     currentFullBar.style.width = `${percentComplete}%`;
-                                     currentFullBar.textContent = `${percentComplete}%`;
-                                 }
-                                 if(currentFullStatus) currentFullStatus.textContent = `Screening ${jsonData.count} of ${jsonData.total}. Current: ${jsonData.current_item_title}`;
-                                 
-                                 // Potentially display decision info - only add log items if decision is known (skip preparatory events)
-                                 if (jsonData.decision) {
-                                     let decisionClass = "";
-                                     if(jsonData.decision === "INCLUDE") decisionClass = "include";
-                                     else if(jsonData.decision === "EXCLUDE") decisionClass = "exclude";
-                                     else if(jsonData.decision === "MAYBE") decisionClass = "maybe";
-                                     else decisionClass = "error"; // Could add more cases here
+                                 case 'start':
+                                     // 清除初始化计时器
+                                     if (initTimer) {
+                                         clearInterval(initTimer);
+                                         initTimer = null;
+                                     }
                                      
-                                     // Construct log message with color-coded decision class
-                                     const logMessage = `[${new Date().toLocaleTimeString()}] <span class="log-decision-${jsonData.decision}">${jsonData.decision}</span>: ${jsonData.current_item_title}`;
-                                     addLogItem(logMessage);
-                                 }
-                             } else if (jsonData.type === 'complete') {
-                                 if(currentFullBar){ currentFullBar.classList.add('bg-success'); currentFullBar.textContent = "Complete"; }
-                                 if(currentFullStatus) currentFullStatus.textContent = jsonData.message;
-                                 addLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message}`);
-                                 if (jsonData.screening_id && currentFullLink && currentFullLinkArea) {
-                                     let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
-                                     currentFullLink.href = baseUrl.replace('__SCREENING_ID__', jsonData.screening_id);
-                                     currentFullLinkArea.style.display = 'block';
-                                     console.log("Full results link set with ID:", jsonData.screening_id);
-                                 } else { 
-                                     console.warn('Could not set full results link:', {
-                                         screening_id: jsonData.screening_id,
-                                         linkElement: currentFullLink,
-                                         linkAreaElement: currentFullLinkArea
-                                     }); 
-                                 }
-                                 try {
-                                     xhr.abort(); 
-                                 } catch (e) {
-                                     console.warn("Error aborting full screening XHR:", e);
-                                 }
-                                 finalizeButtons();
-                             } else if (jsonData.type === 'error') {
-                                 clearInterval(initInterval);
-                                 if(currentFullBar){ currentFullBar.classList.add('bg-danger'); currentFullBar.textContent = "Error";}
-                                 if(currentFullStatus) currentFullStatus.textContent = `Error: ${jsonData.message}`;
-                                 let errorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
-                                 if (jsonData.needs_config) {
-                                     const configUrl = "{{ url_for('llm_config_page') }}";
-                                     errorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
-                                 }
-                                 addLogItem(errorMessage);
-                                 try {
-                                     xhr.abort();
-                                 } catch (e) {
-                                     console.warn("Error aborting full screening XHR on error:", e);
-                                 }
-                                 finalizeButtons();
+                                     if(currentFullStatus) {
+                                         currentFullStatus.dataset.status = 'processing';
+                                         currentFullStatus.textContent = '开始全量筛选...';
+                                     }
+                                     
+                                     if(currentFullBar) { 
+                                         currentFullBar.style.width = '0%'; 
+                                         currentFullBar.textContent = '0%'; 
+                                     }
+                                     
+                                     addLogItem(`[${new Date().toLocaleTimeString()}] 开始筛选 ${jsonData.total} 个条目。`);
+                                     break;
+                                 
+                                 case 'progress':
+                                     if(currentFullBar) {
+                                         const percentComplete = jsonData.percentage || Math.floor((jsonData.count / jsonData.total) * 100);
+                                         currentFullBar.style.width = `${percentComplete}%`;
+                                         currentFullBar.textContent = `${percentComplete}%`;
+                                     }
+                                     
+                                     if(currentFullStatus) {
+                                         currentFullStatus.textContent = `筛选 ${jsonData.count} / ${jsonData.total}。当前: ${jsonData.current_item_title}`;
+                                     }
+                                     
+                                     // 只有决策已知时才添加日志（跳过准备事件）
+                                     if (jsonData.decision) {
+                                         let decisionClass = "";
+                                         if(jsonData.decision === "INCLUDE") decisionClass = "include";
+                                         else if(jsonData.decision === "EXCLUDE") decisionClass = "exclude";
+                                         else if(jsonData.decision === "MAYBE") decisionClass = "maybe";
+                                         else decisionClass = "error";
+                                         
+                                         // 构造带颜色的决策日志消息
+                                         const logMessage = `[${new Date().toLocaleTimeString()}] <span class="log-decision-${jsonData.decision}">${jsonData.decision}</span>: ${jsonData.current_item_title}`;
+                                         addLogItem(logMessage);
+                                     }
+                                     break;
+                                 
+                                 case 'complete':
+                                     if(currentFullBar) { 
+                                         currentFullBar.classList.add('bg-success'); 
+                                         currentFullBar.textContent = "完成"; 
+                                     }
+                                     
+                                     if(currentFullStatus) {
+                                         currentFullStatus.textContent = jsonData.message || '全量筛选已完成。';
+                                     }
+                                     
+                                     addLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message || '全量筛选已完成。'}`);
+                                     
+                                     if (jsonData.screening_id && currentFullLink && currentFullLinkArea) {
+                                         let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
+                                         currentFullLink.href = baseUrl.replace('__SCREENING_ID__', jsonData.screening_id);
+                                         currentFullLinkArea.style.display = 'block';
+                                     }
+                                     
+                                     try { xhr.abort(); } catch (e) { console.warn("错误中止全量筛选XHR:", e); }
+                                     finalizeButtons();
+                                     break;
+                                 
+                                 case 'error':
+                                     // 清除初始化计时器
+                                     if (initTimer) {
+                                         clearInterval(initTimer);
+                                         initTimer = null;
+                                     }
+                                     
+                                     if(currentFullBar) { 
+                                         currentFullBar.classList.add('bg-danger'); 
+                                         currentFullBar.textContent = "错误"; 
+                                     }
+                                     
+                                     if(currentFullStatus) {
+                                         currentFullStatus.textContent = `错误: ${jsonData.message}`;
+                                     }
+                                     
+                                     let errorMessage = `[${new Date().toLocaleTimeString()}] 错误: ${jsonData.message}`;
+                                     if (jsonData.needs_config) {
+                                         const configUrl = "{{ url_for('llm_config_page') }}";
+                                         errorMessage += ` <a href="${configUrl}" target="_blank">请配置API密钥。</a>`;
+                                     }
+                                     
+                                     addLogItem(errorMessage);
+                                     try { xhr.abort(); } catch (e) { console.warn("错误中止全量筛选XHR:", e); }
+                                     finalizeButtons();
+                                     break;
                              }
-                        } catch (e) { console.error("Full SSE Parse Error:", e, "Original message:", message); finalizeButtons(); }
-                    }
-                });
-            };
-            xhr.onloadend = function() { 
-                console.log("Full XHR onloadend called");
-                clearInterval(initInterval);
-                const currentFullLinkArea = document.getElementById('sse_results_link_area');
-                const currentFullLink = document.getElementById('view_full_results_link');
-                
-                // If we have a screening_id but the link isn't displayed yet, try to display it
-                if (xhr.responseText && xhr.responseText.includes('"screening_id"') && 
-                    currentFullLinkArea && currentFullLinkArea.style.display === 'none') {
-                    try {
-                        // Find the screening_id from the response
-                        const match = xhr.responseText.match(/"screening_id":"([^"]+)"/);
-                        if (match && match[1] && currentFullLink) {
-                            console.log("Found screening ID in response:", match[1]);
-                            let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
-                            currentFullLink.href = baseUrl.replace('__SCREENING_ID__', match[1]);
-                            currentFullLinkArea.style.display = 'block';
+                             
+                        } catch (e) { 
+                            console.error("全量筛选SSE解析错误:", e, "原始消息:", message); 
+                            finalizeButtons(); 
                         }
-                    } catch (e) {
-                        console.error("Error setting up full results link in onloadend:", e);
                     }
-                }
-                
-                finalizeButtons(); 
-            };
-            xhr.onerror = function() { 
-                console.error("Full XHR onerror called"); 
-                clearInterval(initInterval);
-                addLogItem(`[${new Date().toLocaleTimeString()}] Network error occurred during screening.`);
-                finalizeButtons(); 
-            };
-            xhr.send(formData);
+                 }
+             };
+            
+             xhr.onloadend = function() { 
+                 // 清除初始化计时器
+                 if (initTimer) {
+                     clearInterval(initTimer);
+                     initTimer = null;
+                 }
+                 
+                 const currentFullLinkArea = document.getElementById('sse_results_link_area');
+                 const currentFullLink = document.getElementById('view_full_results_link');
+                 
+                 if (xhr.responseText && xhr.responseText.includes('"screening_id"') && 
+                     currentFullLinkArea && currentFullLinkArea.style.display === 'none') {
+                     try {
+                         const match = xhr.responseText.match(/"screening_id":"([^"]+)"/);
+                         if (match && match[1] && currentFullLink) {
+                             let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
+                             currentFullLink.href = baseUrl.replace('__SCREENING_ID__', match[1]);
+                             currentFullLinkArea.style.display = 'block';
+                         }
+                     } catch (e) {
+                         console.error("在onloadend中设置全量筛选结果链接时出错:", e);
+                     }
+                 }
+                 
+                 finalizeButtons(); 
+             };
+            
+             xhr.onerror = function() { 
+                 // 清除初始化计时器
+                 if (initTimer) {
+                     clearInterval(initTimer);
+                     initTimer = null;
+                 }
+                 
+                 addLogItem(`[${new Date().toLocaleTimeString()}] 全量筛选过程中发生网络错误。`);
+                 finalizeButtons(); 
+             };
+             
+             xhr.send(formData);
         }); 
-    } 
+    }
 
 }); 
 </script>
