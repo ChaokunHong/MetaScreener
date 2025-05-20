@@ -20,6 +20,7 @@ import logging # <-- Import logging
 import fitz # PyMuPDF - ADDED for metadata title extraction
 from apscheduler.schedulers.background import BackgroundScheduler # <-- Import APScheduler
 import atexit # <-- To shut down scheduler gracefully
+from datetime import timedelta # ADDED for session lifetime
 
 # --- Configure logging ---
 logging.basicConfig(
@@ -50,6 +51,15 @@ from quality_assessment import quality_bp
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
+
+# Session configuration
+app.config.update(
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=False, # Set to True if your app is served over HTTPS
+    SESSION_COOKIE_HTTPONLY=True,
+    PERMANENT_SESSION_LIFETIME=timedelta(days=7)
+)
+
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'ris'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -190,6 +200,10 @@ def configure_llm():
 
     for msg in flash_messages:
         flash(msg, 'success') # Use 'success' or 'info' based on message type
+
+    # If any key was set or LLM provider/model was changed, mark session as permanent
+    if request.form.get('llm_provider') or any(key.endswith('_api_key') for key in request.form if request.form.get(key)):
+        session.permanent = True
 
     app_logger.debug(f"Session contents after configure_llm: {session}")
     return redirect(url_for('llm_config_page'))
