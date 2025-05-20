@@ -57,14 +57,14 @@ from quality_assessment import quality_bp
 app = Flask(__name__)
 # app.secret_key = os.urandom(24) # Old way
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'e8a3f2c9b7d5e6a1c3b8d7e9f0a2b5c7d8e9f1a3b6c8d0e2') # New way with example key
-
-# Session configuration
 app.config.update(
     SESSION_COOKIE_SAMESITE='Lax',
     SESSION_COOKIE_SECURE=False, # Set to True if your app is served over HTTPS
     SESSION_COOKIE_HTTPONLY=True,
-    PERMANENT_SESSION_LIFETIME=timedelta(days=7)
+    PERMANENT_SESSION_LIFETIME=timedelta(days=7),
+    REDIS_URL=os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 )
+redis_client.init_app(app)
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'ris'}
@@ -75,6 +75,52 @@ full_screening_sessions = {} # ADDED: For holding full screening results tempora
 pdf_screening_results = TTLCache(maxsize=500, ttl=7200)
 pdf_extraction_results = {} # ADDED: For extraction results
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Redis会话管理函数
+def store_test_session(session_id, data):
+    try:
+        redis_client.set(f"test_session:{session_id}", pickle.dumps(data), ex=3600)
+    except Exception as e:
+        app_logger.warning(f"Redis error in store_test_session: {e}")
+    # 本地也存一份，兼容本地开发
+    test_sessions[session_id] = data
+
+def get_test_session(session_id):
+    try:
+        data = redis_client.get(f"test_session:{session_id}")
+        if data:
+            return pickle.loads(data)
+    except Exception as e:
+        app_logger.warning(f"Redis error in get_test_session: {e}")
+    # 回退到内存存储
+    return test_sessions.get(session_id)
+
+def delete_test_session(session_id):
+    try:
+        redis_client.delete(f"test_session:{session_id}")
+    except Exception as e:
+        app_logger.warning(f"Redis error in delete_test_session: {e}")
+    # 同时从内存中删除
+    if session_id in test_sessions:
+        del test_sessions[session_id]
+
+def store_full_screening_session(screening_id, data):
+    try:
+        redis_client.set(f"full_screening:{screening_id}", pickle.dumps(data), ex=3600)
+    except Exception as e:
+        app_logger.warning(f"Redis error in store_full_screening_session: {e}")
+    # 本地也存一份
+    full_screening_sessions[screening_id] = data
+
+def get_full_screening_session(screening_id):
+    try:
+        data = redis_client.get(f"full_screening:{screening_id}")
+        if data:
+            return pickle.loads(data)
+    except Exception as e:
+        app_logger.warning(f"Redis error in get_full_screening_session: {e}")
+    # 回退到内存存储
+    return full_screening_sessions.get(screening_id)
 
 # Initialize ThreadPoolExecutor
 # Adjust max_workers based on your server capacity and typical workload
