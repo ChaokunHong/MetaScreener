@@ -811,28 +811,24 @@ def generate_progress_events(total_items, items_iterator_func):
 
 @app.route('/stream_screen_file', methods=['POST'])
 def stream_screen_file():
-    if 'file' not in request.files: return Response(f"data: {json.dumps({'type': 'error', 'message': 'No file part.'})}\n\n", mimetype='text/event-stream')
+    if 'file' not in request.files: return Response(f"data: {json.dumps({'type': 'error', 'message': 'No file part.'})}\\n\\n", mimetype='text/event-stream')
     file = request.files['file']
-    if file.filename == '' or not allowed_file(file.filename): return Response(f"data: {json.dumps({'type': 'error', 'message': 'No selected/invalid file.'})}\n\n", mimetype='text/event-stream')
+    if file.filename == '' or not allowed_file(file.filename): return Response(f"data: {json.dumps({'type': 'error', 'message': 'No selected/invalid file.'})}\\n\\n", mimetype='text/event-stream')
 
-    # --- NEW: Get filter inputs from form ---
     line_range_input = request.form.get('line_range_filter', '').strip()
     title_filter_input = request.form.get('title_text_filter', '').strip()
-    # --- END NEW ---
 
     try:
         df = load_literature_ris(file.stream)
-        if df is None or df.empty: return Response(f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\n\n", mimetype='text/event-stream')
+        if df is None or df.empty: return Response(f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\\n\\n", mimetype='text/event-stream')
         
-        # Ensure essential columns exist, and fill if not
-        if 'abstract' not in df.columns: return Response(f"data: {json.dumps({'type': 'error', 'message': 'RIS missing abstract.'})}\n\n", mimetype='text/event-stream')
+        if 'abstract' not in df.columns: return Response(f"data: {json.dumps({'type': 'error', 'message': 'RIS missing abstract.'})}\\n\\n", mimetype='text/event-stream')
         if 'title' not in df.columns: df['title'] = pd.Series(["Title Not Found"] * len(df))
         else: df['title'] = df['title'].fillna("Title Not Found")
         if 'authors' not in df.columns: df['authors'] = pd.Series([[] for _ in range(len(df))])
         else: df['authors'] = df['authors'].apply(lambda x: x if isinstance(x, list) else [])
 
-        # --- NEW: Apply filters ---
-        df_for_screening = df.copy()  # Operate on a copy
+        df_for_screening = df.copy()
         original_df_count = len(df)
         filter_description = "all entries"
 
@@ -843,17 +839,16 @@ def stream_screen_file():
             if df_for_screening.empty:
                 message = f'No articles found matching title: "{title_filter_input}"'
                 return Response(
-                    f"data: {json.dumps({'type': 'error', 'message': message})}\n\n",
+                    f"data: {json.dumps({'type': 'error', 'message': message})}\\n\\n",
                     mimetype='text/event-stream'
                 )
-
         elif line_range_input:
             try:
                 start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                 if start_idx >= end_idx:
                     message = f'The range "{line_range_input}" is invalid or results in no articles.'
                     return Response(
-                        f"data: {json.dumps({'type': 'error', 'message': message})}\n\n",
+                        f"data: {json.dumps({'type': 'error', 'message': message})}\\n\\n",
                         mimetype='text/event-stream'
                     )
                 df_for_screening = df_for_screening.iloc[start_idx:end_idx]
@@ -861,147 +856,163 @@ def stream_screen_file():
                 if df_for_screening.empty:
                     message = f'The range "{line_range_input}" resulted in no articles to screen.'
                     return Response(
-                        f"data: {json.dumps({'type': 'error', 'message': message})}\n\n",
+                        f"data: {json.dumps({'type': 'error', 'message': message})}\\n\\n",
                         mimetype='text/event-stream'
                     )
             except ValueError as e:
                 message = f'Invalid range format for "{line_range_input}": {str(e)}'
                 return Response(
-                    f"data: {json.dumps({'type': 'error', 'message': message})}\n\n",
+                    f"data: {json.dumps({'type': 'error', 'message': message})}\\n\\n",
                     mimetype='text/event-stream'
                 )
 
         total_entries_to_screen = len(df_for_screening)
         if total_entries_to_screen == 0:
             return Response(
-                f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\n\n",
+                f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\\n\\n",
                 mimetype='text/event-stream'
             )
-        # --- END NEW ---
 
         criteria_prompt_text = get_screening_criteria()
-        # total_entries = len(df) # OLD, using total_entries_to_screen now
         current_llm_config_data = get_current_llm_config(session)
         provider_name = current_llm_config_data['provider_name']
         model_id = current_llm_config_data['model_id']
         base_url = get_base_url_for_provider(provider_name)
         provider_info = get_llm_providers_info().get(provider_name, {})
-        # Corrected access to api_key_session_key based on actual structure from config.py
-        session_key_name = provider_info.get("api_key_session_key") 
+        session_key_name = provider_info.get("api_key_session_key")
         api_key = session.get(session_key_name) if session_key_name else None
 
         if not api_key:
             error_message = f"API Key for {provider_name} must be provided via the configuration form for this session."
-            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\n\n", mimetype='text/event-stream')
+            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\\n\\n", mimetype='text/event-stream')
 
         screening_id = str(uuid.uuid4())
         original_filename = file.filename
 
-        # --- Refactored generator for Full Screening SSE --- 
-        # MODIFIED: Pass df_for_screening and total_entries_to_screen to the generator
-        def generate_full_screening_progress(df_to_process, num_total_items, current_filter_desc):
+        def generate_full_screening_progress(df_to_process, num_total_items, current_filter_desc, 
+                                             original_filename_param, screening_id_param, 
+                                             criteria_prompt_text_param, provider_name_param, model_id_param, api_key_param, base_url_param):
+            app_logger.info(f"FULL SSE STREAM: Entered generate_full_screening_progress. Screening ID: {screening_id_param}, Total items: {num_total_items}, Filter: {current_filter_desc}")
             processed_count = 0
-            # SSE 'start' event with the count of items TO BE SCREENED
-            yield f"data: {json.dumps({'type': 'start', 'total': num_total_items, 'filter_info': current_filter_desc})}\n\n"
-            temp_results_list = []
-            futures_map = {}
+            log_decision_reason = ""
+            try:
+                app_logger.info(f"FULL SSE STREAM ({screening_id_param}): About to yield 'start' event.")
+                yield f"data: {json.dumps({'type': 'start', 'total': num_total_items, 'filter_info': current_filter_desc})}\\n\\n"
+                app_logger.info(f"FULL SSE STREAM ({screening_id_param}): Successfully yielded 'start' event.")
+                temp_results_list = []
+                futures_map = {}
 
-            with ThreadPoolExecutor(max_workers=8) as executor:
-                # Iterate over the (potentially filtered) DataFrame
-                for index, row in df_to_process.iterrows(): # MODIFIED: use df_to_process
-                    abstract = row.get('abstract')
-                    future = executor.submit(
-                        _perform_screening_on_abstract,
-                        abstract, criteria_prompt_text,
-                        provider_name, model_id, api_key, base_url
-                    )
-                    futures_map[future] = {'index': index, 'row': row}
+                with ThreadPoolExecutor(max_workers=8) as executor:
+                    app_logger.debug(f"FULL SSE STREAM ({screening_id_param}): ThreadPoolExecutor started. Submitting {len(df_to_process)} items.")
+                    for index_val_loop, row_loop in df_to_process.iterrows(): # Renamed loop variables
+                        abstract = row_loop.get('abstract')
+                        future = executor.submit(
+                            _perform_screening_on_abstract,
+                            abstract, criteria_prompt_text_param, 
+                            provider_name_param, model_id_param, api_key_param, base_url_param
+                        )
+                        futures_map[future] = {'original_index_val': index_val_loop, 'row_data_val': row_loop} # Use new names for keys
+                    app_logger.debug(f"FULL SSE STREAM ({screening_id_param}): All {len(futures_map)} items submitted to executor.")
 
-                # Process futures as they complete
-                for future in as_completed(futures_map):
-                    original_data = futures_map[future]
-                    index = original_data['index']
-                    row = original_data['row']
-                    title = row.get('title', "N/A")
-                    authors_list = row.get('authors', [])
-                    authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
+                    for i, future_item in enumerate(as_completed(futures_map)):
+                        log_decision_reason = "Processing..."
+                        app_logger.debug(f"FULL SSE STREAM ({screening_id_param}): Future {i+1}/{len(futures_map)} completed.")
+                        original_data = futures_map[future_item]
+                        index_val = original_data['original_index_val'] 
+                        row_data = original_data['row_data_val']
+                        title = row_data.get('title', "N/A")
+                        authors_list = row_data.get('authors', [])
+                        authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
 
-                    try:
-                        screening_result = future.result()
-                        if screening_result['decision'] == "CONFIG_ERROR":
-                            raise Exception(f"CONFIG_ERROR from worker: {screening_result['reasoning']}")
+                        try:
+                            screening_result = future_item.result()
+                            log_decision_reason = f"Decision: {screening_result.get('decision', 'N/A')}, Reasoning: {screening_result.get('reasoning', 'N/A')}"
+                            if screening_result['decision'] == "CONFIG_ERROR":
+                                app_logger.error(f"FULL SSE STREAM ({screening_id_param}): CONFIG_ERROR for item (original index {index_val}): {screening_result['reasoning']}")
+                                raise Exception(f"CONFIG_ERROR from worker: {screening_result['reasoning']}")
 
-                        processed_count += 1
-                        progress_percentage = int((processed_count / num_total_items) * 100) if num_total_items > 0 else 0
-                        output_data = {
-                            'index': index + 1, 'title': title, 'authors': authors_str,
-                            'decision': screening_result['decision'], 'reasoning': screening_result['reasoning']
-                        }
-                        temp_results_list.append(output_data)
-                        progress_event = {
-                            'type': 'progress', 'count': processed_count, 'total': num_total_items,
-                            'percentage': progress_percentage, 'current_item_title': title,
-                            'decision': screening_result['decision']
-                        }
-                        yield f"data: {json.dumps(progress_event)}\n\n"
+                            processed_count += 1
+                            progress_percentage = int((processed_count / num_total_items) * 100) if num_total_items > 0 else 0
+                            output_data = {
+                                'index': index_val + 1, 'title': title, 'authors': authors_str,
+                                'decision': screening_result['decision'], 'reasoning': screening_result['reasoning']
+                            }
+                            temp_results_list.append(output_data)
+                            progress_event = {
+                                'type': 'progress', 'count': processed_count, 'total': num_total_items,
+                                'percentage': progress_percentage, 'current_item_title': title,
+                                'decision': screening_result['decision']
+                            }
+                            app_logger.debug(f"FULL SSE STREAM ({screening_id_param}): About to yield 'progress' event for item {processed_count}/{num_total_items}. {log_decision_reason}")
+                            yield f"data: {json.dumps(progress_event)}\\n\\n"
+                            app_logger.debug(f"FULL SSE STREAM ({screening_id_param}): Successfully yielded 'progress' event for item {processed_count}.")
 
-                    except Exception as e:
-                        processed_count += 1 # Still increment for progress tracking
-                        progress_percentage = int((processed_count / num_total_items) * 100) if num_total_items > 0 else 0
-                        error_message_text_item = f"Error processing item '{title[:30]}...': {e}"
-                        app_logger.error(f"Error processing item (original index {index}): {e}")
-                        # traceback.print_exc() # app_logger.error with exc_info=True or logger.exception would be better if full trace needed here
-                        progress_event_data = {
-                            'type': 'progress', 'count': processed_count, 'total': num_total_items,
-                            'percentage': progress_percentage, 'current_item_title': title,
-                            'decision': 'ITEM_ERROR', # Keep this simple for the event
-                            'error_detail': error_message_text_item # Optionally send detail if frontend can use it
-                        }
-                        yield f"data: {json.dumps(progress_event_data)}\n\n"
-                        # Optionally, add a placeholder to temp_results_list for this error
-                        temp_results_list.append({
-                            'index': index + 1, 'title': title, 'authors': authors_str,
-                            'decision': 'ITEM_ERROR', 'reasoning': str(e)
-                        })
+                        except Exception as e_item:
+                            processed_count += 1
+                            progress_percentage = int((processed_count / num_total_items) * 100) if num_total_items > 0 else 0
+                            error_message_text_item = f"Error processing item '{title[:30]}...': {str(e_item)}"
+                            log_decision_reason = f"ITEM_ERROR: {error_message_text_item}"
+                            app_logger.error(f"FULL SSE STREAM ({screening_id_param}): {error_message_text_item} (original index {index_val})", exc_info=False)
+                            progress_event_data = {
+                                'type': 'progress', 'count': processed_count, 'total': num_total_items,
+                                'percentage': progress_percentage, 'current_item_title': title,
+                                'decision': 'ITEM_ERROR',
+                                'error_detail': error_message_text_item 
+                            }
+                            app_logger.debug(f"FULL SSE STREAM ({screening_id_param}): About to yield 'progress' (ITEM_ERROR) event for item {processed_count}/{num_total_items}. {log_decision_reason}")
+                            yield f"data: {json.dumps(progress_event_data)}\\n\\n"
+                            app_logger.debug(f"FULL SSE STREAM ({screening_id_param}): Successfully yielded 'progress' (ITEM_ERROR) event.")
+                            temp_results_list.append({
+                                'index': index_val + 1, 'title': title, 'authors': authors_str,
+                                'decision': 'ITEM_ERROR', 'reasoning': str(e_item)
+                            })
+                app_logger.info(f"FULL SSE STREAM ({screening_id_param}): All futures processed.")
+                temp_results_list.sort(key=lambda x: x.get('index', float('inf')))
 
-            # After loop, store results in global dict
-            temp_results_list.sort(key=lambda x: x.get('index', float('inf')))
-            
-            # Always create client_results, ensure 'results' is a list (possibly empty)
-            client_results = {
-                'filename': original_filename,
-                'results': temp_results_list if temp_results_list else [], # Ensure 'results' is a list
-                'filter_applied': current_filter_desc,
-                'timestamp': datetime.datetime.now().isoformat()
-            }
-
-            if temp_results_list: # Only store in server session if there are actual results
-                full_screening_sessions[screening_id] = {
-                    'filename': original_filename, 
-                    'results': temp_results_list,
-                    'filter_applied': current_filter_desc, # Store filter info with results
-                    'timestamp': datetime.datetime.now().isoformat()  # Add timestamp for debugging
+                client_results = {
+                    'filename': original_filename_param,
+                    'results': temp_results_list if temp_results_list else [],
+                    'filter_applied': current_filter_desc,
+                    'timestamp': datetime.datetime.now().isoformat()
                 }
-            # else: # Optional: could store a placeholder for empty screenings if server-side tracking is needed
-            #     full_screening_sessions[screening_id] = {
-            #         'filename': original_filename,
-            #         'results': [],
-            #         'filter_applied': current_filter_desc,
-            #         'timestamp': datetime.datetime.now().isoformat(),
-            #         'status': 'completed_empty' # Example status
-            #     }
-            
-            # Send completion event
-            yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id, 'client_results': client_results})}\n\n"
 
-        # Return the Response using the new generator    
-        # MODIFIED: Pass df_for_screening, total_entries_to_screen, and filter_description
-        return Response(generate_full_screening_progress(df_for_screening, total_entries_to_screen, filter_description), mimetype='text/event-stream')
+                if temp_results_list:
+                    full_screening_sessions[screening_id_param] = {
+                        'filename': original_filename_param,
+                        'results': temp_results_list,
+                        'filter_applied': current_filter_desc,
+                        'timestamp': datetime.datetime.now().isoformat()
+                    }
+                
+                app_logger.info(f"FULL SSE STREAM ({screening_id_param}): Processing complete. About to yield 'complete' event.")
+                yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id_param, 'client_results': client_results})}\\n\\n"
+                app_logger.info(f"FULL SSE STREAM ({screening_id_param}): Successfully yielded 'complete' event.")
+
+            except GeneratorExit:
+                app_logger.info(f"FULL SSE STREAM ({screening_id_param}): GeneratorExit caught. Client likely disconnected.")
+            except Exception as e_gen:
+                app_logger.error(f"FULL SSE STREAM ({screening_id_param}): Exception in generator: {str(e_gen)}", exc_info=True)
+            finally:
+                app_logger.info(f"FULL SSE STREAM ({screening_id_param}): Exiting generate_full_screening_progress function.")
+
+        app_logger.info(f"STREAM_SCREEN_FILE: Calling generate_full_screening_progress for SID: {screening_id}")
+        return Response(generate_full_screening_progress(
+            df_for_screening, 
+            total_entries_to_screen, 
+            filter_description,
+            original_filename,
+            screening_id,
+            criteria_prompt_text,
+            provider_name,
+            model_id,
+            api_key,
+            base_url
+        ), mimetype='text/event-stream')
     
     except Exception as e:
         app_logger.exception("Server error before full streaming")
         error_message_text_server = f'Server error before full streaming: {str(e)}'
-        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text_server})}\n\n", mimetype='text/event-stream')
+        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text_server})}\\n\\n", mimetype='text/event-stream')
 
 
 @app.route('/show_screening_results/<screening_id>', endpoint='show_screening_results') 
@@ -1054,34 +1065,31 @@ def show_screening_results(screening_id):
 def stream_test_screen_file():
     if 'file' not in request.files:
         error_message_text = 'No file part.'
-        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
+        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
 
-    file = request.files['file']
-    if file.filename == '' or not allowed_file(file.filename):
+    file_obj = request.files['file'] # Renamed to avoid conflict with 'file' module if imported by user
+    if file_obj.filename == '' or not allowed_file(file_obj.filename):
         error_message_text = 'No selected/invalid file.'
-        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
+        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
 
-    # --- Get ALL form fields first, ensuring they are defined before the main try block ---
     try:
         sample_size_str = request.form.get('sample_size', '10') 
         sample_size = int(sample_size_str)
         sample_size = max(5, min(9999, sample_size)) 
     except ValueError: 
-        sample_size = 10 # Default if conversion fails
+        sample_size = 10
     
-    # These must be defined at this level to be accessible in the subsequent try block's main logic
     line_range_input = request.form.get('line_range_filter', '').strip()
     title_filter_input = request.form.get('title_text_filter', '').strip()
-    # --- Form fields are now defined ---
     
     try: 
-        df = load_literature_ris(file.stream)
+        df = load_literature_ris(file_obj.stream)
         if df is None or df.empty:
             error_message_text = 'Failed to load RIS or file empty.'
-            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
+            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
         if 'abstract' not in df.columns:
             error_message_text = 'RIS missing abstract column.'
-            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
+            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
         df['title'] = df.get('title', pd.Series(["Title Not Found"] * len(df))).fillna("Title Not Found")
         df['authors'] = df.get('authors', pd.Series([[] for _ in range(len(df))]))
         df['authors'] = df['authors'].apply(lambda x: x if isinstance(x, list) else [])
@@ -1096,32 +1104,32 @@ def stream_test_screen_file():
             filter_description = f"entries matching title '{title_filter_input}'"
             if df_for_sampling.empty:
                 msg = f'No articles found matching title: "{title_filter_input}" to sample from.'
-                return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n", mimetype='text/event-stream')
+                return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\\n\\n", mimetype='text/event-stream')
         
         elif line_range_input:
             try:
                 start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                 if start_idx >= end_idx:
                     msg = f'The range "{line_range_input}" is invalid or results in no articles to sample from.'
-                    return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n", mimetype='text/event-stream')
+                    return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\\n\\n", mimetype='text/event-stream')
                 df_for_sampling = df_for_sampling.iloc[start_idx:end_idx]
                 filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
                 if df_for_sampling.empty:
                     msg = f'The range "{line_range_input}" resulted in no articles to sample from.'
-                    return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n", mimetype='text/event-stream')
+                    return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\\n\\n", mimetype='text/event-stream')
             except ValueError as e:
                 msg = f'Invalid range format for "{line_range_input}": {str(e)}'
-                return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n", mimetype='text/event-stream')
+                return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\\n\\n", mimetype='text/event-stream')
         
         if df_for_sampling.empty:
-             return Response(f"data: {json.dumps({'type': 'error', 'message': 'No articles found after applying filters to sample from.'})}\n\n", mimetype='text/event-stream')
+             return Response(f"data: {json.dumps({'type': 'error', 'message': 'No articles found after applying filters to sample from.'})}\\n\\n", mimetype='text/event-stream')
 
         sample_df = df_for_sampling.head(min(sample_size, len(df_for_sampling)))
         actual_sample_size = len(sample_df)
         # --- END NEW ---
 
         if actual_sample_size == 0:
-             return Response(f"data: {json.dumps({'type': 'error', 'message': 'No entries found in the file to sample (after filters if any).'})}\n\n", mimetype='text/event-stream')
+             return Response(f"data: {json.dumps({'type': 'error', 'message': 'No entries found in the file to sample (after filters if any).'})}\\n\\n", mimetype='text/event-stream')
 
         criteria_prompt_text = get_screening_criteria()
         current_llm_config_data = get_current_llm_config(session)
@@ -1135,7 +1143,7 @@ def stream_test_screen_file():
 
         if not api_key:
             error_message = f"API Key for {provider_name} must be provided via the configuration form for this session."
-            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\n\n", mimetype='text/event-stream')
+            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\\n\\n", mimetype='text/event-stream')
 
         session_id = str(uuid.uuid4())
         test_sessions[session_id] = {
@@ -1148,7 +1156,7 @@ def stream_test_screen_file():
 
         def generate_test_progress(current_sample_df, num_actual_sample_items, current_filter_desc):
             processed_count = 0
-            yield f"data: {json.dumps({'type': 'start', 'total': num_actual_sample_items, 'filter_info': current_filter_desc})}\n\n"
+            yield f"data: {json.dumps({'type': 'start', 'total': num_actual_sample_items, 'filter_info': current_filter_desc})}\\n\\n"
             temp_results_list = []
             futures_map = {}
             
@@ -1190,7 +1198,7 @@ def stream_test_screen_file():
                             'percentage': progress_percentage, 'current_item_title': title,
                             'decision': screening_result['decision']
                         }
-                        yield f"data: {json.dumps(progress_data)}\n\n"
+                        yield f"data: {json.dumps(progress_data)}\\n\\n"
 
                     except Exception as e:
                         processed_count += 1
@@ -1204,7 +1212,7 @@ def stream_test_screen_file():
                              'decision': 'ITEM_ERROR', 
                              'error_detail': error_message_text_item_test # Optionally send detail
                          }
-                        yield f"data: {json.dumps(progress_data)}\n\n"
+                        yield f"data: {json.dumps(progress_data)}\\n\\n"
                         temp_results_list.append({
                             'id': str(uuid.uuid4()), 'original_index': index, 'title': title,
                             'authors': authors_str, 'abstract': abstract_text,
@@ -1224,14 +1232,14 @@ def stream_test_screen_file():
                     'timestamp': datetime.datetime.now().isoformat()
                  }
                  
-            yield f"data: {json.dumps({'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id, 'client_results': client_results})}\n\n"
+            yield f"data: {json.dumps({'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id, 'client_results': client_results})}\\n\\n"
 
         return Response(generate_test_progress(sample_df, actual_sample_size, filter_description), mimetype='text/event-stream')
 
     except Exception as e: 
         app_logger.exception("Server error during test streaming processing")
         error_message_text_server_test = f'Server error during test streaming processing: {str(e)}'
-        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text_server_test})}\n\n", mimetype='text/event-stream')
+        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text_server_test})}\\n\\n", mimetype='text/event-stream')
 
 
 # --- New Route to Show Test Results ---
@@ -1647,7 +1655,7 @@ def batch_screen_pdfs_stream():
     if not uploaded_files or all(f.filename == '' for f in uploaded_files):
         app_logger.warning("Batch PDF Stream: No files were uploaded or all files are empty.")
         error_message_text = 'No PDF files uploaded or all files are empty.'
-        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
+        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
 
     initial_manifest = []
     for idx, file_storage_object in enumerate(uploaded_files):
@@ -1663,7 +1671,7 @@ def batch_screen_pdfs_stream():
     if not initial_manifest:
         app_logger.warning("Batch PDF Stream: No valid files found in upload.")
         error_message_text = 'No valid PDF files found in upload.'
-        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
+        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
 
     app_logger.info(f"Batch PDF Stream: Initially {len(initial_manifest)} files uploaded.")
     app_logger.info(f"Batch PDF Stream: Title filter: '{title_filter_input}', Order filter: '{order_filter_input}'")
@@ -1683,7 +1691,7 @@ def batch_screen_pdfs_stream():
             app_logger.info(f"Batch PDF Stream: No files matched title filter '{title_filter_input}'.")
             error_message_text = f'No PDF files found matching filename filter: "{title_filter_input}"'
             return Response(
-                f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n",
+                f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n",
                 mimetype='text/event-stream'
             )
             
@@ -1695,7 +1703,7 @@ def batch_screen_pdfs_stream():
             if start_idx_0_based >= end_idx_0_based_exclusive:
                 app_logger.info(f"Batch PDF Stream: Order filter range '{order_filter_input}' is invalid or results in no files.")
                 error_message_text = f'The order filter range "{order_filter_input}" is invalid or results in no files.' # Corrected
-                return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
+                return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
 
             files_to_process_manifest = files_to_process_manifest[start_idx_0_based:end_idx_0_based_exclusive]
             filter_description = f"files by order range [{start_idx_0_based+1}-{end_idx_0_based_exclusive}]"
@@ -1703,18 +1711,18 @@ def batch_screen_pdfs_stream():
             if not files_to_process_manifest:
                 app_logger.info(f"Batch PDF Stream: No files matched order filter '{order_filter_input}'.")
                 error_message_text = 'No PDF files found for the specified order range.' # Corrected
-                return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
+                return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
         
         except ValueError as e:
             app_logger.warning(f"Batch PDF Stream: Invalid order filter format '{order_filter_input}': {e}")
             error_message_text = f'Invalid format for order filter "{order_filter_input}": {str(e)}' # Corrected
-            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
+            return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
 
     total_files_to_process = len(files_to_process_manifest)
     if total_files_to_process == 0 and (title_filter_input or order_filter_input):
         app_logger.info("Batch PDF Stream: No files selected for processing after filters.")
         error_message_text = 'No PDF files selected for processing after applying filters.' # Corrected
-        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n", mimetype='text/event-stream')
+        return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
 
     app_logger.info(f"Batch PDF Stream: {total_files_to_process} file(s) selected. Filter applied: {filter_description}")
     selected_filenames_log = [item['original_filename'] for item in files_to_process_manifest]
@@ -1734,13 +1742,13 @@ def batch_screen_pdfs_stream():
             app_logger.error("Batch PDF Stream: API Key missing in session for the selected LLM provider.")
             def sse_error_gen():
                 error_message_text = f'API Key for {llm_provider_name} must be provided via configuration.' # Corrected
-                yield f"data: {json.dumps({'type': 'error', 'message': error_message_text, 'needs_config': True})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': error_message_text, 'needs_config': True})}\\n\\n"
             return Response(sse_error_gen(), mimetype='text/event-stream')
     except Exception as e_config:
         app_logger.exception("Batch PDF Stream: Error fetching LLM/Criteria configuration.")
         def sse_config_error_gen():
             error_message_text = f'Error fetching LLM/Criteria configuration: {str(e_config)}' # Corrected
-            yield f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n"
         return Response(sse_config_error_gen(), mimetype='text/event-stream')
     
     upload_folder_path = app.config['UPLOAD_FOLDER']
@@ -1770,12 +1778,12 @@ def batch_screen_pdfs_stream():
         app_logger.warning("Batch PDF Stream: No files were successfully pre-saved for processing.")
         def sse_presave_error_gen(): 
             error_message_text = 'Failed to prepare any files for batch processing.' # Corrected
-            yield f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n"
         return Response(sse_presave_error_gen(), mimetype='text/event-stream')
 
     total_files_to_process = len(files_ready_for_threads) 
     def generate_processing_progress():
-        yield f"data: {json.dumps({'type': 'start', 'total_uploaded': len(initial_manifest), 'total_to_process': total_files_to_process, 'filter_info': filter_description})}\n\n"
+        yield f"data: {json.dumps({'type': 'start', 'total_uploaded': len(initial_manifest), 'total_to_process': total_files_to_process, 'filter_info': filter_description})}\\n\\n"
         processed_files_results = []
         futures_map = {}
         with ThreadPoolExecutor(max_workers=4) as executor:
@@ -1800,7 +1808,7 @@ def batch_screen_pdfs_stream():
                     screening_result = future.result() # This result dict should now include original_index
                     processed_files_results.append(screening_result)
                     processed_count += 1
-                    yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total_to_process': total_files_to_process, 'percentage': int((processed_count / total_files_to_process) * 100), 'current_file_name': screening_result.get('filename', original_filename_for_log), 'decision': screening_result.get('decision', 'ERROR')})}\n\n"
+                    yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total_to_process': total_files_to_process, 'percentage': int((processed_count / total_files_to_process) * 100), 'current_file_name': screening_result.get('filename', original_filename_for_log), 'decision': screening_result.get('decision', 'ERROR')})}\\n\\n"
                 except Exception as e_future:
                     processed_count += 1 
                     app_logger.error(f"Batch PDF: Exception processing future for {original_filename_for_log}: {e_future}")
@@ -1811,7 +1819,7 @@ def batch_screen_pdfs_stream():
                         'decision': 'WORKER_THREAD_ERROR',
                         'reasoning': str(e_future)
                     })
-                    yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total_to_process': total_files_to_process, 'percentage': int((processed_count / total_files_to_process) * 100), 'current_file_name': original_filename_for_log, 'decision': 'WORKER_THREAD_ERROR'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total_to_process': total_files_to_process, 'percentage': int((processed_count / total_files_to_process) * 100), 'current_file_name': original_filename_for_log, 'decision': 'WORKER_THREAD_ERROR'})}\\n\\n"
         
         # --- NEW: Sort results by original_index before storing --- 
         processed_files_results.sort(key=lambda x: x.get('original_index', float('inf')))
@@ -1828,7 +1836,7 @@ def batch_screen_pdfs_stream():
             app_logger.info(f"Batch PDF Stream: Stored {len(processed_files_results)} results under batch ID {batch_session_id}")
         else:
             app_logger.warning("Batch PDF Stream: No results were processed or collected.")
-        yield f"data: {json.dumps({'type': 'complete', 'message': 'Batch PDF processing finished.', 'batch_session_id': batch_session_id if processed_files_results else None})}\n\n"
+        yield f"data: {json.dumps({'type': 'complete', 'message': 'Batch PDF processing finished.', 'batch_session_id': batch_session_id if processed_files_results else None})}\\n\\n"
         app_logger.info(f"Batch PDF stream: Processing SSE finished. Batch ID: {batch_session_id if processed_files_results else 'N/A'}")
     return Response(generate_processing_progress(), mimetype='text/event-stream')
 
