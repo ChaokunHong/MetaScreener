@@ -16,10 +16,74 @@
     .clear-input-btn:hover {
         opacity: 1;
     }
+    /* 添加恢复链接样式 */
+    .recover-link {
+        margin-top: 10px;
+        padding: 8px 12px;
+        background-color: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        display: none;
+    }
+    .recover-link a {
+        font-weight: bold;
+        text-decoration: underline;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
+{# --- 添加恢复上次筛选结果链接 --- #}
+<div id="recover_results_container">
+    <div id="recover_full_results_area" class="recover-link">
+        <i class="fas fa-history"></i> 您有未查看的完整筛选结果：
+        <a href="#" id="recover_full_results_link">查看上次完整筛选结果</a>
+    </div>
+    <div id="recover_test_results_area" class="recover-link">
+        <i class="fas fa-history"></i> 您有未查看的测试筛选结果：
+        <a href="#" id="recover_test_results_link">查看上次测试筛选结果</a>
+    </div>
+</div>
+
+{# --- 添加高级功能面板 --- #}
+<div class="card mb-3">
+    <div class="card-header">
+        <a class="btn btn-link text-dark p-0" data-toggle="collapse" href="#advancedFeaturesCollapse" role="button">
+            <i class="fas fa-cog"></i> 高级功能 <small>(点击展开)</small>
+        </a>
+    </div>
+    <div class="collapse" id="advancedFeaturesCollapse">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>手动访问筛选结果</h5>
+                    <div class="form-group">
+                        <label for="manual_screening_id">输入筛选ID (screening_id):</label>
+                        <div class="input-group">
+                            <input type="text" id="manual_screening_id" class="form-control form-control-sm" placeholder="例如: 12345678-1234-5678-1234-567812345678">
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary btn-sm" type="button" id="go_to_screening_results">访问</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5>手动访问测试结果</h5>
+                    <div class="form-group">
+                        <label for="manual_test_session_id">输入测试会话ID (session_id):</label>
+                        <div class="input-group">
+                            <input type="text" id="manual_test_session_id" class="form-control form-control-sm" placeholder="例如: 12345678-1234-5678-1234-567812345678">
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary btn-sm" type="button" id="go_to_test_results">访问</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {# --- Test Screening Section --- #}
 <div class="section-card">
     <h2>Test Screening (Sampled Abstracts)</h2>
@@ -190,6 +254,47 @@ function clearInput(inputId) {
     }
 }
 
+// 检查是否有上次的筛选结果
+function checkForPreviousResults() {
+    // 检查完整筛选结果
+    const lastScreeningId = localStorage.getItem('last_screening_id');
+    const recoverFullArea = document.getElementById('recover_full_results_area');
+    const recoverFullLink = document.getElementById('recover_full_results_link');
+    
+    if (lastScreeningId && recoverFullArea && recoverFullLink) {
+        let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
+        recoverFullLink.href = baseUrl.replace('__SCREENING_ID__', lastScreeningId);
+        recoverFullArea.style.display = 'block';
+        
+        // 添加点击事件，点击后清除本地存储的ID
+        recoverFullLink.addEventListener('click', function() {
+            setTimeout(() => {
+                localStorage.removeItem('last_screening_id');
+                recoverFullArea.style.display = 'none';
+            }, 1000); // 给用户时间点击链接后再移除
+        });
+    }
+    
+    // 检查测试筛选结果
+    const lastTestSessionId = localStorage.getItem('last_test_session_id');
+    const recoverTestArea = document.getElementById('recover_test_results_area');
+    const recoverTestLink = document.getElementById('recover_test_results_link');
+    
+    if (lastTestSessionId && recoverTestArea && recoverTestLink) {
+        let testBaseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
+        recoverTestLink.href = testBaseUrl.replace('__SESSION_ID__', lastTestSessionId);
+        recoverTestArea.style.display = 'block';
+        
+        // 添加点击事件，点击后清除本地存储的ID
+        recoverTestLink.addEventListener('click', function() {
+            setTimeout(() => {
+                localStorage.removeItem('last_test_session_id');
+                recoverTestArea.style.display = 'none';
+            }, 1000);
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM loaded. Finding trigger elements...");
     const startTestScreenButton = document.getElementById('start_test_screen_button');
@@ -197,6 +302,37 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log("Buttons found:", { startTestScreenButton, startFullScreenButton });
     window.loggedTestLogError = false; // Reset log error flags on load
     window.loggedFullLogError = false;
+    
+    // 检查是否有上次的筛选结果
+    checkForPreviousResults();
+    
+    // 为高级功能面板中的手动ID访问按钮添加事件监听器
+    const goToScreeningResultsBtn = document.getElementById('go_to_screening_results');
+    const goToTestResultsBtn = document.getElementById('go_to_test_results');
+    
+    if (goToScreeningResultsBtn) {
+        goToScreeningResultsBtn.addEventListener('click', function() {
+            const manualScreeningId = document.getElementById('manual_screening_id').value.trim();
+            if (!manualScreeningId) {
+                alert('请输入有效的筛选ID');
+                return;
+            }
+            let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
+            window.location.href = baseUrl.replace('__SCREENING_ID__', manualScreeningId);
+        });
+    }
+    
+    if (goToTestResultsBtn) {
+        goToTestResultsBtn.addEventListener('click', function() {
+            const manualTestSessionId = document.getElementById('manual_test_session_id').value.trim();
+            if (!manualTestSessionId) {
+                alert('请输入有效的测试会话ID');
+                return;
+            }
+            let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
+            window.location.href = baseUrl.replace('__SESSION_ID__', manualTestSessionId);
+        });
+    }
 
     // --- Test Screening SSE Logic --- 
     if (startTestScreenButton) {
@@ -296,7 +432,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                     let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
                                     currentTestLink.href = baseUrl.replace('__SESSION_ID__', jsonData.session_id);
                                     currentTestLinkArea.style.display = 'block';
-                                } else { console.warn('Could not set test results link.'); }
+                                    // 保存测试session_id到本地存储
+                                    localStorage.setItem('last_test_session_id', jsonData.session_id);
+                                    console.log("保存测试session_id到本地存储:", jsonData.session_id);
+                                } else { 
+                                    console.warn('Could not set test results link.'); 
+                                    addTestLogItem(`<span style="color:red">警告：无法设置测试结果链接，请刷新页面或查看控制台。</span>`);
+                                }
                                 xhrTest.abort();
                                 finalizeTestButton();
                             } else if (jsonData.type === 'error') {
@@ -410,7 +552,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                      let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
                                      currentFullLink.href = baseUrl.replace('__SCREENING_ID__', jsonData.screening_id);
                                      currentFullLinkArea.style.display = 'block';
-                                 } else { console.warn('Could not set full results link.'); }
+                                     // 保存screening_id到本地存储，以防链接丢失
+                                     localStorage.setItem('last_screening_id', jsonData.screening_id);
+                                     console.log("保存screening_id到本地存储:", jsonData.screening_id);
+                                 } else { 
+                                     console.warn('Could not set full results link.'); 
+                                     // 如果链接元素不存在，记录错误并添加一个恢复链接
+                                     addLogItem(`<span style="color:red">警告：无法设置结果链接，请刷新页面或查看控制台。</span>`);
+                                 }
                                  xhr.abort(); 
                                  finalizeButtons();
                              } else if (jsonData.type === 'error') {

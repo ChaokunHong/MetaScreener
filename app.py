@@ -890,23 +890,34 @@ def stream_screen_file():
 
 @app.route('/show_screening_results/<screening_id>', endpoint='show_screening_results') 
 def show_screening_results(screening_id):
-    session_data = full_screening_sessions.get(screening_id)
-    
-    if not session_data:
-        flash("Screening results not found or may have expired.", "warning")
-        return redirect(url_for('abstract_screening_page')) 
+    try:
+        session_data = full_screening_sessions.get(screening_id)
         
-    results = session_data.get('results', [])
-    filename = session_data.get('filename', 'Screened File')
-    current_year = datetime.datetime.now().year
-    
-    return render_template('results.html', 
-                           results=results, 
-                           filename=filename,
-                           screening_id=screening_id, 
-                           current_year=current_year,
-                           filter_applied=session_data.get('filter_applied', 'all entries') # Pass filter info to results page
-                          )
+        if not session_data:
+            app_logger.warning(f"Screening results not found for screening_id: {screening_id}")
+            flash("Screening results not found or may have expired.", "warning")
+            return redirect(url_for('abstract_screening_page')) 
+            
+        results = session_data.get('results', [])
+        if not results:
+            app_logger.warning(f"Empty results list found for screening_id: {screening_id}")
+            flash("No screening results were found in this session.", "warning")
+            return redirect(url_for('abstract_screening_page'))
+            
+        filename = session_data.get('filename', 'Screened File')
+        current_year = datetime.datetime.now().year
+        
+        return render_template('results.html', 
+                            results=results, 
+                            filename=filename,
+                            screening_id=screening_id, 
+                            current_year=current_year,
+                            filter_applied=session_data.get('filter_applied', 'all entries') # Pass filter info to results page
+                            )
+    except Exception as e:
+        app_logger.exception(f"Error showing screening results for ID {screening_id}: {str(e)}")
+        flash(f"Error displaying screening results: {str(e)}", "error")
+        return redirect(url_for('abstract_screening_page'))
 
 
 # --- New Test Screening SSE Route ---
@@ -1086,24 +1097,35 @@ def stream_test_screen_file():
 # --- New Route to Show Test Results ---
 @app.route('/show_test_results/<session_id>', endpoint='show_test_results')
 def show_test_results(session_id):
-    if not session_id or session_id not in test_sessions:
-        flash('Test session not found or expired. Please start a new test.', 'error')
+    try:
+        if not session_id or session_id not in test_sessions:
+            app_logger.warning(f"Test session not found for session_id: {session_id}")
+            flash('Test session not found or expired. Please start a new test.', 'error')
+            return redirect(url_for('abstract_screening_page'))
+
+        session_data = test_sessions.get(session_id)
+        if not session_data:
+            app_logger.warning(f"Empty session data for test session_id: {session_id}")
+            flash('Test session data missing.', 'error')
+            return redirect(url_for('abstract_screening_page'))
+            
+        test_items = session_data.get('test_items_data')
+        if not test_items: # If empty list or key missing
+            app_logger.warning(f"No test items found in session {session_id}")
+            flash('No test items found in session for display.', 'warning')
+            return redirect(url_for('abstract_screening_page'))
+
+        current_year = datetime.datetime.now().year
+        return render_template('test_results.html',
+                            test_items=test_items,
+                            session_id=session_id,
+                            current_year=current_year,
+                            # --- ADDED: Pass filter_applied to test_results.html ---
+                            filter_applied=session_data.get('filter_applied', 'all entries'))
+    except Exception as e:
+        app_logger.exception(f"Error showing test results for session ID {session_id}: {str(e)}")
+        flash(f"Error displaying test results: {str(e)}", "error")
         return redirect(url_for('abstract_screening_page'))
-
-    session_data = test_sessions.get(session_id)
-    test_items = session_data.get('test_items_data')
-
-    if not test_items: # If empty list or key missing
-         flash('No test items found in session for display.', 'warning')
-         return redirect(url_for('abstract_screening_page'))
-
-    current_year = datetime.datetime.now().year
-    return render_template('test_results.html',
-                           test_items=test_items,
-                           session_id=session_id,
-                           current_year=current_year,
-                           # --- ADDED: Pass filter_applied to test_results.html ---
-                           filter_applied=session_data.get('filter_applied', 'all entries'))
 
 
 # --- New Download Route --- 
