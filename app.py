@@ -24,7 +24,7 @@ from datetime import timedelta # ADDED for session lifetime
 from flask_redis import FlaskRedis
 import pickle
 
-# 初始化Redis客户端
+# Initialize Redis client
 redis_client = FlaskRedis()
 
 # --- Configure logging ---
@@ -76,13 +76,13 @@ pdf_screening_results = TTLCache(maxsize=500, ttl=7200)
 pdf_extraction_results = {} # ADDED: For extraction results
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Redis会话管理函数
+# Redis session management functions
 def store_test_session(session_id, data):
     try:
         redis_client.set(f"test_session:{session_id}", pickle.dumps(data), ex=3600)
     except Exception as e:
         app_logger.warning(f"Redis error in store_test_session: {e}")
-    # 本地也存一份，兼容本地开发
+    # Also store locally for local development compatibility
     test_sessions[session_id] = data
 
 def get_test_session(session_id):
@@ -92,7 +92,7 @@ def get_test_session(session_id):
             return pickle.loads(data)
     except Exception as e:
         app_logger.warning(f"Redis error in get_test_session: {e}")
-    # 回退到内存存储
+    # Fallback to in-memory storage
     return test_sessions.get(session_id)
 
 def delete_test_session(session_id):
@@ -100,7 +100,7 @@ def delete_test_session(session_id):
         redis_client.delete(f"test_session:{session_id}")
     except Exception as e:
         app_logger.warning(f"Redis error in delete_test_session: {e}")
-    # 同时从内存中删除
+    # Also remove from memory
     if session_id in test_sessions:
         del test_sessions[session_id]
 
@@ -109,7 +109,7 @@ def store_full_screening_session(screening_id, data):
         redis_client.set(f"full_screening:{screening_id}", pickle.dumps(data), ex=3600)
     except Exception as e:
         app_logger.warning(f"Redis error in store_full_screening_session: {e}")
-    # 本地也存一份
+    # Also store locally
     full_screening_sessions[screening_id] = data
 
 def get_full_screening_session(screening_id):
@@ -119,7 +119,7 @@ def get_full_screening_session(screening_id):
             return pickle.loads(data)
     except Exception as e:
         app_logger.warning(f"Redis error in get_full_screening_session: {e}")
-    # 回退到内存存储
+    # Fallback to in-memory storage
     return full_screening_sessions.get(screening_id)
 
 # Initialize ThreadPoolExecutor
@@ -774,13 +774,14 @@ def calculate_performance_metrics(ai_decisions, human_decisions, labels_order=['
 @app.route('/calculate_metrics', methods=['POST'])
 def calculate_metrics_route():
     session_id = request.form.get('test_session_id')
-    if not session_id or session_id not in test_sessions:
-        flash('Test session not found.', 'error');
-        return redirect(url_for('abstract_screening_page')) # CORRECTED
-    session_data = test_sessions.get(session_id)
+    if not session_id:
+        flash('Test session ID not provided.', 'error')
+        return redirect(url_for('abstract_screening_page'))
+        
+    session_data = get_test_session(session_id)
     if not session_data:
-        flash('Test session data missing.', 'error');
-        return redirect(url_for('abstract_screening_page')) # CORRECTED
+        flash('Test session not found or expired.', 'error')
+        return redirect(url_for('abstract_screening_page'))
 
     stored_test_items = session_data.get('test_items_data', [])
     ai_decisions_all, human_decisions_all, comparison_display_list = [], [], []
@@ -839,8 +840,10 @@ def calculate_metrics_route():
 
     # If we have data, calculate metrics
     results_data = calculate_performance_metrics(ai_decisions_all, human_decisions_all, labels_order=valid_decision_labels)
-    if session_id in test_sessions: # Ensure session still exists
-      test_sessions[session_id]['full_metrics_results'] = results_data # Store full results in session
+    
+    # Update session data with metrics results
+    session_data['full_metrics_results'] = results_data
+    store_test_session(session_id, session_data)
 
     # Unpack results_data for clarity in render_template, or pass as **results_data
     return render_template(
