@@ -143,6 +143,9 @@ const MAX_TEST_LOG_ITEMS = 5;
 const MAX_FULL_LOG_ITEMS = 7;
 const INIT_TIMEOUT_MS = 15000; // 15 seconds timeout for initialization phase
 
+const RESULTS_HISTORY_KEY = 'metaScreenerResultsHistory';
+const MAX_RESULTS_HISTORY_ITEMS = 15; // Max number of history items to keep
+
 // --- Helper Functions (Refined - Get element inside) ---
 function addTestLogItem(message) {
     const logEl = document.getElementById('test_progress_log'); 
@@ -189,6 +192,56 @@ function clearInput(inputId) {
     if (inputElement) {
         inputElement.value = '';
     }
+}
+
+function saveScreeningResultToHistory(screeningType, screeningId, fileName, totalItems, risContentForFilename) {
+    if (!screeningId) {
+        console.error("Screening ID is missing, cannot save to history.");
+        return;
+    }
+
+    let history = JSON.parse(localStorage.getItem(RESULTS_HISTORY_KEY) || '[]');
+
+    // Attempt to get a more reliable filename if 'fileName' is not directly available
+    let actualFileName = fileName;
+    if (!actualFileName && risContentForFilename) {
+        // Basic extraction, assuming filename might be in a comment or specific field
+        // This is a heuristic and might need refinement based on actual RIS format
+        const match = risContentForFilename.match(/FN - (.*)/) || risContentForFilename.match(/DB - (.*)/) ;
+        if (match && match[1]) {
+            actualFileName = match[1].trim() + ".ris"; // Assuming .ris if extracted from content
+        } else {
+            actualFileName = "Unknown File";
+        }
+    } else if (!actualFileName) {
+        actualFileName = "Unknown File";
+    }
+
+
+    const now = new Date();
+    const timestamp = now.toISOString();
+    const historyEntryName = `${screeningType} - ${actualFileName} (${totalItems} items) - ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+
+    const newEntry = {
+        id: screeningId,
+        name: historyEntryName,
+        type: screeningType,
+        fileName: actualFileName,
+        totalItems: totalItems,
+        timestamp: timestamp,
+        screeningId: screeningId // Redundant but keeps structure similar to criteria history if needed
+    };
+
+    // Add new entry to the beginning
+    history.unshift(newEntry);
+
+    // Limit history size
+    if (history.length > MAX_RESULTS_HISTORY_ITEMS) {
+        history = history.slice(0, MAX_RESULTS_HISTORY_ITEMS);
+    }
+
+    localStorage.setItem(RESULTS_HISTORY_KEY, JSON.stringify(history));
+    console.log("Saved screening result to history:", newEntry);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -361,6 +414,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     
                                     try { xhrTest.abort(); } catch (e) { console.warn("Error aborting test XHR:", e); }
                                     finalizeTestButton();
+                                    saveScreeningResultToHistory('Test Abstract Screening', jsonData.session_id, jsonData.filename, jsonData.total, jsonData.ris_content);
                                     break;
                                 
                                 case 'error':
@@ -606,6 +660,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      
                                      try { xhr.abort(); } catch (e) { console.warn("Error aborting full screening XHR:", e); }
                                      finalizeButtons();
+                                     saveScreeningResultToHistory('Full Abstract Screening', jsonData.screening_id, jsonData.filename, jsonData.total, jsonData.ris_content);
                                      break;
                                  
                                  case 'error':

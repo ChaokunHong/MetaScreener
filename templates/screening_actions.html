@@ -33,20 +33,20 @@
 
     <hr class="my-4">
 
-    <!-- Screening History Section -->
+    <!-- Screening Results History Section -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="section-card">
-                <h5><i class="bi bi-clock-history"></i> Recent Screening Criteria History</h5>
-                <p class="text-muted small">Quickly load recently used screening criteria configurations.</p>
-                <div id="screeningHistoryList" class="list-group">
+                <h5><i class="bi bi-clock-history"></i> Recent Screening Results History</h5>
+                <p class="text-muted small">Quickly access the results of your recent screening tasks.</p>
+                <div id="screeningResultsHistoryList" class="list-group">
                     <!-- History items will be populated here by JavaScript -->
-                    <p class="text-muted" id="noHistoryMessage">No recent history found.</p>
+                    <p class="text-muted" id="noResultsHistoryMessage">No recent screening results history found.</p>
                 </div>
             </div>
         </div>
     </div>
-    <!-- End Screening History Section -->
+    <!-- End Screening Results History Section -->
 
 
     <div class="row">
@@ -71,49 +71,71 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const CRITERIA_SETS_KEY = 'metaScreenerCriteriaSets';
-    const historyList = document.getElementById('screeningHistoryList');
-    const noHistoryMessage = document.getElementById('noHistoryMessage');
+    const RESULTS_HISTORY_KEY = 'metaScreenerResultsHistory'; // Key for screening results history
+    const historyList = document.getElementById('screeningResultsHistoryList');
+    const noHistoryMessage = document.getElementById('noResultsHistoryMessage');
 
-    function loadScreeningHistory() {
-        if (!historyList || !noHistoryMessage) return;
+    function loadScreeningResultsHistory() {
+        if (!historyList || !noHistoryMessage) {
+            console.error("History list or message element not found for results history.");
+            return;
+        }
 
-        const criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
-        const historyItems = Object.keys(criteriaSets)
-            .filter(key => key.startsWith('History - '))
-            .map(key => ({ name: key, date: new Date(key.substring(10)) })) // Extract date for sorting
-            .sort((a, b) => b.date.getTime() - a.date.getTime()); // Sort by date descending
-
+        // Results history is stored as an array of objects
+        const resultsHistory = JSON.parse(localStorage.getItem(RESULTS_HISTORY_KEY) || '[]'); 
+        
         historyList.innerHTML = ''; // Clear previous items
 
-        if (historyItems.length > 0) {
-            noHistoryMessage.style.display = 'none';
+        if (resultsHistory.length > 0) {
+            if(noHistoryMessage) noHistoryMessage.style.display = 'none';
+            
             const ul = document.createElement('ul');
             ul.className = 'list-group';
 
-            historyItems.forEach(item => {
+            resultsHistory.forEach(item => { // item is an object like {id, name, type, fileName, totalItems, timestamp}
                 const li = document.createElement('li');
-                li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                li.className = 'list-group-item d-flex justify-content-between align-items-center flex-wrap'; // Added flex-wrap for responsiveness
                 
-                const displayName = item.name.replace('History - ', 'Saved at ');
-                li.textContent = displayName;
+                const textSpan = document.createElement('span');
+                textSpan.textContent = item.name; // e.g., "Test Abstract Screening - my_data.ris (100 items) - 2023-10-27 10:30:00"
+                textSpan.style.marginRight = '10px'; // Add some spacing
+                textSpan.style.marginBottom = '5px'; // Spacing for wrapped buttons
 
-                const loadButton = document.createElement('a');
-                loadButton.href = `{{ url_for('screening_criteria_page') }}?load_history_set=${encodeURIComponent(item.name)}`;
-                loadButton.className = 'btn btn-sm btn-outline-primary';
-                loadButton.textContent = 'Load';
+                const viewButton = document.createElement('a');
+                viewButton.className = 'btn btn-sm btn-outline-primary';
+                viewButton.textContent = 'View Results';
+
+                // Determine the correct URL based on item.type - simplified for abstract screening only
+                if (item.type === 'Test Abstract Screening') {
+                    viewButton.href = `{{ url_for('show_test_results', session_id='__SESSION_ID__') }}`.replace('__SESSION_ID__', encodeURIComponent(item.id));
+                } else if (item.type === 'Full Abstract Screening') {
+                    viewButton.href = `{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}`.replace('__SCREENING_ID__', encodeURIComponent(item.id));
+                } else {
+                    viewButton.href = '#'; // Fallback for any unexpected types
+                    viewButton.textContent = 'Unknown Result Type';
+                    viewButton.classList.add('disabled');
+                }
                 
-                li.appendChild(loadButton);
+                li.appendChild(textSpan);
+                li.appendChild(viewButton);
                 ul.appendChild(li);
             });
             historyList.appendChild(ul);
         } else {
-            // Restore the "No history" message if it was cleared and no items are present.
-             historyList.innerHTML = '<p class=\"text-muted\" id=\"noHistoryMessage\">No recent history found.</p>';
+            if(noHistoryMessage) {
+                noHistoryMessage.style.display = 'block'; // Ensure it's block
+                noHistoryMessage.textContent = 'No recent screening results history found.'; // Set text explicitly
+                historyList.appendChild(noHistoryMessage); // Append it if list was cleared
+            }
         }
     }
 
-    loadScreeningHistory();
+    loadScreeningResultsHistory();
+
+    // Optional: Listen for custom event if other pages might update this history
+    window.addEventListener('metaScreenerHistoryUpdated', function() {
+        loadScreeningResultsHistory();
+    });
 });
 </script>
 {% endblock %} 
