@@ -264,43 +264,45 @@ document.addEventListener('DOMContentLoaded', function() {
                             const currentTestLinkArea = document.getElementById('test_results_link_area');
                             const currentTestLink = document.getElementById('view_test_results_link');
 
+                            // Process based on event type
                             if (jsonData.type === 'start') {
-                                if(currentTestStatus) currentTestStatus.textContent = `Starting... Total: ${jsonData.total}`;
-                                if(currentTestArea) currentTestArea.style.display = 'block'; 
-                                if(currentTestLogContainer) currentTestLogContainer.style.display = 'block';
-                                // --- MODIFIED: Display filter info from SSE for Test Screening ---
-                                let testStartMessage = `[${new Date().toLocaleTimeString()}] Started test screening. Max sample: ${sampleSizeInput.value}, Actual to screen: ${jsonData.total}`;
-                                if (jsonData.filter_info && jsonData.filter_info !== 'all entries') {
-                                    testStartMessage += ` (Filter: ${jsonData.filter_info})`;
-                                }
-                                addTestLogItem(testStartMessage);
-                                // --- END MODIFIED ---
+                                if(currentTestBar) { currentTestBar.style.width = '0%'; currentTestBar.textContent = '0%'; }
+                                if(currentTestStatus) currentTestStatus.textContent = 'Starting test screening...';
+                                addTestLogItem(`[${new Date().toLocaleTimeString()}] Starting to screen ${jsonData.total} sampled entries.`);
+                                console.log(`Test screening started: ${jsonData.total} entries...`);
                             } else if (jsonData.type === 'progress') {
-                                if (currentTestBar) {
-                                    try { currentTestBar.style.width = jsonData.percentage + '%'; currentTestBar.textContent = jsonData.percentage + '%'; }
-                                     catch (e) { console.error("ERROR updating test progress bar:", e); }
-                                } else { if (!window.loggedTestBarError) { console.error('!!! Could not find test_progress_bar in onprogress'); window.loggedTestBarError = true;} }
-                                
-                                if (currentTestStatus) {
-                                    try { currentTestStatus.textContent = `Processing ${jsonData.count}/${jsonData.total}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,40) : 'Item'}...`; }
-                                     catch (e) { console.error("ERROR updating test progress status:", e); }
-                                } else { if (!window.loggedTestStatusError) { console.error('!!! Could not find test_progress_status in onprogress'); window.loggedTestStatusError = true; } }
-                                
-                                let decisionClass = jsonData.decision ? 'log-decision-' + jsonData.decision.toUpperCase().replace('API_','').replace('HTTP_ERROR_','ERROR_') : '';
-                                addTestLogItem(`[${new Date().toLocaleTimeString()}] Item ${jsonData.count}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,30) : 'Item'}... <span class="log-item-decision ${decisionClass}">${jsonData.decision || ''}</span>`);
+                                if(currentTestBar) {
+                                    const percentComplete = jsonData.percentage || Math.floor((jsonData.count / jsonData.total) * 100);
+                                    currentTestBar.style.width = `${percentComplete}%`;
+                                    currentTestBar.textContent = `${percentComplete}%`;
+                                }
+                                if(currentTestStatus) currentTestStatus.textContent = `Screening ${jsonData.count} of ${jsonData.total}. Current item: ${jsonData.current_item_title}`;
+                                const decisionOutput = jsonData.decision ? `Decision: ${jsonData.decision}` : '';
+                                addTestLogItem(`[${new Date().toLocaleTimeString()}] Item: ${jsonData.current_item_title} - ${decisionOutput}`);
                             } else if (jsonData.type === 'complete') {
-                                if(currentTestBar){ /* ... */ }
+                                if(currentTestBar){ currentTestBar.classList.add('bg-success'); currentTestBar.textContent = "Complete"; }
                                 if(currentTestStatus) currentTestStatus.textContent = jsonData.message;
                                 addTestLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message}`);
                                 if (jsonData.session_id && currentTestLink && currentTestLinkArea) {
                                     let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
                                     currentTestLink.href = baseUrl.replace('__SESSION_ID__', jsonData.session_id);
                                     currentTestLinkArea.style.display = 'block';
-                                } else { console.warn('Could not set test results link.'); }
-                                xhrTest.abort();
+                                    console.log("Test results link set up with session ID:", jsonData.session_id);
+                                } else { 
+                                    console.warn('Could not set test results link.', {
+                                        session_id: jsonData.session_id, 
+                                        linkElement: currentTestLink,
+                                        linkAreaElement: currentTestLinkArea
+                                    }); 
+                                }
+                                try {
+                                    xhrTest.abort();
+                                } catch (e) {
+                                    console.warn("Error aborting test XHR:", e);
+                                }
                                 finalizeTestButton();
                             } else if (jsonData.type === 'error') {
-                                if(currentTestBar){ /* ... */ }
+                                if(currentTestBar){ currentTestBar.classList.add('bg-danger'); currentTestBar.textContent = "Error"; }
                                 if(currentTestStatus) currentTestStatus.textContent = `Error: ${jsonData.message}`;
                                 // --- MODIFIED: Display config link if API key missing for Test --- 
                                 let testErrorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
@@ -310,15 +312,49 @@ document.addEventListener('DOMContentLoaded', function() {
                                 }
                                 addTestLogItem(testErrorMessage);
                                 // --- END MODIFIED ---
-                                xhrTest.abort();
+                                try {
+                                    xhrTest.abort();
+                                } catch (e) {
+                                    console.warn("Error aborting test XHR on error:", e);
+                                }
                                 finalizeTestButton();
                             }
-                        } catch (e) { console.error("Test SSE Parse Error:", e); } 
+                        } catch (e) { 
+                            console.error("Test SSE Parse Error:", e, "Original message:", message); 
+                            finalizeTestButton();
+                        } 
                     }
                 });
             }; 
-            xhrTest.onloadend = function() { console.log("xhrTest.onloadend"); finalizeTestButton(); }; 
-            xhrTest.onerror = function() { console.error("xhrTest.onerror"); finalizeTestButton(); }; 
+            xhrTest.onloadend = function() { 
+                console.log("xhrTest.onloadend called");
+                const currentTestLinkArea = document.getElementById('test_results_link_area');
+                const currentTestLink = document.getElementById('view_test_results_link');
+                
+                // If we have a session ID but the link isn't displayed yet, try to display it
+                if (xhrTest.responseText && xhrTest.responseText.includes('"session_id"') && 
+                    currentTestLinkArea && currentTestLinkArea.style.display === 'none') {
+                    try {
+                        // Find the session ID from the response
+                        const match = xhrTest.responseText.match(/"session_id":"([^"]+)"/);
+                        if (match && match[1] && currentTestLink) {
+                            console.log("Found session ID in response:", match[1]);
+                            let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
+                            currentTestLink.href = baseUrl.replace('__SESSION_ID__', match[1]);
+                            currentTestLinkArea.style.display = 'block';
+                        }
+                    } catch (e) {
+                        console.error("Error setting up test results link in onloadend:", e);
+                    }
+                }
+                
+                finalizeTestButton(); 
+            }; 
+            xhrTest.onerror = function() { 
+                console.error("xhrTest.onerror called"); 
+                addTestLogItem(`[${new Date().toLocaleTimeString()}] Network error occurred during test screening.`);
+                finalizeTestButton(); 
+            }; 
             xhrTest.send(formData);
         }); 
     }
@@ -374,34 +410,38 @@ document.addEventListener('DOMContentLoaded', function() {
                      if (message.startsWith("data: ")) {
                          try {
                              const jsonData = JSON.parse(message.substring(6));
+                             // Get elements again inside to ensure current references
                              const currentFullBar = document.getElementById('progress_bar');
                              const currentFullStatus = document.getElementById('progress_status');
-                             const currentFullArea = document.getElementById('progress_area');
-                             const currentFullLogContainer = document.getElementById('progress_log_container');
                              const currentFullLinkArea = document.getElementById('sse_results_link_area');
                              const currentFullLink = document.getElementById('view_full_results_link');
-
+                             
+                             // Different types of events
                              if (jsonData.type === 'start') {
-                                 if(currentFullStatus) currentFullStatus.textContent = `Screening ${jsonData.total} items...`;
-                                 if(currentFullArea) currentFullArea.style.display = 'block';
-                                 if(currentFullLogContainer) currentFullLogContainer.style.display = 'block';
-                                 let startMessage = `[${new Date().toLocaleTimeString()}] Started. Total to screen: ${jsonData.total}`;
-                                 if (jsonData.filter_info && jsonData.filter_info !== 'all entries') {
-                                     startMessage += ` (Filter: ${jsonData.filter_info})`;
-                                 }
-                                 addLogItem(startMessage);
+                                 if(currentFullBar) { currentFullBar.style.width = '0%'; currentFullBar.textContent = '0%'; }
+                                 if(currentFullStatus) currentFullStatus.textContent = 'Starting full screening...';
+                                 addLogItem(`[${new Date().toLocaleTimeString()}] Starting to screen ${jsonData.total} items.`);
                              } else if (jsonData.type === 'progress') {
-                                 if (currentFullBar) { 
-                                     try { currentFullBar.style.width = jsonData.percentage + '%'; currentFullBar.textContent = jsonData.percentage + '%'; } 
-                                     catch(e) { console.error("Error updating full progress bar:", e); }
-                                 } else { if (!window.loggedFullBarError) { console.error('!!! Could not find progress_bar in onprogress'); window.loggedFullBarError = true; } }
-                                 if (currentFullStatus) { 
-                                      try { currentFullStatus.textContent = `Processing ${jsonData.count}/${jsonData.total}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,40) : 'Item'}...`; } 
-                                      catch (e) { console.error("Error updating full progress status:", e); }
-                                 } else { if (!window.loggedFullStatusError) { console.error('!!! Could not find progress_status in onprogress'); window.loggedFullStatusError = true; } }
+                                 // Only update UI if we have these elements
+                                 if(currentFullBar) {
+                                     const percentComplete = jsonData.percentage || Math.floor((jsonData.count / jsonData.total) * 100);
+                                     currentFullBar.style.width = `${percentComplete}%`;
+                                     currentFullBar.textContent = `${percentComplete}%`;
+                                 }
+                                 if(currentFullStatus) currentFullStatus.textContent = `Screening ${jsonData.count} of ${jsonData.total}. Current: ${jsonData.current_item_title}`;
                                  
-                                 let decisionClass = jsonData.decision ? 'log-decision-' + jsonData.decision.toUpperCase().replace('API_','').replace('HTTP_ERROR_','ERROR_') : '';
-                                 addLogItem(`[${new Date().toLocaleTimeString()}] Item ${jsonData.count}: ${jsonData.current_item_title ? jsonData.current_item_title.substring(0,30) : 'Item'}... <span class="log-item-decision ${decisionClass}">${jsonData.decision || ''}</span>`);
+                                 // Potentially display decision info - only add log items if decision is known (skip preparatory events)
+                                 if (jsonData.decision) {
+                                     let decisionClass = "";
+                                     if(jsonData.decision === "INCLUDE") decisionClass = "include";
+                                     else if(jsonData.decision === "EXCLUDE") decisionClass = "exclude";
+                                     else if(jsonData.decision === "MAYBE") decisionClass = "maybe";
+                                     else decisionClass = "error"; // Could add more cases here
+                                     
+                                     // Construct log message with color-coded decision class
+                                     const logMessage = `[${new Date().toLocaleTimeString()}] <span class="log-decision-${jsonData.decision}">${jsonData.decision}</span>: ${jsonData.current_item_title}`;
+                                     addLogItem(logMessage);
+                                 }
                              } else if (jsonData.type === 'complete') {
                                  if(currentFullBar){ currentFullBar.classList.add('bg-success'); currentFullBar.textContent = "Complete"; }
                                  if(currentFullStatus) currentFullStatus.textContent = jsonData.message;
@@ -410,8 +450,19 @@ document.addEventListener('DOMContentLoaded', function() {
                                      let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
                                      currentFullLink.href = baseUrl.replace('__SCREENING_ID__', jsonData.screening_id);
                                      currentFullLinkArea.style.display = 'block';
-                                 } else { console.warn('Could not set full results link.'); }
-                                 xhr.abort(); 
+                                     console.log("Full results link set with ID:", jsonData.screening_id);
+                                 } else { 
+                                     console.warn('Could not set full results link:', {
+                                         screening_id: jsonData.screening_id,
+                                         linkElement: currentFullLink,
+                                         linkAreaElement: currentFullLinkArea
+                                     }); 
+                                 }
+                                 try {
+                                     xhr.abort(); 
+                                 } catch (e) {
+                                     console.warn("Error aborting full screening XHR:", e);
+                                 }
                                  finalizeButtons();
                              } else if (jsonData.type === 'error') {
                                  if(currentFullBar){ currentFullBar.classList.add('bg-danger'); currentFullBar.textContent = "Error";}
@@ -422,16 +473,47 @@ document.addEventListener('DOMContentLoaded', function() {
                                      errorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
                                  }
                                  addLogItem(errorMessage);
-                                 xhr.abort();
+                                 try {
+                                     xhr.abort();
+                                 } catch (e) {
+                                     console.warn("Error aborting full screening XHR on error:", e);
+                                 }
                                  finalizeButtons();
                              }
-                         } catch (e) { console.error("Full SSE Parse Error:", e); } 
-                     }
-                 });
-             };
-             xhr.onloadend = function() { finalizeButtons(); }; 
-             xhr.onerror = function() { finalizeButtons(); }; 
-             xhr.send(formData);
+                        } catch (e) { console.error("Full SSE Parse Error:", e, "Original message:", message); finalizeButtons(); }
+                    }
+                });
+            };
+            xhr.onloadend = function() { 
+                console.log("Full XHR onloadend called");
+                const currentFullLinkArea = document.getElementById('sse_results_link_area');
+                const currentFullLink = document.getElementById('view_full_results_link');
+                
+                // If we have a screening_id but the link isn't displayed yet, try to display it
+                if (xhr.responseText && xhr.responseText.includes('"screening_id"') && 
+                    currentFullLinkArea && currentFullLinkArea.style.display === 'none') {
+                    try {
+                        // Find the screening_id from the response
+                        const match = xhr.responseText.match(/"screening_id":"([^"]+)"/);
+                        if (match && match[1] && currentFullLink) {
+                            console.log("Found screening ID in response:", match[1]);
+                            let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
+                            currentFullLink.href = baseUrl.replace('__SCREENING_ID__', match[1]);
+                            currentFullLinkArea.style.display = 'block';
+                        }
+                    } catch (e) {
+                        console.error("Error setting up full results link in onloadend:", e);
+                    }
+                }
+                
+                finalizeButtons(); 
+            };
+            xhr.onerror = function() { 
+                console.error("Full XHR onerror called"); 
+                addLogItem(`[${new Date().toLocaleTimeString()}] Network error occurred during screening.`);
+                finalizeButtons(); 
+            };
+            xhr.send(formData);
         }); 
     } 
 
