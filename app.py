@@ -1067,7 +1067,7 @@ def stream_test_screen_file():
         error_message_text = 'No file part.'
         return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
 
-    file_obj = request.files['file'] # Renamed to avoid conflict with 'file' module if imported by user
+    file_obj = request.files['file'] 
     if file_obj.filename == '' or not allowed_file(file_obj.filename):
         error_message_text = 'No selected/invalid file.'
         return Response(f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\\n\\n", mimetype='text/event-stream')
@@ -1094,18 +1094,16 @@ def stream_test_screen_file():
         df['authors'] = df.get('authors', pd.Series([[] for _ in range(len(df))]))
         df['authors'] = df['authors'].apply(lambda x: x if isinstance(x, list) else [])
 
-        # --- NEW: Apply filters before sampling for Test Screening ---
         df_for_sampling = df.copy()
         original_df_count = len(df)
         filter_description = "all entries"
 
-        if title_filter_input: # This is where the NameError previously occurred
+        if title_filter_input: 
             df_for_sampling = df_for_sampling[df_for_sampling['title'].str.contains(title_filter_input, case=False, na=False)]
             filter_description = f"entries matching title '{title_filter_input}'"
             if df_for_sampling.empty:
                 msg = f'No articles found matching title: "{title_filter_input}" to sample from.'
                 return Response(f"data: {json.dumps({'type': 'error', 'message': msg})}\\n\\n", mimetype='text/event-stream')
-        
         elif line_range_input:
             try:
                 start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
@@ -1125,116 +1123,156 @@ def stream_test_screen_file():
              return Response(f"data: {json.dumps({'type': 'error', 'message': 'No articles found after applying filters to sample from.'})}\\n\\n", mimetype='text/event-stream')
 
         sample_df = df_for_sampling.head(min(sample_size, len(df_for_sampling)))
-        actual_sample_size = len(sample_df)
-        # --- END NEW ---
+        actual_sample_size_val = len(sample_df) # Renamed for clarity and to pass as param
 
-        if actual_sample_size == 0:
+        if actual_sample_size_val == 0:
              return Response(f"data: {json.dumps({'type': 'error', 'message': 'No entries found in the file to sample (after filters if any).'})}\\n\\n", mimetype='text/event-stream')
 
-        criteria_prompt_text = get_screening_criteria()
-        current_llm_config_data = get_current_llm_config(session)
-        provider_name = current_llm_config_data['provider_name']
-        model_id = current_llm_config_data['model_id']
-        base_url = get_base_url_for_provider(provider_name)
+        criteria_prompt_text_local = get_screening_criteria() # Renamed to avoid conflict with param
+        current_llm_config_data_local = get_current_llm_config(session) # Renamed
+        provider_name_local = current_llm_config_data_local['provider_name'] # Renamed
+        model_id_local = current_llm_config_data_local['model_id'] # Renamed
+        base_url_local = get_base_url_for_provider(provider_name_local) # Renamed
         
-        provider_info = get_llm_providers_info().get(provider_name, {})
+        provider_info = get_llm_providers_info().get(provider_name_local, {})
         session_key_name = provider_info.get("api_key_session_key")
-        api_key = session.get(session_key_name) if session_key_name else None
+        api_key_local = session.get(session_key_name) if session_key_name else None # Renamed
 
-        if not api_key:
-            error_message = f"API Key for {provider_name} must be provided via the configuration form for this session."
+        if not api_key_local:
+            error_message = f"API Key for {provider_name_local} must be provided via the configuration form for this session."
             return Response(f"data: {json.dumps({'type': 'error', 'message': error_message, 'needs_config': True})}\\n\\n", mimetype='text/event-stream')
 
-        session_id = str(uuid.uuid4())
-        test_sessions[session_id] = {
-             'file_name': file.filename,
-             'sample_size': actual_sample_size, 
+        session_id_val = str(uuid.uuid4()) # Renamed to avoid conflict with param
+        test_sessions[session_id_val] = {
+             'file_name': file_obj.filename,
+             'sample_size': actual_sample_size_val, 
              'test_items_data': [],
              'filter_applied': filter_description,
-             'timestamp': datetime.datetime.now().isoformat()  # Add timestamp for debugging
+             'timestamp': datetime.datetime.now().isoformat()
          }
 
-        def generate_test_progress(current_sample_df, num_actual_sample_items, current_filter_desc):
+        def generate_test_progress(current_sample_df_param, num_actual_sample_items_param, current_filter_desc_param,
+                                   session_id_param, file_object_param, actual_sample_size_for_client_param, 
+                                   criteria_prompt_text_param, provider_name_param, model_id_param, api_key_param, base_url_param):
+            app_logger.info(f"TEST SSE STREAM: Entered generate_test_progress. Session ID: {session_id_param}, Total items: {num_actual_sample_items_param}, Filter: {current_filter_desc_param}")
             processed_count = 0
-            yield f"data: {json.dumps({'type': 'start', 'total': num_actual_sample_items, 'filter_info': current_filter_desc})}\\n\\n"
-            temp_results_list = []
-            futures_map = {}
-            
-            with ThreadPoolExecutor(max_workers=8) as executor:
-                for index, row in current_sample_df.iterrows(): 
-                    abstract = row.get('abstract')
-                    future = executor.submit(
-                        _perform_screening_on_abstract,
-                        abstract, criteria_prompt_text,
-                        provider_name, model_id, api_key, base_url
-                    )
-                    futures_map[future] = {'index': index, 'row': row}
+            log_decision_reason = ""
+            try:
+                app_logger.info(f"TEST SSE STREAM ({session_id_param}): About to yield 'start' event.")
+                yield f"data: {json.dumps({'type': 'start', 'total': num_actual_sample_items_param, 'filter_info': current_filter_desc_param})}\\n\\n"
+                app_logger.info(f"TEST SSE STREAM ({session_id_param}): Successfully yielded 'start' event.")
+                temp_results_list = []
+                futures_map = {}
+                
+                with ThreadPoolExecutor(max_workers=8) as executor:
+                    app_logger.debug(f"TEST SSE STREAM ({session_id_param}): ThreadPoolExecutor started. Submitting {len(current_sample_df_param)} items.")
+                    for index_val_loop, row_loop in current_sample_df_param.iterrows():
+                        abstract = row_loop.get('abstract')
+                        future = executor.submit(
+                            _perform_screening_on_abstract,
+                            abstract, criteria_prompt_text_param, 
+                            provider_name_param, model_id_param, api_key_param, base_url_param
+                        )
+                        futures_map[future] = {'original_index_val': index_val_loop, 'row_data_val': row_loop}
+                    app_logger.debug(f"TEST SSE STREAM ({session_id_param}): All {len(futures_map)} items submitted to executor.")
 
-                for future in as_completed(futures_map):
-                    original_data = futures_map[future]
-                    index = original_data['index']
-                    row = original_data['row']
-                    title = row.get('title', "N/A")
-                    abstract_text = row.get('abstract')
-                    authors_list = row.get('authors', [])
-                    authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
+                    for i, future_item in enumerate(as_completed(futures_map)):
+                        log_decision_reason = "Processing..."
+                        app_logger.debug(f"TEST SSE STREAM ({session_id_param}): Future {i+1}/{len(futures_map)} completed.")
+                        original_data = futures_map[future_item]
+                        index_val = original_data['original_index_val']
+                        row_data = original_data['row_data_val']
+                        title = row_data.get('title', "N/A")
+                        abstract_text = row_data.get('abstract') 
+                        authors_list = row_data.get('authors', [])
+                        authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
 
-                    try:
-                        screening_result = future.result()
-                        if screening_result['decision'] == "CONFIG_ERROR":
-                            raise Exception(f"CONFIG_ERROR from worker: {screening_result['reasoning']}")
+                        try:
+                            screening_result = future_item.result()
+                            log_decision_reason = f"Decision: {screening_result.get('decision', 'N/A')}, Reasoning: {screening_result.get('reasoning', 'N/A')}"
+                            if screening_result['decision'] == "CONFIG_ERROR":
+                                app_logger.error(f"TEST SSE STREAM ({session_id_param}): CONFIG_ERROR for item (original index {index_val}): {screening_result['reasoning']}")
+                                raise Exception(f"CONFIG_ERROR from worker: {screening_result['reasoning']}")
 
-                        processed_count += 1
-                        progress_percentage = int((processed_count / num_actual_sample_items) * 100) if num_actual_sample_items > 0 else 0
-                        item_id = str(uuid.uuid4())
-                        test_item_template_data = {
-                            'id': item_id, 'original_index': index, 'title': title,
-                            'authors': authors_str, 'abstract': abstract_text,
-                            'ai_decision': screening_result['decision'], 'ai_reasoning': screening_result['reasoning']
-                        }
-                        temp_results_list.append(test_item_template_data)
-                        progress_data = {
-                            'type': 'progress', 'count': processed_count, 'total': num_actual_sample_items,
-                            'percentage': progress_percentage, 'current_item_title': title,
-                            'decision': screening_result['decision']
-                        }
-                        yield f"data: {json.dumps(progress_data)}\\n\\n"
+                            processed_count += 1
+                            progress_percentage = int((processed_count / num_actual_sample_items_param) * 100) if num_actual_sample_items_param > 0 else 0
+                            item_id = str(uuid.uuid4())
+                            test_item_template_data = {
+                                'id': item_id, 'original_index': index_val, 'title': title,
+                                'authors': authors_str, 'abstract': abstract_text,
+                                'ai_decision': screening_result['decision'], 'ai_reasoning': screening_result['reasoning']
+                            }
+                            temp_results_list.append(test_item_template_data)
+                            progress_data = {
+                                'type': 'progress', 'count': processed_count, 'total': num_actual_sample_items_param,
+                                'percentage': progress_percentage, 'current_item_title': title,
+                                'decision': screening_result['decision']
+                            }
+                            app_logger.debug(f"TEST SSE STREAM ({session_id_param}): About to yield 'progress' event for item {processed_count}/{num_actual_sample_items_param}. {log_decision_reason}")
+                            yield f"data: {json.dumps(progress_data)}\\n\\n"
+                            app_logger.debug(f"TEST SSE STREAM ({session_id_param}): Successfully yielded 'progress' event for item {processed_count}.")
 
-                    except Exception as e:
-                        processed_count += 1
-                        progress_percentage = int((processed_count / num_actual_sample_items) * 100) if num_actual_sample_items > 0 else 0
-                        error_message_text_item_test = f"Error processing item '{title[:30]}...': {e}"
-                        app_logger.error(f"Error processing item (original index {index}): {e}")
-                        traceback.print_exc()
-                        progress_data = {
-                             'type': 'progress', 'count': processed_count, 'total': num_actual_sample_items,
-                             'percentage': progress_percentage, 'current_item_title': title,
-                             'decision': 'ITEM_ERROR', 
-                             'error_detail': error_message_text_item_test # Optionally send detail
-                         }
-                        yield f"data: {json.dumps(progress_data)}\\n\\n"
-                        temp_results_list.append({
-                            'id': str(uuid.uuid4()), 'original_index': index, 'title': title,
-                            'authors': authors_str, 'abstract': abstract_text,
-                            'ai_decision': 'ITEM_ERROR', 'ai_reasoning': str(e)
-                        })
-            
-            temp_results_list.sort(key=lambda x: x.get('original_index', float('inf')))
-            if session_id in test_sessions:
-                 test_sessions[session_id]['test_items_data'] = temp_results_list
-                 
-                 # Create a client-safe version of results to store in localStorage
-                 client_results = {
-                    'file_name': file.filename,
-                    'sample_size': actual_sample_size,
-                    'test_items_data': temp_results_list,  # Important: Include full test_items_data
-                    'filter_applied': filter_description,
-                    'timestamp': datetime.datetime.now().isoformat()
-                 }
-                 
-            yield f"data: {json.dumps({'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id, 'client_results': client_results})}\\n\\n"
+                        except Exception as e_item:
+                            processed_count += 1
+                            progress_percentage = int((processed_count / num_actual_sample_items_param) * 100) if num_actual_sample_items_param > 0 else 0
+                            error_message_text_item_test = f"Error processing item '{title[:30]}...': {str(e_item)}"
+                            log_decision_reason = f"ITEM_ERROR: {error_message_text_item_test}"
+                            app_logger.error(f"TEST SSE STREAM ({session_id_param}): {error_message_text_item_test} (original index {index_val})", exc_info=False)
+                            progress_data = {
+                                 'type': 'progress', 'count': processed_count, 'total': num_actual_sample_items_param,
+                                 'percentage': progress_percentage, 'current_item_title': title,
+                                 'decision': 'ITEM_ERROR', 
+                                 'error_detail': error_message_text_item_test
+                             }
+                            app_logger.debug(f"TEST SSE STREAM ({session_id_param}): About to yield 'progress' (ITEM_ERROR) event for item {processed_count}/{num_actual_sample_items_param}. {log_decision_reason}")
+                            yield f"data: {json.dumps(progress_data)}\\n\\n"
+                            app_logger.debug(f"TEST SSE STREAM ({session_id_param}): Successfully yielded 'progress' (ITEM_ERROR) event.")
+                            temp_results_list.append({
+                                'id': str(uuid.uuid4()), 'original_index': index_val, 'title': title,
+                                'authors': authors_str, 'abstract': abstract_text,
+                                'ai_decision': 'ITEM_ERROR', 'ai_reasoning': str(e_item)
+                            })
+                
+                app_logger.info(f"TEST SSE STREAM ({session_id_param}): All futures processed.")
+                temp_results_list.sort(key=lambda x: x.get('original_index', float('inf')))
+                
+                client_results_data = None 
+                if session_id_param in test_sessions: # Use test_sessions from outer scope
+                     test_sessions[session_id_param]['test_items_data'] = temp_results_list
+                     
+                     client_results_data = {
+                        'file_name': file_object_param.filename, 
+                        'sample_size': actual_sample_size_for_client_param,
+                        'test_items_data': temp_results_list,
+                        'filter_applied': current_filter_desc_param,
+                        'timestamp': datetime.datetime.now().isoformat()
+                     }
+                
+                app_logger.info(f"TEST SSE STREAM ({session_id_param}): Processing complete. About to yield 'complete' event.")
+                yield f"data: {json.dumps({'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id_param, 'client_results': client_results_data})}\\n\\n"
+                app_logger.info(f"TEST SSE STREAM ({session_id_param}): Successfully yielded 'complete' event.")
 
-        return Response(generate_test_progress(sample_df, actual_sample_size, filter_description), mimetype='text/event-stream')
+            except GeneratorExit:
+                app_logger.info(f"TEST SSE STREAM ({session_id_param}): GeneratorExit caught. Client likely disconnected.")
+            except Exception as e_gen:
+                app_logger.error(f"TEST SSE STREAM ({session_id_param}): Exception in generator: {str(e_gen)}", exc_info=True)
+            finally:
+                app_logger.info(f"TEST SSE STREAM ({session_id_param}): Exiting generate_test_progress function.")
+
+        app_logger.info(f"STREAM_TEST_SCREEN_FILE: Calling generate_test_progress for SID: {session_id_val}")
+        return Response(generate_test_progress(
+            sample_df, 
+            actual_sample_size_val, 
+            filter_description,
+            session_id_val,      
+            file_obj,          
+            actual_sample_size_val, 
+            criteria_prompt_text_local, 
+            provider_name_local,
+            model_id_local,
+            api_key_local,
+            base_url_local
+            ), mimetype='text/event-stream')
 
     except Exception as e: 
         app_logger.exception("Server error during test streaming processing")
