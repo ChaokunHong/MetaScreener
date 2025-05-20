@@ -888,12 +888,7 @@ def stream_screen_file():
                 }
             
             # Send completion event
-            yield f"data: {json.dumps({
-                'type': 'complete', 
-                'message': 'Screening finished.', 
-                'screening_id': screening_id,
-                'client_results': client_results  # Include results for client-side storage
-            })}\n\n"
+            yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id, 'client_results': client_results})}\n\n"
 
         # Return the Response using the new generator    
         # MODIFIED: Pass df_for_screening, total_entries_to_screen, and filter_description
@@ -1125,12 +1120,7 @@ def stream_test_screen_file():
                     'timestamp': datetime.datetime.now().isoformat()
                  }
                  
-            yield f"data: {json.dumps({
-                'type': 'complete', 
-                'message': 'Test screening finished.',
-                'session_id': session_id,
-                'client_results': client_results  # Include results data for client-side storage
-            })}\n\n"
+            yield f"data: {json.dumps({'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id, 'client_results': client_results})}\n\n"
 
         return Response(generate_test_progress(sample_df, actual_sample_size, filter_description), mimetype='text/event-stream')
 

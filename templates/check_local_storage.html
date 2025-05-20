@@ -94,14 +94,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 typeInput.name = 'results_type';
                 typeInput.value = 'full';
                 
-                const csrfToken = document.createElement('input');
-                csrfToken.type = 'hidden';
-                csrfToken.name = 'csrf_token';
-                csrfToken.value = '{{ csrf_token() }}';
-                
                 form.appendChild(resultInput);
                 form.appendChild(typeInput);
-                form.appendChild(csrfToken);
                 document.body.appendChild(form);
                 form.submit();
                 {% else %}
@@ -121,14 +115,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 typeInput.name = 'results_type';
                 typeInput.value = 'test';
                 
-                const csrfToken = document.createElement('input');
-                csrfToken.type = 'hidden';
-                csrfToken.name = 'csrf_token';
-                csrfToken.value = '{{ csrf_token() }}';
-                
                 form.appendChild(resultInput);
                 form.appendChild(typeInput);
-                form.appendChild(csrfToken);
                 document.body.appendChild(form);
                 form.submit();
                 {% endif %}
