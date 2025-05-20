@@ -604,14 +604,111 @@ def calculate_performance_metrics(ai_decisions, human_decisions, labels_order=['
 
 @app.route('/calculate_metrics', methods=['POST'])
 def calculate_metrics_route():
+    # Check if this is a request with local data from localStorage
+    from_local = request.args.get('from_local') == 'true'
+    
+    if from_local:
+        # This is a special case for data from localStorage
+        # Client has already collected the decisions and stored them in localStorage
+        # We'll render a template that will retrieve and process this data on the client side
+        current_year = datetime.datetime.now().year
+        return render_template('metrics_from_local.html', current_year=current_year)
+    
+    # Normal server-side processing
     session_id = request.form.get('test_session_id')
+    
+    # Check for local test items data passed through the form
+    local_test_items_data = request.form.get('local_test_items')
+    if local_test_items_data:
+        try:
+            # Parse the local test items
+            local_test_items = json.loads(local_test_items_data)
+            
+            # Process decisions from the form
+            ai_decisions_all, human_decisions_all, comparison_display_list = [], [], []
+            valid_decision_labels = ['INCLUDE', 'EXCLUDE', 'MAYBE']
+            
+            for item_data in local_test_items:
+                item_id = item_data['id']
+                decision_key = f'decision-{item_id}'
+                if decision_key in request.form:
+                    human_decision = request.form[decision_key]
+                    ai_decision = item_data['ai_decision']
+                    
+                    if ai_decision in valid_decision_labels and human_decision in valid_decision_labels:
+                        ai_decisions_all.append(ai_decision)
+                        human_decisions_all.append(human_decision)
+                    
+                    comparison_display_list.append({
+                        'title': item_data['title'], 
+                        'ai_decision': ai_decision, 
+                        'ai_reasoning': item_data.get('ai_reasoning', ''), 
+                        'human_decision': human_decision,
+                        'match': ai_decision == human_decision if ai_decision in valid_decision_labels and human_decision in valid_decision_labels else False
+                    })
+            
+            if not ai_decisions_all or not human_decisions_all:
+                flash('No valid decisions (I/M/E) for comparison. Ensure you selected human decisions for some items.', 'warning')
+                default_empty_matrix = {
+                    'labels': valid_decision_labels, 
+                    'matrix_data': [[0]*len(valid_decision_labels) for _ in range(len(valid_decision_labels))]
+                }
+                default_metrics = {
+                    'overall_accuracy': 0, 'cohens_kappa': 0, 'discrepancy_rate': 0, 
+                    'sensitivity_include': 0, 'precision_include': 0, 'f1_include': 0,
+                    'specificity_for_include_task': 0, 'workload_reduction': 0,
+                    'ai_maybe_rate': 0, 'human_maybe_rate': 0, 'total_compared': 0
+                }
+                default_class_metrics = {label: {'precision': 0, 'recall': 0, 'f1_score': 0, 'tp':0, 'fp':0, 'fn':0, 'specificity': 0} for label in valid_decision_labels}
+                default_maybe_res = {
+                     'ai_maybe_to_human_include': 0, 'ai_maybe_to_human_exclude': 0, 'ai_maybe_to_human_maybe': 0,
+                     'human_maybe_to_ai_include': 0, 'human_maybe_to_ai_exclude': 0
+                }
+                
+                return render_template('metrics_results.html', 
+                                      metrics=default_metrics, 
+                                      matrix_3x3=default_empty_matrix,
+                                      class_metrics=default_class_metrics, 
+                                      maybe_resolution=default_maybe_res,
+                                      comparison=comparison_display_list, 
+                                      total_samples=0,
+                                      session_id=None, 
+                                      labels_order=valid_decision_labels,
+                                      current_year=datetime.datetime.now().year,
+                                      from_local_storage=True)
+            
+            # Calculate metrics
+            results_data = calculate_performance_metrics(ai_decisions_all, human_decisions_all, labels_order=valid_decision_labels)
+            
+            return render_template(
+                'metrics_results.html',
+                metrics=results_data['metrics'],
+                matrix_3x3=results_data['matrix_3x3'],
+                class_metrics=results_data['class_metrics'],
+                maybe_resolution=results_data['maybe_resolution'],
+                comparison=comparison_display_list,
+                total_samples=results_data['metrics'].get('total_compared', 0),
+                session_id=None,  # No session ID for local data
+                labels_order=valid_decision_labels,
+                current_year=datetime.datetime.now().year,
+                from_local_storage=True
+            )
+            
+        except json.JSONDecodeError:
+            flash('Error parsing local test items data.', 'error')
+            return redirect(url_for('abstract_screening_page'))
+        except Exception as e:
+            app_logger.exception(f"Error processing local test items: {e}")
+            flash(f'Error processing test items: {str(e)}', 'error')
+            return redirect(url_for('abstract_screening_page'))
+    
     if not session_id or session_id not in test_sessions:
         flash('Test session not found.', 'error');
-        return redirect(url_for('abstract_screening_page')) # CORRECTED
+        return redirect(url_for('abstract_screening_page'))
     session_data = test_sessions.get(session_id)
     if not session_data:
         flash('Test session data missing.', 'error');
-        return redirect(url_for('abstract_screening_page')) # CORRECTED
+        return redirect(url_for('abstract_screening_page'))
 
     stored_test_items = session_data.get('test_items_data', [])
     ai_decisions_all, human_decisions_all, comparison_display_list = [], [], []
@@ -1115,7 +1212,7 @@ def stream_test_screen_file():
                  client_results = {
                     'file_name': file.filename,
                     'sample_size': actual_sample_size,
-                    'test_items_data': temp_results_list,
+                    'test_items_data': temp_results_list,  # Important: Include full test_items_data
                     'filter_applied': filter_description,
                     'timestamp': datetime.datetime.now().isoformat()
                  }
@@ -2041,13 +2138,38 @@ def render_local_results():
                                   filter_applied=results_data.get('filter_applied', 'all entries'),
                                   from_local_storage=True)  # Flag to indicate local data
         else:
-            # Test screening results
-            return render_template('test_results.html',
-                                  test_items=results_data.get('test_items_data', []),
-                                  session_id=None,  # No server-side ID anymore
-                                  current_year=current_year,
-                                  filter_applied=results_data.get('filter_applied', 'all entries'),
-                                  from_local_storage=True)  # Flag to indicate local data
+            # Test screening results - important to properly structure data for the assessment interface
+            # The format needs to match what test_sessions[session_id]['test_items_data'] would provide
+            
+            # First check if we have test_items_data directly
+            test_items = results_data.get('test_items_data', [])
+            
+            # If not found directly, check if we're dealing with client_results format
+            if not test_items and isinstance(results_data, dict) and 'client_results' in results_data:
+                test_items = results_data['client_results'].get('test_items_data', [])
+            
+            # If still not found but we have a dictionary that might itself be the test results
+            if not test_items and isinstance(results_data, dict) and 'filename' in results_data:
+                test_items = results_data
+            
+            # Last-ditch effort - if we have a list of items with the right properties, use that
+            if not test_items and isinstance(results_data, list) and len(results_data) > 0:
+                if all(isinstance(item, dict) and 'ai_decision' in item for item in results_data):
+                    test_items = results_data
+            
+            app_logger.info(f"Rendering test results from local storage. Found {len(test_items) if isinstance(test_items, list) else 'non-list'} test items.")
+            
+            # If we have valid test items, render the template
+            if test_items and isinstance(test_items, list):
+                return render_template('test_results.html',
+                                      test_items=test_items,
+                                      session_id=None,  # No server-side ID
+                                      current_year=current_year,
+                                      filter_applied=results_data.get('filter_applied', 'all entries') if isinstance(results_data, dict) else 'all entries',
+                                      from_local_storage=True)  # Flag to indicate local data
+            else:
+                flash("Could not find valid test items in the saved data.", "error")
+                return redirect(url_for('abstract_screening_page'))
                                   
     except json.JSONDecodeError:
         flash("Invalid results data format.", "error")

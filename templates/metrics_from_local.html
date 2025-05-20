@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+
+{% block title %}Analysis from Local Storage{% endblock %}
+
+{% block extra_css %}
+<style>
+    .matrix-cell {
+        text-align: center;
+        font-weight: bold;
+    }
+    .diagonal-cell {
+        background-color: #e6f3e6;
+    }
+    .mismatch-cell {
+        background-color: #ffe6e6;
+    }
+    .confusion-matrix-table {
+        width: auto;
+        margin: 0 auto;
+    }
+    .confusion-matrix-table th {
+        text-align: center;
+        background-color: #f5f5f5;
+    }
+    .metrics-card {
+        margin-bottom: 20px;
+    }
+    .match {
+        background-color: #e6f3e6;
+    }
+    .mismatch {
+        background-color: #ffe6e6;
+    }
+    .from-local-storage-notice {
+        background-color: #fff3cd;
+        border: 1px solid #ffeeba;
+        color: #856404;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+    }
+    .storage-warning-icon {
+        font-size: 20px;
+        margin-right: 10px;
+    }
+    .loading-container {
+        text-align: center;
+        padding: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Performance Metrics & Analysis</h1>
+    <div>
+        <a href="{{ url_for('screening_actions_page') }}" class="btn btn-primary btn-sm">Back to Screening Actions</a>
+    </div>
+</div>
+
+<div class="from-local-storage-notice">
+    <i class="fas fa-exclamation-triangle storage-warning-icon"></i>
+    Showing metrics calculated from browser local storage data. Server session data is not available.
+</div>
+
+<div id="loading-container" class="loading-container">
+    <div class="spinner-border" role="status">
+        <span class="sr-only">Loading...</span>
+    </div>
+    <p class="mt-2">Loading and calculating metrics from local storage...</p>
+</div>
+
+<div id="metrics-container" style="display: none;">
+    <!-- Metrics Overview Card -->
+    <div class="card metrics-card">
+        <div class="card-header">
+            <h5 class="mb-0">Overall Performance Metrics</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <h6>Core Metrics</h6>
+                    <table class="table table-sm">
+                        <tr><td>Accuracy</td><td id="overall-accuracy">-</td></tr>
+                        <tr><td>Cohen's Kappa</td><td id="cohens-kappa">-</td></tr>
+                        <tr><td>Discrepancy Rate</td><td id="discrepancy-rate">-</td></tr>
+                        <tr><td>Total Compared</td><td id="total-compared">-</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h6>Include Task Metrics</h6>
+                    <table class="table table-sm">
+                        <tr><td>Sensitivity</td><td id="sensitivity-include">-</td></tr>
+                        <tr><td>Precision</td><td id="precision-include">-</td></tr>
+                        <tr><td>F1 Score</td><td id="f1-include">-</td></tr>
+                        <tr><td>Specificity</td><td id="specificity-include">-</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h6>Workload Metrics</h6>
+                    <table class="table table-sm">
+                        <tr><td>Workload Reduction</td><td id="workload-reduction">-</td></tr>
+                        <tr><td>AI Maybe Rate</td><td id="ai-maybe-rate">-</td></tr>
+                        <tr><td>Human Maybe Rate</td><td id="human-maybe-rate">-</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confusion Matrix Card -->
+    <div class="card metrics-card">
+        <div class="card-header">
+            <h5 class="mb-0">Confusion Matrix (AI vs Human)</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered confusion-matrix-table" id="confusion-matrix">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th colspan="3">Human Decision</th>
+                        </tr>
+                        <tr>
+                            <th>AI Decision</th>
+                            <th>INCLUDE</th>
+                            <th>MAYBE</th>
+                            <th>EXCLUDE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th>INCLUDE</th>
+                            <td id="cell-0-0" class="matrix-cell diagonal-cell">0</td>
+                            <td id="cell-0-1" class="matrix-cell mismatch-cell">0</td>
+                            <td id="cell-0-2" class="matrix-cell mismatch-cell">0</td>
+                        </tr>
+                        <tr>
+                            <th>MAYBE</th>
+                            <td id="cell-1-0" class="matrix-cell mismatch-cell">0</td>
+                            <td id="cell-1-1" class="matrix-cell diagonal-cell">0</td>
+                            <td id="cell-1-2" class="matrix-cell mismatch-cell">0</td>
+                        </tr>
+                        <tr>
+                            <th>EXCLUDE</th>
+                            <td id="cell-2-0" class="matrix-cell mismatch-cell">0</td>
+                            <td id="cell-2-1" class="matrix-cell mismatch-cell">0</td>
+                            <td id="cell-2-2" class="matrix-cell diagonal-cell">0</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Class Metrics -->
+    <div class="card metrics-card">
+        <div class="card-header">
+            <h5 class="mb-0">Performance by Class</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <h6>INCLUDE</h6>
+                    <table class="table table-sm">
+                        <tr><td>Precision</td><td id="include-precision">-</td></tr>
+                        <tr><td>Recall</td><td id="include-recall">-</td></tr>
+                        <tr><td>F1 Score</td><td id="include-f1">-</td></tr>
+                        <tr><td>Specificity</td><td id="include-specificity">-</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h6>MAYBE</h6>
+                    <table class="table table-sm">
+                        <tr><td>Precision</td><td id="maybe-precision">-</td></tr>
+                        <tr><td>Recall</td><td id="maybe-recall">-</td></tr>
+                        <tr><td>F1 Score</td><td id="maybe-f1">-</td></tr>
+                        <tr><td>Specificity</td><td id="maybe-specificity">-</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h6>EXCLUDE</h6>
+                    <table class="table table-sm">
+                        <tr><td>Precision</td><td id="exclude-precision">-</td></tr>
+                        <tr><td>Recall</td><td id="exclude-recall">-</td></tr>
+                        <tr><td>F1 Score</td><td id="exclude-f1">-</td></tr>
+                        <tr><td>Specificity</td><td id="exclude-specificity">-</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Decision Comparison Table -->
+    <div class="card metrics-card">
+        <div class="card-header">
+            <h5 class="mb-0">Decision Comparison</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped" id="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>AI Decision</th>
+                            <th>Human Decision</th>
+                            <th>Match?</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comparison-tbody">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loadingContainer = document.getElementById('loading-container');
+    const metricsContainer = document.getElementById('metrics-container');
+    
+    // Check if we have assessment data in localStorage
+    const assessmentData = JSON.parse(localStorage.getItem('local_assessment_data') || 'null');
+    
+    if (!assessmentData) {
+        loadingContainer.innerHTML = '<div class="alert alert-danger">No assessment data found in local storage.</div>';
+        return;
+    }
+    
+    // Initialize data structures
+    const testItems = assessmentData.test_items || [];
+    const userDecisions = assessmentData.user_decisions || [];
+    
+    if (userDecisions.length === 0) {
+        loadingContainer.innerHTML = '<div class="alert alert-danger">No user decisions found in assessment data.</div>';
+        return;
+    }
+    
+    // Prepare decisions arrays for metrics calculation
+    const aiDecisions = [];
+    const humanDecisions = [];
+    const comparisonData = [];
+    
+    userDecisions.forEach(decision => {
+        aiDecisions.push(decision.ai_decision);
+        humanDecisions.push(decision.human_decision);
+        comparisonData.push({
+            title: decision.title,
+            ai_decision: decision.ai_decision,
+            human_decision: decision.human_decision,
+            match: decision.ai_decision === decision.human_decision
+        });
+    });
+    
+    // Calculate metrics
+    const metrics = calculateMetrics(aiDecisions, humanDecisions);
+    
+    // Update UI with calculated metrics
+    displayMetrics(metrics);
+    displayConfusionMatrix(metrics.confusionMatrix);
+    displayClassMetrics(metrics.classMetrics);
+    displayComparisonTable(comparisonData);
+    
+    // Hide loading spinner and show metrics
+    loadingContainer.style.display = 'none';
+    metricsContainer.style.display = 'block';
+});
+
+function calculateMetrics(aiDecisions, humanDecisions) {
+    // Ensure we have valid data
+    if (!aiDecisions || !humanDecisions || aiDecisions.length !== humanDecisions.length || aiDecisions.length === 0) {
+        return getDefaultMetrics();
+    }
+    
+    const labels = ['INCLUDE', 'MAYBE', 'EXCLUDE'];
+    const n = aiDecisions.length;
+    
+    // Initialize confusion matrix
+    const confusionMatrix = [
+        [0, 0, 0], // AI INCLUDE: [Human INCLUDE, Human MAYBE, Human EXCLUDE]
+        [0, 0, 0], // AI MAYBE: [Human INCLUDE, Human MAYBE, Human EXCLUDE]
+        [0, 0, 0]  // AI EXCLUDE: [Human INCLUDE, Human MAYBE, Human EXCLUDE]
+    ];
+    
+    // Fill confusion matrix
+    for (let i = 0; i < n; i++) {
+        const ai = aiDecisions[i];
+        const human = humanDecisions[i];
+        
+        let aiIndex = labels.indexOf(ai);
+        let humanIndex = labels.indexOf(human);
+        
+        if (aiIndex !== -1 && humanIndex !== -1) {
+            confusionMatrix[aiIndex][humanIndex]++;
+        }
+    }
+    
+    // Calculate overall metrics
+    let totalCorrect = 0;
+    for (let i = 0; i < labels.length; i++) {
+        totalCorrect += confusionMatrix[i][i];
+    }
+    
+    const accuracy = totalCorrect / n;
+    const discrepancyRate = 1 - accuracy;
+    
+    // Calculate Cohen's Kappa
+    // Expected agreement by chance
+    let pe = 0;
+    for (let i = 0; i < labels.length; i++) {
+        let aiTotal = 0;
+        let humanTotal = 0;
+        
+        for (let j = 0; j < labels.length; j++) {
+            aiTotal += confusionMatrix[i][j];
+            humanTotal += confusionMatrix[j][i];
+        }
+        
+        pe += (aiTotal / n) * (humanTotal / n);
+    }
+    
+    const kappa = (accuracy - pe) / (1 - pe);
+    
+    // Calculate class-specific metrics
+    const classMetrics = {};
+    
+    for (let i = 0; i < labels.length; i++) {
+        const label = labels[i];
+        let tp = confusionMatrix[i][i]; // True positives
+        
+        let fp = 0; // False positives
+        for (let j = 0; j < labels.length; j++) {
+            if (j !== i) fp += confusionMatrix[i][j];
+        }
+        
+        let fn = 0; // False negatives
+        for (let j = 0; j < labels.length; j++) {
+            if (j !== i) fn += confusionMatrix[j][i];
+        }
+        
+        let tn = 0; // True negatives
+        for (let j = 0; j < labels.length; j++) {
+            for (let k = 0; k < labels.length; k++) {
+                if (j !== i && k !== i) tn += confusionMatrix[j][k];
+            }
+        }
+        
+        const precision = tp / (tp + fp) || 0;
+        const recall = tp / (tp + fn) || 0;
+        const f1 = 2 * precision * recall / (precision + recall) || 0;
+        const specificity = tn / (tn + fp) || 0;
+        
+        classMetrics[label.toLowerCase()] = {
+            precision, recall, f1, specificity
+        };
+    }
+    
+    // Include-specific metrics
+    const includeIndex = 0; // INCLUDE is at index 0
+    const tp_include = confusionMatrix[includeIndex][includeIndex];
+    const fn_include = 0;
+    for (let j = 0; j < labels.length; j++) {
+        if (j !== includeIndex) fn_include += confusionMatrix[j][includeIndex];
+    }
+    const fp_include = 0;
+    for (let j = 0; j < labels.length; j++) {
+        if (j !== includeIndex) fp_include += confusionMatrix[includeIndex][j];
+    }
+    const tn_include = 0;
+    for (let j = 0; j < labels.length; j++) {
+        for (let k = 0; k < labels.length; k++) {
+            if (j !== includeIndex && k !== includeIndex) tn_include += confusionMatrix[j][k];
+        }
+    }
+    
+    const sensitivity_include = tp_include / (tp_include + fn_include) || 0;
+    const precision_include = tp_include / (tp_include + fp_include) || 0;
+    const f1_include = 2 * precision_include * sensitivity_include / (precision_include + sensitivity_include) || 0;
+    const specificity_include = tn_include / (tn_include + fp_include) || 0;
+    
+    // Calculate Maybe rates
+    const aiMaybeIndex = 1; // MAYBE is at index 1
+    let aiMaybeCount = 0;
+    for (let j = 0; j < labels.length; j++) {
+        aiMaybeCount += confusionMatrix[aiMaybeIndex][j];
+    }
+    
+    const humanMaybeIndex = 1; // MAYBE is at index 1
+    let humanMaybeCount = 0;
+    for (let j = 0; j < labels.length; j++) {
+        humanMaybeCount += confusionMatrix[j][humanMaybeIndex];
+    }
+    
+    const aiMaybeRate = aiMaybeCount / n;
+    const humanMaybeRate = humanMaybeCount / n;
+    
+    // Calculate workload reduction
+    // Assuming EXCLUDE decisions represent workload reduction (not needing review)
+    const aiExcludeIndex = 2; // EXCLUDE is at index 2
+    const humanIncludeIndex = 0; // INCLUDE is at index 0
+    
+    let aiExcludeCount = 0;
+    for (let j = 0; j < labels.length; j++) {
+        aiExcludeCount += confusionMatrix[aiExcludeIndex][j];
+    }
+    
+    // "Missed includes" are when AI=EXCLUDE but Human=INCLUDE
+    const missedIncludes = confusionMatrix[aiExcludeIndex][humanIncludeIndex];
+    
+    // Workload reduction is the percentage of excluded items, adjusted for missed includes
+    const workloadReduction = (aiExcludeCount / n) * (1 - (missedIncludes / Math.max(aiExcludeCount, 1)));
+    
+    return {
+        totalCompared: n,
+        accuracy,
+        kappa,
+        discrepancyRate,
+        sensitivityInclude: sensitivity_include,
+        precisionInclude: precision_include,
+        f1Include: f1_include,
+        specificityInclude: specificity_include,
+        workloadReduction,
+        aiMaybeRate,
+        humanMaybeRate,
+        confusionMatrix,
+        classMetrics
+    };
+}
+
+function getDefaultMetrics() {
+    return {
+        totalCompared: 0,
+        accuracy: 0,
+        kappa: 0,
+        discrepancyRate: 0,
+        sensitivityInclude: 0,
+        precisionInclude: 0,
+        f1Include: 0,
+        specificityInclude: 0,
+        workloadReduction: 0,
+        aiMaybeRate: 0,
+        humanMaybeRate: 0,
+        confusionMatrix: [[0,0,0],[0,0,0],[0,0,0]],
+        classMetrics: {
+            include: {precision: 0, recall: 0, f1: 0, specificity: 0},
+            maybe: {precision: 0, recall: 0, f1: 0, specificity: 0},
+            exclude: {precision: 0, recall: 0, f1: 0, specificity: 0}
+        }
+    };
+}
+
+function displayMetrics(metrics) {
+    // Format number helper
+    const formatNumber = (num) => (num * 100).toFixed(1) + '%';
+    
+    // Overall metrics
+    document.getElementById('overall-accuracy').textContent = formatNumber(metrics.accuracy);
+    document.getElementById('cohens-kappa').textContent = metrics.kappa.toFixed(3);
+    document.getElementById('discrepancy-rate').textContent = formatNumber(metrics.discrepancyRate);
+    document.getElementById('total-compared').textContent = metrics.totalCompared;
+    
+    // Include task metrics
+    document.getElementById('sensitivity-include').textContent = formatNumber(metrics.sensitivityInclude);
+    document.getElementById('precision-include').textContent = formatNumber(metrics.precisionInclude);
+    document.getElementById('f1-include').textContent = formatNumber(metrics.f1Include);
+    document.getElementById('specificity-include').textContent = formatNumber(metrics.specificityInclude);
+    
+    // Workload metrics
+    document.getElementById('workload-reduction').textContent = formatNumber(metrics.workloadReduction);
+    document.getElementById('ai-maybe-rate').textContent = formatNumber(metrics.aiMaybeRate);
+    document.getElementById('human-maybe-rate').textContent = formatNumber(metrics.humanMaybeRate);
+}
+
+function displayConfusionMatrix(matrix) {
+    for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+            const cellId = `cell-${i}-${j}`;
+            document.getElementById(cellId).textContent = matrix[i][j];
+        }
+    }
+}
+
+function displayClassMetrics(classMetrics) {
+    // Format number helper
+    const formatNumber = (num) => (num * 100).toFixed(1) + '%';
+    
+    // INCLUDE metrics
+    document.getElementById('include-precision').textContent = formatNumber(classMetrics.include.precision);
+    document.getElementById('include-recall').textContent = formatNumber(classMetrics.include.recall);
+    document.getElementById('include-f1').textContent = formatNumber(classMetrics.include.f1);
+    document.getElementById('include-specificity').textContent = formatNumber(classMetrics.include.specificity);
+    
+    // MAYBE metrics
+    document.getElementById('maybe-precision').textContent = formatNumber(classMetrics.maybe.precision);
+    document.getElementById('maybe-recall').textContent = formatNumber(classMetrics.maybe.recall);
+    document.getElementById('maybe-f1').textContent = formatNumber(classMetrics.maybe.f1);
+    document.getElementById('maybe-specificity').textContent = formatNumber(classMetrics.maybe.specificity);
+    
+    // EXCLUDE metrics
+    document.getElementById('exclude-precision').textContent = formatNumber(classMetrics.exclude.precision);
+    document.getElementById('exclude-recall').textContent = formatNumber(classMetrics.exclude.recall);
+    document.getElementById('exclude-f1').textContent = formatNumber(classMetrics.exclude.f1);
+    document.getElementById('exclude-specificity').textContent = formatNumber(classMetrics.exclude.specificity);
+}
+
+function displayComparisonTable(comparisonData) {
+    const tbody = document.getElementById('comparison-tbody');
+    tbody.innerHTML = '';
+    
+    comparisonData.forEach(item => {
+        const row = document.createElement('tr');
+        if (item.match) {
+            row.classList.add('match');
+        } else {
+            row.classList.add('mismatch');
+        }
+        
+        row.innerHTML = `
+            <td>${item.title}</td>
+            <td>${item.ai_decision}</td>
+            <td>${item.human_decision}</td>
+            <td>${item.match ? 'Yes' : 'No'}</td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+}
+</script>
+{% endblock %}
