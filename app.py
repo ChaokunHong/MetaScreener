@@ -1182,6 +1182,8 @@ def stream_test_screen_file():
             title_filter_input = title_filter_from_form
         
             # Save file to a temporary location for faster processing
+            # Ensure the stream is at the beginning before saving
+            file.stream.seek(0) 
             temp_file_path = os.path.join(UPLOAD_FOLDER, f"temp_{uuid.uuid4()}.ris")
             file.save(temp_file_path)
             
