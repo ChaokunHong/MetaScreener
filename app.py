@@ -49,7 +49,8 @@ from config import (
 from quality_assessment import quality_bp
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+# 使用环境变量或固定值作为secret_key，解决会话在服务器重启后失效的问题
+app.secret_key = os.environ.get('SECRET_KEY', 'metascreener-fixed-secret-key-2024')
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'ris'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
