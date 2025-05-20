@@ -926,7 +926,8 @@ def stream_screen_file():
                 df_for_screening = df_for_screening[df_for_screening['title'].str.contains(title_filter_input, case=False, na=False)]
                 filter_description = f"entries matching title '{title_filter_input}'"
                 if df_for_screening.empty:
-                    yield f"data: {json.dumps({'type': 'error', 'message': f'No articles found matching title: \"{title_filter_input}\"'})}\n\n"
+                    error_message = f"No articles found matching title: '{title_filter_input}'"
+                    yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\n\n"
                     return
 
             elif line_range_input:
@@ -1142,37 +1143,37 @@ def stream_test_screen_file():
                 original_df_count = len(df)
                 filter_description = "all entries"
 
-                if title_filter_input: # This is where the NameError previously occurred
-                    df_for_sampling = df_for_sampling[df_for_sampling['title'].str.contains(title_filter_input, case=False, na=False)]
+                if title_filter_input:
+                    df_for_screening = df_for_screening[df_for_screening['title'].str.contains(title_filter_input, case=False, na=False)]
                     filter_description = f"entries matching title '{title_filter_input}'"
-                    if df_for_sampling.empty:
-                        msg = f'No articles found matching title: "{title_filter_input}" to sample from.'
-                        yield f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n"
+                    if df_for_screening.empty:
+                        error_message = f"No articles found matching title: '{title_filter_input}'"
+                        yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\n\n"
                         return
-                
+
                 elif line_range_input:
                     try:
                         start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                         if start_idx >= end_idx:
-                            msg = f'The range "{line_range_input}" is invalid or results in no articles to sample from.'
-                            yield f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n"
+                            error_message = f"The range '{line_range_input}' is invalid or results in no articles."
+                            yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\n\n"
                             return
-                        df_for_sampling = df_for_sampling.iloc[start_idx:end_idx]
+                        df_for_screening = df_for_screening.iloc[start_idx:end_idx]
                         filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
-                        if df_for_sampling.empty:
-                            msg = f'The range "{line_range_input}" resulted in no articles to sample from.'
-                            yield f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n"
+                        if df_for_screening.empty:
+                            error_message = f"The range '{line_range_input}' resulted in no articles to screen."
+                            yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\n\n"
                             return
                     except ValueError as e:
-                        msg = f'Invalid range format for "{line_range_input}": {str(e)}'
-                        yield f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n"
+                        error_message = f"Invalid range format for '{line_range_input}': {str(e)}"
+                        yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\n\n"
                         return
                 
-                if df_for_sampling.empty:
+                if df_for_screening.empty:
                     yield f"data: {json.dumps({'type': 'error', 'message': 'No articles found after applying filters to sample from.'})}\n\n"
                     return
 
-                sample_df = df_for_sampling.head(min(sample_size, len(df_for_sampling)))
+                sample_df = df_for_screening.head(min(sample_size, len(df_for_screening)))
                 actual_sample_size = len(sample_df)
                 # --- END NEW ---
 
