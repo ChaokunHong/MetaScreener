@@ -979,7 +979,7 @@ def stream_screen_file():
                 model_id = current_llm_config_data['model_id']
                 base_url = get_base_url_for_provider(provider_name)
                 provider_info = get_llm_providers_info().get(provider_name, {})
-                session_key_name = provider_info.get("api_key_session_key") 
+                session_key_name = provider_info.get("api_key_session_key")
                 api_key = session.get(session_key_name) if session_key_name else None
 
                 if not api_key:
@@ -1027,7 +1027,8 @@ def stream_screen_file():
                             progress_percentage = int((processed_count / total_entries_to_screen) * 100) if total_entries_to_screen > 0 else 0
                             output_data = {
                                 'index': index + 1, 'title': title, 'authors': authors_str,
-                                'decision': screening_result['decision'], 'reasoning': screening_result['reasoning']
+                                'decision': screening_result['decision'], 'reasoning': screening_result['reasoning'],
+                                'abstract': row.get('abstract', '')  # 添加abstract字段以便在结果页面显示
                             }
                             temp_results_list.append(output_data)
                             progress_event = {
@@ -1052,7 +1053,8 @@ def stream_screen_file():
                             # Optionally, add a placeholder to temp_results_list for this error
                             temp_results_list.append({
                                 'index': index + 1, 'title': title, 'authors': authors_str,
-                                'decision': 'ITEM_ERROR', 'reasoning': str(e)
+                                'decision': 'ITEM_ERROR', 'reasoning': str(e),
+                                'abstract': row.get('abstract', '')  # 在错误处理中也添加abstract字段
                             })
 
                 # After loop, store results in global dict
