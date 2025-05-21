@@ -20,6 +20,7 @@ import os
 import pickle
 from pathlib import Path
 import time
+from gevent import spawn, joinall # Ensure gevent is imported here
 
 # Placeholder for storing assessment data (in a real app, this would be a database)
 _assessments_db = {}
@@ -716,23 +717,23 @@ def run_ai_quality_assessment(assessment_id: str, app_context=None, llm_config=N
 def _execute_assessment_logic(assessment_id: str, llm_config: Dict):
     try:
         assessment_data = _assessments_db.get(assessment_id)
-        import time
-        time.sleep(0.1) 
+        import time # time.sleep might be an issue with gevent if not patched, but assuming it is.
+        # time.sleep(0.1) # This short sleep is likely fine, or can be gevent.sleep(0.1)
 
         if not assessment_data:
             print(f"Assessment data for {assessment_id} not found in _execute_assessment_logic.")
+            # current_app.logger.error(...) would be better if logger is configured and app_context is robustly handled
             return
         
-        # Ensure assessment_details is a list, not None, before processing
         if assessment_data.get('assessment_details') is None:
             assessment_data['assessment_details'] = []
-            print(f"EXECUTE_LOGIC: Initialized assessment_details to [] for {assessment_id} as it was None.")
+            # print(f"EXECUTE_LOGIC: Initialized assessment_details to [] for {assessment_id} as it was None.")
 
         if assessment_data.get('status') in ['completed', 'error']:
-            print(f"Assessment {assessment_id} already processed ({assessment_data.get('status')}). Skipping.")
+            # print(f"Assessment {assessment_id} already processed ({assessment_data.get('status')}). Skipping.")
             return
         
-        print(f"Background task started for {assessment_id} with provider {llm_config.get('provider_name')}")
+        # print(f"Background task started for {assessment_id} with provider {llm_config.get('provider_name')}")
         assessment_data['status'] = 'processing_assessment'
         assessment_data['progress'] = {"current": 0, "total": 0, "message": "Initializing assessment..."}
 
@@ -747,100 +748,139 @@ def _execute_assessment_logic(assessment_id: str, llm_config: Dict):
 
         if not criteria_tool_info:
             assessment_data['status'] = 'error'
-            assessment_data['message'] = f"No tool for type: {document_type}"
-            assessment_data['progress']["message"] = "Tool definition error"
+            assessment_data['message'] = f"No quality assessment tool defined for document type: {document_type}"
+            if 'progress' in assessment_data: assessment_data['progress']["message"] = "Tool definition error"
             return
 
         criteria_list = criteria_tool_info.get("criteria", [])
+        if not criteria_list: # Added check for empty criteria list
+            assessment_data['status'] = 'completed' # Or 'error' if this is unexpected
+            assessment_data['message'] = f"No criteria found for document type: {document_type}. Assessment considered complete."
+            if 'progress' in assessment_data: assessment_data['progress']["message"] = "No criteria to assess."
+            _save_assessments_to_file(assessment_id_to_log=assessment_id)
+            return
+            
         total_criteria = len(criteria_list)
         assessment_data['progress']['total'] = total_criteria
-        assessment_data['progress']['message'] = f"Starting assessment of {total_criteria} criteria..."
+        assessment_data['progress']['message'] = f"Spawning assessment tasks for {total_criteria} criteria..."
+        
         detailed_results = []
+        greenlets_criteria = []
         document_text_segment = text_content[:MAX_TEXT_SEGMENT_FOR_LLM]
 
-        for i, criterion in enumerate(criteria_list):
-            current_progress = i + 1
-            progress_msg = f"Assessing criterion {current_progress}/{total_criteria}: {criterion['text'][:30]}..."
-            assessment_data['progress']['current'] = current_progress
-            assessment_data['progress']['message'] = progress_msg
-            print(f"  Thread for {assessment_id}: {progress_msg}")
-            
-            prompt_construct = _construct_quality_assessment_prompt(
-                criterion_text=criterion['text'],
-                criterion_guidance=criterion.get('guidance'),
-                document_text_segment=document_text_segment,
-                document_type=document_type
+        # Local helper function to be spawned as a greenlet
+        def assess_one_criterion_task(criterion_item, doc_text_segment, doc_type, p_name, m_id, key, url):
+            prompt_struct = _construct_quality_assessment_prompt(
+                criterion_text=criterion_item['text'],
+                criterion_guidance=criterion_item.get('guidance'),
+                document_text_segment=doc_text_segment,
+                document_type=doc_type
             )
-            
-            print(f"  Thread for {assessment_id}: Using assessment template for {document_type}")
-            
             try:
-                llm_response_raw = call_llm_api_raw_content(
-                    prompt_construct, provider_name, model_id, api_key, base_url, max_tokens_override=600 # Increased max_tokens for potentially longer JSON
+                raw_response = call_llm_api_raw_content(
+                    prompt_struct, p_name, m_id, key, url, max_tokens_override=600
                 )
-                parsed_assessment = _parse_llm_json_response(llm_response_raw)
-                if parsed_assessment and isinstance(parsed_assessment, dict):
-                    detailed_results.append({
-                        "criterion_id": criterion['id'], "criterion_text": criterion['text'],
-                        "judgment": parsed_assessment.get("judgment", "Error: Missing judgment"),
-                        "reason": parsed_assessment.get("reason", "Error: Missing reason"),
-                        "evidence_quotes": parsed_assessment.get("evidence_quotes", [])
-                    })
+                parsed_resp = _parse_llm_json_response(raw_response)
+                if parsed_resp and isinstance(parsed_resp, dict):
+                    return {
+                        "criterion_id": criterion_item['id'], "criterion_text": criterion_item['text'],
+                        "judgment": parsed_resp.get("judgment", "Error: Missing judgment"),
+                        "reason": parsed_resp.get("reason", "Error: Missing reason"),
+                        "evidence_quotes": parsed_resp.get("evidence_quotes", [])
+                    }
                 else:
-                    detailed_results.append({"criterion_id": criterion['id'], "criterion_text": criterion['text'], "judgment": "Error: Parse Failure", "reason": f"Raw: {llm_response_raw[:100] if llm_response_raw else 'None'}...", "evidence_quotes": []})
-            except Exception as e_llm_call:
-                detailed_results.append({"criterion_id": criterion['id'], "criterion_text": criterion['text'], "judgment": "Error: API Call Failed", "reason": str(e_llm_call), "evidence_quotes": []})
+                    return {"criterion_id": criterion_item['id'], "criterion_text": criterion_item['text'], "judgment": "Error: Parse Failure", "reason": f"Raw: {raw_response[:100] if raw_response else 'None'}...", "evidence_quotes": []}
+            except Exception as e_llm:
+                return {"criterion_id": criterion_item['id'], "criterion_text": criterion_item['text'], "judgment": "Error: API Call Failed", "reason": str(e_llm), "evidence_quotes": []}
+
+        for i, criterion_obj in enumerate(criteria_list):
+            # Update progress before spawning, conceptually tied to starting this criterion's processing
+            # assessment_data['progress']['current'] = i + 1 # Progress will be updated when retrieving results
+            # assessment_data['progress']['message'] = f"Queuing criterion {i+1}/{total_criteria}: {criterion_obj['text'][:30]}..."
+            # print(f"  Thread for {assessment_id}: Queuing {criterion_obj['text'][:30]}...") # Using print for now, as app_logger might not be context-safe here
+            
+            g = spawn(assess_one_criterion_task, criterion_obj, document_text_segment, document_type,
+                      provider_name, model_id, api_key, base_url)
+            greenlets_criteria.append({'greenlet': g, 'original_criterion': criterion_obj, 'index': i})
+        
+        # Gunicorn worker timeout is 3600s. Nginx for / may be 120s or 3600s.
+        # This task runs in app.executor (ThreadPool) which is not directly tied to request timeout.
+        # However, we should set a reasonable timeout for all criteria processing.
+        join_timeout_qa = 3500 # e.g., slightly less than Gunicorn default, or based on expected max time per document
+        # print(f"QA Service {assessment_id}: Waiting for {len(greenlets_criteria)} criteria greenlets with timeout {join_timeout_qa}s.")
+        joinall([item['greenlet'] for item in greenlets_criteria], timeout=join_timeout_qa)
+        # print(f"QA Service {assessment_id}: Criteria greenlets join completed or timed out.")
+
+        temp_results_map = {} # Using a map to ensure order if needed, or can append directly if order is by completion
+        processed_criteria_count = 0
+
+        for item_info in greenlets_criteria:
+            glet = item_info['greenlet']
+            original_crit = item_info['original_criterion']
+            original_idx = item_info['index']
+            crit_result_data = None
+            processed_criteria_count +=1
+            
+            assessment_data['progress']['current'] = processed_criteria_count
+            assessment_data['progress']['message'] = f"Processing result for criterion {processed_criteria_count}/{total_criteria}: {original_crit['text'][:30]}..."
+
+            try:
+                if glet.ready():
+                    if glet.successful():
+                        crit_result_data = glet.get(block=False)
+                    else:
+                        # print(f"QA Service: Unhandled exception in greenlet for criterion {original_crit['id']}: {glet.exception}")
+                        crit_result_data = {"criterion_id": original_crit['id'], "criterion_text": original_crit['text'], "judgment": "Error: Greenlet Exception", "reason": str(glet.exception), "evidence_quotes": []}
+                else:
+                    # print(f"QA Service: Greenlet for criterion {original_crit['id']} timed out.")
+                    crit_result_data = {"criterion_id": original_crit['id'], "criterion_text": original_crit['text'], "judgment": "Error: Criterion Timeout", "reason": "Processing for this criterion timed out.", "evidence_quotes": []}
+            except Exception as exc_glet_get:
+                # print(f"QA Service: Exception getting result from greenlet for criterion {original_crit['id']}: {exc_glet_get}")
+                crit_result_data = {"criterion_id": original_crit['id'], "criterion_text": original_crit['text'], "judgment": "Error: Result Retrieval", "reason": str(exc_glet_get), "evidence_quotes": []}
+            
+            temp_results_map[original_idx] = crit_result_data
+
+        # Reconstruct detailed_results in original order
+        for i in range(total_criteria):
+            res = temp_results_map.get(i)
+            if res:
+                detailed_results.append(res)
+            else:
+                # This case should ideally not happen if all indices are processed
+                detailed_results.append({
+                    "criterion_id": criteria_list[i]['id'], "criterion_text": criteria_list[i]['text'],
+                    "judgment": "Error: Processing Skipped", "reason": "Result for this criterion was not found after gevent processing.", "evidence_quotes": []
+                })
 
         assessment_data['assessment_details'] = detailed_results
         assessment_data['status'] = 'completed'
         assessment_data['progress']['message'] = "Assessment completed!"
-        assessment_data['progress']['current'] = total_criteria
+        assessment_data['progress']['current'] = total_criteria # Ensure current shows total at the end
 
-        # Calculate a simple summary: count of negative judgments
         negative_judgment_count = 0
         if detailed_results:
             for res_item in detailed_results:
                 judgment = res_item.get("judgment", "").lower()
-                # Define what constitutes a negative judgment based on your LLM's typical output
-                if "no" in judgment or "high risk" in judgment or "poor" in judgment or judgment == "not met":
+                if "no" in judgment or "high risk" in judgment or "poor" in judgment or judgment == "not met" or "error" in judgment.lower(): # Count errors as negative
                     negative_judgment_count += 1
         assessment_data['summary_negative_findings'] = negative_judgment_count
         assessment_data['summary_total_criteria_evaluated'] = total_criteria
         
-        # Force update to ensure the assessment is marked as completed
         if assessment_id in _assessments_db:
             _assessments_db[assessment_id] = assessment_data
-            print(f"EXECUTE_LOGIC: Assessment {assessment_id} details count IN DB before save: {len(_assessments_db[assessment_id].get('assessment_details', []))}")
-            print(f"EXECUTE_LOGIC: Status IN DB before save: {_assessments_db[assessment_id].get('status')}")
-            print(f"EXECUTE_LOGIC: Summary negative findings IN DB: {_assessments_db[assessment_id].get('summary_negative_findings')}") # Log new summary
 
-        # Save completed assessments to file
         _save_assessments_to_file(assessment_id_to_log=assessment_id)
-        
-        print(f"Background task for {assessment_id} finished. Results: {len(detailed_results)}")
-        
-        # Add more debugging info
-        if detailed_results:
-            print(f"First result item: {detailed_results[0]['criterion_id']} - {detailed_results[0]['judgment']}")
-            print(f"Assessment completed for type: {document_type}. Setting status to completed.")
-            # Print the complete assessment data structure to verify it's properly saved
-            print(f"Assessment data keys: {assessment_data.keys()}")
-            print(f"Assessment status: {assessment_data['status']}")
-            print(f"Results count in assessment: {len(assessment_data['assessment_details'])}")
-        else:
-            print(f"Warning: No detailed results were generated for {assessment_id}.")
+        # print(f"Background task for {assessment_id} finished. Results: {len(detailed_results)}")
 
     except Exception as e_outer:
         print(f"CRITICAL ERROR in _execute_assessment_logic for {assessment_id}: {e_outer}")
         traceback.print_exc()
         if assessment_id in _assessments_db and _assessments_db[assessment_id] is not None:
             _assessments_db[assessment_id]['status'] = 'error'
-            _assessments_db[assessment_id]['message'] = f"Critical background task error: {str(e_outer)[:100]}" # Keep error message concise
+            _assessments_db[assessment_id]['message'] = f"Critical background task error: {str(e_outer)[:100]}"
             if 'progress' in _assessments_db[assessment_id] and _assessments_db[assessment_id]['progress'] is not None:
                  _assessments_db[assessment_id]['progress']['message'] = "Critical error during processing"
-                 
-            # Save error state to file
-            _save_assessments_to_file(assessment_id_to_log=assessment_id) # Pass ID for logging within save
+            _save_assessments_to_file(assessment_id_to_log=assessment_id)
 
 
 # Example of how you might call the assessment after processing:

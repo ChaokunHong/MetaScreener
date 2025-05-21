@@ -4,7 +4,7 @@ import time
 import datetime  # Explicitly import datetime for current year
 import uuid
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed # Ensure as_completed is imported
 from sklearn.metrics import confusion_matrix, cohen_kappa_score, f1_score, precision_score, recall_score, \
     multilabel_confusion_matrix
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, Response, send_file
@@ -23,6 +23,8 @@ import atexit # <-- To shut down scheduler gracefully
 from datetime import timedelta # ADDED for session lifetime
 from flask_redis import FlaskRedis
 import pickle
+from gevent import monkey, spawn, joinall # Import gevent utilities
+monkey.patch_all() # Patch standard libraries to be gevent-friendly
 
 # Initialize Redis client
 redis_client = FlaskRedis()
@@ -579,12 +581,14 @@ def screen_full_dataset(session_id):
     
     df = session_data.get('df')
     filename = session_data.get('file_name')
-    if not df:
-        flash('Test session data missing dataframe.', 'error')
+    if df is None or df.empty: # Added df.empty check
+        flash('Test session data missing dataframe or dataframe is empty.', 'error')
+        # delete_test_session(session_id) # Optional: clean up if df is bad
         return redirect(url_for('abstract_screening_page'))
     
     results_list = []
     try:
+        # Pre-fetch configuration that doesn't change per item
         criteria_prompt_text = get_screening_criteria()
         current_llm_config_data = get_current_llm_config(session)
         provider_name = current_llm_config_data['provider_name']
@@ -593,59 +597,87 @@ def screen_full_dataset(session_id):
         provider_info = get_llm_providers_info().get(provider_name, {})
         session_key_name = provider_info.get("api_key_session_key")
         api_key = session.get(session_key_name) if session_key_name else None
+
         if not api_key: 
             flash(f"API Key for {provider_name} must be provided via the configuration form for this session.", "error")
+            delete_test_session(session_id) 
             return redirect(url_for('llm_config_page'))
 
         results_map = {}
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            future_to_index = {}
-            futures = []
-            for index, row in df.iterrows():
-                abstract = row.get('abstract')
-                future = executor.submit(
-                     _perform_screening_on_abstract,
-                     abstract, criteria_prompt_text,
-                     provider_name, model_id, api_key, base_url
-                 )
-                futures.append(future)
-                future_to_index[future] = index # Map future back to original index
+        
+        # --- Using gevent.spawn for concurrency ---
+        greenlets = []
+        app_logger.info(f"Screening {len(df)} abstracts for session {session_id} using gevent.")
+        for index, row in df.iterrows():
+            abstract = row.get('abstract')
+            greenlet = spawn(_perform_screening_on_abstract,
+                             abstract, criteria_prompt_text,
+                             provider_name, model_id, api_key, base_url)
+            greenlets.append((index, greenlet))
 
-            # Process as completed to handle errors gracefully
-            for future in as_completed(futures):
-                index = future_to_index[future]
-                try:
-                    screening_result = future.result()
-                    if screening_result['decision'] == "CONFIG_ERROR":
-                         flash(f"Config error for item at index {index}: {screening_result['reasoning']}", "error")
-                         delete_test_session(session_id)
-                         return redirect(url_for('llm_config_page'))
-                    results_map[index] = screening_result # Store result associated with its original index
-                except Exception as exc:
-                     app_logger.error(f"Error processing item (index {index}) in sync route: {exc}")
-                     traceback.print_exc()
-                     results_map[index] = {'decision': 'WORKER_ERROR', 'reasoning': str(exc)} # Store an error result
+        # Wait for all greenlets to complete, with a timeout
+        # Nginx read_timeout for this path is 600s. Gunicorn timeout is 3600s.
+        # gevent joinall timeout should be less than Nginx's to allow graceful handling.
+        join_timeout = 580 
+        app_logger.info(f"Waiting for {len(greenlets)} greenlets to complete with timeout {join_timeout}s.")
+        joinall(greenlets_to_join=[glet for _, glet in greenlets], timeout=join_timeout)
+        app_logger.info("Greenlet join completed or timed out.")
+
+        processed_count = 0
+        for index, greenlet in greenlets:
+            try:
+                if greenlet.ready(): # Check if greenlet has finished (successfully or with error)
+                    if greenlet.successful(): # Check if greenlet completed without unhandled exception
+                        screening_result = greenlet.get(block=False) # Non-blocking get as it's ready
+                        if screening_result.get('decision') == "CONFIG_ERROR": # Use .get for safety
+                             app_logger.error(f"Config error for item at index {index} (session {session_id}): {screening_result.get('reasoning')}")
+                        results_map[index] = screening_result
+                    else: # Greenlet died due to an unhandled exception in _perform_screening_on_abstract
+                        app_logger.error(f"Unhandled exception in greenlet for item (index {index}, session {session_id}): {greenlet.exception}")
+                        results_map[index] = {'decision': 'GREENLET_ERROR', 'reasoning': str(greenlet.exception)}
+                else: # Greenlet did not finish (e.g. joinall timed out)
+                    app_logger.warning(f"Greenlet for item (index {index}, session {session_id}) did not complete within timeout.")
+                    results_map[index] = {'decision': 'TIMEOUT_ERROR', 'reasoning': 'Processing timed out.'}
+            except Exception as exc: 
+                 app_logger.error(f"Error processing result from greenlet for item (index {index}, session {session_id}): {exc}")
+                 app_logger.exception(f"Exception details for item (index {index}, session {session_id}) during greenlet result processing")
+                 results_map[index] = {'decision': 'PROCESSING_ERROR', 'reasoning': str(exc)}
+            processed_count +=1
+        
+        app_logger.info(f"Finished processing results for {processed_count}/{len(df)} items for session {session_id}.")
+        # --- End gevent concurrency block ---
 
         # Reconstruct results_list in original order
         for index, row in df.iterrows():
              result_data = results_map.get(index)
              if result_data:
                   results_list.append({
-                      'index': index + 1,
+                      'index': index + 1, 
                       'title': row.get('title', "N/A"),
-                      'authors': ", ".join(row.get('authors', [])) if row.get('authors') else "Authors Not Found",
-                      'decision': result_data['decision'],
-                      'reasoning': result_data['reasoning']
+                      'authors': ", ".join(row.get('authors', [])) if isinstance(row.get('authors'), list) else "Authors Not Found",
+                      'decision': result_data.get('decision', 'UNKNOWN_ERROR'),
+                      'reasoning': result_data.get('reasoning', 'No reasoning provided')
                   })
+             else: 
+                 app_logger.warning(f"Missing result for item (index {index}, session {session_id}) when reconstructing list.")
+                 results_list.append({
+                     'index': index + 1,
+                     'title': row.get('title', "N/A"),
+                     'authors': ", ".join(row.get('authors', [])) if isinstance(row.get('authors'), list) else "Authors Not Found",
+                     'decision': 'MISSING_RESULT',
+                     'reasoning': 'The screening result for this item was not processed or found.'
+                 })
 
         delete_test_session(session_id)
         current_year = datetime.datetime.now().year
+        app_logger.info(f"Successfully completed screening for session {session_id}. Rendering results.")
         return render_template('results.html', results=results_list, filename=filename, current_year=current_year)
 
     except Exception as e:
-        app_logger.exception(f"Error during full screening for session {session_id}")
-        flash(f"Error during full screening: {e}.", 'error')
-        delete_test_session(session_id)
+        app_logger.exception(f"Critical error during full screening for session {session_id}")
+        flash(f"An unexpected error occurred during the screening process. Please check logs. Error: {type(e).__name__}", 'error')
+        if 'session_id' in locals() and session_id: 
+            delete_test_session(session_id)
         return redirect(url_for('abstract_screening_page'))
 
 
@@ -905,81 +937,64 @@ def stream_screen_file():
     if 'file' not in request.files:
         return Response(f"data: {json.dumps({'type': 'error', 'message': 'No file part.'})}\n\n", mimetype='text/event-stream')
     
-    uploaded_file_full = request.files['file'] # Renamed variable
+    uploaded_file_full = request.files['file']
     if uploaded_file_full.filename == '':
         return Response(f"data: {json.dumps({'type': 'error', 'message': 'No selected file.'})}\n\n", mimetype='text/event-stream')
     if not allowed_file(uploaded_file_full.filename):
         return Response(f"data: {json.dumps({'type': 'error', 'message': 'Invalid file type.'})}\n\n", mimetype='text/event-stream')
 
-    # Extract form data *before* defining the generator
     line_range_input_val = request.form.get('line_range_filter', '').strip()
     title_filter_input_val = request.form.get('title_text_filter', '').strip()
 
-    # --- Pre-fetch all request-bound data BEFORE generator definition ---
     criteria_prompt_text_val_full = get_screening_criteria()
     current_llm_config_data_val_full = get_current_llm_config(session)
     provider_name_val_full = current_llm_config_data_val_full['provider_name']
     model_id_val_full = current_llm_config_data_val_full['model_id']
     base_url_val_full = get_base_url_for_provider(provider_name_val_full)
-    
     provider_info_val_full = get_llm_providers_info().get(provider_name_val_full, {})
     session_key_name_val_full = provider_info_val_full.get("api_key_session_key")
     api_key_val_full = session.get(session_key_name_val_full) if session_key_name_val_full else None
-    # --- End pre-fetch ---
-
-    # Save the uploaded file to a temporary path *before* starting the generator
-    temp_file_path_full_screen = os.path.join(UPLOAD_FOLDER, f"temp_full_{uuid.uuid4()}.ris")
+    
+    original_filename_for_session = uploaded_file_full.filename
+    temp_file_path_full_screen = os.path.join(UPLOAD_FOLDER, f"temp_full_sse_{uuid.uuid4()}.ris")
+    
     try:
         uploaded_file_full.save(temp_file_path_full_screen)
-        app_logger.info(f"Full screening: Uploaded file saved to temporary path: {temp_file_path_full_screen}")
+        app_logger.info(f"SSE Full screening: Uploaded file saved to temporary path: {temp_file_path_full_screen}")
     except Exception as e_save:
-        app_logger.error(f"Full screening: Failed to save uploaded file initially: {e_save}")
-        error_message = {'type': 'error', 'message': f'Failed to save uploaded file: {e_save}'}
-        return Response(f"data: {json.dumps(error_message)}\n\n", mimetype='text/event-stream')
-
-    original_filename_for_session = uploaded_file_full.filename # Store for session
+        app_logger.error(f"SSE Full screening: Failed to save uploaded file initially: {e_save}")
+        return Response(f"data: {json.dumps({'type': 'error', 'message': f'Failed to save uploaded file: {e_save}'})}\n\n", mimetype='text/event-stream')
 
     def generate_response(line_range_filter, title_text_filter, saved_temp_file_path, original_filename,
-                          criteria_prompt, llm_provider, llm_model, llm_base_url, llm_api_key):
+                          criteria_prompt, llm_provider, llm_model, llm_base_url, llm_api_key_from_outer_scope):
         overall_start_time = time.time()
-        app_logger.info("PERF: generate_response (full screen) started.")
-        current_temp_file_path = saved_temp_file_path # Path to the file saved by the main route function
-
-        # 立即发送初始化事件
-        init_message = {'type': 'init', 'message': 'Processing upload, please wait...'}
-        yield f"data: {json.dumps(init_message)}\n\n" # Ensure single backslash for newline
+        app_logger.info(f"PERF SSE: generate_response (full screen SSE) started for {original_filename}.")
+        current_temp_file_path = saved_temp_file_path
+        
+        yield f"data: {json.dumps({'type': 'init', 'message': 'Processing upload, please wait...'})}\n\n"
         
         try:
-            # 获取过滤条件 (use passed-in values)
             line_range_input = line_range_filter
             title_filter_input = title_text_filter
 
-            yield f"data: {json.dumps({'type': 'status', 'message': 'Reading and parsing file content...'})}\n\n" # Ensure single backslash
+            yield f"data: {json.dumps({'type': 'status', 'message': 'Reading and parsing file content...'})}\n\n"
             
-            load_ris_start_time = time.time()
-            # 直接从已保存的临时文件加载
             with open(current_temp_file_path, 'rb') as f_stream:
                  df = load_literature_ris(f_stream)
-            load_ris_end_time = time.time()
-            app_logger.info(f"PERF: load_literature_ris from {current_temp_file_path} took {load_ris_end_time - load_ris_start_time:.4f} seconds.")
-
+            
             if df is None or df.empty:
-                yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\n\n" # Ensure single backslash
-                return # Return here to ensure finally is hit correctly for cleanup.
-            
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\n\n"
+                return
             if 'abstract' not in df.columns:
-                yield f"data: {json.dumps({'type': 'error', 'message': 'RIS missing abstract column.'})}\n\n" # Ensure single backslash
-                return # Return here for cleanup.
+                yield f"data: {json.dumps({'type': 'error', 'message': 'RIS missing abstract column.'})}\n\n"
+                return
             
-            yield f"data: {json.dumps({'type': 'status', 'message': 'File parsed. Preparing data for screening...'})}\n\n" # Ensure single backslash
+            yield f"data: {json.dumps({'type': 'status', 'message': 'File parsed. Preparing data for screening...'})}\n\n"
             
-            data_prep_start_time = time.time()
-            # 填充缺失值
             df['title'] = df.get('title', pd.Series(["Title Not Found"] * len(df))).fillna("Title Not Found")
             df['authors'] = df.get('authors', pd.Series([[] for _ in range(len(df))]))
             df['authors'] = df['authors'].apply(lambda x: x if isinstance(x, list) else [])
 
-            # 应用过滤条件
             df_for_screening = df.copy()
             original_df_count = len(df)
             filter_description = "all entries"
@@ -988,176 +1003,119 @@ def stream_screen_file():
                 df_for_screening = df_for_screening[df_for_screening['title'].str.contains(title_filter_input, case=False, na=False)]
                 filter_description = f"entries matching title '{title_filter_input}'"
                 if df_for_screening.empty:
-                    error_message = f"No articles found matching title: '{title_filter_input}'"
-                    yield f"data: {json.dumps({'type': 'error', 'message': error_message})}\n\n" # Ensure single backslash
-                    return # Return here for cleanup.
-
+                    yield f"data: {json.dumps({'type': 'error', 'message': f'No articles found matching title: \"{title_filter_input}\"'})}\n\n"
+                    return
             elif line_range_input:
                 try:
                     start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                     if start_idx >= end_idx:
-                        message_text = f'The range "{line_range_input}" is invalid or results in no articles.'
-                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n" # Ensure single backslash
-                        return # Return here for cleanup.
+                        yield f"data: {json.dumps({'type': 'error', 'message': f'The range \"{line_range_input}\" is invalid or results in no articles.'})}\n\n"
+                        return
                     df_for_screening = df_for_screening.iloc[start_idx:end_idx]
                     filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
                     if df_for_screening.empty:
-                        message_text = f'The range "{line_range_input}" resulted in no articles to screen.'
-                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n" # Ensure single backslash
-                        return # Return here for cleanup.
+                        yield f"data: {json.dumps({'type': 'error', 'message': f'The range \"{line_range_input}\" resulted in no articles to screen.'})}\n\n"
+                        return
                 except ValueError as e:
-                    message_text = f'Invalid range format for "{line_range_input}": {str(e)}'
-                    yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n" # Ensure single backslash
-                    return # Return here for cleanup.
+                    yield f"data: {json.dumps({'type': 'error', 'message': f'Invalid range format for \"{line_range_input}\": {str(e)}'})}\n\n"
+                    return
             
-            data_prep_end_time = time.time()
-            app_logger.info(f"PERF: Data preparation and filtering took {data_prep_end_time - data_prep_start_time:.4f} seconds.")
-
-            yield f"data: {json.dumps({'type': 'status', 'message': 'Filters applied. Counting entries for screening...'})}\n\n" # Ensure single backslash
-
             total_entries_to_screen = len(df_for_screening)
             if total_entries_to_screen == 0:
-                yield f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\n\n" # Ensure single backslash
-                return # Return here for cleanup.
+                yield f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\n\n"
+                return
 
-            # 获取配置 (Use pre-fetched values)
-            # config_fetch_start_time = time.time() # Already logged before this generator
-            # criteria_prompt_text = get_screening_criteria() # OLD
-            # current_llm_config_data = get_current_llm_config(session) # OLD
-            # provider_name = current_llm_config_data['provider_name'] # OLD
-            # model_id = current_llm_config_data['model_id'] # OLD
-            # base_url = get_base_url_for_provider(provider_name) # OLD
-            # provider_info = get_llm_providers_info().get(provider_name, {}) # OLD
-            # session_key_name = provider_info.get("api_key_session_key") # OLD
-            # api_key = session.get(session_key_name) if session_key_name else None # OLD
-            # config_fetch_end_time = time.time()
-            # app_logger.info(f"PERF: Fetching criteria and LLM config took {config_fetch_end_time - config_fetch_start_time:.4f} seconds.")
-
-
-            if not llm_api_key: # Use the passed-in llm_api_key
-                yield f"data: {json.dumps({'type': 'error', 'message': f'API Key for {llm_provider} must be provided via the configuration form for this session.', 'needs_config': True})}\n\n" # Ensure single backslash
-                # If API key is missing, we should not proceed with screening. 
-                # Returning here ensures finally block cleans up the temp file.
+            if not llm_api_key_from_outer_scope:
+                yield f"data: {json.dumps({'type': 'error', 'message': f'API Key for {llm_provider} must be provided.', 'needs_config': True})}\n\n"
                 return 
 
             screening_id = str(uuid.uuid4())
-            # original_filename is already passed as an argument
+            yield f"data: {json.dumps({'type': 'start', 'total': total_entries_to_screen, 'filter_info': filter_description})}\n\n"
+            
+            app_logger.info(f"PERF SSE: Spawning greenlets for {total_entries_to_screen} items for file {original_filename}.")
+            
+            greenlets = []
+            for index, row in df_for_screening.iterrows():
+                abstract = row.get('abstract')
+                g = spawn(_perform_screening_on_abstract,
+                          abstract, criteria_prompt,
+                          llm_provider, llm_model, llm_api_key_from_outer_scope, llm_base_url)
+                greenlets.append({'greenlet': g, 'index': index, 'row': row})
+            
+            join_timeout_sse = 3580
+            app_logger.info(f"PERF SSE: Waiting for {len(greenlets)} greenlets to complete with timeout {join_timeout_sse}s for {original_filename}.")
+            joinall([item['greenlet'] for item in greenlets], timeout=join_timeout_sse)
+            app_logger.info(f"PERF SSE: Greenlet join completed or timed out for {original_filename}.")
 
-            # 发送开始事件
-            yield f"data: {json.dumps({'type': 'start', 'total': total_entries_to_screen, 'filter_info': filter_description})}\n\n" # Ensure single backslash
-            app_logger.info(f"PERF: Starting ThreadPoolExecutor for {total_entries_to_screen} items.")
-            thread_pool_start_time = time.time()
-
-            # 处理和筛选
             processed_count = 0
             temp_results_list = []
-            futures_map = {}
 
-            # 使用更小的线程池减少资源消耗
-            with ThreadPoolExecutor(max_workers=4) as executor:
-                # 将任务分批提交，避免一次提交太多任务
-                batch_size = min(20, total_entries_to_screen)  # 每批最多20条
-                item_submit_idx = 0
-                for start_idx_batch in range(0, total_entries_to_screen, batch_size):
-                    end_idx_batch = min(start_idx_batch + batch_size, total_entries_to_screen)
-                    batch_df = df_for_screening.iloc[start_idx_batch:end_idx_batch]
-                    
-                    for index, row in batch_df.iterrows():
-                        item_submit_idx += 1
-                        app_logger.info(f"PERF: Submitting item {item_submit_idx}/{total_entries_to_screen} (original index {index}) to executor.")
-                        abstract = row.get('abstract')
-                        future = executor.submit(
-                            _perform_screening_on_abstract,
-                            abstract, criteria_prompt, # Use passed criteria_prompt
-                            llm_provider, llm_model, llm_api_key, llm_base_url # Use passed LLM params
-                        )
-                        futures_map[future] = {'index': index, 'row': row, 'submit_time': time.time()}
+            for item_info in greenlets:
+                glet = item_info['greenlet']
+                index = item_info['index']
+                row = item_info['row']
+                title = row.get('title', "N/A")
+                authors_list = row.get('authors', [])
+                authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
+                screening_result_data = None
 
-                    # 处理当前批次的结果
-                    # For performance logging, we'll log when each future completes.
-                    # The as_completed loop processes them as they finish.
-
-                for future in as_completed(list(futures_map.keys())):
-                    future_data = futures_map.pop(future)  # 及时从映射中移除处理完的任务
-                    index = future_data['index']
-                    row = future_data['row']
-                    title = row.get('title', "N/A")
-                    authors_list = row.get('authors', [])
-                    authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
-                    submit_time = future_data['submit_time']
-                    completion_time = time.time()
-                    app_logger.info(f"PERF: Future for item (original index {index}, title: {title[:30]}...) completed. Time in executor: {completion_time - submit_time:.4f} seconds.")
-
-
-                    try:
-                        screening_result = future.result() # This call itself might block if future.result() was not called before, but as_completed ensures it's done.
-                        if screening_result['decision'] == "CONFIG_ERROR":
-                            raise Exception(f"CONFIG_ERROR from worker: {screening_result['reasoning']}")
-
-                        processed_count += 1
-                        progress_percentage = int((processed_count / total_entries_to_screen) * 100) if total_entries_to_screen > 0 else 0
-                        output_data = {
-                            'index': index + 1, 'title': title, 'authors': authors_str,
-                            'decision': screening_result['decision'], 'reasoning': screening_result['reasoning'],
-                            'abstract': row.get('abstract', '')  # 添加abstract字段以便在结果页面显示
-                        }
-                        temp_results_list.append(output_data)
-                        progress_event = {
-                            'type': 'progress', 'count': processed_count, 'total': total_entries_to_screen,
-                            'percentage': progress_percentage, 'current_item_title': title,
-                            'decision': screening_result['decision']
-                        }
-                        yield f"data: {json.dumps(progress_event)}\n\n" # Ensure single backslash
-                        # 添加短暂延迟，减轻浏览器负担
-                        time.sleep(0.01)
-
-                    except Exception as e:
-                        processed_count += 1
-                        progress_percentage = int((processed_count / total_entries_to_screen) * 100) if total_entries_to_screen > 0 else 0
-                        error_message_text_item = f"Error processing item '{title[:30]}...': {e}"
-                        app_logger.error(f"Error processing item (original index {index}): {e}")
-                        progress_event_data = {
-                            'type': 'progress', 'count': processed_count, 'total': total_entries_to_screen,
-                            'percentage': progress_percentage, 'current_item_title': title,
-                            'decision': 'ITEM_ERROR'
-                        }
-                        yield f"data: {json.dumps(progress_event_data)}\n\n" # Ensure single backslash
-                        temp_results_list.append({
-                            'index': index + 1, 'title': title, 'authors': authors_str,
-                            'decision': 'ITEM_ERROR', 'reasoning': str(e),
-                            'abstract': row.get('abstract', '')  # 在错误处理中也添加abstract字段
-                        })
+                try:
+                    if glet.ready():
+                        if glet.successful():
+                            screening_result = glet.get(block=False)
+                            if screening_result.get('decision') == "CONFIG_ERROR":
+                                app_logger.error(f"SSE Config error for item (original index {index}): {screening_result.get('reasoning')}")
+                            screening_result_data = screening_result
+                        else:
+                            app_logger.error(f"SSE Unhandled exception in greenlet for item (original index {index}): {glet.exception}")
+                            screening_result_data = {'decision': 'GREENLET_ERROR', 'reasoning': str(glet.exception)}
+                    else:
+                        app_logger.warning(f"SSE Greenlet for item (original index {index}) did not complete within timeout.")
+                        screening_result_data = {'decision': 'TIMEOUT_ERROR', 'reasoning': 'Processing timed out.'}
+                except Exception as exc:
+                    app_logger.error(f"SSE Error processing result from greenlet for item (original index {index}): {exc}")
+                    screening_result_data = {'decision': 'PROCESSING_ERROR', 'reasoning': str(exc)}
+                
+                processed_count += 1
+                progress_percentage = int((processed_count / total_entries_to_screen) * 100) if total_entries_to_screen > 0 else 0
+                
+                output_data = {
+                    'index': index + 1, 'title': title, 'authors': authors_str,
+                    'decision': screening_result_data.get('decision', 'ITEM_ERROR'), 
+                    'reasoning': screening_result_data.get('reasoning', 'Error retrieving result.'),
+                    'abstract': row.get('abstract', '')
+                }
+                temp_results_list.append(output_data)
+                
+                progress_event = {
+                    'type': 'progress', 'count': processed_count, 'total': total_entries_to_screen,
+                    'percentage': progress_percentage, 'current_item_title': title,
+                    'decision': screening_result_data.get('decision', 'ITEM_ERROR')
+                }
+                yield f"data: {json.dumps(progress_event)}\n\n"
             
-            thread_pool_end_time = time.time()
-            app_logger.info(f"PERF: ThreadPoolExecutor finished all tasks in {thread_pool_end_time - thread_pool_start_time:.4f} seconds.")
-
-            # 处理并保存结果
-            results_processing_start_time = time.time()
+            app_logger.info(f"PERF SSE: Finished processing {processed_count}/{total_entries_to_screen} items for {original_filename}.")
+            
             temp_results_list.sort(key=lambda x: x.get('index', float('inf')))
             store_full_screening_session(screening_id, {
-                'filename': original_filename_for_session, 
+                'filename': original_filename, 
                 'results': temp_results_list,
                 'filter_applied': filter_description
             })
-            results_processing_end_time = time.time()
-            app_logger.info(f"PERF: Storing full screening session took {results_processing_end_time - results_processing_start_time:.4f} seconds.")
             
-            # 发送完成事件
-            yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id})}\n\n" # Ensure single backslash
-            overall_end_time = time.time()
-            app_logger.info(f"PERF: Full screening completed for {screening_id}, processed {processed_count} items. Total time: {overall_end_time - overall_start_time:.4f} seconds.")
+            yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id})}\n\n"
+            app_logger.info(f"PERF SSE: Full screening completed for {screening_id}, file {original_filename}. Total time: {time.time() - overall_start_time:.4f} seconds.")
             
         except Exception as e:
-            app_logger.exception("Server error during full screening processing")
-            yield f"data: {json.dumps({'type': 'error', 'message': f'Server error during processing: {str(e)}'})}\n\n" # Ensure single backslash
-            # No explicit return here, exception means generator terminates, finally runs.
+            app_logger.exception(f"SSE Server error during full screening processing for {original_filename}")
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Server error: {str(e)}'})}\n\n"
         finally:
             if current_temp_file_path and os.path.exists(current_temp_file_path):
                 try:
                     os.unlink(current_temp_file_path)
-                    app_logger.info(f"Cleaned up temp file (full screening): {current_temp_file_path}")
+                    app_logger.info(f"SSE Cleaned up temp file (full screening): {current_temp_file_path}")
                 except Exception as e_cleanup:
-                    app_logger.warning(f"Could not delete temp file (full screening): {current_temp_file_path} - {e_cleanup}")
+                    app_logger.warning(f"SSE Could not delete temp file (full screening): {current_temp_file_path} - {e_cleanup}")
 
     return Response(generate_response(line_range_input_val, title_filter_input_val, temp_file_path_full_screen, original_filename_for_session,
                                       criteria_prompt_text_val_full, provider_name_val_full, model_id_val_full, base_url_val_full, api_key_val_full),
@@ -1191,7 +1149,7 @@ def stream_test_screen_file():
         error_message = {'type': 'error', 'message': 'No file part.'}
         return Response(f"data: {json.dumps(error_message)}\n\n", mimetype='text/event-stream')
 
-    uploaded_file = request.files['file'] # Use a different variable name
+    uploaded_file = request.files['file']
     if uploaded_file.filename == '':
         error_message = {'type': 'error', 'message': 'No selected file.'}
         return Response(f"data: {json.dumps(error_message)}\n\n", mimetype='text/event-stream')
@@ -1199,74 +1157,62 @@ def stream_test_screen_file():
         error_message = {'type': 'error', 'message': 'Invalid file type.'}
         return Response(f"data: {json.dumps(error_message)}\n\n", mimetype='text/event-stream')
 
-    # Extract form data *before* defining the generator
     try:
         sample_size_str_val = request.form.get('sample_size', '10') 
         sample_size_val = int(sample_size_str_val)
         sample_size_val = max(5, min(9999, sample_size_val)) 
     except ValueError: 
-        sample_size_val = 10 # Default if conversion fails
+        sample_size_val = 10
     
     line_range_input_val = request.form.get('line_range_filter', '').strip()
     title_filter_input_val = request.form.get('title_text_filter', '').strip()
 
-    # --- Pre-fetch all request-bound data BEFORE generator definition ---
     criteria_prompt_text_val_full = get_screening_criteria()
     current_llm_config_data_val_full = get_current_llm_config(session)
     provider_name_val_full = current_llm_config_data_val_full['provider_name']
     model_id_val_full = current_llm_config_data_val_full['model_id']
     base_url_val_full = get_base_url_for_provider(provider_name_val_full)
-    
     provider_info_val_full = get_llm_providers_info().get(provider_name_val_full, {})
     session_key_name_val_full = provider_info_val_full.get("api_key_session_key")
     api_key_val_full = session.get(session_key_name_val_full) if session_key_name_val_full else None
-    # --- End pre-fetch ---
+    
+    original_filename_for_log = uploaded_file.filename
+    temp_file_path_for_generator = os.path.join(UPLOAD_FOLDER, f"temp_test_sse_{uuid.uuid4()}.ris")
 
-    # Save the uploaded file to a temporary path *before* starting the generator
-    temp_file_path_for_generator = os.path.join(UPLOAD_FOLDER, f"temp_test_{uuid.uuid4()}.ris")
     try:
         uploaded_file.save(temp_file_path_for_generator)
-        app_logger.info(f"Test screening: Uploaded file saved to temporary path: {temp_file_path_for_generator}")
+        app_logger.info(f"SSE Test screening: Uploaded file saved to temporary path: {temp_file_path_for_generator}")
     except Exception as e_save:
-        app_logger.error(f"Test screening: Failed to save uploaded file initially: {e_save}")
-        error_message = {'type': 'error', 'message': f'Failed to save uploaded file: {e_save}'}
-        # No yield here, return a direct response if initial save fails
-        return Response(f"data: {json.dumps(error_message)}\n\n", mimetype='text/event-stream')
+        app_logger.error(f"SSE Test screening: Failed to save uploaded file initially: {e_save}")
+        return Response(f"data: {json.dumps({'type': 'error', 'message': f'Failed to save uploaded file: {e_save}'})}\n\n", mimetype='text/event-stream')
 
-    # Early initialization response generator
-    def quick_start_response_generator(sample_size, line_range_filter_from_form, title_filter_from_form, saved_temp_file_path, 
-                                     criteria_prompt, llm_provider, llm_model, llm_base_url, llm_api_key):
-        # Send an immediate initialization response to let the client know the request is being processed
-        init_message = {'type': 'init', 'message': 'Processing upload, please wait...'}
-        yield f"data: {json.dumps(init_message)}\n\n"
+    def quick_start_response_generator(sample_size_param, line_range_filter_from_form, title_filter_from_form, saved_temp_file_path, 
+                                     criteria_prompt_param, llm_provider_param, llm_model_param, llm_base_url_param, llm_api_key_from_outer_scope):
+        overall_start_time = time.time()
+        app_logger.info(f"PERF SSE Test: quick_start_response_generator started for {original_filename_for_log}.")
+        current_temp_file_path = saved_temp_file_path
         
-        # temp_file_path is now saved_temp_file_path, ensure it's cleaned up
-        current_temp_file_path = saved_temp_file_path 
+        yield f"data: {json.dumps({'type': 'init', 'message': 'Processing upload, please wait...'})}\n\n"
+        
         try:
-            # Use passed-in values
-            current_sample_size = sample_size
+            current_sample_size = sample_size_param
             line_range_input = line_range_filter_from_form
             title_filter_input = title_filter_from_form
         
-            # df = None # Not needed to initialize here as it's within the with open block
             with open(current_temp_file_path, 'rb') as f_stream:
                 df = load_literature_ris(f_stream)
             
             if df is None or df.empty:
-                error_message = {'type': 'error', 'message': 'Failed to load RIS or file empty.'}
-                yield f"data: {json.dumps(error_message)}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to load RIS or file empty.'})}\n\n"
                 return
-            
             if 'abstract' not in df.columns:
-                error_message = {'type': 'error', 'message': 'RIS missing abstract column.'}
-                yield f"data: {json.dumps(error_message)}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'RIS missing abstract column.'})}\n\n"
                 return
                 
             df['title'] = df.get('title', pd.Series(["Title Not Found"] * len(df))).fillna("Title Not Found")
             df['authors'] = df.get('authors', pd.Series([[] for _ in range(len(df))]))
             df['authors'] = df['authors'].apply(lambda x: x if isinstance(x, list) else [])
 
-            # --- Apply filters before sampling for Test Screening ---
             df_for_screening = df.copy()
             original_df_count = len(df)
             filter_description = "all entries"
@@ -1275,160 +1221,140 @@ def stream_test_screen_file():
                 df_for_screening = df_for_screening[df_for_screening['title'].str.contains(title_filter_input, case=False, na=False)]
                 filter_description = f"entries matching title '{title_filter_input}'"
                 if df_for_screening.empty:
-                    error_message = f"No articles found matching title: '{title_filter_input}'"
-                    error_data = {'type': 'error', 'message': error_message}
-                    yield f"data: {json.dumps(error_data)}\n\n"
+                    yield f"data: {json.dumps({'type': 'error', 'message': f'No articles found matching title: \"{title_filter_input}\"'})}\n\n"
                     return
-
-            elif line_range_input: # Make sure this is elif if title_filter_input takes precedence
+            elif line_range_input:
                 try:
                     start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                     if start_idx >= end_idx:
-                        message_text = f'The range "{line_range_input}" is invalid or results in no articles.'
-                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
+                        yield f"data: {json.dumps({'type': 'error', 'message': f'The range \"{line_range_input}\" is invalid or results in no articles.'})}\n\n"
                         return
                     df_for_screening = df_for_screening.iloc[start_idx:end_idx]
                     filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
                     if df_for_screening.empty:
-                        message_text = f'The range "{line_range_input}" resulted in no articles to screen.'
-                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
+                        yield f"data: {json.dumps({'type': 'error', 'message': f'The range \"{line_range_input}\" resulted in no articles to screen.'})}\n\n"
                         return
                 except ValueError as e:
-                    message_text = f'Invalid range format for "{line_range_input}": {str(e)}'
-                    error_data = {'type': 'error', 'message': message_text}
-                    yield f"data: {json.dumps(error_data)}\n\n"
+                    yield f"data: {json.dumps({'type': 'error', 'message': f'Invalid range format for \"{line_range_input}\": {str(e)}'})}\n\n"
                     return
 
-            if df_for_screening.empty and (title_filter_input or line_range_input) : # Check if empty *after* filters
-                error_data = {'type': 'error', 'message': 'No articles found after applying filters to sample from.'}
-                yield f"data: {json.dumps(error_data)}\n\n"
+            if df_for_screening.empty and (title_filter_input or line_range_input):
+                yield f"data: {json.dumps({'type': 'error', 'message': 'No articles found after applying filters to sample from.'})}\n\n"
                 return
 
-            sample_df = df_for_screening.head(min(sample_size_val, len(df_for_screening)))
+            sample_df = df_for_screening.head(min(current_sample_size, len(df_for_screening)))
             actual_sample_size = len(sample_df)
-            # --- END NEW ---
 
             if actual_sample_size == 0:
-                error_data = {'type': 'error', 'message': 'No entries found in the file to sample (after filters if any).'}
-                yield f"data: {json.dumps(error_data)}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'No entries found in the file to sample (after filters if any).'})}\n\n"
                 return
 
-            # Use pre-fetched config instead of accessing session here
-            # criteria_prompt_text = get_screening_criteria() # OLD
-            # current_llm_config_data = get_current_llm_config(session) # OLD
-            # provider_name = current_llm_config_data['provider_name'] # OLD
-            # model_id = current_llm_config_data['model_id'] # OLD
-            # base_url = get_base_url_for_provider(provider_name) # OLD
-            # 
-            # provider_info = get_llm_providers_info().get(provider_name, {}) # OLD
-            # session_key_name = provider_info.get("api_key_session_key") # OLD
-            # api_key = session.get(session_key_name) if session_key_name else None # OLD
-
-            if not api_key_val_full:
-                error_message = f"API Key for {llm_provider} must be provided via the configuration form for this session."
-                error_data = {'type': 'error', 'message': error_message, 'needs_config': True}
-                yield f"data: {json.dumps(error_data)}\n\n"
+            if not llm_api_key_from_outer_scope:
+                yield f"data: {json.dumps({'type': 'error', 'message': f'API Key for {llm_provider_param} must be provided.', 'needs_config': True})}\n\n"
                 return
 
             session_id = str(uuid.uuid4())
             store_test_session(session_id, {
-                'file_name': uploaded_file.filename,
+                'file_name': original_filename_for_log, 
                 'sample_size': actual_sample_size, 
                 'test_items_data': [],
                 'filter_applied': filter_description 
             })
 
-            # Now send the official start event
-            start_data = {'type': 'start', 'total': actual_sample_size, 'filter_info': filter_description}
-            yield f"data: {json.dumps(start_data)}\n\n"
+            yield f"data: {json.dumps({'type': 'start', 'total': actual_sample_size, 'filter_info': filter_description})}\n\n"
+            app_logger.info(f"PERF SSE Test: Spawning greenlets for {actual_sample_size} items for file {original_filename_for_log}.")
 
-            # Continue with normal screening process
+            greenlets = []
+            for index, row in sample_df.iterrows(): 
+                abstract = row.get('abstract')
+                g = spawn(_perform_screening_on_abstract,
+                          abstract, criteria_prompt_param,
+                          llm_provider_param, llm_model_param, llm_api_key_from_outer_scope, llm_base_url_param)
+                greenlets.append({'greenlet': g, 'index': index, 'row': row})
+            
+            join_timeout_sse_test = 3580
+            app_logger.info(f"PERF SSE Test: Waiting for {len(greenlets)} greenlets to complete with timeout {join_timeout_sse_test}s for {original_filename_for_log}.")
+            joinall([item['greenlet'] for item in greenlets], timeout=join_timeout_sse_test)
+            app_logger.info(f"PERF SSE Test: Greenlet join completed or timed out for {original_filename_for_log}.")
+            
             processed_count = 0
             temp_results_list = []
-            futures_map = {}
+
+            for item_info in greenlets:
+                glet = item_info['greenlet']
+                index = item_info['index']
+                row = item_info['row']
+                title = row.get('title', "N/A")
+                abstract_text = row.get('abstract', '')
+                authors_list = row.get('authors', [])
+                authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
+                screening_result_data = None
+                
+                try:
+                    if glet.ready():
+                        if glet.successful():
+                            screening_result = glet.get(block=False)
+                            if screening_result.get('decision') == "CONFIG_ERROR":
+                                app_logger.error(f"SSE Test Config error for item (original index {index}): {screening_result.get('reasoning')}")
+                            screening_result_data = screening_result
+                        else:
+                            app_logger.error(f"SSE Test Unhandled exception in greenlet for item (original index {index}): {glet.exception}")
+                            screening_result_data = {'decision': 'GREENLET_ERROR', 'reasoning': str(glet.exception)}
+                    else:
+                        app_logger.warning(f"SSE Test Greenlet for item (original index {index}) did not complete within timeout.")
+                        screening_result_data = {'decision': 'TIMEOUT_ERROR', 'reasoning': 'Processing timed out.'}
+                except Exception as exc:
+                    app_logger.error(f"SSE Test Error processing result from greenlet for item (original index {index}): {exc}")
+                    screening_result_data = {'decision': 'PROCESSING_ERROR', 'reasoning': str(exc)}
+
+                processed_count += 1
+                progress_percentage = int((processed_count / actual_sample_size) * 100) if actual_sample_size > 0 else 0
+                item_id = str(uuid.uuid4())
+                
+                test_item_template_data = {
+                    'id': item_id, 'original_index': index, 'title': title,
+                    'authors': authors_str, 'abstract': abstract_text,
+                    'ai_decision': screening_result_data.get('decision', 'ITEM_ERROR'), 
+                    'ai_reasoning': screening_result_data.get('reasoning', 'Error retrieving result.')
+                }
+                temp_results_list.append(test_item_template_data)
+                
+                progress_event_data = {
+                    'type': 'progress', 'count': processed_count, 'total': actual_sample_size,
+                    'percentage': progress_percentage, 'current_item_title': title,
+                    'decision': screening_result_data.get('decision', 'ITEM_ERROR'),
+                    'error_detail': screening_result_data.get('reasoning') if 'ERROR' in screening_result_data.get('decision', '') else None
+                }
+                if progress_event_data['error_detail'] is None:
+                    del progress_event_data['error_detail']
+
+                yield f"data: {json.dumps(progress_event_data)}\n\n"
             
-            with ThreadPoolExecutor(max_workers=8) as executor:
-                for index, row in sample_df.iterrows(): 
-                    abstract = row.get('abstract')
-                    future = executor.submit(
-                        _perform_screening_on_abstract,
-                        abstract, criteria_prompt_text_val_full, # Use passed criteria_prompt
-                        llm_provider, llm_model, llm_api_key, llm_base_url # Use passed LLM params
-                    )
-                    futures_map[future] = {'index': index, 'row': row}
-
-                for future in as_completed(futures_map):
-                    original_data = futures_map[future]
-                    index = original_data['index']
-                    row = original_data['row']
-                    title = row.get('title', "N/A")
-                    abstract_text = row.get('abstract')
-                    authors_list = row.get('authors', [])
-                    authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
-
-                    try:
-                        screening_result = future.result()
-                        if screening_result['decision'] == "CONFIG_ERROR":
-                            error_message = f"CONFIG_ERROR from worker: {screening_result['reasoning']}"
-                            raise Exception(error_message)
-
-                        processed_count += 1
-                        progress_percentage = int((processed_count / actual_sample_size) * 100) if actual_sample_size > 0 else 0
-                        item_id = str(uuid.uuid4())
-                        test_item_template_data = {
-                            'id': item_id, 'original_index': index, 'title': title,
-                            'authors': authors_str, 'abstract': abstract_text,
-                            'ai_decision': screening_result['decision'], 'ai_reasoning': screening_result['reasoning']
-                        }
-                        temp_results_list.append(test_item_template_data)
-                        progress_data = {
-                            'type': 'progress', 'count': processed_count, 'total': actual_sample_size,
-                            'percentage': progress_percentage, 'current_item_title': title,
-                            'decision': screening_result['decision']
-                        }
-                        yield f"data: {json.dumps(progress_data)}\n\n"
-
-                    except Exception as e:
-                        processed_count += 1
-                        progress_percentage = int((processed_count / actual_sample_size) * 100) if actual_sample_size > 0 else 0
-                        error_message_text_item_test = f"Error processing item '{title[:30]}...': {e}"
-                        app_logger.error(f"Error processing item (original index {index}): {e}")
-                        traceback.print_exc()
-                        progress_data = {
-                            'type': 'progress', 'count': processed_count, 'total': actual_sample_size,
-                            'percentage': progress_percentage, 'current_item_title': title,
-                            'decision': 'ITEM_ERROR', 
-                            'error_detail': error_message_text_item_test
-                        }
-                        yield f"data: {json.dumps(progress_data)}\n\n"
-                        temp_results_list.append({
-                            'id': str(uuid.uuid4()), 'original_index': index, 'title': title,
-                            'authors': authors_str, 'abstract': abstract_text,
-                            'ai_decision': 'ITEM_ERROR', 'ai_reasoning': str(e)
-                        })
+            app_logger.info(f"PERF SSE Test: Finished processing {processed_count}/{actual_sample_size} items for {original_filename_for_log}.")
             
             temp_results_list.sort(key=lambda x: x.get('original_index', float('inf')))
-            session_data = get_test_session(session_id)
-            if session_data:
-                session_data['test_items_data'] = temp_results_list
-                store_test_session(session_id, session_data)
+            
+            current_session_data = get_test_session(session_id)
+            if current_session_data:
+                current_session_data['test_items_data'] = temp_results_list
+                store_test_session(session_id, current_session_data)
+            else:
+                app_logger.warning(f"SSE Test: Session {session_id} disappeared before storing test results for {original_filename_for_log}.")
+
             complete_data = {'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id}
             yield f"data: {json.dumps(complete_data)}\n\n"
+            app_logger.info(f"PERF SSE Test: Test screening completed for {session_id}, file {original_filename_for_log}. Total time: {time.time() - overall_start_time:.4f} seconds.")
             
         except Exception as e: 
-            app_logger.exception("Server error during test streaming processing")
-            error_message = f"Server error during test streaming processing: {str(e)}"
-            error_data = {'type': 'error', 'message': error_message}
-            yield f"data: {json.dumps(error_data)}\n\n"
-            # No return here, finally will execute
+            app_logger.exception(f"SSE Test Server error during test streaming processing for {original_filename_for_log}")
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Server error: {str(e)}'})}\n\n"
         finally:
-            # Cleanup the temporary file created outside the generator
             if current_temp_file_path and os.path.exists(current_temp_file_path):
                 try:
                     os.unlink(current_temp_file_path)
-                    app_logger.info(f"Cleaned up temp file (test screening): {current_temp_file_path}")
+                    app_logger.info(f"SSE Test Cleaned up temp file: {current_temp_file_path}")
                 except Exception as e_cleanup:
-                    app_logger.warning(f"Could not delete temp file (test screening): {current_temp_file_path} - {e_cleanup}")
+                    app_logger.warning(f"SSE Test Could not delete temp file: {current_temp_file_path} - {e_cleanup}")
     
     return Response(quick_start_response_generator(sample_size_val, line_range_input_val, title_filter_input_val, temp_file_path_for_generator,
                                                  criteria_prompt_text_val_full, provider_name_val_full, model_id_val_full, base_url_val_full, api_key_val_full), 
@@ -1768,8 +1694,8 @@ Fields to Extract (with instructions and examples):
                                    current_year=current_year)
 
         except Exception as e:
-            flash(f"An error occurred during data extraction for {original_filename if 'original_filename' in locals() else 'Unknown PDF'}: {e}", "error")
-            app_logger.exception(f"An error occurred during data extraction for PDF")
+            flash(f"An error occurred during data extraction for {filename if 'filename' in locals() else 'the uploaded PDF'}: {e}", "error")
+            app_logger.exception(f"An error occurred during data extraction for PDF: {filename if 'filename' in locals() else 'N/A'}")
             return redirect(url_for('data_extraction_page'))
     else:
         flash('Invalid file type. Please upload a PDF file.', 'error')
@@ -1950,67 +1876,90 @@ def batch_screen_pdfs_stream():
         return Response(sse_presave_error_gen(), mimetype='text/event-stream')
 
     total_files_to_process = len(files_ready_for_threads) 
-    def generate_processing_progress():
-        yield f"data: {json.dumps({'type': 'start', 'total_uploaded': len(initial_manifest), 'total_to_process': total_files_to_process, 'filter_info': filter_description})}\n"
-        processed_files_results = []
-        futures_map = {}
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            for thread_item_manifest_with_path_and_index in files_ready_for_threads: # item now includes original_index
-                future = executor.submit(
-                    _perform_batch_pdf_screening_for_file, 
-                    thread_item_manifest_with_path_and_index, # Pass the item which includes original_index
-                    criteria_prompt_text, 
-                    llm_provider_name, 
-                    llm_model_id, 
-                    llm_api_key, 
-                    llm_base_url
-                )
-                # Keying futures_map by future object is fine; we retrieve original_filename for logging from the manifest later
-                futures_map[future] = thread_item_manifest_with_path_and_index # Store the whole manifest to access original_filename and original_index
-
-            processed_count = 0
-            for future in as_completed(futures_map):
-                completed_item_manifest = futures_map[future] # Get the manifest for this completed future
-                original_filename_for_log = completed_item_manifest['original_filename']
-                try:
-                    screening_result = future.result() # This result dict should now include original_index
-                    processed_files_results.append(screening_result)
-                    processed_count += 1
-                    yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total_to_process': total_files_to_process, 'percentage': int((processed_count / total_files_to_process) * 100), 'current_file_name': screening_result.get('filename', original_filename_for_log), 'decision': screening_result.get('decision', 'ERROR')})}\n"
-                except Exception as e_future:
-                    processed_count += 1 
-                    app_logger.error(f"Batch PDF: Exception processing future for {original_filename_for_log}: {e_future}")
-                    
-                    error_percentage = 0
-                    if total_files_to_process > 0:
-                        error_percentage = int((processed_count / total_files_to_process) * 100)
-                    
-                    processed_files_results.append({
-                        'original_index': completed_item_manifest['original_index'], # Ensure original_index is here for sorting
-                        'filename': original_filename_for_log, 
-                        'title_for_display': original_filename_for_log, # Fallback title
-                        'decision': 'WORKER_THREAD_ERROR',
-                        'reasoning': str(e_future)
-                    })
-
-                    # Create the data dictionary separately
-                    event_data_dict = {
-                        'type': 'progress',
-                        'count': processed_count,
-                        'total_to_process': total_files_to_process,
-                        'percentage': error_percentage,
-                        'current_file_name': original_filename_for_log,
-                        'decision': 'WORKER_THREAD_ERROR'
-                    }
-                    # Serialize it to JSON string
-                    json_string = json.dumps(event_data_dict)
-                    # Now the f-string expression is just a simple variable
-                    yield f"data: {json_string}\n"
+    def generate_processing_progress(): # Inner generator function
+        yield f"data: {json.dumps({'type': 'start', 'total_uploaded': len(initial_manifest), 'total_to_process': total_files_to_process, 'filter_info': filter_description})}\n\n"
         
-        # --- NEW: Sort results by original_index before storing --- 
-        processed_files_results.sort(key=lambda x: x.get('original_index', float('inf')))
-        # --- END NEW --- 
+        processed_files_results = []
+        
+        if not files_ready_for_threads:
+            app_logger.warning("Batch PDF SSE: No files ready for processing in generator.")
+            yield f"data: {json.dumps({'type': 'complete', 'message': 'No files to process.', 'batch_session_id': None})}\n\n"
+            return
 
+        app_logger.info(f"Batch PDF SSE: Spawning greenlets for {total_files_to_process} PDF files.")
+        greenlets_info = []
+
+        for item_manifest_with_path in files_ready_for_threads:
+            g = spawn(_perform_batch_pdf_screening_for_file, 
+                      item_manifest_with_path, 
+                      criteria_prompt_text, 
+                      llm_provider_name, 
+                      llm_model_id, 
+                      llm_api_key, 
+                      llm_base_url)
+            greenlets_info.append({'greenlet': g, 'manifest': item_manifest_with_path})
+
+        join_timeout_batch_pdf = 3580 
+        app_logger.info(f"Batch PDF SSE: Waiting for {len(greenlets_info)} greenlets with timeout {join_timeout_batch_pdf}s.")
+        joinall([info['greenlet'] for info in greenlets_info], timeout=join_timeout_batch_pdf)
+        app_logger.info("Batch PDF SSE: Greenlet join completed or timed out.")
+
+        processed_count = 0
+        for info in greenlets_info:
+            glet = info['greenlet']
+            completed_item_manifest = info['manifest']
+            original_filename_for_log = completed_item_manifest['original_filename']
+            screening_result = None
+
+            try:
+                if glet.ready():
+                    if glet.successful():
+                        screening_result = glet.get(block=False)
+                    else:
+                        app_logger.error(f"Batch PDF SSE: Unhandled exception in greenlet for {original_filename_for_log}: {glet.exception}")
+                        screening_result = {
+                            'original_index': completed_item_manifest['original_index'],
+                            'filename': original_filename_for_log, 
+                            'title_for_display': original_filename_for_log,
+                            'decision': 'GREENLET_ERROR',
+                            'reasoning': str(glet.exception)
+                        }
+                else:
+                    app_logger.warning(f"Batch PDF SSE: Greenlet for {original_filename_for_log} did not complete within timeout.")
+                    screening_result = {
+                        'original_index': completed_item_manifest['original_index'],
+                        'filename': original_filename_for_log,
+                        'title_for_display': original_filename_for_log,
+                        'decision': 'TIMEOUT_ERROR', 
+                        'reasoning': 'Processing timed out within gevent task.'
+                    }
+            except Exception as e_future:
+                app_logger.error(f"Batch PDF SSE: Exception processing greenlet result for {original_filename_for_log}: {e_future}")
+                screening_result = {
+                    'original_index': completed_item_manifest['original_index'],
+                    'filename': original_filename_for_log, 
+                    'title_for_display': original_filename_for_log,
+                    'decision': 'PROCESSING_ERROR',
+                    'reasoning': str(e_future)
+                }
+            
+            if screening_result:
+                processed_files_results.append(screening_result)
+            else:
+                 app_logger.error(f"Batch PDF SSE: No screening_result obtained for {original_filename_for_log}")
+                 processed_files_results.append({
+                    'original_index': completed_item_manifest['original_index'],
+                    'filename': original_filename_for_log, 
+                    'title_for_display': original_filename_for_log,
+                    'decision': 'UNKNOWN_ERROR',
+                    'reasoning': 'Result was not captured from greenlet processing.'
+                })
+
+            processed_count += 1
+            yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total_to_process': total_files_to_process, 'percentage': int((processed_count / total_files_to_process) * 100), 'current_file_name': screening_result.get('filename', original_filename_for_log), 'decision': screening_result.get('decision', 'ERROR')})}\n\n"
+
+        processed_files_results.sort(key=lambda x: x.get('original_index', float('inf')))
+        
         batch_session_id = str(uuid.uuid4())
         if processed_files_results: 
             store_full_screening_session(batch_session_id, { 
@@ -2019,11 +1968,13 @@ def batch_screen_pdfs_stream():
                 'results': processed_files_results,
                 'is_batch_pdf_result': True 
             })
-            app_logger.info(f"Batch PDF Stream: Stored {len(processed_files_results)} results under batch ID {batch_session_id}")
+            app_logger.info(f"Batch PDF SSE: Stored {len(processed_files_results)} results under batch ID {batch_session_id}")
         else:
-            app_logger.warning("Batch PDF Stream: No results were processed or collected.")
-        yield f"data: {json.dumps({'type': 'complete', 'message': 'Batch PDF processing finished.', 'batch_session_id': batch_session_id if processed_files_results else None})}\n"
-        app_logger.info(f"Batch PDF stream: Processing SSE finished. Batch ID: {batch_session_id if processed_files_results else 'N/A'}")
+            app_logger.warning("Batch PDF SSE: No results were processed or collected.")
+            
+        yield f"data: {json.dumps({'type': 'complete', 'message': 'Batch PDF processing finished.', 'batch_session_id': batch_session_id if processed_files_results else None})}\n\n"
+        app_logger.info(f"Batch PDF SSE: Processing SSE finished. Batch ID: {batch_session_id if processed_files_results else 'N/A'}")
+
     return Response(generate_processing_progress(), mimetype='text/event-stream')
 
 # --- END NEW Batch PDF Results Route ---
