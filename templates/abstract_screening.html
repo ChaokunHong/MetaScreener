@@ -173,11 +173,18 @@ const MAX_RESULTS_HISTORY_ITEMS = 15; // Max number of history items to keep
 function addTestLogItem(message) {
     const logEl = document.getElementById('test_progress_log'); 
     if(logEl) {
-        const div = document.createElement('div');
-        div.innerHTML = message;
-        while (logEl.children.length >= MAX_TEST_LOG_ITEMS) { logEl.removeChild(logEl.firstChild); }
-        logEl.appendChild(div);
-        logEl.scrollTop = logEl.scrollHeight;
+        // 优化：使用requestAnimationFrame确保DOM更新高效
+        requestAnimationFrame(() => {
+            const div = document.createElement('div');
+            div.innerHTML = message;
+            // 只保留指定数量的最新日志
+            while (logEl.children.length >= MAX_TEST_LOG_ITEMS) { 
+                logEl.removeChild(logEl.firstChild); 
+            }
+            logEl.appendChild(div);
+            // 使用scrollIntoView代替scrollTop，确保滚动更流畅
+            div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        });
     } else {
         if (!window.loggedTestLogError) { console.error('!!! testProgressLog element NOT found in addTestLogItem'); window.loggedTestLogError = true; }
     }
@@ -186,11 +193,18 @@ function addTestLogItem(message) {
 function addLogItem(message) {
     const logEl = document.getElementById('progress_log'); 
      if(logEl) {
-        const div = document.createElement('div');
-        div.innerHTML = message;
-        while (logEl.children.length >= MAX_FULL_LOG_ITEMS) { logEl.removeChild(logEl.firstChild); } // Use correct MAX constant
-        logEl.appendChild(div);
-        logEl.scrollTop = logEl.scrollHeight;
+        // 优化：使用requestAnimationFrame确保DOM更新高效
+        requestAnimationFrame(() => {
+            const div = document.createElement('div');
+            div.innerHTML = message;
+            // 只保留指定数量的最新日志
+            while (logEl.children.length >= MAX_FULL_LOG_ITEMS) { 
+                logEl.removeChild(logEl.firstChild); 
+            }
+            logEl.appendChild(div);
+            // 使用scrollIntoView代替scrollTop，确保滚动更流畅
+            div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        });
     } else {
         if (!window.loggedFullLogError) { console.error('!!! progressLog element NOT found in addLogItem'); window.loggedFullLogError = true; }
     }
@@ -366,129 +380,139 @@ document.addEventListener('DOMContentLoaded', function() {
                 lastTestCharIndex = xhrTest.responseText.length;
                 if (!newText) return; // If no new content, return directly
                 
-                const messages = newText.split('\n\n');
-                for (const message of messages) {
-                    if (message.startsWith("data: ")) {
-                        try {
-                            const jsonData = JSON.parse(message.substring(6));
-                            
-                            // Get needed DOM elements
-                            const currentTestBar = document.getElementById('test_progress_bar');
-                            const currentTestStatus = document.getElementById('test_progress_status');
-                            const currentTestLinkArea = document.getElementById('test_results_link_area');
-                            const currentTestLink = document.getElementById('view_test_results_link');
+                // 优化：使用requestAnimationFrame确保UI更新高效
+                requestAnimationFrame(() => {
+                    const messages = newText.split('\n\n');
+                    for (const message of messages) {
+                        if (message.startsWith("data: ")) {
+                            try {
+                                const jsonData = JSON.parse(message.substring(6));
+                                
+                                // Get needed DOM elements
+                                const currentTestBar = document.getElementById('test_progress_bar');
+                                const currentTestStatus = document.getElementById('test_progress_status');
+                                const currentTestLinkArea = document.getElementById('test_results_link_area');
+                                const currentTestLink = document.getElementById('view_test_results_link');
 
-                            // Process event types
-                            switch (jsonData.type) {
-                                case 'init':
-                                    // Initialization event
-                                    if(currentTestStatus) {
-                                        currentTestStatus.textContent = jsonData.message || 'Processing upload, please wait...';
-                                    }
-                                    break;
-                                
-                                case 'start':
-                                    // Clear initialization timer
-                                    if (initTimer) {
-                                        clearInterval(initTimer);
-                                        initTimer = null;
-                                    }
+                                // Process event types
+                                switch (jsonData.type) {
+                                    case 'init':
+                                        // Initialization event
+                                        if(currentTestStatus) {
+                                            currentTestStatus.textContent = jsonData.message || 'Processing upload, please wait...';
+                                        }
+                                        break;
                                     
-                                    if(currentTestStatus) {
-                                        currentTestStatus.dataset.status = 'processing';
-                                        currentTestStatus.textContent = 'Starting test screening...';
-                                    }
-                                    
-                                    if(currentTestBar) { 
-                                        currentTestBar.style.width = '0%'; 
-                                        currentTestBar.textContent = '0%'; 
-                                    }
-                                    
-                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] Starting to screen ${jsonData.total} sampled entries.`);
-                                    console.log(`Test screening started: ${jsonData.total} entries...`);
-                                    break;
-                                
-                                case 'progress':
-                                    if(currentTestBar) {
-                                        const percentComplete = jsonData.percentage || Math.floor((jsonData.count / jsonData.total) * 100);
-                                        currentTestBar.style.width = `${percentComplete}%`;
-                                        currentTestBar.textContent = `${percentComplete}%`;
-                                    }
-                                    
-                                    if(currentTestStatus) {
-                                        currentTestStatus.textContent = `Screening ${jsonData.count} / ${jsonData.total}. Current: ${jsonData.current_item_title}`;
-                                    }
-                                    
-                                    if (jsonData.decision) {
-                                        let decisionClass = "";
-                                        if(jsonData.decision === "INCLUDE") decisionClass = "include";
-                                        else if(jsonData.decision === "EXCLUDE") decisionClass = "exclude";
-                                        else if(jsonData.decision === "MAYBE") decisionClass = "maybe";
-                                        else decisionClass = "error";
+                                    case 'start':
+                                        // Clear initialization timer
+                                        if (initTimer) {
+                                            clearInterval(initTimer);
+                                            initTimer = null;
+                                        }
                                         
-                                        // 序列号、标题、决定结果(带颜色)的统一格式
-                                        const logMessage = `[${jsonData.count}] ${jsonData.current_item_title} - <span class="log-decision-${jsonData.decision}">${jsonData.decision}</span>`;
-                                        addTestLogItem(logMessage);
-                                    }
-                                    break;
+                                        if(currentTestStatus) {
+                                            currentTestStatus.dataset.status = 'processing';
+                                            currentTestStatus.textContent = 'Starting test screening...';
+                                        }
+                                        
+                                        if(currentTestBar) { 
+                                            currentTestBar.style.width = '0%'; 
+                                            currentTestBar.textContent = '0%'; 
+                                        }
+                                        
+                                        addTestLogItem(`[${new Date().toLocaleTimeString()}] Starting to screen ${jsonData.total} sampled entries.`);
+                                        console.log(`Test screening started: ${jsonData.total} entries...`);
+                                        break;
+                                    
+                                    case 'progress':
+                                        if(currentTestBar) {
+                                            const percentComplete = jsonData.percentage || Math.floor((jsonData.count / jsonData.total) * 100);
+                                            currentTestBar.style.width = `${percentComplete}%`;
+                                            currentTestBar.textContent = `${percentComplete}%`;
+                                        }
+                                        
+                                        if(currentTestStatus) {
+                                            currentTestStatus.textContent = `Screening ${jsonData.count} / ${jsonData.total}. Current: ${jsonData.current_item_title}`;
+                                        }
+                                        
+                                        if (jsonData.decision) {
+                                            let decisionClass = "";
+                                            if(jsonData.decision === "INCLUDE") decisionClass = "include";
+                                            else if(jsonData.decision === "EXCLUDE") decisionClass = "exclude";
+                                            else if(jsonData.decision === "MAYBE") decisionClass = "maybe";
+                                            else decisionClass = "error";
+                                            
+                                            // 序列号、标题、决定结果(带颜色)的统一格式
+                                            const logMessage = `[${jsonData.count}] ${jsonData.current_item_title} - <span class="log-decision-${jsonData.decision}">${jsonData.decision}</span>`;
+                                            addTestLogItem(logMessage);
+                                        }
+                                        break;
+                                    
+                                    case 'status':
+                                        // 添加状态更新处理
+                                        if(currentTestStatus && jsonData.message) {
+                                            currentTestStatus.textContent = jsonData.message;
+                                        }
+                                        break;
+                                    
+                                    case 'complete':
+                                        if(currentTestBar) { 
+                                            currentTestBar.classList.add('bg-success'); 
+                                            currentTestBar.textContent = "Complete"; 
+                                        }
+                                        
+                                        if(currentTestStatus) {
+                                            currentTestStatus.textContent = jsonData.message || 'Test screening complete.';
+                                        }
+                                        
+                                        addTestLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message || 'Test screening complete.'}`);
+                                        
+                                        if (jsonData.session_id && currentTestLink && currentTestLinkArea) {
+                                            let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
+                                            currentTestLink.href = baseUrl.replace('__SESSION_ID__', jsonData.session_id);
+                                            currentTestLinkArea.style.display = 'block';
+                                        }
+                                        
+                                        try { xhrTest.abort(); } catch (e) { console.warn("Error aborting test XHR:", e); }
+                                        finalizeTestButton();
+                                        saveScreeningResultToHistory('Test Abstract Screening', jsonData.session_id, jsonData.filename, jsonData.total, jsonData.ris_content);
+                                        break;
+                                    
+                                    case 'error':
+                                        // Clear initialization timer
+                                        if (initTimer) {
+                                            clearInterval(initTimer);
+                                            initTimer = null;
+                                        }
+                                        
+                                        if(currentTestBar) { 
+                                            currentTestBar.classList.add('bg-danger'); 
+                                            currentTestBar.textContent = "Error"; 
+                                        }
+                                        
+                                        if(currentTestStatus) {
+                                            currentTestStatus.textContent = `Error: ${jsonData.message}`;
+                                        }
+                                        
+                                        let testErrorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
+                                        if (jsonData.needs_config) {
+                                            const configUrl = "{{ url_for('llm_config_page') }}";
+                                            testErrorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
+                                        }
+                                        
+                                        addTestLogItem(testErrorMessage);
+                                        try { xhrTest.abort(); } catch (e) { console.warn("Error aborting test XHR:", e); }
+                                        finalizeTestButton();
+                                        break;
+                                }
                                 
-                                case 'complete':
-                                    if(currentTestBar) { 
-                                        currentTestBar.classList.add('bg-success'); 
-                                        currentTestBar.textContent = "Complete"; 
-                                    }
-                                    
-                                    if(currentTestStatus) {
-                                        currentTestStatus.textContent = jsonData.message || 'Test screening complete.';
-                                    }
-                                    
-                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message || 'Test screening complete.'}`);
-                                    
-                                    if (jsonData.session_id && currentTestLink && currentTestLinkArea) {
-                                        let baseUrl = "{{ url_for('show_test_results', session_id='__SESSION_ID__') }}";
-                                        currentTestLink.href = baseUrl.replace('__SESSION_ID__', jsonData.session_id);
-                                        currentTestLinkArea.style.display = 'block';
-                                    }
-                                    
-                                    try { xhrTest.abort(); } catch (e) { console.warn("Error aborting test XHR:", e); }
-                                    finalizeTestButton();
-                                    saveScreeningResultToHistory('Test Abstract Screening', jsonData.session_id, jsonData.filename, jsonData.total, jsonData.ris_content);
-                                    break;
-                                
-                                case 'error':
-                                    // Clear initialization timer
-                                    if (initTimer) {
-                                        clearInterval(initTimer);
-                                        initTimer = null;
-                                    }
-                                    
-                                    if(currentTestBar) { 
-                                        currentTestBar.classList.add('bg-danger'); 
-                                        currentTestBar.textContent = "Error"; 
-                                    }
-                                    
-                                    if(currentTestStatus) {
-                                        currentTestStatus.textContent = `Error: ${jsonData.message}`;
-                                    }
-                                    
-                                    let testErrorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
-                                    if (jsonData.needs_config) {
-                                        const configUrl = "{{ url_for('llm_config_page') }}";
-                                        testErrorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
-                                    }
-                                    
-                                    addTestLogItem(testErrorMessage);
-                                    try { xhrTest.abort(); } catch (e) { console.warn("Error aborting test XHR:", e); }
-                                    finalizeTestButton();
-                                    break;
-                            }
-                            
-                        } catch (e) { 
-                            console.error("Test SSE parse error:", e, "Original message:", message); 
-                            finalizeTestButton();
-                        } 
+                            } catch (e) { 
+                                console.error("Test SSE parse error:", e, "Original message:", message); 
+                                finalizeTestButton();
+                            } 
+                        }
                     }
-                }
+                });
             }; 
             
             xhrTest.onloadend = function() { 
@@ -614,129 +638,139 @@ document.addEventListener('DOMContentLoaded', function() {
                  lastCharIndex = xhr.responseText.length;
                  if (!newText) return; // If no new content, return directly
                  
-                 const messages = newText.split('\n\n');
-                 for (const message of messages) {
-                     if (message.startsWith("data: ")) {
-                         try {
-                             const jsonData = JSON.parse(message.substring(6));
-                             
-                             // Get needed DOM elements
-                             const currentFullBar = document.getElementById('progress_bar');
-                             const currentFullStatus = document.getElementById('progress_status');
-                             const currentFullLinkArea = document.getElementById('sse_results_link_area');
-                             const currentFullLink = document.getElementById('view_full_results_link');
-                             
-                             // Process event types
-                             switch (jsonData.type) {
-                                 case 'init':
-                                     // Initialization event
-                                     if(currentFullStatus) {
-                                         currentFullStatus.textContent = jsonData.message || 'Processing upload, please wait...';
-                                     }
-                                     break;
+                 // 优化：使用requestAnimationFrame确保UI更新高效
+                 requestAnimationFrame(() => {
+                     const messages = newText.split('\n\n');
+                     for (const message of messages) {
+                         if (message.startsWith("data: ")) {
+                             try {
+                                 const jsonData = JSON.parse(message.substring(6));
                                  
-                                 case 'start':
-                                     // Clear initialization timer
-                                     if (initTimer) {
-                                         clearInterval(initTimer);
-                                         initTimer = null;
-                                     }
-                                     
-                                     if(currentFullStatus) {
-                                         currentFullStatus.dataset.status = 'processing';
-                                         currentFullStatus.textContent = 'Starting full screening...';
-                                     }
-                                     
-                                     if(currentFullBar) { 
-                                         currentFullBar.style.width = '0%'; 
-                                         currentFullBar.textContent = '0%'; 
-                                     }
-                                     
-                                     addLogItem(`[${new Date().toLocaleTimeString()}] Starting to screen ${jsonData.total} items.`);
-                                     break;
+                                 // Get needed DOM elements
+                                 const currentFullBar = document.getElementById('progress_bar');
+                                 const currentFullStatus = document.getElementById('progress_status');
+                                 const currentFullLinkArea = document.getElementById('sse_results_link_area');
+                                 const currentFullLink = document.getElementById('view_full_results_link');
                                  
-                                 case 'progress':
-                                     if(currentFullBar) {
-                                         const percentComplete = jsonData.percentage || Math.floor((jsonData.count / jsonData.total) * 100);
-                                         currentFullBar.style.width = `${percentComplete}%`;
-                                         currentFullBar.textContent = `${percentComplete}%`;
-                                     }
+                                 // Process event types
+                                 switch (jsonData.type) {
+                                     case 'init':
+                                         // Initialization event
+                                         if(currentFullStatus) {
+                                             currentFullStatus.textContent = jsonData.message || 'Processing upload, please wait...';
+                                         }
+                                         break;
                                      
-                                     if(currentFullStatus) {
-                                         currentFullStatus.textContent = `Screening ${jsonData.count} / ${jsonData.total}. Current: ${jsonData.current_item_title}`;
-                                     }
-                                     
-                                     // Only add log items if decision is known (skip preparatory events)
-                                     if (jsonData.decision) {
-                                         let decisionClass = "";
-                                         if(jsonData.decision === "INCLUDE") decisionClass = "include";
-                                         else if(jsonData.decision === "EXCLUDE") decisionClass = "exclude";
-                                         else if(jsonData.decision === "MAYBE") decisionClass = "maybe";
-                                         else decisionClass = "error";
+                                     case 'start':
+                                         // Clear initialization timer
+                                         if (initTimer) {
+                                             clearInterval(initTimer);
+                                             initTimer = null;
+                                         }
                                          
-                                         // 序列号、标题、决定结果(带颜色)的统一格式
-                                         const logMessage = `[${jsonData.count}] ${jsonData.current_item_title} - <span class="log-decision-${jsonData.decision}">${jsonData.decision}</span>`;
-                                         addLogItem(logMessage);
-                                     }
-                                     break;
+                                         if(currentFullStatus) {
+                                             currentFullStatus.dataset.status = 'processing';
+                                             currentFullStatus.textContent = 'Starting full screening...';
+                                         }
+                                         
+                                         if(currentFullBar) { 
+                                             currentFullBar.style.width = '0%'; 
+                                             currentFullBar.textContent = '0%'; 
+                                         }
+                                         
+                                         addLogItem(`[${new Date().toLocaleTimeString()}] Starting to screen ${jsonData.total} items.`);
+                                         break;
+                                     
+                                     case 'progress':
+                                         if(currentFullBar) {
+                                             const percentComplete = jsonData.percentage || Math.floor((jsonData.count / jsonData.total) * 100);
+                                             currentFullBar.style.width = `${percentComplete}%`;
+                                             currentFullBar.textContent = `${percentComplete}%`;
+                                         }
+                                         
+                                         if(currentFullStatus) {
+                                             currentFullStatus.textContent = `Screening ${jsonData.count} / ${jsonData.total}. Current: ${jsonData.current_item_title}`;
+                                         }
+                                         
+                                         // Only add log items if decision is known (skip preparatory events)
+                                         if (jsonData.decision) {
+                                             let decisionClass = "";
+                                             if(jsonData.decision === "INCLUDE") decisionClass = "include";
+                                             else if(jsonData.decision === "EXCLUDE") decisionClass = "exclude";
+                                             else if(jsonData.decision === "MAYBE") decisionClass = "maybe";
+                                             else decisionClass = "error";
+                                             
+                                             // 序列号、标题、决定结果(带颜色)的统一格式
+                                             const logMessage = `[${jsonData.count}] ${jsonData.current_item_title} - <span class="log-decision-${jsonData.decision}">${jsonData.decision}</span>`;
+                                             addLogItem(logMessage);
+                                         }
+                                         break;
+                                     
+                                     case 'status':
+                                         // 添加状态更新处理
+                                         if(currentFullStatus && jsonData.message) {
+                                             currentFullStatus.textContent = jsonData.message;
+                                         }
+                                         break;
+                                     
+                                     case 'complete':
+                                         if(currentFullBar) { 
+                                             currentFullBar.classList.add('bg-success'); 
+                                             currentFullBar.textContent = "Complete"; 
+                                         }
+                                         
+                                         if(currentFullStatus) {
+                                             currentFullStatus.textContent = jsonData.message || 'Full screening complete.';
+                                         }
+                                         
+                                         addLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message || 'Full screening complete.'}`);
+                                         
+                                         if (jsonData.screening_id && currentFullLink && currentFullLinkArea) {
+                                             let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
+                                             currentFullLink.href = baseUrl.replace('__SCREENING_ID__', jsonData.screening_id);
+                                             currentFullLinkArea.style.display = 'block';
+                                         }
+                                         
+                                         try { xhr.abort(); } catch (e) { console.warn("Error aborting full screening XHR:", e); }
+                                         finalizeButtons();
+                                         saveScreeningResultToHistory('Full Abstract Screening', jsonData.screening_id, jsonData.filename, jsonData.total, jsonData.ris_content);
+                                         break;
+                                     
+                                     case 'error':
+                                         // Clear initialization timer
+                                         if (initTimer) {
+                                             clearInterval(initTimer);
+                                             initTimer = null;
+                                         }
+                                         
+                                         if(currentFullBar) { 
+                                             currentFullBar.classList.add('bg-danger'); 
+                                             currentFullBar.textContent = "Error"; 
+                                         }
+                                         
+                                         if(currentFullStatus) {
+                                             currentFullStatus.textContent = `Error: ${jsonData.message}`;
+                                         }
+                                         
+                                         let errorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
+                                         if (jsonData.needs_config) {
+                                             const configUrl = "{{ url_for('llm_config_page') }}";
+                                             errorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
+                                         }
+                                         
+                                         addLogItem(errorMessage);
+                                         try { xhr.abort(); } catch (e) { console.warn("Error aborting full screening XHR:", e); }
+                                         finalizeButtons();
+                                         break;
+                                 }
                                  
-                                 case 'complete':
-                                     if(currentFullBar) { 
-                                         currentFullBar.classList.add('bg-success'); 
-                                         currentFullBar.textContent = "Complete"; 
-                                     }
-                                     
-                                     if(currentFullStatus) {
-                                         currentFullStatus.textContent = jsonData.message || 'Full screening complete.';
-                                     }
-                                     
-                                     addLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message || 'Full screening complete.'}`);
-                                     
-                                     if (jsonData.screening_id && currentFullLink && currentFullLinkArea) {
-                                         let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
-                                         currentFullLink.href = baseUrl.replace('__SCREENING_ID__', jsonData.screening_id);
-                                         currentFullLinkArea.style.display = 'block';
-                                     }
-                                     
-                                     try { xhr.abort(); } catch (e) { console.warn("Error aborting full screening XHR:", e); }
-                                     finalizeButtons();
-                                     saveScreeningResultToHistory('Full Abstract Screening', jsonData.screening_id, jsonData.filename, jsonData.total, jsonData.ris_content);
-                                     break;
-                                 
-                                 case 'error':
-                                     // Clear initialization timer
-                                     if (initTimer) {
-                                         clearInterval(initTimer);
-                                         initTimer = null;
-                                     }
-                                     
-                                     if(currentFullBar) { 
-                                         currentFullBar.classList.add('bg-danger'); 
-                                         currentFullBar.textContent = "Error"; 
-                                     }
-                                     
-                                     if(currentFullStatus) {
-                                         currentFullStatus.textContent = `Error: ${jsonData.message}`;
-                                     }
-                                     
-                                     let errorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
-                                     if (jsonData.needs_config) {
-                                         const configUrl = "{{ url_for('llm_config_page') }}";
-                                         errorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
-                                     }
-                                     
-                                     addLogItem(errorMessage);
-                                     try { xhr.abort(); } catch (e) { console.warn("Error aborting full screening XHR:", e); }
-                                     finalizeButtons();
-                                     break;
-                             }
-                             
-                        } catch (e) { 
-                            console.error("Full screening SSE parse error:", e, "Original message:", message); 
-                            finalizeButtons(); 
+                            } catch (e) { 
+                                console.error("Full screening SSE parse error:", e, "Original message:", message); 
+                                finalizeButtons(); 
+                            }
                         }
-                    }
-                 }
+                     }
+                 });
              };
             
              xhr.onloadend = function() { 

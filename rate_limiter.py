@@ -75,22 +75,43 @@ class APIRateLimiter:
         """
         limiter_logger.info(f"Processing {len(items)} items with callback, max concurrency {self.max_concurrent}")
         greenlets = []
+        completed_count = 0
+        total_items = len(items)
         
-        for item in items:
+        # Set smaller batch size for callbacks to improve UI responsiveness
+        callback_batch_size = min(5, max(1, self.max_concurrent // 10))
+        
+        for idx, item in enumerate(items):
             # Ensure we don't exceed rate limits
             self._wait_for_rate_limit()
             
             # Create a job that will call the callback when done
-            def job_with_callback(item_data):
+            def job_with_callback(item_data, item_idx):
                 result = process_func(item_data, *args, **kwargs)
                 if callback_func:
-                    # Minimal delay for UI responsiveness
-                    sleep(0.01)
+                    # Minimal delay for UI responsiveness - reduced from previous version
+                    sleep(0.001)  # Minimal sleep to allow event loop to process UI updates
                     callback_func(item_data, result)
                 return result
             
             # Queue the job in the pool
-            greenlets.append(self.pool.spawn(job_with_callback, item))
+            greenlets.append(self.pool.spawn(job_with_callback, item, idx))
+            
+            # For better UI responsiveness, force periodic yield to event loop
+            # after spawning a small batch of jobs
+            if (idx + 1) % callback_batch_size == 0:
+                # This tiny sleep allows the event loop to process UI events
+                sleep(0.001)
+                
+                # Check if any greenlets have completed and process them
+                newly_completed = 0
+                for g in list(greenlets):
+                    if g.ready():
+                        newly_completed += 1
+                
+                if newly_completed > 0:
+                    completed_count += newly_completed
+                    limiter_logger.debug(f"Progress update: {completed_count}/{total_items} items completed")
         
         # Wait for all jobs to complete
         self.pool.join()
@@ -102,7 +123,7 @@ class APIRateLimiter:
         # Check if we need to wait for pool slot - only minimal waiting
         # This is the only limit we keep, as it's required for the Pool to function
         while self.pool.full():
-            sleep(0.01)
+            sleep(0.005)  # Reduced sleep time for better responsiveness
         
         # No longer enforcing time delay between requests
         # Simply update the last_request_time for tracking
