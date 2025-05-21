@@ -1232,7 +1232,8 @@ def stream_test_screen_file():
                 try:
                     start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                     if start_idx >= end_idx:
-                        yield f"data: {json.dumps({'type': 'error', 'message': f'The range \"{line_range_input}\" is invalid or results in no articles.'})}\n\n"
+                        message_text = f'The range "{line_range_input}" is invalid or results in no articles.'
+                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
                         return
                     df_for_screening = df_for_screening.iloc[start_idx:end_idx]
                     filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
@@ -1241,7 +1242,8 @@ def stream_test_screen_file():
                         yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
                         return
                 except ValueError as e:
-                    yield f"data: {json.dumps({'type': 'error', 'message': f'Invalid range format for \"{line_range_input}\": {str(e)}'})}\n\n"
+                    message_text = f'Invalid range format for "{line_range_input}": {str(e)}'
+                    yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
                     return
 
             if df_for_screening.empty and (title_filter_input or line_range_input):
@@ -1256,7 +1258,8 @@ def stream_test_screen_file():
                 return
 
             if not llm_api_key_from_outer_scope:
-                yield f"data: {json.dumps({'type': 'error', 'message': f'API Key for {llm_provider_param} must be provided.', 'needs_config': True})}\n\n"
+                message_text = f'API Key for {llm_provider_param} must be provided.'
+                yield f"data: {json.dumps({'type': 'error', 'message': message_text, 'needs_config': True})}\n\n"
                 return
 
             session_id = str(uuid.uuid4())
