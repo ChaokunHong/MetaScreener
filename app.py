@@ -1002,21 +1002,25 @@ def stream_screen_file():
                 df_for_screening = df_for_screening[df_for_screening['title'].str.contains(title_filter_input, case=False, na=False)]
                 filter_description = f"entries matching title '{title_filter_input}'"
                 if df_for_screening.empty:
-                    yield f"data: {json.dumps({'type': 'error', 'message': f'No articles found matching title: \"{title_filter_input}\"'})}\n\n"
+                    message_text = f'No articles found matching title: "{title_filter_input}"'
+                    yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
                     return
             elif line_range_input:
                 try:
                     start_idx, end_idx = parse_line_range(line_range_input, original_df_count)
                     if start_idx >= end_idx:
-                        yield f"data: {json.dumps({'type': 'error', 'message': f'The range \"{line_range_input}\" is invalid or results in no articles.'})}\n\n"
+                        message_text = f'The range "{line_range_input}" is invalid or results in no articles.'
+                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
                         return
                     df_for_screening = df_for_screening.iloc[start_idx:end_idx]
                     filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
                     if df_for_screening.empty:
-                        yield f"data: {json.dumps({'type': 'error', 'message': f'The range \"{line_range_input}\" resulted in no articles to screen.'})}\n\n"
+                        message_text = f'The range "{line_range_input}" resulted in no articles to screen.'
+                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
                         return
                 except ValueError as e:
-                    yield f"data: {json.dumps({'type': 'error', 'message': f'Invalid range format for \"{line_range_input}\": {str(e)}'})}\n\n"
+                    message_text = f'Invalid range format for "{line_range_input}": {str(e)}'
+                    yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
                     return
             
             total_entries_to_screen = len(df_for_screening)
@@ -1107,7 +1111,8 @@ def stream_screen_file():
             
         except Exception as e:
             app_logger.exception(f"SSE Server error during full screening processing for {original_filename}")
-            yield f"data: {json.dumps({'type': 'error', 'message': f'Server error: {str(e)}'})}\n\n"
+            error_message_text = f'Server error: {str(e)}'
+            yield f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n"
         finally:
             if current_temp_file_path and os.path.exists(current_temp_file_path):
                 try:
@@ -1220,7 +1225,8 @@ def stream_test_screen_file():
                 df_for_screening = df_for_screening[df_for_screening['title'].str.contains(title_filter_input, case=False, na=False)]
                 filter_description = f"entries matching title '{title_filter_input}'"
                 if df_for_screening.empty:
-                    yield f"data: {json.dumps({'type': 'error', 'message': f'No articles found matching title: \"{title_filter_input}\"'})}\n\n"
+                    message_text = f'No articles found matching title: "{title_filter_input}"'
+                    yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
                     return
             elif line_range_input:
                 try:
@@ -1231,7 +1237,8 @@ def stream_test_screen_file():
                     df_for_screening = df_for_screening.iloc[start_idx:end_idx]
                     filter_description = f"entries in 1-based range [{start_idx + 1}-{end_idx}]"
                     if df_for_screening.empty:
-                        yield f"data: {json.dumps({'type': 'error', 'message': f'The range \"{line_range_input}\" resulted in no articles to screen.'})}\n\n"
+                        message_text = f'The range "{line_range_input}" resulted in no articles to screen.'
+                        yield f"data: {json.dumps({'type': 'error', 'message': message_text})}\n\n"
                         return
                 except ValueError as e:
                     yield f"data: {json.dumps({'type': 'error', 'message': f'Invalid range format for \"{line_range_input}\": {str(e)}'})}\n\n"
@@ -1346,7 +1353,8 @@ def stream_test_screen_file():
             
         except Exception as e: 
             app_logger.exception(f"SSE Test Server error during test streaming processing for {original_filename_for_log}")
-            yield f"data: {json.dumps({'type': 'error', 'message': f'Server error: {str(e)}'})}\n\n"
+            error_message_text = f'Server error: {str(e)}'
+            yield f"data: {json.dumps({'type': 'error', 'message': error_message_text})}\n\n"
         finally:
             if current_temp_file_path and os.path.exists(current_temp_file_path):
                 try:
