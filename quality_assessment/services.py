@@ -624,10 +624,10 @@ def process_uploaded_document(pdf_file_stream, original_filename: str, selected_
     try:
         # Make sure current_app is available here. If services.py is part of the app context, it should be.
         # Otherwise, the executor needs to be passed in or accessed differently.
-        current_app.executor.submit(run_ai_quality_assessment, assessment_id, current_app._get_current_object(), llm_config_for_task)
-        print(f"AI assessment task for {assessment_id} submitted to executor.")
+        spawn(run_ai_quality_assessment, assessment_id, current_app._get_current_object(), llm_config_for_task)
+        print(f"AI assessment task for {assessment_id} submitted to gevent spawn.")
     except Exception as e_submit:
-        print(f"Error submitting task for {assessment_id}: {e_submit}")
+        print(f"Error submitting task for {assessment_id} via gevent.spawn: {e_submit}")
         _assessments_db[assessment_id]["status"] = "error"
         _assessments_db[assessment_id]["message"] = f"Failed to start task: {e_submit}"
         _assessments_db[assessment_id]["progress"]["message"] = "Error starting task"

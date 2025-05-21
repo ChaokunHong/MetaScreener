@@ -4,7 +4,6 @@ import time
 import datetime  # Explicitly import datetime for current year
 import uuid
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor, as_completed # Ensure as_completed is imported
 from sklearn.metrics import confusion_matrix, cohen_kappa_score, f1_score, precision_score, recall_score, \
     multilabel_confusion_matrix
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, Response, send_file
@@ -128,7 +127,7 @@ def get_full_screening_session(screening_id):
 # Adjust max_workers based on your server capacity and typical workload
 # For CPU-bound tasks in run_ai_quality_assessment (if any), ProcessPoolExecutor might be better,
 # but for primarily I/O-bound (LLM API calls), ThreadPoolExecutor is usually fine.
-app.executor = ThreadPoolExecutor(max_workers=5) 
+# app.executor = ThreadPoolExecutor(max_workers=5) 
 
 # --- Register the Blueprint ---
 app.register_blueprint(quality_bp, url_prefix='/quality') # Added a URL prefix for clarity
