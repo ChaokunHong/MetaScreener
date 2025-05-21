@@ -675,6 +675,45 @@ MetaScreener/
 - **Mobile Application**: Develop companion mobile application
 - **Multilingual Support**: Extend UI and processing capabilities to multiple languages
 
+## 🤝 Contribution Guidelines
+
+We welcome contributions from the community to help improve MetaScreener. Here are some ways you can contribute:
+
+### Types of Contributions
+- **Bug Reports**: Open an issue describing the bug, steps to reproduce, and expected behavior
+- **Feature Suggestions**: Share ideas for new features or improvements
+- **Code Contributions**: Submit pull requests for bug fixes or new features
+- **Documentation**: Help improve or translate documentation
+- **Testing**: Provide feedback on new features or help test releases
+- **UI/UX Improvements**: Suggest improvements to the user interface and experience
+
+### How to Contribute
+1. **Fork the Repository**: Create your own fork of the project
+2. **Create a Branch**: Make your changes in a new branch
+3. **Submit a Pull Request**: Once your changes are ready, submit a pull request
+4. **Code Review**: Wait for the review process and address any feedback
+
+### Contribution Standards
+- Follow the existing code style and conventions
+- Include appropriate tests for new features
+- Update documentation as necessary
+- Keep pull requests focused on a single issue or feature
+- Be respectful and constructive in communications
+
+We appreciate all contributions, no matter how small, and will acknowledge contributors in the project documentation.
+
+## 🙏 Acknowledgments and Contributions
+
+We would like to express our sincere gratitude to the following individuals who have made significant contributions to the development and improvement of MetaScreener:
+
+**Shuo Feng**
+- Faculty of Medicine, Macau University of Science and Technology
+- fengsh27mail@gmail.com
+- Contributed valuable suggestions for UI/UX improvements and functionality enhancements, including the implementation of pause/resume functionality for large dataset screening, optimized log display, and streamlined history record management
+- Provided thorough testing after each modification to ensure functionality and usability
+
+We deeply appreciate the time and expertise contributed by all collaborators and testers, whose feedback has been instrumental in refining MetaScreener into a more robust and user-friendly tool.
+
 ## 👥 Author Information
 
 MetaScreener was developed by the following researchers:
