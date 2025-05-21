@@ -21,16 +21,16 @@ class APIRateLimiter:
     2. Request spacing (delay between requests in same pool)
     """
     
-    def __init__(self, max_concurrent=15, request_interval=0.1):
+    def __init__(self, max_concurrent=50, request_interval=0.0):
         """
         Initialize the rate limiter.
         
         Args:
             max_concurrent: Maximum number of concurrent requests (pool size)
-            request_interval: Minimum time in seconds between consecutive requests
+            request_interval: Not used anymore, kept for compatibility
         """
         self.max_concurrent = max_concurrent
-        self.request_interval = request_interval
+        self.request_interval = request_interval  # Not used anymore
         self.pool = Pool(max_concurrent)
         self.last_request_time = 0
         
@@ -84,8 +84,8 @@ class APIRateLimiter:
             def job_with_callback(item_data):
                 result = process_func(item_data, *args, **kwargs)
                 if callback_func:
-                    # Add a small delay to ensure proper streaming of callbacks
-                    sleep(0.1)
+                    # Minimal delay for UI responsiveness
+                    sleep(0.01)
                     callback_func(item_data, result)
                 return result
             
@@ -99,16 +99,11 @@ class APIRateLimiter:
     
     def _wait_for_rate_limit(self):
         """Wait if necessary to respect rate limits"""
-        # Check if we need to wait for pool slot
+        # Check if we need to wait for pool slot - only minimal waiting
+        # This is the only limit we keep, as it's required for the Pool to function
         while self.pool.full():
-            sleep(0.1)
+            sleep(0.01)
         
-        # Space out API requests
-        now = time.time()
-        time_since_last = now - self.last_request_time
-        
-        if time_since_last < self.request_interval:
-            sleep_duration = self.request_interval - time_since_last
-            sleep(sleep_duration)
-        
-        self.last_request_time = time.time() 
+        # No longer enforcing time delay between requests
+        # Simply update the last_request_time for tracking
+        self.last_request_time = time.time()
