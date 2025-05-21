@@ -612,7 +612,7 @@ def screen_full_dataset(session_id):
             greenlet = spawn(_perform_screening_on_abstract,
                              abstract, criteria_prompt_text,
                              provider_name, model_id, api_key, base_url)
-            greenlets.append((index, greenlet))
+            greenlets.append((index, row, greenlet))
 
         # Wait for all greenlets to complete, with a timeout
         # Nginx read_timeout for this path is 600s. Gunicorn timeout is 3600s.
@@ -918,7 +918,8 @@ def generate_progress_events(total_items, items_iterator_func):
                 'decision': screening_output.get('decision', '')
             }
             yield f"data: {json.dumps(progress_data)}\n\n"
-            time.sleep(0.02)
+            # Reduce sleep time to increase UI update frequency
+            time.sleep(0.005) # Previously 0.02, now much lower for better responsiveness
     except Exception as e:
         error_message = f"Error during item processing: {str(e)}"
         error_data = {'type': 'error', 'message': error_message}
@@ -965,7 +966,7 @@ def stream_screen_file():
 
     def generate_response(line_range_filter, title_text_filter, saved_temp_file_path, original_filename,
                           criteria_prompt, llm_provider, llm_model, llm_base_url, llm_api_key_from_outer_scope):
-        # 导入gevent.sleep
+        # Import gevent.sleep
         from gevent import sleep
         
         overall_start_time = time.time()
@@ -1066,6 +1067,8 @@ def stream_screen_file():
                 
                 # 启动当前批次的greenlets
                 batch_greenlets = []
+                batch_429_errors = 0  # 本批次的429错误数
+                
                 for index, row in current_batch:
                     abstract = row.get('abstract')
                     greenlet = spawn(_perform_screening_on_abstract,
@@ -1074,18 +1077,95 @@ def stream_screen_file():
                                     llm_api_key_from_outer_scope, llm_base_url)
                     batch_greenlets.append((index, row, greenlet))
                 
-                # 等待当前批次完成，配合超时
-                joinall([g for _, _, g in batch_greenlets], timeout=15)  # 15秒超时
+                # 优化：使用更小的分批检查方式以提高UI响应性
+                max_wait_time = 15 # 15秒总超时
+                check_interval = 0.2 # 每0.2秒检查一次
+                checks_completed = 0
+                max_checks = int(max_wait_time / check_interval)
                 
-                # 处理当前批次结果
-                batch_429_errors = 0  # 本批次的429错误数
+                completed_indices = set()
                 
-                for index, row, greenlet in batch_greenlets:
+                # 更频繁地检查结果并及时更新UI
+                while checks_completed < max_checks and len(completed_indices) < len(batch_greenlets):
+                    # 短暂等待
+                    sleep(check_interval)
+                    checks_completed += 1
+                    
+                    # 检查已完成的greenlets并立即发送更新
+                    for idx, (index, row, greenlet) in enumerate(batch_greenlets):
+                        if idx in completed_indices:
+                            continue  # 已经处理过这个greenlet
+                            
+                        if greenlet.ready():
+                            completed_indices.add(idx)
+                            
+                            title = row.get('title', "N/A")
+                            authors_list = row.get('authors', [])
+                            authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
+                            
+                            # 处理结果
+                            if greenlet.successful():
+                                screening_result = greenlet.get(block=False)
+                                
+                                # 检测429错误
+                                if (screening_result.get('decision') == 'API_ERROR' and 
+                                    '429' in str(screening_result.get('reasoning', ''))):
+                                    batch_429_errors += 1
+                            else:
+                                # 处理超时或失败
+                                error_msg = str(greenlet.exception) if greenlet.exception else "Processing error"
+                                screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
+                            
+                            # 保存结果
+                            output_data = {
+                                'index': index + 1, 
+                                'title': title, 
+                                'authors': authors_str,
+                                'decision': screening_result.get('decision', 'ITEM_ERROR'), 
+                                'reasoning': screening_result.get('reasoning', 'Error retrieving result.'),
+                                'abstract': row.get('abstract', '')
+                            }
+                            temp_results_list.append(output_data)
+                            
+                            # 更新进度并立即发送UI更新事件
+                            processed_count += 1
+                            progress_percentage = int((processed_count / total_entries_to_screen) * 100)
+                            
+                            progress_event = {
+                                'type': 'progress', 
+                                'count': processed_count, 
+                                'total': total_entries_to_screen,
+                                'percentage': progress_percentage, 
+                                'current_item_title': title,
+                                'decision': screening_result.get('decision', 'ITEM_ERROR')
+                            }
+                            
+                            # 立即发送每项的更新，确保实时反馈
+                            yield f"data: {json.dumps(progress_event)}\n\n"
+                            
+                            # 每处理完一项就发送状态更新，确保UI最大响应性
+                            if processed_count % 1 == 0:
+                                remaining = len(to_process) + (len(batch_greenlets) - len(completed_indices))
+                                total = total_entries_to_screen
+                                completed = processed_count
+                                status_message = f"Completed: {completed}/{total}, Remaining: {remaining}, Speed: {active_batch_size} per batch"
+                                yield f"data: {json.dumps({'type': 'status', 'message': status_message})}\n\n"
+                
+                # 处理任何剩余未完成的greenlets (大多数应该已经在上面的循环中处理过)
+                for idx, (index, row, greenlet) in enumerate(batch_greenlets):
+                    if idx in completed_indices:
+                        continue  # 已经处理过了
+                        
+                    # 强制等待最多1秒以获取剩余结果
+                    try:
+                        greenlet.join(timeout=1)
+                    except Exception:
+                        pass
+                    
                     title = row.get('title', "N/A")
                     authors_list = row.get('authors', [])
                     authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
                     
-                    # 处理结果
                     if greenlet.ready() and greenlet.successful():
                         screening_result = greenlet.get(block=False)
                         
@@ -1093,11 +1173,9 @@ def stream_screen_file():
                         if (screening_result.get('decision') == 'API_ERROR' and 
                             '429' in str(screening_result.get('reasoning', ''))):
                             batch_429_errors += 1
-                            # 如果遇到429，可能需要将此项放回队列稍后重试
-                            # 但为了简单起见，我们先记录错误并继续
                     else:
                         # 处理超时或失败
-                        error_msg = str(greenlet.exception) if greenlet.ready() and not greenlet.successful() else "Processing timed out"
+                        error_msg = str(greenlet.exception) if hasattr(greenlet, 'exception') and greenlet.exception else "Processing timed out"
                         screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
                     
                     # 保存结果
@@ -1124,16 +1202,8 @@ def stream_screen_file():
                         'decision': screening_result.get('decision', 'ITEM_ERROR')
                     }
                     
-                    # 立即发送每项的更新，确保实时反馈
+                    # 立即发送更新
                     yield f"data: {json.dumps(progress_event)}\n\n"
-                
-                # Send status updates every 3 items for better UI feedback
-                if processed_count % 3 == 0 or not to_process:
-                    remaining = len(to_process)
-                    total = total_entries_to_screen
-                    completed = processed_count
-                    status_message = f"Completed: {completed}/{total}, Remaining: {remaining}, Speed: {active_batch_size} per batch"
-                    yield f"data: {json.dumps({'type': 'status', 'message': status_message})}\n\n"
                 
                 # 根据429错误自适应调整参数
                 if batch_429_errors > 0:
@@ -1159,7 +1229,7 @@ def stream_screen_file():
                     remaining = len(to_process)
                     total = total_entries_to_screen
                     completed = processed_count
-                    status_message = f"已完成: {completed}/{total}，剩余: {remaining}，当前速度: 每批{active_batch_size}项"
+                    status_message = f"Processing: {completed}/{total}, Remaining: {remaining}, Batch size: {active_batch_size}"
                     yield f"data: {json.dumps({'type': 'status', 'message': status_message})}\n\n"
             
             # 所有项目已处理完毕，UI更新已即时发送，无需额外操作
@@ -1264,7 +1334,7 @@ def stream_test_screen_file():
 
     def quick_start_response_generator(sample_size_param, line_range_filter_from_form, title_filter_from_form, saved_temp_file_path, 
                                      criteria_prompt_param, llm_provider_param, llm_model_param, llm_base_url_param, llm_api_key_from_outer_scope):
-        # 导入gevent.sleep
+        # Import gevent.sleep
         from gevent import sleep
         
         overall_start_time = time.time()
@@ -1358,25 +1428,27 @@ def stream_test_screen_file():
             # 记录429错误
             rate_limit_errors = 0
             
-            # 准备所有项目
+            # Prepare all items to process
             to_process = []
             for index, row in sample_df.iterrows():
                 to_process.append((index, row))
             
-            # 追踪处理状态
+            # Track processing status
             processed_count = 0
             temp_results_list = []
             
-            # 使用即时更新方式，无需队列或计时器
+            # Use immediate update method, no queue or timer needed
             
-            # 分批处理所有项目
+            # Process items in batches
             while to_process:
-                # 提取当前批次
+                # Extract current batch
                 current_batch = to_process[:active_batch_size]
                 to_process = to_process[active_batch_size:]
                 
-                # 启动当前批次的greenlets
+                # Launch greenlets for current batch
                 batch_greenlets = []
+                batch_429_errors = 0  # Rate limit error count for this batch
+                
                 for index, row in current_batch:
                     abstract = row.get('abstract')
                     greenlet = spawn(_perform_screening_on_abstract,
@@ -1385,35 +1457,115 @@ def stream_test_screen_file():
                                    llm_api_key_from_outer_scope, llm_base_url_param)
                     batch_greenlets.append((index, row, greenlet))
                 
-                # 等待当前批次完成，配合超时
-                joinall([g for _, _, g in batch_greenlets], timeout=15)  # 15秒超时
+                # Optimize: Check results frequently to update UI more responsively
+                max_wait_time = 15  # 15 seconds total timeout
+                check_interval = 0.1  # Check every 100ms for more responsive UI
+                checks_completed = 0
+                max_checks = int(max_wait_time / check_interval)
                 
-                # 处理当前批次结果
-                batch_429_errors = 0  # 本批次的429错误数
+                completed_indices = set()
                 
-                for index, row, greenlet in batch_greenlets:
+                # More frequent checks for results to provide immediate updates
+                while checks_completed < max_checks and len(completed_indices) < len(batch_greenlets):
+                    # Brief wait
+                    sleep(check_interval)
+                    checks_completed += 1
+                    
+                    # Check for completed greenlets and send immediate updates
+                    for idx, (index, row, greenlet) in enumerate(batch_greenlets):
+                        if idx in completed_indices:
+                            continue  # Already processed this greenlet
+                            
+                        if greenlet.ready():
+                            completed_indices.add(idx)
+                            
+                            title = row.get('title', "N/A")
+                            abstract_text = row.get('abstract', '')
+                            authors_list = row.get('authors', [])
+                            authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
+                            
+                            # Generate unique ID for test item
+                            item_id = str(uuid.uuid4())
+                            
+                            # Process result
+                            if greenlet.successful():
+                                screening_result = greenlet.get(block=False)
+                                
+                                # Detect 429 errors
+                                if (screening_result.get('decision') == 'API_ERROR' and 
+                                    '429' in str(screening_result.get('reasoning', ''))):
+                                    batch_429_errors += 1
+                            else:
+                                # Handle timeout or failure
+                                error_msg = str(greenlet.exception) if greenlet.exception else "Processing error"
+                                screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
+                            
+                            # Prepare test item data
+                            test_item_template_data = {
+                                'id': item_id, 
+                                'original_index': index, 
+                                'title': title,
+                                'authors': authors_str, 
+                                'abstract': abstract_text,
+                                'ai_decision': screening_result.get('decision', 'ITEM_ERROR'), 
+                                'ai_reasoning': screening_result.get('reasoning', 'Error retrieving result.')
+                            }
+                            temp_results_list.append(test_item_template_data)
+                            
+                            # Update progress and send immediate notification
+                            processed_count += 1
+                            
+                            # Calculate progress percentage
+                            progress_percentage = int((processed_count / actual_sample_size) * 100)
+                            
+                            # Create progress update event
+                            progress_event_data = {
+                                'type': 'progress', 
+                                'count': processed_count, 
+                                'total': actual_sample_size,
+                                'percentage': progress_percentage, 
+                                'current_item_title': title,
+                                'decision': screening_result.get('decision', 'ITEM_ERROR')
+                            }
+                            
+                            # Send immediate update for real-time feedback
+                            yield f"data: {json.dumps(progress_event_data)}\n\n"
+                            
+                            # Send status updates for every item processed for real-time feedback
+                            yield f"data: {json.dumps({'type': 'status', 'message': f'Processed: {processed_count}/{actual_sample_size}, Remaining: {len(to_process) + (len(batch_greenlets) - len(completed_indices))}, Speed: {active_batch_size} per batch'})}\n\n"
+                
+                # Handle any remaining unprocessed greenlets (most should have been handled in loop above)
+                for idx, (index, row, greenlet) in enumerate(batch_greenlets):
+                    if idx in completed_indices:
+                        continue  # Already processed this greenlet
+                        
+                    # Force wait up to 1 second to get remaining results
+                    try:
+                        greenlet.join(timeout=1)
+                    except Exception:
+                        pass
+                    
                     title = row.get('title', "N/A")
                     abstract_text = row.get('abstract', '')
                     authors_list = row.get('authors', [])
                     authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
                     
-                    # 生成唯一ID用于测试项
+                    # Generate unique ID for test item
                     item_id = str(uuid.uuid4())
                     
-                    # 处理结果
                     if greenlet.ready() and greenlet.successful():
                         screening_result = greenlet.get(block=False)
                         
-                        # 检测429错误
+                        # Detect 429 errors
                         if (screening_result.get('decision') == 'API_ERROR' and 
                             '429' in str(screening_result.get('reasoning', ''))):
                             batch_429_errors += 1
                     else:
-                        # 处理超时或失败
-                        error_msg = str(greenlet.exception) if greenlet.ready() and not greenlet.successful() else "Processing timed out"
+                        # Handle timeout or failure
+                        error_msg = str(greenlet.exception) if hasattr(greenlet, 'exception') and greenlet.exception else "Processing timed out"
                         screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
                     
-                    # 准备测试项数据
+                    # Prepare test item data
                     test_item_template_data = {
                         'id': item_id, 
                         'original_index': index, 
@@ -1425,13 +1577,13 @@ def stream_test_screen_file():
                     }
                     temp_results_list.append(test_item_template_data)
                     
-                    # 更新进度并发送通知
+                    # Update progress and send notification
                     processed_count += 1
                     
-                    # 计算进度百分比
+                    # Calculate progress percentage
                     progress_percentage = int((processed_count / actual_sample_size) * 100)
                     
-                    # 创建进度更新事件
+                    # Create progress update event
                     progress_event_data = {
                         'type': 'progress', 
                         'count': processed_count, 
@@ -1441,32 +1593,25 @@ def stream_test_screen_file():
                         'decision': screening_result.get('decision', 'ITEM_ERROR')
                     }
                     
-                    # 将事件添加到待发送队列
-                    pending_ui_updates.append(progress_event_data)
-                    
-                    # 立即发送每项的更新，确保实时反馈
+                    # Send immediate update for real-time feedback
                     yield f"data: {json.dumps(progress_event_data)}\n\n"
-                    
-                    # Send status updates for every item processed for real-time feedback
-                    if processed_count % 1 == 0 or processed_count == actual_sample_size:
-                        yield f"data: {json.dumps({'type': 'status', 'message': f'Processed: {processed_count}/{actual_sample_size}, Remaining: {len(to_process)}, Speed: {active_batch_size} per batch'})}\n\n"
                 
-                # 根据429错误自适应调整参数
+                # Adjust parameters based on 429 errors
                 if batch_429_errors > 0:
                     rate_limit_errors += batch_429_errors
-                    # 减小批量大小和并发数以减轻API负担
+                    # Reduce batch size and concurrency to reduce API burden
                     active_batch_size = max(3, int(active_batch_size / error_backoff))
-                    batch_delay = min(2.0, batch_delay * error_backoff)  # 最多增加到2秒
+                    batch_delay = min(2.0, batch_delay * error_backoff)  # Maximum of 2 seconds
                     app_logger.warning(f"Test: Detected {batch_429_errors} rate limit errors. Adjusting: batch_size={active_batch_size}, delay={batch_delay}s")
                     
                     # Send rate limit notification to frontend
                     yield f"data: {json.dumps({'type': 'status', 'message': f'Test set: Rate limit detected. Adjusting processing speed (batch:{active_batch_size}, delay:{batch_delay:.2f}s).'})}\n\n"
                 elif processed_count > 10 and rate_limit_errors == 0:
-                    # 如果处理了一定数量且没有错误，可以尝试加速
+                    # If processing a number of items without errors, try to speed up
                     active_batch_size = min(max_concurrent, active_batch_size + 2)
-                    batch_delay = max(0.05, batch_delay * 0.9)  # 最少减到0.05秒
+                    batch_delay = max(0.05, batch_delay * 0.9)  # Minimum of 0.05 seconds
                 
-                # 批次间延迟，避免API过载
+                # Delay between batches to avoid API overload
                 if to_process and batch_delay > 0:
                     sleep(batch_delay)
                 
@@ -1478,16 +1623,16 @@ def stream_test_screen_file():
                     status_message = f"Test set: Completed: {completed}/{total}, Remaining: {remaining}, Speed: {active_batch_size} per batch"
                     yield f"data: {json.dumps({'type': 'status', 'message': status_message})}\n\n"
             
-            # 所有项目已处理完毕，UI更新已即时发送，无需额外操作
+            # All items processed, UI updates sent in real-time
             
-            # 按原始索引排序结果
+            # Sort results by original index
             temp_results_list.sort(key=lambda x: x.get('original_index', float('inf')))
             
             app_logger.info(f"PERF SSE Test: Finished processing {processed_count}/{actual_sample_size} items for {original_filename_for_log}.")
             if rate_limit_errors > 0:
                 app_logger.info(f"Test: Encountered {rate_limit_errors} rate limit errors during processing.")
             
-            # 更新会话数据并发送完成通知
+            # Update session data and send completion notification
             current_session_data = get_test_session(session_id)
             if current_session_data:
                 current_session_data['test_items_data'] = temp_results_list
