@@ -965,6 +965,9 @@ def stream_screen_file():
 
     def generate_response(line_range_filter, title_text_filter, saved_temp_file_path, original_filename,
                           criteria_prompt, llm_provider, llm_model, llm_base_url, llm_api_key_from_outer_scope):
+        # 导入gevent.sleep
+        from gevent import sleep
+        
         overall_start_time = time.time()
         app_logger.info(f"PERF SSE: generate_response (full screen SSE) started for {original_filename}.")
         current_temp_file_path = saved_temp_file_path
@@ -1032,94 +1035,143 @@ def stream_screen_file():
             screening_id = str(uuid.uuid4())
             yield f"data: {json.dumps({'type': 'start', 'total': total_entries_to_screen, 'filter_info': filter_description})}\n\n"
             
-            app_logger.info(f"PERF SSE: Processing {total_entries_to_screen} items for file {original_filename} with rate limiting.")
+            app_logger.info(f"PERF SSE: Processing {total_entries_to_screen} items for file {original_filename} using smart batch processing.")
             
-            # Import the rate limiter
-            from rate_limiter import APIRateLimiter
+            # Smart batch processing system
+            # Adaptive parameters - optimize for speed and responsive UI updates
+            active_batch_size = min(30, total_entries_to_screen)  # Use larger batch size for better performance
+            max_concurrent = 50  # Higher concurrency for faster processing
+            batch_delay = 0.0  # No delay between batches
+            error_backoff = 1.5  # 错误后的退避乘数
             
-            # Configure the rate limiter with more aggressive parameters
-            rate_limiter = APIRateLimiter(max_concurrent=15, request_interval=0.1)
+            # 记录429错误
+            rate_limit_errors = 0
             
-            # Prepare items for processing
-            items_to_process = []
+            # 准备所有项目
+            to_process = []
             for index, row in df_for_screening.iterrows():
-                items_to_process.append({
-                    'index': index,
-                    'row': row,
-                    'abstract': row.get('abstract')
-                })
+                to_process.append((index, row))
             
-            # Track processed items and results
+            # 追踪处理状态
             processed_count = 0
             temp_results_list = []
             
-            # Define the callback function to send progress updates
-            def process_callback(item_data, screening_result_data):
-                nonlocal processed_count
-                processed_count += 1
-                
-                index = item_data['index']
-                row = item_data['row']
-                title = row.get('title', "N/A")
-                authors_list = row.get('authors', [])
-                authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
-                
-                progress_percentage = int((processed_count / total_entries_to_screen) * 100) if total_entries_to_screen > 0 else 0
-                
-                output_data = {
-                    'index': index + 1, 
-                    'title': title, 
-                    'authors': authors_str,
-                    'decision': screening_result_data.get('decision', 'ITEM_ERROR'), 
-                    'reasoning': screening_result_data.get('reasoning', 'Error retrieving result.'),
-                    'abstract': row.get('abstract', '')
-                }
-                temp_results_list.append(output_data)
-                
-                progress_event = {
-                    'type': 'progress', 
-                    'count': processed_count, 
-                    'total': total_entries_to_screen,
-                    'percentage': progress_percentage, 
-                    'current_item_title': title,
-                    'decision': screening_result_data.get('decision', 'ITEM_ERROR')
-                }
-                
-                return f"data: {json.dumps(progress_event)}\n\n"
+            # 使用即时更新方式，无需队列或计时器
             
-            # Define the processing function
-            def process_item(item_data):
-                try:
-                    return _perform_screening_on_abstract(
-                        item_data['abstract'], 
-                        criteria_prompt,
-                        llm_provider, 
-                        llm_model, 
-                        llm_api_key_from_outer_scope, 
-                        llm_base_url
-                    )
-                except Exception as e:
-                    app_logger.error(f"Error processing item {item_data['index']}: {str(e)}")
-                    return {'decision': 'PROCESSING_ERROR', 'reasoning': str(e)}
-            
-            # Process items with rate limiting and streaming progress
-            for item_data in items_to_process:
-                # Apply rate limiting
-                rate_limiter._wait_for_rate_limit()
+            # 分批处理所有项目
+            while to_process:
+                # 提取当前批次
+                current_batch = to_process[:active_batch_size]
+                to_process = to_process[active_batch_size:]
                 
-                # Process item
-                try:
-                    result = process_item(item_data)
-                    # Generate progress event
-                    yield process_callback(item_data, result)
-                except Exception as e:
-                    app_logger.error(f"Error in processing loop: {str(e)}")
-                    error_result = {'decision': 'LOOP_ERROR', 'reasoning': str(e)}
-                    yield process_callback(item_data, error_result)
+                # 启动当前批次的greenlets
+                batch_greenlets = []
+                for index, row in current_batch:
+                    abstract = row.get('abstract')
+                    greenlet = spawn(_perform_screening_on_abstract,
+                                    abstract, criteria_prompt,
+                                    llm_provider, llm_model, 
+                                    llm_api_key_from_outer_scope, llm_base_url)
+                    batch_greenlets.append((index, row, greenlet))
+                
+                # 等待当前批次完成，配合超时
+                joinall([g for _, _, g in batch_greenlets], timeout=15)  # 15秒超时
+                
+                # 处理当前批次结果
+                batch_429_errors = 0  # 本批次的429错误数
+                
+                for index, row, greenlet in batch_greenlets:
+                    title = row.get('title', "N/A")
+                    authors_list = row.get('authors', [])
+                    authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
+                    
+                    # 处理结果
+                    if greenlet.ready() and greenlet.successful():
+                        screening_result = greenlet.get(block=False)
+                        
+                        # 检测429错误
+                        if (screening_result.get('decision') == 'API_ERROR' and 
+                            '429' in str(screening_result.get('reasoning', ''))):
+                            batch_429_errors += 1
+                            # 如果遇到429，可能需要将此项放回队列稍后重试
+                            # 但为了简单起见，我们先记录错误并继续
+                    else:
+                        # 处理超时或失败
+                        error_msg = str(greenlet.exception) if greenlet.ready() and not greenlet.successful() else "Processing timed out"
+                        screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
+                    
+                    # 保存结果
+                    output_data = {
+                        'index': index + 1, 
+                        'title': title, 
+                        'authors': authors_str,
+                        'decision': screening_result.get('decision', 'ITEM_ERROR'), 
+                        'reasoning': screening_result.get('reasoning', 'Error retrieving result.'),
+                        'abstract': row.get('abstract', '')
+                    }
+                    temp_results_list.append(output_data)
+                    
+                    # 更新进度并存储UI更新事件
+                    processed_count += 1
+                    progress_percentage = int((processed_count / total_entries_to_screen) * 100)
+                    
+                    progress_event = {
+                        'type': 'progress', 
+                        'count': processed_count, 
+                        'total': total_entries_to_screen,
+                        'percentage': progress_percentage, 
+                        'current_item_title': title,
+                        'decision': screening_result.get('decision', 'ITEM_ERROR')
+                    }
+                    
+                    # 立即发送每项的更新，确保实时反馈
+                    yield f"data: {json.dumps(progress_event)}\n\n"
+                
+                # Send status updates every 3 items for better UI feedback
+                if processed_count % 3 == 0 or not to_process:
+                    remaining = len(to_process)
+                    total = total_entries_to_screen
+                    completed = processed_count
+                    status_message = f"Completed: {completed}/{total}, Remaining: {remaining}, Speed: {active_batch_size} per batch"
+                    yield f"data: {json.dumps({'type': 'status', 'message': status_message})}\n\n"
+                
+                # 根据429错误自适应调整参数
+                if batch_429_errors > 0:
+                    rate_limit_errors += batch_429_errors
+                    # 减小批量大小和并发数以减轻API负担
+                    active_batch_size = max(5, int(active_batch_size / error_backoff))
+                    batch_delay = min(2.0, batch_delay * error_backoff)  # 最多增加到2秒
+                    app_logger.warning(f"Detected {batch_429_errors} rate limit errors. Adjusting: batch_size={active_batch_size}, delay={batch_delay}s")
+                    
+                    # 发送调整信息到前端
+                    yield f"data: {json.dumps({'type': 'status', 'message': f'Rate limit detected. Adjusting processing speed (batch:{active_batch_size}, delay:{batch_delay:.2f}s).'})}\n\n"
+                elif processed_count > 20 and rate_limit_errors == 0:
+                    # 如果处理了一定数量且没有错误，可以尝试加速
+                    active_batch_size = min(max_concurrent, active_batch_size + 2)
+                    batch_delay = max(0.05, batch_delay * 0.9)  # 最少减到0.05秒
+                
+                # 批次间延迟，避免API过载
+                if to_process and batch_delay > 0:
+                    sleep(batch_delay)
+                    
+                # 每完成一批，发送一个状态更新
+                if to_process:
+                    remaining = len(to_process)
+                    total = total_entries_to_screen
+                    completed = processed_count
+                    status_message = f"已完成: {completed}/{total}，剩余: {remaining}，当前速度: 每批{active_batch_size}项"
+                    yield f"data: {json.dumps({'type': 'status', 'message': status_message})}\n\n"
+            
+            # 所有项目已处理完毕，UI更新已即时发送，无需额外操作
+            
+            # 按原始索引排序结果
+            temp_results_list.sort(key=lambda x: x.get('index', float('inf')))
             
             app_logger.info(f"PERF SSE: Finished processing {processed_count}/{total_entries_to_screen} items for {original_filename}.")
+            if rate_limit_errors > 0:
+                app_logger.info(f"Encountered {rate_limit_errors} rate limit errors during processing.")
             
-            temp_results_list.sort(key=lambda x: x.get('index', float('inf')))
+            # 存储结果并发送完成通知
             store_full_screening_session(screening_id, {
                 'filename': original_filename, 
                 'results': temp_results_list,
@@ -1212,6 +1264,9 @@ def stream_test_screen_file():
 
     def quick_start_response_generator(sample_size_param, line_range_filter_from_form, title_filter_from_form, saved_temp_file_path, 
                                      criteria_prompt_param, llm_provider_param, llm_model_param, llm_base_url_param, llm_api_key_from_outer_scope):
+        # 导入gevent.sleep
+        from gevent import sleep
+        
         overall_start_time = time.time()
         app_logger.info(f"PERF SSE Test: quick_start_response_generator started for {original_filename_for_log}.")
         current_temp_file_path = saved_temp_file_path
@@ -1291,100 +1346,148 @@ def stream_test_screen_file():
             })
 
             yield f"data: {json.dumps({'type': 'start', 'total': actual_sample_size, 'filter_info': filter_description})}\n\n"
-            app_logger.info(f"PERF SSE Test: Processing {actual_sample_size} sample items for file {original_filename_for_log} with rate limiting.")
+            app_logger.info(f"PERF SSE Test: Processing {actual_sample_size} sample items for file {original_filename_for_log} using smart batch processing.")
 
-            # Import the rate limiter
-            from rate_limiter import APIRateLimiter
+            # Smart batch processing system
+            # Adaptive parameters - optimize for speed and real-time UI updates
+            active_batch_size = min(20, actual_sample_size)  # Larger batch size for better performance
+            max_concurrent = 30  # Higher concurrency for faster processing
+            batch_delay = 0.0  # No delay between batches
+            error_backoff = 1.5  # 错误后的退避乘数
             
-            # Configure the rate limiter for tests with more aggressive parameters
-            rate_limiter = APIRateLimiter(max_concurrent=15, request_interval=0.1)
+            # 记录429错误
+            rate_limit_errors = 0
             
-            # Prepare items for processing
-            items_to_process = []
+            # 准备所有项目
+            to_process = []
             for index, row in sample_df.iterrows():
-                items_to_process.append({
-                    'index': index,
-                    'row': row,
-                    'abstract': row.get('abstract')
-                })
+                to_process.append((index, row))
             
-            # Track processed items and results
+            # 追踪处理状态
             processed_count = 0
             temp_results_list = []
             
-            # Define the callback function to send progress updates
-            def process_callback(item_data, screening_result_data):
-                nonlocal processed_count
-                processed_count += 1
-                
-                index = item_data['index']
-                row = item_data['row']
-                title = row.get('title', "N/A")
-                abstract_text = row.get('abstract', '')
-                authors_list = row.get('authors', [])
-                authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
-                
-                progress_percentage = int((processed_count / actual_sample_size) * 100) if actual_sample_size > 0 else 0
-                item_id = str(uuid.uuid4())
-                
-                test_item_template_data = {
-                    'id': item_id, 
-                    'original_index': index, 
-                    'title': title,
-                    'authors': authors_str, 
-                    'abstract': abstract_text,
-                    'ai_decision': screening_result_data.get('decision', 'ITEM_ERROR'), 
-                    'ai_reasoning': screening_result_data.get('reasoning', 'Error retrieving result.')
-                }
-                temp_results_list.append(test_item_template_data)
-                
-                progress_event_data = {
-                    'type': 'progress', 
-                    'count': processed_count, 
-                    'total': actual_sample_size,
-                    'percentage': progress_percentage, 
-                    'current_item_title': title,
-                    'decision': screening_result_data.get('decision', 'ITEM_ERROR')
-                }
-
-                return f"data: {json.dumps(progress_event_data)}\n\n"
+            # 使用即时更新方式，无需队列或计时器
             
-            # Define the processing function
-            def process_item(item_data):
-                try:
-                    return _perform_screening_on_abstract(
-                        item_data['abstract'], 
-                        criteria_prompt_param,
-                        llm_provider_param, 
-                        llm_model_param, 
-                        llm_api_key_from_outer_scope, 
-                        llm_base_url_param
-                    )
-                except Exception as e:
-                    app_logger.error(f"Error processing test item {item_data['index']}: {str(e)}")
-                    return {'decision': 'PROCESSING_ERROR', 'reasoning': str(e)}
-            
-            # Process items with rate limiting and streaming progress
-            for item_data in items_to_process:
-                # Apply rate limiting
-                rate_limiter._wait_for_rate_limit()
+            # 分批处理所有项目
+            while to_process:
+                # 提取当前批次
+                current_batch = to_process[:active_batch_size]
+                to_process = to_process[active_batch_size:]
                 
-                # Process item
-                try:
-                    result = process_item(item_data)
-                    # Generate progress event
-                    yield process_callback(item_data, result)
-                except Exception as e:
-                    app_logger.error(f"Error in test processing loop: {str(e)}")
-                    error_result = {'decision': 'LOOP_ERROR', 'reasoning': str(e)}
-                    yield process_callback(item_data, error_result)
+                # 启动当前批次的greenlets
+                batch_greenlets = []
+                for index, row in current_batch:
+                    abstract = row.get('abstract')
+                    greenlet = spawn(_perform_screening_on_abstract,
+                                   abstract, criteria_prompt_param,
+                                   llm_provider_param, llm_model_param, 
+                                   llm_api_key_from_outer_scope, llm_base_url_param)
+                    batch_greenlets.append((index, row, greenlet))
+                
+                # 等待当前批次完成，配合超时
+                joinall([g for _, _, g in batch_greenlets], timeout=15)  # 15秒超时
+                
+                # 处理当前批次结果
+                batch_429_errors = 0  # 本批次的429错误数
+                
+                for index, row, greenlet in batch_greenlets:
+                    title = row.get('title', "N/A")
+                    abstract_text = row.get('abstract', '')
+                    authors_list = row.get('authors', [])
+                    authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
+                    
+                    # 生成唯一ID用于测试项
+                    item_id = str(uuid.uuid4())
+                    
+                    # 处理结果
+                    if greenlet.ready() and greenlet.successful():
+                        screening_result = greenlet.get(block=False)
+                        
+                        # 检测429错误
+                        if (screening_result.get('decision') == 'API_ERROR' and 
+                            '429' in str(screening_result.get('reasoning', ''))):
+                            batch_429_errors += 1
+                    else:
+                        # 处理超时或失败
+                        error_msg = str(greenlet.exception) if greenlet.ready() and not greenlet.successful() else "Processing timed out"
+                        screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
+                    
+                    # 准备测试项数据
+                    test_item_template_data = {
+                        'id': item_id, 
+                        'original_index': index, 
+                        'title': title,
+                        'authors': authors_str, 
+                        'abstract': abstract_text,
+                        'ai_decision': screening_result.get('decision', 'ITEM_ERROR'), 
+                        'ai_reasoning': screening_result.get('reasoning', 'Error retrieving result.')
+                    }
+                    temp_results_list.append(test_item_template_data)
+                    
+                    # 更新进度并发送通知
+                    processed_count += 1
+                    
+                    # 计算进度百分比
+                    progress_percentage = int((processed_count / actual_sample_size) * 100)
+                    
+                    # 创建进度更新事件
+                    progress_event_data = {
+                        'type': 'progress', 
+                        'count': processed_count, 
+                        'total': actual_sample_size,
+                        'percentage': progress_percentage, 
+                        'current_item_title': title,
+                        'decision': screening_result.get('decision', 'ITEM_ERROR')
+                    }
+                    
+                    # 将事件添加到待发送队列
+                    pending_ui_updates.append(progress_event_data)
+                    
+                    # 立即发送每项的更新，确保实时反馈
+                    yield f"data: {json.dumps(progress_event_data)}\n\n"
+                    
+                    # Send status updates for every item processed for real-time feedback
+                    if processed_count % 1 == 0 or processed_count == actual_sample_size:
+                        yield f"data: {json.dumps({'type': 'status', 'message': f'Processed: {processed_count}/{actual_sample_size}, Remaining: {len(to_process)}, Speed: {active_batch_size} per batch'})}\n\n"
+                
+                # 根据429错误自适应调整参数
+                if batch_429_errors > 0:
+                    rate_limit_errors += batch_429_errors
+                    # 减小批量大小和并发数以减轻API负担
+                    active_batch_size = max(3, int(active_batch_size / error_backoff))
+                    batch_delay = min(2.0, batch_delay * error_backoff)  # 最多增加到2秒
+                    app_logger.warning(f"Test: Detected {batch_429_errors} rate limit errors. Adjusting: batch_size={active_batch_size}, delay={batch_delay}s")
+                    
+                    # Send rate limit notification to frontend
+                    yield f"data: {json.dumps({'type': 'status', 'message': f'Test set: Rate limit detected. Adjusting processing speed (batch:{active_batch_size}, delay:{batch_delay:.2f}s).'})}\n\n"
+                elif processed_count > 10 and rate_limit_errors == 0:
+                    # 如果处理了一定数量且没有错误，可以尝试加速
+                    active_batch_size = min(max_concurrent, active_batch_size + 2)
+                    batch_delay = max(0.05, batch_delay * 0.9)  # 最少减到0.05秒
+                
+                # 批次间延迟，避免API过载
+                if to_process and batch_delay > 0:
+                    sleep(batch_delay)
+                
+                # Send batch completion status update
+                if to_process:
+                    remaining = len(to_process)
+                    total = actual_sample_size
+                    completed = processed_count
+                    status_message = f"Test set: Completed: {completed}/{total}, Remaining: {remaining}, Speed: {active_batch_size} per batch"
+                    yield f"data: {json.dumps({'type': 'status', 'message': status_message})}\n\n"
             
-            app_logger.info(f"PERF SSE Test: Finished processing {processed_count}/{actual_sample_size} items for {original_filename_for_log}.")
+            # 所有项目已处理完毕，UI更新已即时发送，无需额外操作
             
-            # Sort results by original index for consistency
+            # 按原始索引排序结果
             temp_results_list.sort(key=lambda x: x.get('original_index', float('inf')))
             
-            # Update the session data with the results
+            app_logger.info(f"PERF SSE Test: Finished processing {processed_count}/{actual_sample_size} items for {original_filename_for_log}.")
+            if rate_limit_errors > 0:
+                app_logger.info(f"Test: Encountered {rate_limit_errors} rate limit errors during processing.")
+            
+            # 更新会话数据并发送完成通知
             current_session_data = get_test_session(session_id)
             if current_session_data:
                 current_session_data['test_items_data'] = temp_results_list
