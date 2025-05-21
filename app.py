@@ -679,7 +679,6 @@ def screen_full_dataset(session_id):
             delete_test_session(session_id)
         return redirect(url_for('abstract_screening_page'))
 
-
 # --- Metrics Calculation (Updated) ---
 def calculate_performance_metrics(ai_decisions, human_decisions, labels_order=['INCLUDE', 'MAYBE', 'EXCLUDE']):
     # Added check for pandas import, assuming it might be needed here
@@ -1024,9 +1023,7 @@ def stream_screen_file():
                     return
             
             total_entries_to_screen = len(df_for_screening)
-            if total_entries_to_screen == 0:
-                yield f"data: {json.dumps({'type': 'error', 'message': 'No articles to screen (file might be empty or filters resulted in no matches).'})}\n\n"
-                return
+            yield f"data: {json.dumps({'type': 'status', 'message': f'Preparing to screen {total_entries_to_screen} entries.'})}\n\n"
 
             if not llm_api_key_from_outer_scope:
                 yield f"data: {json.dumps({'type': 'error', 'message': f'API Key for {llm_provider} must be provided.', 'needs_config': True})}\n\n"
@@ -1035,55 +1032,44 @@ def stream_screen_file():
             screening_id = str(uuid.uuid4())
             yield f"data: {json.dumps({'type': 'start', 'total': total_entries_to_screen, 'filter_info': filter_description})}\n\n"
             
-            app_logger.info(f"PERF SSE: Spawning greenlets for {total_entries_to_screen} items for file {original_filename}.")
+            app_logger.info(f"PERF SSE: Processing {total_entries_to_screen} items for file {original_filename} with rate limiting.")
             
-            greenlets = []
+            # Import the rate limiter
+            from rate_limiter import APIRateLimiter
+            
+            # Configure the rate limiter with more aggressive parameters
+            rate_limiter = APIRateLimiter(max_concurrent=15, request_interval=0.1)
+            
+            # Prepare items for processing
+            items_to_process = []
             for index, row in df_for_screening.iterrows():
-                abstract = row.get('abstract')
-                g = spawn(_perform_screening_on_abstract,
-                          abstract, criteria_prompt,
-                          llm_provider, llm_model, llm_api_key_from_outer_scope, llm_base_url)
-                greenlets.append({'greenlet': g, 'index': index, 'row': row})
+                items_to_process.append({
+                    'index': index,
+                    'row': row,
+                    'abstract': row.get('abstract')
+                })
             
-            join_timeout_sse = 3580
-            app_logger.info(f"PERF SSE: Waiting for {len(greenlets)} greenlets to complete with timeout {join_timeout_sse}s for {original_filename}.")
-            joinall([item['greenlet'] for item in greenlets], timeout=join_timeout_sse)
-            app_logger.info(f"PERF SSE: Greenlet join completed or timed out for {original_filename}.")
-
+            # Track processed items and results
             processed_count = 0
             temp_results_list = []
-
-            for item_info in greenlets:
-                glet = item_info['greenlet']
-                index = item_info['index']
-                row = item_info['row']
+            
+            # Define the callback function to send progress updates
+            def process_callback(item_data, screening_result_data):
+                nonlocal processed_count
+                processed_count += 1
+                
+                index = item_data['index']
+                row = item_data['row']
                 title = row.get('title', "N/A")
                 authors_list = row.get('authors', [])
                 authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
-                screening_result_data = None
-
-                try:
-                    if glet.ready():
-                        if glet.successful():
-                            screening_result = glet.get(block=False)
-                            if screening_result.get('decision') == "CONFIG_ERROR":
-                                app_logger.error(f"SSE Config error for item (original index {index}): {screening_result.get('reasoning')}")
-                            screening_result_data = screening_result
-                        else:
-                            app_logger.error(f"SSE Unhandled exception in greenlet for item (original index {index}): {glet.exception}")
-                            screening_result_data = {'decision': 'GREENLET_ERROR', 'reasoning': str(glet.exception)}
-                    else:
-                        app_logger.warning(f"SSE Greenlet for item (original index {index}) did not complete within timeout.")
-                        screening_result_data = {'decision': 'TIMEOUT_ERROR', 'reasoning': 'Processing timed out.'}
-                except Exception as exc:
-                    app_logger.error(f"SSE Error processing result from greenlet for item (original index {index}): {exc}")
-                    screening_result_data = {'decision': 'PROCESSING_ERROR', 'reasoning': str(exc)}
                 
-                processed_count += 1
                 progress_percentage = int((processed_count / total_entries_to_screen) * 100) if total_entries_to_screen > 0 else 0
                 
                 output_data = {
-                    'index': index + 1, 'title': title, 'authors': authors_str,
+                    'index': index + 1, 
+                    'title': title, 
+                    'authors': authors_str,
                     'decision': screening_result_data.get('decision', 'ITEM_ERROR'), 
                     'reasoning': screening_result_data.get('reasoning', 'Error retrieving result.'),
                     'abstract': row.get('abstract', '')
@@ -1091,11 +1077,45 @@ def stream_screen_file():
                 temp_results_list.append(output_data)
                 
                 progress_event = {
-                    'type': 'progress', 'count': processed_count, 'total': total_entries_to_screen,
-                    'percentage': progress_percentage, 'current_item_title': title,
+                    'type': 'progress', 
+                    'count': processed_count, 
+                    'total': total_entries_to_screen,
+                    'percentage': progress_percentage, 
+                    'current_item_title': title,
                     'decision': screening_result_data.get('decision', 'ITEM_ERROR')
                 }
-                yield f"data: {json.dumps(progress_event)}\n\n"
+                
+                return f"data: {json.dumps(progress_event)}\n\n"
+            
+            # Define the processing function
+            def process_item(item_data):
+                try:
+                    return _perform_screening_on_abstract(
+                        item_data['abstract'], 
+                        criteria_prompt,
+                        llm_provider, 
+                        llm_model, 
+                        llm_api_key_from_outer_scope, 
+                        llm_base_url
+                    )
+                except Exception as e:
+                    app_logger.error(f"Error processing item {item_data['index']}: {str(e)}")
+                    return {'decision': 'PROCESSING_ERROR', 'reasoning': str(e)}
+            
+            # Process items with rate limiting and streaming progress
+            for item_data in items_to_process:
+                # Apply rate limiting
+                rate_limiter._wait_for_rate_limit()
+                
+                # Process item
+                try:
+                    result = process_item(item_data)
+                    # Generate progress event
+                    yield process_callback(item_data, result)
+                except Exception as e:
+                    app_logger.error(f"Error in processing loop: {str(e)}")
+                    error_result = {'decision': 'LOOP_ERROR', 'reasoning': str(e)}
+                    yield process_callback(item_data, error_result)
             
             app_logger.info(f"PERF SSE: Finished processing {processed_count}/{total_entries_to_screen} items for {original_filename}.")
             
@@ -1271,78 +1291,100 @@ def stream_test_screen_file():
             })
 
             yield f"data: {json.dumps({'type': 'start', 'total': actual_sample_size, 'filter_info': filter_description})}\n\n"
-            app_logger.info(f"PERF SSE Test: Spawning greenlets for {actual_sample_size} items for file {original_filename_for_log}.")
+            app_logger.info(f"PERF SSE Test: Processing {actual_sample_size} sample items for file {original_filename_for_log} with rate limiting.")
 
-            greenlets = []
-            for index, row in sample_df.iterrows(): 
-                abstract = row.get('abstract')
-                g = spawn(_perform_screening_on_abstract,
-                          abstract, criteria_prompt_param,
-                          llm_provider_param, llm_model_param, llm_api_key_from_outer_scope, llm_base_url_param)
-                greenlets.append({'greenlet': g, 'index': index, 'row': row})
+            # Import the rate limiter
+            from rate_limiter import APIRateLimiter
             
-            join_timeout_sse_test = 3580
-            app_logger.info(f"PERF SSE Test: Waiting for {len(greenlets)} greenlets to complete with timeout {join_timeout_sse_test}s for {original_filename_for_log}.")
-            joinall([item['greenlet'] for item in greenlets], timeout=join_timeout_sse_test)
-            app_logger.info(f"PERF SSE Test: Greenlet join completed or timed out for {original_filename_for_log}.")
+            # Configure the rate limiter for tests with more aggressive parameters
+            rate_limiter = APIRateLimiter(max_concurrent=15, request_interval=0.1)
             
+            # Prepare items for processing
+            items_to_process = []
+            for index, row in sample_df.iterrows():
+                items_to_process.append({
+                    'index': index,
+                    'row': row,
+                    'abstract': row.get('abstract')
+                })
+            
+            # Track processed items and results
             processed_count = 0
             temp_results_list = []
-
-            for item_info in greenlets:
-                glet = item_info['greenlet']
-                index = item_info['index']
-                row = item_info['row']
+            
+            # Define the callback function to send progress updates
+            def process_callback(item_data, screening_result_data):
+                nonlocal processed_count
+                processed_count += 1
+                
+                index = item_data['index']
+                row = item_data['row']
                 title = row.get('title', "N/A")
                 abstract_text = row.get('abstract', '')
                 authors_list = row.get('authors', [])
                 authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
-                screening_result_data = None
                 
-                try:
-                    if glet.ready():
-                        if glet.successful():
-                            screening_result = glet.get(block=False)
-                            if screening_result.get('decision') == "CONFIG_ERROR":
-                                app_logger.error(f"SSE Test Config error for item (original index {index}): {screening_result.get('reasoning')}")
-                            screening_result_data = screening_result
-                        else:
-                            app_logger.error(f"SSE Test Unhandled exception in greenlet for item (original index {index}): {glet.exception}")
-                            screening_result_data = {'decision': 'GREENLET_ERROR', 'reasoning': str(glet.exception)}
-                    else:
-                        app_logger.warning(f"SSE Test Greenlet for item (original index {index}) did not complete within timeout.")
-                        screening_result_data = {'decision': 'TIMEOUT_ERROR', 'reasoning': 'Processing timed out.'}
-                except Exception as exc:
-                    app_logger.error(f"SSE Test Error processing result from greenlet for item (original index {index}): {exc}")
-                    screening_result_data = {'decision': 'PROCESSING_ERROR', 'reasoning': str(exc)}
-
-                processed_count += 1
                 progress_percentage = int((processed_count / actual_sample_size) * 100) if actual_sample_size > 0 else 0
                 item_id = str(uuid.uuid4())
                 
                 test_item_template_data = {
-                    'id': item_id, 'original_index': index, 'title': title,
-                    'authors': authors_str, 'abstract': abstract_text,
+                    'id': item_id, 
+                    'original_index': index, 
+                    'title': title,
+                    'authors': authors_str, 
+                    'abstract': abstract_text,
                     'ai_decision': screening_result_data.get('decision', 'ITEM_ERROR'), 
                     'ai_reasoning': screening_result_data.get('reasoning', 'Error retrieving result.')
                 }
                 temp_results_list.append(test_item_template_data)
                 
                 progress_event_data = {
-                    'type': 'progress', 'count': processed_count, 'total': actual_sample_size,
-                    'percentage': progress_percentage, 'current_item_title': title,
-                    'decision': screening_result_data.get('decision', 'ITEM_ERROR'),
-                    'error_detail': screening_result_data.get('reasoning') if 'ERROR' in screening_result_data.get('decision', '') else None
+                    'type': 'progress', 
+                    'count': processed_count, 
+                    'total': actual_sample_size,
+                    'percentage': progress_percentage, 
+                    'current_item_title': title,
+                    'decision': screening_result_data.get('decision', 'ITEM_ERROR')
                 }
-                if progress_event_data['error_detail'] is None:
-                    del progress_event_data['error_detail']
 
-                yield f"data: {json.dumps(progress_event_data)}\n\n"
+                return f"data: {json.dumps(progress_event_data)}\n\n"
+            
+            # Define the processing function
+            def process_item(item_data):
+                try:
+                    return _perform_screening_on_abstract(
+                        item_data['abstract'], 
+                        criteria_prompt_param,
+                        llm_provider_param, 
+                        llm_model_param, 
+                        llm_api_key_from_outer_scope, 
+                        llm_base_url_param
+                    )
+                except Exception as e:
+                    app_logger.error(f"Error processing test item {item_data['index']}: {str(e)}")
+                    return {'decision': 'PROCESSING_ERROR', 'reasoning': str(e)}
+            
+            # Process items with rate limiting and streaming progress
+            for item_data in items_to_process:
+                # Apply rate limiting
+                rate_limiter._wait_for_rate_limit()
+                
+                # Process item
+                try:
+                    result = process_item(item_data)
+                    # Generate progress event
+                    yield process_callback(item_data, result)
+                except Exception as e:
+                    app_logger.error(f"Error in test processing loop: {str(e)}")
+                    error_result = {'decision': 'LOOP_ERROR', 'reasoning': str(e)}
+                    yield process_callback(item_data, error_result)
             
             app_logger.info(f"PERF SSE Test: Finished processing {processed_count}/{actual_sample_size} items for {original_filename_for_log}.")
             
+            # Sort results by original index for consistency
             temp_results_list.sort(key=lambda x: x.get('original_index', float('inf')))
             
+            # Update the session data with the results
             current_session_data = get_test_session(session_id)
             if current_session_data:
                 current_session_data['test_items_data'] = temp_results_list
@@ -1350,7 +1392,7 @@ def stream_test_screen_file():
             else:
                 app_logger.warning(f"SSE Test: Session {session_id} disappeared before storing test results for {original_filename_for_log}.")
 
-            complete_data = {'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id}
+            complete_data = {'type': 'complete', 'message': 'Test screening finished.', 'session_id': session_id, 'filename': original_filename_for_log}
             yield f"data: {json.dumps(complete_data)}\n\n"
             app_logger.info(f"PERF SSE Test: Test screening completed for {session_id}, file {original_filename_for_log}. Total time: {time.time() - overall_start_time:.4f} seconds.")
             
@@ -2275,4 +2317,5 @@ if os.environ.get('WERKZEUG_RUN_MAIN') != 'true': # Avoid running in Flask reloa
 if __name__ == '__main__':
     app_logger.info("Starting Flask app in debug mode...") # Example for __main__
     app.run(debug=True, host='0.0.0.0', port=5050)#test
+
 

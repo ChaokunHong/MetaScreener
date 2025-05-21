@@ -260,7 +260,7 @@ textarea {
 }
 
 /* Progress logs */
-#progress_log {
+#progress_log, #test_progress_log {
   max-height: 150px;
   overflow-y: auto;
   font-size: 0.8em;
@@ -272,12 +272,12 @@ textarea {
   white-space: pre-line;
 }
 
-#progress_log div {
+#progress_log div, #test_progress_log div {
   padding: 4px 0;
   border-bottom: 1px dashed var(--border-color);
 }
 
-#progress_log div:last-child {
+#progress_log div:last-child, #test_progress_log div:last-child {
   border-bottom: none;
 }
 
