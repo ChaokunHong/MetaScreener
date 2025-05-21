@@ -18,21 +18,22 @@
     }
     
     /* 决定结果的颜色样式 */
-    .log-decision-INCLUDE {
-        color: green;
+    .log-decision-INCLUDE, .log-decision-include {
+        color: #28a745;
         font-weight: bold;
     }
-    .log-decision-EXCLUDE {
-        color: red;
+    .log-decision-EXCLUDE, .log-decision-exclude {
+        color: #dc3545;
         font-weight: bold;
     }
-    .log-decision-MAYBE {
-        color: orange;
+    .log-decision-MAYBE, .log-decision-maybe {
+        color: #ffc107;
         font-weight: bold;
     }
     .log-decision-ERROR, .log-decision-API_ERROR, .log-decision-PROCESSING_ERROR, 
     .log-decision-PROMPT_ERROR, .log-decision-TEXT_EXTRACT_ERROR, .log-decision-FILE_PROCESSING_ERROR,
-    .log-decision-TIMEOUT_ERROR, .log-decision-ITEM_ERROR, .log-decision-LOOP_ERROR {
+    .log-decision-TIMEOUT_ERROR, .log-decision-ITEM_ERROR, .log-decision-LOOP_ERROR, 
+    .log-decision-error {
         color: #a94442;
         font-weight: bold;
     }
@@ -135,25 +136,30 @@
         <small class="form-text text-muted mb-2">If both title and line numbers are filled, title filter will take precedence.</small>
         <!-- END NEW FILTER FIELDS -->
 
-        <button type="button" id="start_full_screen_button" class="btn btn-primary btn-sm">
-            <span id="full_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
-            Screen Full File with Progress (SSE)
-        </button>
+        <div class="form-group mt-3">
+            <button type="button" id="start_full_screen_button" class="btn btn-primary btn-sm">
+                Start Full Screening
+                <span id="full_spinner" class="spinner-border spinner-border-sm" style="display: none;"></span>
+            </button>
+        </div>
     </form>
     {# RESTORED: Detailed HTML for Full progress area #}
      <div id="progress_area" class="mt-3" style="display: none;">
         <h4>Screening Progress:</h4>
-        <div class="progress mb-2">
-            <div id="progress_bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="progress flex-grow-1 mr-2">
+                <div id="progress_bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+            </div>
+            <button id="pause_resume_button" class="btn btn-warning btn-sm">Pause</button>
         </div>
         <p id="progress_status" class="mt-1 small text-muted"></p>
         <div id="progress_log_container" style="display:none;">
-            <strong>Live Log (last few items):</strong>
-            <div id="progress_log" style="max-height: 150px; overflow-y: auto; font-size: 0.8em; background-color: #f0f0f0; padding: 8px; border: 1px solid #ccc; margin-top:8px; border-radius: 4px; white-space: pre-line;"></div> {# Note: ID is progress_log #}
+            <strong>Live Log:</strong>
+            <div id="progress_log" style="max-height: 100px; overflow-y: auto; font-size: 0.8em; background-color: #f0f0f0; padding: 8px; border: 1px solid #ccc; margin-top:8px; border-radius: 4px; white-space: pre-line;"></div> {# Note: ID is progress_log #}
         </div>
     </div>
      <div id="sse_results_link_area" class="mt-3" style="display:none;">
-        <a href="#" id="view_full_results_link" class="btn btn-success">View Full Results from SSE Screening</a> 
+        <a href="#" id="view_full_results_link" class="btn btn-primary">View Full Results</a> 
     </div>
 </div>
 
@@ -167,23 +173,31 @@ const MAX_FULL_LOG_ITEMS = 7;
 const INIT_TIMEOUT_MS = 15000; // 15 seconds timeout for initialization phase
 
 const RESULTS_HISTORY_KEY = 'metaScreenerResultsHistory';
-const MAX_RESULTS_HISTORY_ITEMS = 15; // Max number of history items to keep
+const MAX_RESULTS_HISTORY_ITEMS = 10; // Max number of history items to keep
 
 // --- Helper Functions (Refined - Get element inside) ---
 function addTestLogItem(message) {
     const logEl = document.getElementById('test_progress_log'); 
     if(logEl) {
-        // 优化：使用requestAnimationFrame确保DOM更新高效
+        // Use requestAnimationFrame for efficient DOM updates
         requestAnimationFrame(() => {
             const div = document.createElement('div');
             div.innerHTML = message;
-            // 只保留指定数量的最新日志
+            // Keep only the specified number of latest logs
             while (logEl.children.length >= MAX_TEST_LOG_ITEMS) { 
                 logEl.removeChild(logEl.firstChild); 
             }
+            
+            // Check if user is already at the bottom before scrolling
+            const isScrolledToBottom = logEl.scrollHeight - logEl.clientHeight <= logEl.scrollTop + 1;
+            
+            // Add the new log item
             logEl.appendChild(div);
-            // 使用scrollIntoView代替scrollTop，确保滚动更流畅
-            div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            
+            // Only auto-scroll if user was already at the bottom
+            if (isScrolledToBottom) {
+                logEl.scrollTop = logEl.scrollHeight;
+            }
         });
     } else {
         if (!window.loggedTestLogError) { console.error('!!! testProgressLog element NOT found in addTestLogItem'); window.loggedTestLogError = true; }
@@ -193,17 +207,25 @@ function addTestLogItem(message) {
 function addLogItem(message) {
     const logEl = document.getElementById('progress_log'); 
      if(logEl) {
-        // 优化：使用requestAnimationFrame确保DOM更新高效
+        // Use requestAnimationFrame for efficient DOM updates
         requestAnimationFrame(() => {
             const div = document.createElement('div');
             div.innerHTML = message;
-            // 只保留指定数量的最新日志
+            // Keep only the specified number of latest logs
             while (logEl.children.length >= MAX_FULL_LOG_ITEMS) { 
                 logEl.removeChild(logEl.firstChild); 
             }
+            
+            // Check if user is already at the bottom before scrolling
+            const isScrolledToBottom = logEl.scrollHeight - logEl.clientHeight <= logEl.scrollTop + 1;
+            
+            // Add the new log item
             logEl.appendChild(div);
-            // 使用scrollIntoView代替scrollTop，确保滚动更流畅
-            div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            
+            // Only auto-scroll if user was already at the bottom
+            if (isScrolledToBottom) {
+                logEl.scrollTop = logEl.scrollHeight;
+            }
         });
     } else {
         if (!window.loggedFullLogError) { console.error('!!! progressLog element NOT found in addLogItem'); window.loggedFullLogError = true; }
@@ -294,6 +316,15 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log("Buttons found:", { startTestScreenButton, startFullScreenButton });
     window.loggedTestLogError = false; // Reset log error flags on load
     window.loggedFullLogError = false;
+
+    // Initialize global variables for screening state
+    window.screeningPaused = false;
+    window.xhr = null; // Store the XHR object globally
+    window.pausedData = {
+        processedItems: [],
+        resumePoint: 0
+    };
+    window.screeningResumeId = localStorage.getItem('screening_resume_id') || '';
 
     // --- Test Screening SSE Logic --- 
     if (startTestScreenButton) {
@@ -565,55 +596,8 @@ document.addEventListener('DOMContentLoaded', function() {
              if (!fileInput || !fileInput.files || fileInput.files.length === 0) { alert('Please select file...'); return; }
              console.log("Full screening initiated.");
              
-             // Reset UI
-             const progressArea = document.getElementById('progress_area');
-             const progressLogContainer = document.getElementById('progress_log_container');
-             const progressBar = document.getElementById('progress_bar');
-             const progressStatus = document.getElementById('progress_status');
-             const sseResultsLinkArea = document.getElementById('sse_results_link_area');
-             
-             if(progressArea) progressArea.style.display = 'block';
-             if(progressLogContainer) progressLogContainer.style.display = 'block';
-             
-             // Clear logs
-             const initialFullLogEl = document.getElementById('progress_log'); 
-             if(initialFullLogEl) initialFullLogEl.innerHTML = '';
-
-             if(progressBar) {
-                 progressBar.style.width = '0%'; 
-                 progressBar.textContent = '0%'; 
-                 progressBar.classList.remove('bg-success','bg-danger');
-             }
-             
-             if(progressStatus) {
-                 progressStatus.textContent = 'Initializing...';
-                 progressStatus.dataset.status = 'initializing';
-             }
-             
-             if(sseResultsLinkArea) sseResultsLinkArea.style.display = 'none';
-             startFullScreenButton.disabled = true;
-             const fullSpinner = document.getElementById('full_spinner');
-             if(fullSpinner) fullSpinner.style.display = 'inline-block';
-             window.loggedFullLogError = false; 
-             
-             // Simplified initialization timer
-             let initTimer = null;
-             let dots = '';
-             
-             initTimer = setInterval(() => {
-                 if (progressStatus && progressStatus.dataset.status === 'initializing') {
-                     dots = dots.length >= 3 ? '' : dots + '.';
-                     progressStatus.textContent = `Initializing${dots}`;
-                     
-                     // Avoid frequent log updates
-                     if (Math.floor(Math.random() * 5) === 0) { // Only 20% chance to add log
-                         addLogItem(`[${new Date().toLocaleTimeString()}] File upload and processing in progress, please wait...`);
-                     }
-                 } else {
-                     clearInterval(initTimer);
-                     initTimer = null;
-                 }
-             }, 500);
+             // Reset UI and data
+             resetFullScreeningUI();
              
              const formData = new FormData(); 
              formData.append('file', fileInput.files[0]);
@@ -627,194 +611,609 @@ document.addEventListener('DOMContentLoaded', function() {
              if (lineRangeInput && lineRangeInput.value) {
                  formData.append('line_range_filter', lineRangeInput.value.trim());
              }
-
-             const xhr = new XMLHttpRequest(); 
-             console.log("Initiating Full XHR Request...");
-             xhr.open("POST", "{{ url_for('stream_screen_file') }}", true);
-             let lastCharIndex = 0;
              
-             xhr.onprogress = function() {
-                 const newText = xhr.responseText.substring(lastCharIndex);
-                 lastCharIndex = xhr.responseText.length;
-                 if (!newText) return; // If no new content, return directly
-                 
-                 // 优化：使用requestAnimationFrame确保UI更新高效
-                 requestAnimationFrame(() => {
-                     const messages = newText.split('\n\n');
-                     for (const message of messages) {
-                         if (message.startsWith("data: ")) {
-                             try {
-                                 const jsonData = JSON.parse(message.substring(6));
-                                 
-                                 // Get needed DOM elements
-                                 const currentFullBar = document.getElementById('progress_bar');
-                                 const currentFullStatus = document.getElementById('progress_status');
-                                 const currentFullLinkArea = document.getElementById('sse_results_link_area');
-                                 const currentFullLink = document.getElementById('view_full_results_link');
-                                 
-                                 // Process event types
-                                 switch (jsonData.type) {
-                                     case 'init':
-                                         // Initialization event
-                                         if(currentFullStatus) {
-                                             currentFullStatus.textContent = jsonData.message || 'Processing upload, please wait...';
-                                         }
-                                         break;
-                                     
-                                     case 'start':
-                                         // Clear initialization timer
-                                         if (initTimer) {
-                                             clearInterval(initTimer);
-                                             initTimer = null;
-                                         }
-                                         
-                                         if(currentFullStatus) {
-                                             currentFullStatus.dataset.status = 'processing';
-                                             currentFullStatus.textContent = 'Starting full screening...';
-                                         }
-                                         
-                                         if(currentFullBar) { 
-                                             currentFullBar.style.width = '0%'; 
-                                             currentFullBar.textContent = '0%'; 
-                                         }
-                                         
-                                         addLogItem(`[${new Date().toLocaleTimeString()}] Starting to screen ${jsonData.total} items.`);
-                                         break;
-                                     
-                                     case 'progress':
-                                         if(currentFullBar) {
-                                             const percentComplete = jsonData.percentage || Math.floor((jsonData.count / jsonData.total) * 100);
-                                             currentFullBar.style.width = `${percentComplete}%`;
-                                             currentFullBar.textContent = `${percentComplete}%`;
-                                         }
-                                         
-                                         if(currentFullStatus) {
-                                             currentFullStatus.textContent = `Screening ${jsonData.count} / ${jsonData.total}. Current: ${jsonData.current_item_title}`;
-                                         }
-                                         
-                                         // Only add log items if decision is known (skip preparatory events)
-                                         if (jsonData.decision) {
-                                             let decisionClass = "";
-                                             if(jsonData.decision === "INCLUDE") decisionClass = "include";
-                                             else if(jsonData.decision === "EXCLUDE") decisionClass = "exclude";
-                                             else if(jsonData.decision === "MAYBE") decisionClass = "maybe";
-                                             else decisionClass = "error";
-                                             
-                                             // 序列号、标题、决定结果(带颜色)的统一格式
-                                             const logMessage = `[${jsonData.count}] ${jsonData.current_item_title} - <span class="log-decision-${jsonData.decision}">${jsonData.decision}</span>`;
-                                             addLogItem(logMessage);
-                                         }
-                                         break;
-                                     
-                                     case 'status':
-                                         // 添加状态更新处理
-                                         if(currentFullStatus && jsonData.message) {
-                                             currentFullStatus.textContent = jsonData.message;
-                                         }
-                                         break;
-                                     
-                                     case 'complete':
-                                         if(currentFullBar) { 
-                                             currentFullBar.classList.add('bg-success'); 
-                                             currentFullBar.textContent = "Complete"; 
-                                         }
-                                         
-                                         if(currentFullStatus) {
-                                             currentFullStatus.textContent = jsonData.message || 'Full screening complete.';
-                                         }
-                                         
-                                         addLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message || 'Full screening complete.'}`);
-                                         
-                                         if (jsonData.screening_id && currentFullLink && currentFullLinkArea) {
-                                             let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
-                                             currentFullLink.href = baseUrl.replace('__SCREENING_ID__', jsonData.screening_id);
-                                             currentFullLinkArea.style.display = 'block';
-                                         }
-                                         
-                                         try { xhr.abort(); } catch (e) { console.warn("Error aborting full screening XHR:", e); }
-                                         finalizeButtons();
-                                         saveScreeningResultToHistory('Full Abstract Screening', jsonData.screening_id, jsonData.filename, jsonData.total, jsonData.ris_content);
-                                         break;
-                                     
-                                     case 'error':
-                                         // Clear initialization timer
-                                         if (initTimer) {
-                                             clearInterval(initTimer);
-                                             initTimer = null;
-                                         }
-                                         
-                                         if(currentFullBar) { 
-                                             currentFullBar.classList.add('bg-danger'); 
-                                             currentFullBar.textContent = "Error"; 
-                                         }
-                                         
-                                         if(currentFullStatus) {
-                                             currentFullStatus.textContent = `Error: ${jsonData.message}`;
-                                         }
-                                         
-                                         let errorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
-                                         if (jsonData.needs_config) {
-                                             const configUrl = "{{ url_for('llm_config_page') }}";
-                                             errorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
-                                         }
-                                         
-                                         addLogItem(errorMessage);
-                                         try { xhr.abort(); } catch (e) { console.warn("Error aborting full screening XHR:", e); }
-                                         finalizeButtons();
-                                         break;
-                                 }
-                                 
-                            } catch (e) { 
-                                console.error("Full screening SSE parse error:", e, "Original message:", message); 
-                                finalizeButtons(); 
-                            }
-                        }
-                     }
-                 });
-             };
-            
-             xhr.onloadend = function() { 
-                 // Clear initialization timer
-                 if (initTimer) {
-                     clearInterval(initTimer);
-                     initTimer = null;
-                 }
-                 
-                 const currentFullLinkArea = document.getElementById('sse_results_link_area');
-                 const currentFullLink = document.getElementById('view_full_results_link');
-                 
-                 if (xhr.responseText && xhr.responseText.includes('"screening_id"') && 
-                     currentFullLinkArea && currentFullLinkArea.style.display === 'none') {
-                     try {
-                         const match = xhr.responseText.match(/"screening_id":"([^"]+)"/);
-                         if (match && match[1] && currentFullLink) {
-                             let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
-                             currentFullLink.href = baseUrl.replace('__SCREENING_ID__', match[1]);
-                             currentFullLinkArea.style.display = 'block';
-                         }
-                     } catch (e) {
-                         console.error("Error setting up full screening results link in onloadend:", e);
-                     }
-                 }
-                 
-                 finalizeButtons(); 
-             };
-            
-             xhr.onerror = function() { 
-                 // Clear initialization timer
-                 if (initTimer) {
-                     clearInterval(initTimer);
-                     initTimer = null;
-                 }
-                 
-                 addLogItem(`[${new Date().toLocaleTimeString()}] Network error occurred during screening.`);
-                 finalizeButtons(); 
-             };
+             // Create XHR request and store it globally
+             window.xhr = new XMLHttpRequest();
+             window.xhr.open('POST', '{{ url_for("stream_screen_file") }}', true);
+             window.xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
              
-             xhr.send(formData);
-        }); 
+             // Set up event listeners
+             setupFullScreeningXHREventListeners(window.xhr);
+             
+             // Send the request
+             window.xhr.send(formData);
+        });
     }
 
-}); 
+    // Add listener for pause/resume button
+    const pauseResumeButton = document.getElementById('pause_resume_button');
+    if (pauseResumeButton) {
+        pauseResumeButton.addEventListener('click', function() {
+            if (window.screeningPaused) {
+                // Resume processing
+                resumeScreening();
+            } else {
+                // Pause processing
+                pauseScreening();
+            }
+        });
+    }
+
+    function pauseScreening() {
+        if (!window.xhr) return;
+        
+        // Update UI
+        window.screeningPaused = true;
+        pauseResumeButton.textContent = 'Resume';
+        pauseResumeButton.classList.remove('btn-warning');
+        pauseResumeButton.classList.add('btn-success');
+        
+        // Add log entry
+        addLogItem(`[${new Date().toLocaleTimeString()}] Screening paused by user.`);
+        
+        // Cancel current XHR request
+        if (window.xhr) {
+            try { 
+                window.xhr.abort(); 
+            } catch (e) { 
+                console.warn("Error aborting XHR:", e); 
+            }
+        }
+        
+        // Save ALL screening data to localStorage
+        try {
+            // Verify that we have actual data to save
+            if (!window.pausedData || !window.pausedData.processedItems || window.pausedData.processedItems.length === 0) {
+                addLogItem(`[${new Date().toLocaleTimeString()}] Warning: No processed items available to save.`);
+                console.warn("No processed items available in window.pausedData");
+            }
+            
+            // Before saving, verify all indices are unique in processedItems
+            const seenIndices = new Set();
+            const uniqueProcessedItems = [];
+            
+            // Deduplicate based on index
+            for (const item of window.pausedData.processedItems) {
+                if (item && item.index && !seenIndices.has(item.index)) {
+                    seenIndices.add(item.index);
+                    uniqueProcessedItems.push(item);
+                }
+            }
+            
+            // Sort by index for consistency
+            uniqueProcessedItems.sort((a, b) => a.index - b.index);
+            
+            // Create a complete screening state object
+            const fullScreeningState = {
+                // Current processing position - critical for resume
+                resume_point: window.pausedData.resumePoint,
+                
+                // Store ALL processed items, not just the last few
+                // This ensures we don't lose any data when resuming
+                processed_items: uniqueProcessedItems,
+                
+                // Store filtering information
+                title_filter: document.getElementById('title_text_filter')?.value || '',
+                line_range: document.getElementById('line_range_filter')?.value || '',
+                
+                // Add timestamp for debugging
+                timestamp: new Date().toISOString(),
+                
+                // Add a session identifier
+                session_id: `pause_${Date.now()}`
+            };
+            
+            // Store the complete state
+            localStorage.setItem('full_screening_state', JSON.stringify(fullScreeningState));
+            
+            // Log state summary
+            const indexRanges = uniqueProcessedItems.length > 0 ? 
+                `indices ${uniqueProcessedItems[0].index}-${uniqueProcessedItems[uniqueProcessedItems.length-1].index}` : 
+                "no items";
+                
+            console.log("Successfully saved complete screening state to localStorage", {
+                resume_point: fullScreeningState.resume_point,
+                processed_items_count: fullScreeningState.processed_items.length,
+                timestamp: fullScreeningState.timestamp,
+                index_ranges: indexRanges
+            });
+            
+            // Update UI with success message
+            const progressStatus = document.getElementById('progress_status');
+            if (progressStatus) {
+                progressStatus.textContent = `Screening paused at item ${fullScreeningState.resume_point}. All data saved locally.`;
+            }
+            
+            addLogItem(`[${new Date().toLocaleTimeString()}] Pause successful. All data saved locally. Position: ${fullScreeningState.resume_point}, Items: ${fullScreeningState.processed_items.length}, ${indexRanges}`);
+        } catch (e) {
+            console.error("Error saving screening state to localStorage:", e);
+            addLogItem(`[${new Date().toLocaleTimeString()}] Warning: Could not save complete state locally: ${e.message}`);
+            
+            const progressStatus = document.getElementById('progress_status');
+            if (progressStatus) {
+                progressStatus.textContent = 'Screening paused but state could not be saved.';
+            }
+        }
+    }
+
+    function resumeScreening() {
+        window.screeningPaused = false;
+        pauseResumeButton.textContent = 'Pause';
+        pauseResumeButton.classList.remove('btn-success');
+        pauseResumeButton.classList.add('btn-warning');
+        
+        addLogItem(`[${new Date().toLocaleTimeString()}] Attempting to resume screening...`);
+        
+        // Re-upload the file
+        const fileInput = document.getElementById('full_file_progress');
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+            alert('Please select the file again to resume screening.');
+            return;
+        }
+        
+        // Try to load the complete saved state
+        let savedState = null;
+        let actualResumePoint = 0;
+        let previouslyProcessedItems = [];
+        
+        try {
+            const storedData = localStorage.getItem('full_screening_state');
+            if (storedData) {
+                savedState = JSON.parse(storedData);
+                console.log("Found saved screening state:", {
+                    resume_point: savedState.resume_point,
+                    processed_items_count: savedState.processed_items?.length || 0,
+                    timestamp: savedState.timestamp
+                });
+                
+                // Validate resume point
+                if (savedState.resume_point && !isNaN(savedState.resume_point) && savedState.resume_point > 0) {
+                    actualResumePoint = savedState.resume_point;
+                    
+                    // Ensure we have processed items array
+                    if (savedState.processed_items && Array.isArray(savedState.processed_items)) {
+                        previouslyProcessedItems = savedState.processed_items;
+                        
+                        // Log details for debugging
+                        const processedIndices = previouslyProcessedItems.map(item => item.index).sort((a, b) => a - b);
+                        addLogItem(`[${new Date().toLocaleTimeString()}] Resuming from position ${actualResumePoint} with ${previouslyProcessedItems.length} previously processed items (indices: ${processedIndices.slice(0, 5)}${processedIndices.length > 5 ? '...' + processedIndices.slice(-5).join(',') : ''})`)
+                        console.log('Will resume from point:', actualResumePoint, 'with processed indices:', processedIndices);
+                    } else {
+                        console.warn("Saved state has valid resume point but missing or invalid processed_items array");
+                        addLogItem(`[${new Date().toLocaleTimeString()}] Warning: Resume point found (${actualResumePoint}) but no valid processed items. May lose previous results.`);
+                    }
+                } else {
+                    console.warn("Invalid or missing resume point in saved state:", savedState.resume_point);
+                    addLogItem(`[${new Date().toLocaleTimeString()}] Warning: Invalid resume point in saved state.`);
+                }
+            } else {
+                console.warn("No saved screening state found in localStorage");
+                addLogItem(`[${new Date().toLocaleTimeString()}] No saved screening state found.`);
+            }
+        } catch (e) {
+            console.error("Error loading saved screening state:", e);
+            addLogItem(`[${new Date().toLocaleTimeString()}] Error loading saved state: ${e.message}`);
+        }
+        
+        // If no localStorage data, try window.pausedData as fallback
+        if (actualResumePoint === 0 && window.pausedData && window.pausedData.resumePoint > 0) {
+            actualResumePoint = window.pausedData.resumePoint;
+            previouslyProcessedItems = window.pausedData.processedItems || [];
+            
+            addLogItem(`[${new Date().toLocaleTimeString()}] Using in-memory data for resume: position ${actualResumePoint}, items: ${previouslyProcessedItems.length}`);
+            console.log('Using in-memory data:', {
+                resumePoint: actualResumePoint,
+                itemsCount: previouslyProcessedItems.length
+            });
+        }
+        
+        // Safety check - ensure resumePoint is either 0 (restart) or matches the length of processed items
+        // This prevents the case where resumePoint is ahead of actual processed items
+        if (actualResumePoint > 0 && previouslyProcessedItems.length > 0) {
+            // If these values don't match, something is wrong
+            if (Math.abs(actualResumePoint - previouslyProcessedItems.length) > 1) {
+                console.warn(`Resume point (${actualResumePoint}) does not match processed items count (${previouslyProcessedItems.length})`);
+                addLogItem(`[${new Date().toLocaleTimeString()}] Warning: Resume point and processed items count mismatch - adjusting to prevent data loss`);
+                
+                // Use the minimum of the two to ensure we don't skip any items
+                actualResumePoint = Math.min(actualResumePoint, previouslyProcessedItems.length);
+                
+                // Sort processed items by index to ensure proper order
+                previouslyProcessedItems.sort((a, b) => a.index - b.index);
+            }
+        }
+        
+        // Build form data for resuming
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        
+        // Add resume parameters
+        formData.append('resume', 'true');
+        formData.append('resume_from', actualResumePoint.toString());
+        
+        // Add processed items - but be careful about size limits
+        if (previouslyProcessedItems.length > 0) {
+            try {
+                // Try to send ALL previously processed items
+                // If this causes 413 errors, we might need to limit the size
+                const processedDataString = JSON.stringify(previouslyProcessedItems);
+                
+                // If data is very large, log a warning but still try to send it
+                if (processedDataString.length > 1000000) { // 1MB
+                    console.warn(`Processed data is very large: ${processedDataString.length} bytes`);
+                    addLogItem(`[${new Date().toLocaleTimeString()}] Warning: Large amount of data to restore (${previouslyProcessedItems.length} items, ${Math.round(processedDataString.length/1024)} KB)`);
+                }
+                
+                formData.append('processed_data', processedDataString);
+            } catch (e) {
+                console.error("Error adding processed items to form data:", e);
+                addLogItem(`[${new Date().toLocaleTimeString()}] Error preparing processed items: ${e.message}`);
+            }
+        } else if (actualResumePoint > 0) {
+            addLogItem(`[${new Date().toLocaleTimeString()}] Warning: Resuming from position ${actualResumePoint} but no processed items available.`);
+        }
+        
+        // Add filters from saved state or UI
+        let titleFilter = '';
+        let lineRange = '';
+        
+        // First try to get filters from saved state
+        if (savedState) {
+            titleFilter = savedState.title_filter || '';
+            lineRange = savedState.line_range || '';
+        }
+        
+        // Then check UI fields which take precedence
+        const titleFilterInput = document.getElementById('title_text_filter');
+        if (titleFilterInput && titleFilterInput.value) {
+            titleFilter = titleFilterInput.value.trim();
+        } else if (titleFilter && titleFilterInput) {
+            // If we have a saved filter but UI field is empty, update the UI
+            titleFilterInput.value = titleFilter;
+        }
+        
+        const lineRangeInput = document.getElementById('line_range_filter');
+        if (lineRangeInput && lineRangeInput.value) {
+            lineRange = lineRangeInput.value.trim();
+        } else if (lineRange && lineRangeInput) {
+            // If we have a saved range but UI field is empty, update the UI
+            lineRangeInput.value = lineRange;
+        }
+        
+        // Add filters to form data
+        if (titleFilter) {
+            formData.append('title_text_filter', titleFilter);
+        }
+        
+        if (lineRange) {
+            formData.append('line_range_filter', lineRange);
+        }
+        
+        // Update UI to show status
+        const progressStatus = document.getElementById('progress_status');
+        if (progressStatus) {
+            if (actualResumePoint > 0) {
+                progressStatus.textContent = `Resuming from item ${actualResumePoint} with ${previouslyProcessedItems.length} previous results...`;
+            } else {
+                progressStatus.textContent = 'No valid resume point found. Starting new screening...';
+            }
+        }
+        
+        // Log final resume parameters for debugging
+        console.log('Final resume parameters:', {
+            resume: true,
+            resume_from: actualResumePoint,
+            processed_items_count: previouslyProcessedItems.length,
+            title_filter: titleFilter,
+            line_range: lineRange
+        });
+        
+        // Create XHR request and send
+        window.xhr = new XMLHttpRequest();
+        window.xhr.open('POST', '{{ url_for("stream_screen_file") }}', true);
+        window.xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        
+        // Set up event listeners
+        setupFullScreeningXHREventListeners(window.xhr);
+        
+        // Send the request
+        window.xhr.send(formData);
+    }
+
+    function resetFullScreeningUI() {
+        const progressArea = document.getElementById('progress_area');
+        const progressLogContainer = document.getElementById('progress_log_container');
+        const progressBar = document.getElementById('progress_bar');
+        const progressStatus = document.getElementById('progress_status');
+        const sseResultsLinkArea = document.getElementById('sse_results_link_area');
+        const pauseResumeButton = document.getElementById('pause_resume_button');
+        
+        // Reset the pausedData for a new session
+        window.pausedData = {
+            processedItems: [],
+            resumePoint: 0
+        };
+        
+        // Clear ALL stored state for a fresh start
+        window.screeningResumeId = '';
+        localStorage.removeItem('screening_resume_id');
+        localStorage.removeItem('screening_paused_data'); // Legacy key
+        localStorage.removeItem('full_screening_state'); // New key
+        
+        if(progressArea) progressArea.style.display = 'block';
+        if(progressLogContainer) progressLogContainer.style.display = 'block';
+        
+        // Reset pause/resume button
+        if(pauseResumeButton) {
+            pauseResumeButton.textContent = 'Pause';
+            pauseResumeButton.classList.remove('btn-success');
+            pauseResumeButton.classList.add('btn-warning');
+        }
+        
+        // Clear logs
+        const initialFullLogEl = document.getElementById('progress_log'); 
+        if(initialFullLogEl) initialFullLogEl.innerHTML = '';
+        
+        if(progressBar) {
+            progressBar.style.width = '0%'; 
+            progressBar.textContent = '0%'; 
+            progressBar.classList.remove('bg-success','bg-danger');
+        }
+        
+        if(progressStatus) {
+            progressStatus.textContent = 'Initializing new screening session...';
+            progressStatus.dataset.status = 'initializing';
+        }
+        
+        if(sseResultsLinkArea) sseResultsLinkArea.style.display = 'none';
+        startFullScreenButton.disabled = true;
+        const fullSpinner = document.getElementById('full_spinner');
+        if(fullSpinner) fullSpinner.style.display = 'inline-block';
+        window.loggedFullLogError = false;
+    }
+
+    function setupFullScreeningXHREventListeners(xhr) {
+        // Add event listeners for SSE progress
+        let buffer = '';
+        
+        xhr.onprogress = function() {
+            let currentFullBar = document.getElementById('progress_bar');
+            let currentFullStatus = document.getElementById('progress_status');
+            let currentFullLinkArea = document.getElementById('sse_results_link_area');
+            let currentFullLink = document.getElementById('view_full_results_link');
+            
+            if (window.screeningPaused) return; // Don't process events while paused
+            
+            buffer += xhr.responseText.substr(buffer.length);
+            const messages = buffer.split('\n\n');
+            buffer = messages.pop(); // Keep the last incomplete chunk
+            
+            for (const message of messages) {
+                if (message.startsWith("data: ")) {
+                    try {
+                        const jsonData = JSON.parse(message.substring(6));
+                        
+                        // Process event types
+                        switch (jsonData.type) {
+                            case 'init':
+                                // Initialization event
+                                if(currentFullStatus) {
+                                    currentFullStatus.textContent = jsonData.message || 'Processing upload, please wait...';
+                                }
+                                break;
+                            
+                            case 'start':
+                                // Clear initialization timer (if exists)
+                                if (window.initTimer) {
+                                    clearInterval(window.initTimer);
+                                    window.initTimer = null;
+                                }
+                                
+                                if(currentFullStatus) {
+                                    currentFullStatus.dataset.status = 'processing';
+                                    currentFullStatus.textContent = 'Starting full screening...';
+                                }
+                                
+                                if(currentFullBar) { 
+                                    currentFullBar.style.width = '0%'; 
+                                    currentFullBar.textContent = '0%'; 
+                                }
+                                
+                                addLogItem(`[${new Date().toLocaleTimeString()}] Starting to screen ${jsonData.total} items.`);
+                                break;
+                            
+                            case 'progress':
+                                if (jsonData.percentage !== undefined && currentFullBar) {
+                                    currentFullBar.style.width = jsonData.percentage + '%';
+                                    currentFullBar.textContent = jsonData.percentage + '%';
+                                    currentFullBar.setAttribute('aria-valuenow', jsonData.percentage);
+                                }
+                                
+                                // Store progress for resume - 确保正确更新恢复点
+                                if (jsonData.count !== undefined) {
+                                    // Update in-memory resume point
+                                    window.pausedData.resumePoint = jsonData.count;
+                                    
+                                    // Also update stored state if it exists
+                                    try {
+                                        const storedStateStr = localStorage.getItem('full_screening_state');
+                                        if (storedStateStr) {
+                                            const storedState = JSON.parse(storedStateStr);
+                                            storedState.resume_point = jsonData.count;
+                                            localStorage.setItem('full_screening_state', JSON.stringify(storedState));
+                                        }
+                                    } catch (e) {
+                                        console.warn("Could not update resume point in localStorage:", e);
+                                    }
+                                }
+                                
+                                // Store processed item data for potential pause/resume
+                                if (jsonData.item_data) {
+                                    // Ensure item_data has valid index property
+                                    if (!jsonData.item_data.index) {
+                                        console.warn("Received item_data without index:", jsonData.item_data);
+                                        // Try to infer index from count if available
+                                        if (jsonData.count) {
+                                            jsonData.item_data.index = jsonData.count;
+                                        }
+                                    }
+                                    
+                                    // 防止重复添加到processedItems - 使用索引作为唯一标识
+                                    const itemIndex = jsonData.item_data.index;
+                                    
+                                    if (itemIndex) {
+                                        // 检查是否已经存在相同索引的项目
+                                        const existingItemIndex = window.pausedData.processedItems.findIndex(
+                                            item => item && item.index === itemIndex
+                                        );
+                                        
+                                        if (existingItemIndex >= 0) {
+                                            // 如果已存在，则替换
+                                            console.log(`Replacing existing item with index ${itemIndex}`);
+                                            window.pausedData.processedItems[existingItemIndex] = jsonData.item_data;
+                                        } else {
+                                            // 否则添加新项目
+                                            window.pausedData.processedItems.push(jsonData.item_data);
+                                            
+                                            // Periodically check for missing indices
+                                            if (window.pausedData.processedItems.length % 20 === 0) {
+                                                const seenIndices = new Set(window.pausedData.processedItems.map(item => item.index));
+                                                const expectedIndices = Array.from({length: window.pausedData.resumePoint}, (_, i) => i + 1);
+                                                const missingIndices = expectedIndices.filter(idx => !seenIndices.has(idx));
+                                                
+                                                if (missingIndices.length > 0) {
+                                                    console.warn(`Missing indices detected: ${missingIndices.join(', ')}`);
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        console.warn("Cannot add item_data without valid index");
+                                    }
+                                    
+                                    // No need to update localStorage on every item - that's inefficient
+                                    // We'll update the full state when pausing
+                                }
+                                
+                                if (jsonData.current_item_title) {
+                                    const statusText = `Processing: ${jsonData.count}/${jsonData.total} - Current: "${jsonData.current_item_title}"`;
+                                    if(currentFullStatus) currentFullStatus.textContent = statusText;
+                                }
+                                
+                                // Add log entry for each processed item with decision if available
+                                if (jsonData.decision) {
+                                    let decisionClass = "";
+                                    if(jsonData.decision === "INCLUDE") decisionClass = "include";
+                                    else if(jsonData.decision === "EXCLUDE") decisionClass = "exclude";
+                                    else if(jsonData.decision === "MAYBE") decisionClass = "maybe";
+                                    else decisionClass = "error";
+                                    
+                                    // Format log message with item number, title and decision
+                                    const logMessage = `[${jsonData.count}] ${jsonData.current_item_title} - <span class="log-decision-${decisionClass}">${jsonData.decision}</span>`;
+                                    addLogItem(logMessage);
+                                }
+                                break;
+                                
+                            case 'status':
+                                // Add status update handling
+                                if(currentFullStatus && jsonData.message) {
+                                    currentFullStatus.textContent = jsonData.message;
+                                }
+                                break;
+                            
+                            case 'complete':
+                                if(currentFullBar) { 
+                                    currentFullBar.classList.add('bg-success'); 
+                                    currentFullBar.textContent = "Complete"; 
+                                }
+                                
+                                if(currentFullStatus) {
+                                    currentFullStatus.textContent = jsonData.message || 'Full screening complete.';
+                                }
+                                
+                                addLogItem(`[${new Date().toLocaleTimeString()}] ${jsonData.message || 'Full screening complete.'}`);
+                                
+                                if (jsonData.screening_id && currentFullLink && currentFullLinkArea) {
+                                    let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
+                                    currentFullLink.href = baseUrl.replace('__SCREENING_ID__', jsonData.screening_id);
+                                    currentFullLinkArea.style.display = 'block';
+                                }
+                                
+                                try { xhr.abort(); } catch (e) { console.warn("Error aborting full screening XHR:", e); }
+                                finalizeButtons();
+                                saveScreeningResultToHistory('Full Abstract Screening', jsonData.screening_id, jsonData.filename, jsonData.total, jsonData.ris_content);
+                                
+                                // Clear all screening state completely after successful completion
+                                window.pausedData = { processedItems: [], resumePoint: 0 };
+                                window.screeningResumeId = '';
+                                localStorage.removeItem('screening_resume_id');
+                                localStorage.removeItem('screening_paused_data');
+                                localStorage.removeItem('full_screening_state');
+                                
+                                addLogItem(`[${new Date().toLocaleTimeString()}] Cleared all pause/resume data - screening complete.`);
+                                break;
+                            
+                            case 'error':
+                                if(currentFullBar) { 
+                                    currentFullBar.classList.add('bg-danger'); 
+                                    currentFullBar.textContent = "Error"; 
+                                }
+                                
+                                if(currentFullStatus) {
+                                    currentFullStatus.textContent = `Error: ${jsonData.message}`;
+                                }
+                                
+                                let errorMessage = `[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}`;
+                                if (jsonData.needs_config) {
+                                    const configUrl = "{{ url_for('llm_config_page') }}";
+                                    errorMessage += ` <a href="${configUrl}" target="_blank">Please configure API Key.</a>`;
+                                }
+                                
+                                addLogItem(errorMessage);
+                                try { xhr.abort(); } catch (e) { console.warn("Error aborting full screening XHR:", e); }
+                                finalizeButtons();
+                                break;
+                        }
+                        
+                    } catch (e) { 
+                        console.error("Full SSE parse error:", e, "Original message:", message); 
+                        finalizeButtons();
+                    } 
+                }
+            }
+        };
+
+        // Handle completion of request
+        xhr.onloadend = function() {
+            if (window.screeningPaused) return; // Don't handle onloadend while paused
+            
+            const currentFullLinkArea = document.getElementById('sse_results_link_area');
+            const currentFullLink = document.getElementById('view_full_results_link');
+            
+            if (xhr.responseText && xhr.responseText.includes('"screening_id"') && 
+                currentFullLinkArea && currentFullLinkArea.style.display === 'none') {
+                try {
+                    const match = xhr.responseText.match(/"screening_id":"([^"]+)"/);
+                    if (match && match[1] && currentFullLink) {
+                        let baseUrl = "{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}";
+                        currentFullLink.href = baseUrl.replace('__SCREENING_ID__', match[1]);
+                        currentFullLinkArea.style.display = 'block';
+                    }
+                } catch (e) {
+                    console.error("Error setting up full screening results link in onloadend:", e);
+                }
+            }
+            
+            finalizeButtons();
+        };
+        
+        // Handle network errors
+        xhr.onerror = function() {
+            if (window.screeningPaused) return; // Don't handle onerror while paused
+            
+            addLogItem(`[${new Date().toLocaleTimeString()}] Network error occurred during screening.`);
+            finalizeButtons();
+        };
+    }
+});
 </script>
 {% endblock %}

@@ -63,7 +63,8 @@ app.config.update(
     SESSION_COOKIE_SECURE=False, # Set to True if your app is served over HTTPS
     SESSION_COOKIE_HTTPONLY=True,
     PERMANENT_SESSION_LIFETIME=timedelta(days=7),
-    REDIS_URL=os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+    REDIS_URL=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'),
+    MAX_CONTENT_LENGTH=100 * 1024 * 1024  # 100MB max request size, should be sufficient for large datasets
 )
 redis_client.init_app(app)
 
@@ -80,7 +81,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # Redis session management functions
 def store_test_session(session_id, data):
     try:
-        redis_client.set(f"test_session:{session_id}", pickle.dumps(data), ex=3600)
+        redis_client.set(f"test_session:{session_id}", pickle.dumps(data), ex=86400)
     except Exception as e:
         app_logger.warning(f"Redis error in store_test_session: {e}")
     # Also store locally for local development compatibility
@@ -107,7 +108,7 @@ def delete_test_session(session_id):
 
 def store_full_screening_session(screening_id, data):
     try:
-        redis_client.set(f"full_screening:{screening_id}", pickle.dumps(data), ex=3600)
+        redis_client.set(f"full_screening:{screening_id}", pickle.dumps(data), ex=86400)
     except Exception as e:
         app_logger.warning(f"Redis error in store_full_screening_session: {e}")
     # Also store locally
@@ -944,6 +945,51 @@ def stream_screen_file():
 
     line_range_input_val = request.form.get('line_range_filter', '').strip()
     title_filter_input_val = request.form.get('title_text_filter', '').strip()
+    
+    # Get resume ID if available (new lightweight resuming mechanism)
+    resume_id = request.form.get('resume_id', '')
+    resume_from = 0
+    previously_processed_items = []
+    
+    # If resume ID is provided, load the saved state from server
+    if resume_id:
+        state_key = f"state_{resume_id}"
+        saved_state = get_full_screening_session(state_key)
+        
+        if saved_state:
+            app_logger.info(f"Resuming screening from saved state with ID: {resume_id}")
+            resume_from = saved_state.get('resume_point', 0)
+            previously_processed_items = saved_state.get('processed_items', [])
+            
+            # Try to use saved filter info if not provided in request
+            saved_filters = saved_state.get('filter_info', {})
+            if not line_range_input_val and saved_filters.get('line_range'):
+                line_range_input_val = saved_filters['line_range'] 
+            if not title_filter_input_val and saved_filters.get('title_filter'):
+                title_filter_input_val = saved_filters['title_filter']
+        else:
+            app_logger.warning(f"Resume ID {resume_id} not found or expired")
+            return Response(f"data: {json.dumps({'type': 'error', 'message': 'Resume data not found or expired. Please start a new screening session.'})}\n\n", mimetype='text/event-stream')
+    else:
+        # Legacy resuming - will only handle small datasets
+        # Handle resume parameters
+        is_resume = request.form.get('resume', '').lower() == 'true'
+        if is_resume and request.form.get('resume_from'):
+            try:
+                resume_from = int(request.form.get('resume_from'))
+                app_logger.info(f"Resume requested with resume_from={resume_from}")
+            except ValueError:
+                app_logger.warning(f"Invalid resume_from value: {request.form.get('resume_from')}")
+                resume_from = 0
+        
+        # Get previously processed items, if resuming
+        if is_resume and request.form.get('processed_data'):
+            try:
+                previously_processed_items = json.loads(request.form.get('processed_data'))
+                app_logger.info(f"Loaded {len(previously_processed_items)} previously processed items for resume")
+            except json.JSONDecodeError:
+                app_logger.warning("Failed to parse processed_data JSON")
+                previously_processed_items = []
 
     criteria_prompt_text_val_full = get_screening_criteria()
     current_llm_config_data_val_full = get_current_llm_config(session)
@@ -965,7 +1011,8 @@ def stream_screen_file():
         return Response(f"data: {json.dumps({'type': 'error', 'message': f'Failed to save uploaded file: {e_save}'})}\n\n", mimetype='text/event-stream')
 
     def generate_response(line_range_filter, title_text_filter, saved_temp_file_path, original_filename,
-                          criteria_prompt, llm_provider, llm_model, llm_base_url, llm_api_key_from_outer_scope):
+                          criteria_prompt, llm_provider, llm_model, llm_base_url, llm_api_key_from_outer_scope,
+                          is_resuming=False, resume_position=0, previous_results=None):
         # Import gevent.sleep
         from gevent import sleep
         
@@ -1027,7 +1074,14 @@ def stream_screen_file():
                     return
             
             total_entries_to_screen = len(df_for_screening)
-            yield f"data: {json.dumps({'type': 'status', 'message': f'Preparing to screen {total_entries_to_screen} entries.'})}\n\n"
+            
+            # If resuming, inform the user and update the progress status
+            if resume_position > 0 and previous_results and len(previous_results) > 0:
+                progress_message = f"Resuming screening from position {resume_position} / {total_entries_to_screen}"
+                yield f"data: {json.dumps({'type': 'status', 'message': progress_message})}\n\n"
+                app_logger.info(f"Resuming screening for {original_filename} from position {resume_position}")
+            else:
+                yield f"data: {json.dumps({'type': 'status', 'message': f'Preparing to screen {total_entries_to_screen} entries.'})}\n\n"
 
             if not llm_api_key_from_outer_scope:
                 yield f"data: {json.dumps({'type': 'error', 'message': f'API Key for {llm_provider} must be provided.', 'needs_config': True})}\n\n"
@@ -1043,31 +1097,95 @@ def stream_screen_file():
             active_batch_size = min(30, total_entries_to_screen)  # Use larger batch size for better performance
             max_concurrent = 50  # Higher concurrency for faster processing
             batch_delay = 0.0  # No delay between batches
-            error_backoff = 1.5  # 错误后的退避乘数
+            error_backoff = 1.5  # Error backoff multiplier
             
-            # 记录429错误
+            # Track rate limit errors
             rate_limit_errors = 0
             
-            # 准备所有项目
+            # Prepare items for processing
             to_process = []
-            for index, row in df_for_screening.iterrows():
-                to_process.append((index, row))
-            
-            # 追踪处理状态
-            processed_count = 0
             temp_results_list = []
             
-            # 使用即时更新方式，无需队列或计时器
+            # If resuming processing, we should:
+            # 1. Add previously processed items to the results list
+            # 2. Only process items from the resume point
+            processed_count = 0
             
-            # 分批处理所有项目
+            # Create a mapping of index to result item for deduplication
+            processed_indices = {}
+            
+            if is_resuming and resume_position > 0:
+                app_logger.info(f"Resuming from position {resume_position} for {original_filename}")
+                
+                # Add previously processed items to results list if available
+                if previous_results and len(previous_results) > 0:
+                    # First create index mapping to track which items have been processed
+                    for result_item in previous_results:
+                        item_index = result_item.get('index')
+                        if item_index is not None:
+                            processed_indices[item_index] = result_item
+                    
+                    # Use mapping values rather than directly extending
+                    temp_results_list.extend(processed_indices.values())
+                    processed_count = len(processed_indices)
+                    
+                    # Log the indices that have been processed for debugging
+                    processed_index_list = sorted(list(processed_indices.keys()))
+                    index_summary = f"First: {processed_index_list[:5]}, Last: {processed_index_list[-5:] if len(processed_index_list) > 5 else []}"
+                    app_logger.info(f"Added {processed_count} previous unique results (from {len(previous_results)} total). Indices: {index_summary}")
+                else:
+                    app_logger.warning(f"Resume position {resume_position} provided but no previous results available")
+                
+                # Check if resume_position is consistent with processed_count
+                if abs(resume_position - processed_count) > 1:
+                    app_logger.warning(f"Resume position ({resume_position}) doesn't match processed count ({processed_count}) - adjusting to prevent data loss")
+                    resume_position = min(resume_position, processed_count)
+                
+                # Only add items from resume point to process list
+                items_added_for_processing = 0
+                index_counter = 0
+                
+                # Create index_to_add set to track which indices need to be added
+                indices_to_add = set()
+                
+                # First, scan through all items to identify which ones need to be added
+                for index, row in df_for_screening.iterrows():
+                    actual_index = index + 1  # 1-based index as used in the UI
+                    if index_counter >= resume_position and actual_index not in processed_indices:
+                        indices_to_add.add(index)
+                    index_counter += 1
+                
+                # Then add items in the original order
+                for index, row in df_for_screening.iterrows():
+                    if index in indices_to_add:
+                        to_process.append((index, row))
+                        items_added_for_processing += 1
+                
+                app_logger.info(f"Added {items_added_for_processing} new items to process list starting from position {resume_position}")
+                
+                # Update progress for already processed items
+                progress_percentage = int((processed_count / total_entries_to_screen) * 100) if total_entries_to_screen > 0 else 0
+                status_message = f"Restored {processed_count} previously processed items. Continuing from item {resume_position+1}."
+                yield f"data: {json.dumps({'type': 'status', 'message': status_message})}\n\n"
+                
+                yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total': total_entries_to_screen, 'percentage': progress_percentage})}\n\n"
+            else:
+                # Not resuming or invalid resume position - normal processing, prepare all items
+                app_logger.info(f"Starting fresh screening for {original_filename} with {total_entries_to_screen} items")
+                for index, row in df_for_screening.iterrows():
+                    to_process.append((index, row))
+            
+            # Use immediate updates without queue or timer
+            
+            # Process items in batches
             while to_process:
-                # 提取当前批次
+                # Extract current batch
                 current_batch = to_process[:active_batch_size]
                 to_process = to_process[active_batch_size:]
                 
-                # 启动当前批次的greenlets
+                # Launch greenlets for current batch
                 batch_greenlets = []
-                batch_429_errors = 0  # 本批次的429错误数
+                batch_429_errors = 0  # Count 429 errors in this batch
                 
                 for index, row in current_batch:
                     abstract = row.get('abstract')
@@ -1077,24 +1195,24 @@ def stream_screen_file():
                                     llm_api_key_from_outer_scope, llm_base_url)
                     batch_greenlets.append((index, row, greenlet))
                 
-                # 优化：使用更小的分批检查方式以提高UI响应性
-                max_wait_time = 15 # 15秒总超时
-                check_interval = 0.2 # 每0.2秒检查一次
+                # Optimize: Use smaller check intervals for better UI responsiveness
+                max_wait_time = 15 # 15 seconds total timeout
+                check_interval = 0.2 # Check every 0.2 seconds
                 checks_completed = 0
                 max_checks = int(max_wait_time / check_interval)
                 
                 completed_indices = set()
                 
-                # 更频繁地检查结果并及时更新UI
+                # Check results frequently for immediate UI updates
                 while checks_completed < max_checks and len(completed_indices) < len(batch_greenlets):
-                    # 短暂等待
+                    # Brief wait
                     sleep(check_interval)
                     checks_completed += 1
                     
-                    # 检查已完成的greenlets并立即发送更新
+                    # Check completed greenlets and send immediate updates
                     for idx, (index, row, greenlet) in enumerate(batch_greenlets):
                         if idx in completed_indices:
-                            continue  # 已经处理过这个greenlet
+                            continue  # Already processed this greenlet
                             
                         if greenlet.ready():
                             completed_indices.add(idx)
@@ -1103,20 +1221,20 @@ def stream_screen_file():
                             authors_list = row.get('authors', [])
                             authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
                             
-                            # 处理结果
+                            # Process result
                             if greenlet.successful():
                                 screening_result = greenlet.get(block=False)
                                 
-                                # 检测429错误
+                                # Detect 429 errors
                                 if (screening_result.get('decision') == 'API_ERROR' and 
                                     '429' in str(screening_result.get('reasoning', ''))):
                                     batch_429_errors += 1
                             else:
-                                # 处理超时或失败
+                                # Handle timeout or failure
                                 error_msg = str(greenlet.exception) if greenlet.exception else "Processing error"
                                 screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
                             
-                            # 保存结果
+                            # Save result
                             output_data = {
                                 'index': index + 1, 
                                 'title': title, 
@@ -1125,9 +1243,21 @@ def stream_screen_file():
                                 'reasoning': screening_result.get('reasoning', 'Error retrieving result.'),
                                 'abstract': row.get('abstract', '')
                             }
-                            temp_results_list.append(output_data)
                             
-                            # 更新进度并立即发送UI更新事件
+                            # 检查是否已存在相同index的结果项
+                            item_index = output_data['index']
+                            existing_item_index = next((i for i, item in enumerate(temp_results_list) 
+                                                       if item.get('index') == item_index), -1)
+                            
+                            if existing_item_index >= 0:
+                                # 如果已存在，则替换
+                                app_logger.info(f"Replacing existing result with index {item_index}")
+                                temp_results_list[existing_item_index] = output_data
+                            else:
+                                # 否则添加新项目
+                                temp_results_list.append(output_data)
+                            
+                            # Update progress and send immediate UI event
                             processed_count += 1
                             progress_percentage = int((processed_count / total_entries_to_screen) * 100)
                             
@@ -1137,13 +1267,14 @@ def stream_screen_file():
                                 'total': total_entries_to_screen,
                                 'percentage': progress_percentage, 
                                 'current_item_title': title,
-                                'decision': screening_result.get('decision', 'ITEM_ERROR')
+                                'decision': screening_result.get('decision', 'ITEM_ERROR'),
+                                'item_data': output_data
                             }
                             
-                            # 立即发送每项的更新，确保实时反馈
+                            # Send immediate update for real-time feedback
                             yield f"data: {json.dumps(progress_event)}\n\n"
                             
-                            # 每处理完一项就发送状态更新，确保UI最大响应性
+                            # Send status updates frequently for better UI responsiveness
                             if processed_count % 1 == 0:
                                 remaining = len(to_process) + (len(batch_greenlets) - len(completed_indices))
                                 total = total_entries_to_screen
@@ -1151,12 +1282,12 @@ def stream_screen_file():
                                 status_message = f"Completed: {completed}/{total}, Remaining: {remaining}, Speed: {active_batch_size} per batch"
                                 yield f"data: {json.dumps({'type': 'status', 'message': status_message})}\n\n"
                 
-                # 处理任何剩余未完成的greenlets (大多数应该已经在上面的循环中处理过)
+                # Handle any remaining unprocessed greenlets
                 for idx, (index, row, greenlet) in enumerate(batch_greenlets):
                     if idx in completed_indices:
-                        continue  # 已经处理过了
+                        continue  # Already processed
                         
-                    # 强制等待最多1秒以获取剩余结果
+                    # Force wait up to 1 second for remaining results
                     try:
                         greenlet.join(timeout=1)
                     except Exception:
@@ -1169,16 +1300,16 @@ def stream_screen_file():
                     if greenlet.ready() and greenlet.successful():
                         screening_result = greenlet.get(block=False)
                         
-                        # 检测429错误
+                        # Detect 429 errors
                         if (screening_result.get('decision') == 'API_ERROR' and 
                             '429' in str(screening_result.get('reasoning', ''))):
                             batch_429_errors += 1
                     else:
-                        # 处理超时或失败
+                        # Handle timeout or failure
                         error_msg = str(greenlet.exception) if hasattr(greenlet, 'exception') and greenlet.exception else "Processing timed out"
                         screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
                     
-                    # 保存结果
+                    # Save result
                     output_data = {
                         'index': index + 1, 
                         'title': title, 
@@ -1187,9 +1318,21 @@ def stream_screen_file():
                         'reasoning': screening_result.get('reasoning', 'Error retrieving result.'),
                         'abstract': row.get('abstract', '')
                     }
-                    temp_results_list.append(output_data)
                     
-                    # 更新进度并存储UI更新事件
+                    # 检查是否已存在相同index的结果项
+                    item_index = output_data['index']
+                    existing_item_index = next((i for i, item in enumerate(temp_results_list) 
+                                               if item.get('index') == item_index), -1)
+                    
+                    if existing_item_index >= 0:
+                        # 如果已存在，则替换
+                        app_logger.info(f"Replacing existing result with index {item_index}")
+                        temp_results_list[existing_item_index] = output_data
+                    else:
+                        # 否则添加新项目
+                        temp_results_list.append(output_data)
+                    
+                    # Update progress and store UI update event
                     processed_count += 1
                     progress_percentage = int((processed_count / total_entries_to_screen) * 100)
                     
@@ -1199,32 +1342,33 @@ def stream_screen_file():
                         'total': total_entries_to_screen,
                         'percentage': progress_percentage, 
                         'current_item_title': title,
-                        'decision': screening_result.get('decision', 'ITEM_ERROR')
+                        'decision': screening_result.get('decision', 'ITEM_ERROR'),
+                        'item_data': output_data
                     }
                     
-                    # 立即发送更新
+                    # Send immediate update
                     yield f"data: {json.dumps(progress_event)}\n\n"
                 
-                # 根据429错误自适应调整参数
+                # Adapt parameters based on 429 errors
                 if batch_429_errors > 0:
                     rate_limit_errors += batch_429_errors
-                    # 减小批量大小和并发数以减轻API负担
+                    # Reduce batch size and concurrency to reduce API burden
                     active_batch_size = max(5, int(active_batch_size / error_backoff))
-                    batch_delay = min(2.0, batch_delay * error_backoff)  # 最多增加到2秒
+                    batch_delay = min(2.0, batch_delay * error_backoff)  # Maximum of 2 seconds
                     app_logger.warning(f"Detected {batch_429_errors} rate limit errors. Adjusting: batch_size={active_batch_size}, delay={batch_delay}s")
                     
-                    # 发送调整信息到前端
+                    # Send adjustment info to frontend
                     yield f"data: {json.dumps({'type': 'status', 'message': f'Rate limit detected. Adjusting processing speed (batch:{active_batch_size}, delay:{batch_delay:.2f}s).'})}\n\n"
                 elif processed_count > 20 and rate_limit_errors == 0:
-                    # 如果处理了一定数量且没有错误，可以尝试加速
+                    # If processing a good number of items without errors, try to speed up
                     active_batch_size = min(max_concurrent, active_batch_size + 2)
-                    batch_delay = max(0.05, batch_delay * 0.9)  # 最少减到0.05秒
+                    batch_delay = max(0.05, batch_delay * 0.9)  # Minimum of 0.05 seconds
                 
-                # 批次间延迟，避免API过载
+                # Delay between batches to avoid API overload
                 if to_process and batch_delay > 0:
                     sleep(batch_delay)
                     
-                # 每完成一批，发送一个状态更新
+                # Send batch completion status update
                 if to_process:
                     remaining = len(to_process)
                     total = total_entries_to_screen
@@ -1232,23 +1376,57 @@ def stream_screen_file():
                     status_message = f"Processing: {completed}/{total}, Remaining: {remaining}, Batch size: {active_batch_size}"
                     yield f"data: {json.dumps({'type': 'status', 'message': status_message})}\n\n"
             
-            # 所有项目已处理完毕，UI更新已即时发送，无需额外操作
+            # All items processed, UI updates already sent in real-time
             
-            # 按原始索引排序结果
+            # Sort results by original index
             temp_results_list.sort(key=lambda x: x.get('index', float('inf')))
+            
+            # Verify all expected items were processed
+            if processed_count != total_entries_to_screen:
+                app_logger.warning(f"Processed count ({processed_count}) does not match total entries ({total_entries_to_screen}) - may have missed some items")
+                
+                # Log detailed information about potential missing items
+                expected_indices = set(range(1, total_entries_to_screen + 1))  # 1-based indices
+                actual_indices = set(item.get('index') for item in temp_results_list if isinstance(item.get('index'), int))
+                missing_indices = expected_indices - actual_indices
+                
+                if missing_indices:
+                    app_logger.warning(f"Missing indices: {sorted(list(missing_indices))[:20]}{' and more...' if len(missing_indices) > 20 else ''}")
+                    
+                    # Try to recover missing items if possible
+                    missing_count = 0
+                    for index, row in df_for_screening.iterrows():
+                        actual_index = index + 1  # 1-based index as used in the UI
+                        if actual_index in missing_indices:
+                            # Create a basic result for missing items
+                            output_data = {
+                                'index': actual_index, 
+                                'title': row.get('title', "Missing Item"),
+                                'authors': ", ".join(row.get('authors', [])) if isinstance(row.get('authors'), list) else "Authors Not Found",
+                                'decision': "PROCESSING_ERROR", 
+                                'reasoning': "Item was missed during processing. Please review manually.",
+                                'abstract': row.get('abstract', '')
+                            }
+                            temp_results_list.append(output_data)
+                            missing_count += 1
+                    
+                    if missing_count > 0:
+                        app_logger.info(f"Added {missing_count} placeholder entries for missing items")
+                        # Re-sort after adding missing items
+                        temp_results_list.sort(key=lambda x: x.get('index', float('inf')))
             
             app_logger.info(f"PERF SSE: Finished processing {processed_count}/{total_entries_to_screen} items for {original_filename}.")
             if rate_limit_errors > 0:
                 app_logger.info(f"Encountered {rate_limit_errors} rate limit errors during processing.")
             
-            # 存储结果并发送完成通知
+            # Store results and send completion notification
             store_full_screening_session(screening_id, {
                 'filename': original_filename, 
                 'results': temp_results_list,
                 'filter_applied': filter_description
             })
             
-            yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id})}\n\n"
+            yield f"data: {json.dumps({'type': 'complete', 'message': 'Screening finished.', 'screening_id': screening_id, 'filename': original_filename})}\n\n"
             app_logger.info(f"PERF SSE: Full screening completed for {screening_id}, file {original_filename}. Total time: {time.time() - overall_start_time:.4f} seconds.")
             
         except Exception as e:
@@ -1263,8 +1441,11 @@ def stream_screen_file():
                 except Exception as e_cleanup:
                     app_logger.warning(f"SSE Could not delete temp file (full screening): {current_temp_file_path} - {e_cleanup}")
 
+    # Pass appropriate parameters to generate_response based on whether we're resuming
+    is_resuming = resume_id != '' or request.form.get('resume', '').lower() == 'true'
     return Response(generate_response(line_range_input_val, title_filter_input_val, temp_file_path_full_screen, original_filename_for_session,
-                                      criteria_prompt_text_val_full, provider_name_val_full, model_id_val_full, base_url_val_full, api_key_val_full),
+                                      criteria_prompt_text_val_full, provider_name_val_full, model_id_val_full, base_url_val_full, api_key_val_full,
+                                      is_resuming, resume_from, previously_processed_items),
                    mimetype='text/event-stream')
 
 
@@ -2565,5 +2746,46 @@ if os.environ.get('WERKZEUG_RUN_MAIN') != 'true': # Avoid running in Flask reloa
 if __name__ == '__main__':
     app_logger.info("Starting Flask app in debug mode...") # Example for __main__
     app.run(debug=True, host='0.0.0.0', port=5050)#test
+
+# --- Full Dataset Screening State Management ---
+@app.route('/save_screening_state', methods=['POST'])
+def save_screening_state():
+    """Save screening state to server for later resuming"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"status": "error", "message": "No data provided"}), 400
+        
+        # Generate a unique resume ID
+        resume_id = str(uuid.uuid4())
+        
+        # Extract necessary information
+        resume_point = data.get('resume_point', 0)
+        processed_items = data.get('processed_items', [])
+        
+        # Save filter information
+        filter_info = {
+            'title_filter': data.get('title_filter', ''),
+            'line_range': data.get('line_range', '')
+        }
+        
+        # Save state to Redis or session storage
+        state_data = {
+            'resume_point': resume_point,
+            'processed_items': processed_items,
+            'filter_info': filter_info,
+            'timestamp': datetime.datetime.now().isoformat()
+        }
+        
+        store_full_screening_session(f"state_{resume_id}", state_data)
+        app_logger.info(f"Saved screening state with resume ID: {resume_id}, resume point: {resume_point}, items: {len(processed_items)}")
+        
+        return jsonify({
+            "status": "success", 
+            "resume_id": resume_id
+        })
+    except Exception as e:
+        app_logger.exception(f"Error saving screening state: {e}")
+        return jsonify({"status": "error", "message": f"Server error: {str(e)}"}), 500
 
 
