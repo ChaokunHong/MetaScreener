@@ -16,6 +16,26 @@
     .clear-input-btn:hover {
         opacity: 1;
     }
+    
+    /* 决定结果的颜色样式 */
+    .log-decision-INCLUDE {
+        color: green;
+        font-weight: bold;
+    }
+    .log-decision-EXCLUDE {
+        color: red;
+        font-weight: bold;
+    }
+    .log-decision-MAYBE {
+        color: orange;
+        font-weight: bold;
+    }
+    .log-decision-ERROR, .log-decision-API_ERROR, .log-decision-PROCESSING_ERROR, 
+    .log-decision-PROMPT_ERROR, .log-decision-TEXT_EXTRACT_ERROR, .log-decision-FILE_PROCESSING_ERROR,
+    .log-decision-TIMEOUT_ERROR, .log-decision-ITEM_ERROR, .log-decision-LOOP_ERROR {
+        color: #a94442;
+        font-weight: bold;
+    }
 </style>
 {% endblock %}
 
@@ -115,7 +135,10 @@
         <small class="form-text text-muted mb-2">If both title and line numbers are filled, title filter will take precedence.</small>
         <!-- END NEW FILTER FIELDS -->
 
-        <button type="button" id="start_full_screen_button" class="btn btn-primary btn-sm">Screen Full File with Progress (SSE)</button>
+        <button type="button" id="start_full_screen_button" class="btn btn-primary btn-sm">
+            <span id="full_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+            Screen Full File with Progress (SSE)
+        </button>
     </form>
     {# RESTORED: Detailed HTML for Full progress area #}
      <div id="progress_area" class="mt-3" style="display: none;">
@@ -181,9 +204,15 @@ function finalizeTestButton() {
     if(spin) spin.style.display = 'none'; 
 }
 
+function finalizeFullButton() {
+    const btn = document.getElementById('start_full_screen_button'); 
+    if(btn) btn.disabled = false; 
+    const spin = document.getElementById('full_spinner'); 
+    if(spin) spin.style.display = 'none';
+}
+
 function finalizeButtons() { 
-    const btnF = document.getElementById('start_full_screen_button'); 
-    if(btnF) btnF.disabled=false; 
+    finalizeFullButton();
     // finalizeTestButton(); // Maybe call this too if test button might also be disabled?
 }
 
@@ -390,8 +419,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                         currentTestStatus.textContent = `Screening ${jsonData.count} / ${jsonData.total}. Current: ${jsonData.current_item_title}`;
                                     }
                                     
-                                    const decisionOutput = jsonData.decision ? `Decision: ${jsonData.decision}` : '';
-                                    addTestLogItem(`[${new Date().toLocaleTimeString()}] Item: ${jsonData.current_item_title} - ${decisionOutput}`);
+                                    if (jsonData.decision) {
+                                        let decisionClass = "";
+                                        if(jsonData.decision === "INCLUDE") decisionClass = "include";
+                                        else if(jsonData.decision === "EXCLUDE") decisionClass = "exclude";
+                                        else if(jsonData.decision === "MAYBE") decisionClass = "maybe";
+                                        else decisionClass = "error";
+                                        
+                                        // 序列号、标题、决定结果(带颜色)的统一格式
+                                        const logMessage = `[${jsonData.count}] ${jsonData.current_item_title} - <span class="log-decision-${jsonData.decision}">${jsonData.decision}</span>`;
+                                        addTestLogItem(logMessage);
+                                    }
                                     break;
                                 
                                 case 'complete':
@@ -530,6 +568,8 @@ document.addEventListener('DOMContentLoaded', function() {
              
              if(sseResultsLinkArea) sseResultsLinkArea.style.display = 'none';
              startFullScreenButton.disabled = true;
+             const fullSpinner = document.getElementById('full_spinner');
+             if(fullSpinner) fullSpinner.style.display = 'inline-block';
              window.loggedFullLogError = false; 
              
              // Simplified initialization timer
@@ -634,8 +674,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                          else if(jsonData.decision === "MAYBE") decisionClass = "maybe";
                                          else decisionClass = "error";
                                          
-                                         // Construct color-coded decision log message
-                                         const logMessage = `[${new Date().toLocaleTimeString()}] <span class="log-decision-${jsonData.decision}">${jsonData.decision}</span>: ${jsonData.current_item_title}`;
+                                         // 序列号、标题、决定结果(带颜色)的统一格式
+                                         const logMessage = `[${jsonData.count}] ${jsonData.current_item_title} - <span class="log-decision-${jsonData.decision}">${jsonData.decision}</span>`;
                                          addLogItem(logMessage);
                                      }
                                      break;
