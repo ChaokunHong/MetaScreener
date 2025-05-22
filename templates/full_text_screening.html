@@ -132,6 +132,45 @@
 
 {% block extra_js %}
 <script>
+// Constants for storage
+const RESULTS_HISTORY_KEY = 'metaScreenerResultsHistory';
+const MAX_RESULTS_HISTORY_ITEMS = 50; // Maximum number of history items to keep
+
+// Function to save screening result to history
+function saveScreeningResultToHistory(screeningType, screeningId, fileName, totalItems) {
+    if (!screeningId) {
+        console.error("Screening ID is missing, cannot save to history.");
+        return;
+    }
+
+    let history = JSON.parse(localStorage.getItem(RESULTS_HISTORY_KEY) || '[]');
+    
+    const now = new Date();
+    const timestamp = now.toISOString();
+    const historyEntryName = `${screeningType} - ${fileName || 'PDF Batch'} (${totalItems} items) - ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+
+    const newEntry = {
+        id: screeningId,
+        name: historyEntryName,
+        type: screeningType,
+        fileName: fileName || 'PDF Batch',
+        totalItems: totalItems,
+        timestamp: timestamp,
+        screeningId: screeningId // Redundant but keeps structure similar to criteria history if needed
+    };
+
+    // Add new entry to the beginning
+    history.unshift(newEntry);
+
+    // Limit history size
+    if (history.length > MAX_RESULTS_HISTORY_ITEMS) {
+        history = history.slice(0, MAX_RESULTS_HISTORY_ITEMS);
+    }
+
+    localStorage.setItem(RESULTS_HISTORY_KEY, JSON.stringify(history));
+    console.log("Saved screening result to history:", newEntry);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // --- PDF Screening Spinner Logic (Single PDF) --- 
     const pdfScreenForm = document.getElementById('pdf_screen_form');
@@ -293,6 +332,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                     let baseUrl = "{{ url_for('show_batch_pdf_results_placeholder', batch_session_id='__BATCH_ID__') }}";
                                     document.getElementById('view_batch_pdf_results_link').href = baseUrl.replace('__BATCH_ID__', jsonData.batch_session_id);
                                     batchResultsLinkArea.style.display = 'block';
+                                    
+                                    // Save the screening result to history
+                                    saveScreeningResultToHistory('Full-Text PDF Screening', jsonData.batch_session_id, 'Batch PDF Files', jsonData.total_to_process);
                                 }
                                 xhrBatchPdf.abort();
                             } else if (jsonData.type === 'error') {
