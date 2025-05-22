@@ -1,7 +1,7 @@
 # MetaScreener: AI-Assisted Literature Screening Tool
 
 <div align="center">
-<img src="static/images/logo_optimized.png" alt="MetaScreener Logo" width="300"/>
+<img src="static/images/Meta_Screener_LOGO.png" alt="MetaScreener Logo" width="300"/>
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-2.0%2B-green.svg)](https://flask.palletsprojects.com/)
