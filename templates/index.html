@@ -257,6 +257,261 @@
             padding: 3rem 1rem;
         }
     }
+
+    /* Comparison section styling */
+    .comparison-section {
+        margin: 4rem 0;
+        padding-bottom: 2rem;
+    }
+    
+    .comparison-section h2 {
+        text-align: center;
+        margin-bottom: 1.5rem;
+        font-weight: 600;
+        color: var(--title-color);
+    }
+    
+    .comparison-table-container {
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    
+    .comparison-table {
+        margin-bottom: 0;
+        border: none;
+    }
+    
+    .comparison-table th {
+        background-color: #7B2CBF;
+        color: white;
+        font-weight: 600;
+        text-align: left;
+        padding: 1rem 1.2rem;
+        border: none;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .comparison-table th:not(:last-child) {
+        border-right: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .comparison-table .feature-row {
+        background-color: rgba(123, 44, 191, 0.05);
+    }
+    
+    .comparison-table td {
+        padding: 0.75rem 1.2rem;
+        border: none;
+        border-bottom: 1px solid #dee2e6;
+        border-right: 1px solid #dee2e6;
+        vertical-align: middle;
+        text-align: left;
+    }
+    
+    .comparison-table td:last-child {
+        border-right: none;
+    }
+    
+    .comparison-table td:first-child {
+        font-weight: 600;
+        background-color: #f8f9fa;
+    }
+    
+    .summary-content {
+        font-weight: 500;
+    }
+    
+    .detail-content {
+        margin: 8px 0;
+        font-size: 0.9rem;
+    }
+    
+    .toggle-detail {
+        font-size: 0.8rem;
+        color: var(--primary-color);
+        margin-top: 3px;
+    }
+    
+    .toggle-detail:hover {
+        text-decoration: none;
+    }
+    
+    .toggle-detail.active .bi-chevron-down:before {
+        content: "\f282"; /* This is the code for bi-chevron-up */
+    }
+    
+    .comparison-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        margin-right: 10px;
+        font-size: 14px;
+        vertical-align: middle;
+    }
+    
+    /* FAQ section styling */
+    .faq-section {
+        margin: 3rem 0;
+        padding: 1rem 0;
+    }
+    
+    .faq-section h2 {
+        text-align: center;
+        margin-bottom: 1.5rem;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .faq-card {
+        margin-bottom: 0.75rem;
+        border: 1px solid #e2e8f0;
+        background-color: white;
+    }
+    
+    .faq-question {
+        background-color: #f8f9fa;
+        padding: 0.75rem 1.25rem;
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .faq-question:after {
+        content: "+";
+        font-size: 1.1rem;
+        font-weight: 400;
+    }
+    
+    .faq-card.active .faq-question:after {
+        content: "−";
+    }
+    
+    .faq-answer {
+        display: none;
+        padding: 1.25rem;
+        font-size: 0.9rem;
+    }
+    
+    .faq-card.active .faq-answer {
+        display: block;
+    }
+    
+    .faq-answer p, .faq-answer ul {
+        margin-bottom: 0.75rem;
+    }
+    
+    .faq-answer p:last-child, .faq-answer ul:last-child {
+        margin-bottom: 0;
+    }
+    
+    .faq-answer ul {
+        padding-left: 1.5rem;
+    }
+    
+    .faq-answer li {
+        margin-bottom: 0.4rem;
+    }
+    
+    .expand-btn {
+        background: none;
+        border: none;
+        color: var(--primary-color);
+        font-size: 0.9rem;
+        padding: 0;
+        margin-left: 5px;
+        cursor: pointer;
+    }
+    
+    .expandable-row {
+        transition: background-color 0.2s;
+    }
+    
+    .expandable-row[data-expanded="true"] {
+        background-color: rgba(123, 44, 191, 0.05);
+    }
+    
+    .expandable-row[data-expanded="true"] .expand-btn .bi-plus-circle:before {
+        content: "\f26b"; /* Bootstrap Icons code for dash-circle */
+    }
+    
+    .detail-row {
+        background-color: rgba(249, 250, 251, 0.7);
+    }
+    
+    .detail-cell {
+        padding: 0.75rem 1.2rem;
+        font-size: 0.9rem;
+        color: #666;
+        border-right: 1px solid #dee2e6;
+    }
+    
+    .detail-cell:last-child {
+        border-right: none;
+    }
+    
+    .ml-2 {
+        margin-left: 0.5rem !important;
+    }
+    
+    .d-flex {
+        display: flex !important;
+    }
+    
+    .align-items-center {
+        align-items: center !important;
+    }
+    
+    .no-gutters {
+        margin-right: 0;
+        margin-left: 0;
+    }
+    
+    .no-gutters > .col,
+    .no-gutters > [class*="col-"] {
+        padding-right: 0;
+        padding-left: 0;
+    }
+    
+    .toggle-icon {
+        font-size: 0.8rem;
+        color: var(--primary-color);
+        margin-left: 0.5rem;
+        transition: transform 0.2s ease;
+        cursor: pointer;
+    }
+    
+    .feature-row {
+        cursor: pointer;
+    }
+    
+    .feature-row.active .toggle-icon {
+        transform: rotate(180deg);
+    }
+    
+    .details-row {
+        display: none;
+        background-color: rgba(249, 250, 251, 0.7);
+    }
+    
+    .details-row td {
+        padding: 0.75rem 1.2rem;
+        font-size: 0.9rem;
+        color: #666;
+        border-top: none;
+    }
+    
+    .details-cell {
+        padding-top: 0 !important;
+        padding-bottom: 0.75rem !important;
+    }
 </style>
 {% endblock %}
 
@@ -266,7 +521,6 @@
     <div class="hero-content">
         <img src="{{ url_for('static', filename='images/logo_optimized.png') }}" alt="MetaScreener Logo" class="logo-img">
         <h1 class="display-4">MetaScreener</h1>
-        <p class="lead">Transform your literature screening process</p>
         <p style="max-width: 700px; margin: 0 auto 2rem; color: var(--text-color);">
             An advanced AI-powered tool that helps researchers efficiently screen abstracts and full-text PDFs for systematic reviews and meta-analyses.
             Designed to significantly reduce screening workload while maintaining reliability through human-AI collaboration.
@@ -379,5 +633,354 @@
     </div>
 </div>
 
+<!-- Comparison Section -->
+<div class="container comparison-section">
+    <h2>Comparison with Traditional Methods</h2>
+    
+    <div class="table-responsive comparison-table-container">
+        <table class="table comparison-table">
+            <thead>
+                <tr>
+                    <th style="width: 25%">Feature</th>
+                    <th style="width: 37%">Traditional Manual Screening</th>
+                    <th style="width: 38%">MetaScreener</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="feature-row">
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <span>Screening Speed</span>
+                            <i class="toggle-icon bi bi-chevron-down"></i>
+                        </div>
+                    </td>
+                    <td>Slow: 2-5 minutes per abstract</td>
+                    <td>Fast: 5-10 seconds per abstract</td>
+                </tr>
+                <tr class="details-row">
+                    <td></td>
+                    <td class="details-cell">Typically 2-5 minutes per abstract with manual review, leading to days or weeks for large datasets</td>
+                    <td class="details-cell">5-10 seconds per abstract with AI assistance, reducing weeks of work to hours</td>
+                </tr>
+                
+                <tr class="feature-row">
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <span>Workload Reduction</span>
+                            <i class="toggle-icon bi bi-chevron-down"></i>
+                        </div>
+                    </td>
+                    <td>No reduction, 100% manual work</td>
+                    <td>40-70% workload reduction</td>
+                </tr>
+                <tr class="details-row">
+                    <td></td>
+                    <td class="details-cell">Researchers must screen every article manually, even those clearly irrelevant</td>
+                    <td class="details-cell">Reduces overall screening workload by 40-70% through intelligent prioritization and automated pre-screening</td>
+                </tr>
+                
+                <tr class="feature-row">
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <span>Consistency</span>
+                            <i class="toggle-icon bi bi-chevron-down"></i>
+                        </div>
+                    </td>
+                    <td>Variable, affected by reviewer fatigue</td>
+                    <td>Highly consistent throughout</td>
+                </tr>
+                <tr class="details-row">
+                    <td></td>
+                    <td class="details-cell">Variable consistency due to reviewer fatigue, bias, and interpretation differences between multiple reviewers</td>
+                    <td class="details-cell">Highly consistent application of inclusion/exclusion criteria across all documents throughout the entire process</td>
+                </tr>
+                
+                <tr class="feature-row">
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <span>Resource Requirements</span>
+                            <i class="toggle-icon bi bi-chevron-down"></i>
+                        </div>
+                    </td>
+                    <td>2-3 independent reviewers needed</td>
+                    <td>Single reviewer with AI support</td>
+                </tr>
+                <tr class="details-row">
+                    <td></td>
+                    <td class="details-cell">Typically requires 2-3 independent reviewers for proper systematic review methodology</td>
+                    <td class="details-cell">Single reviewer with AI augmentation can achieve similar or better reliability than multiple human reviewers</td>
+                </tr>
+                
+                <tr class="feature-row">
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <span>Full-text Analysis</span>
+                            <i class="toggle-icon bi bi-chevron-down"></i>
+                        </div>
+                    </td>
+                    <td>Manual reading and note-taking</td>
+                    <td>Automated text extraction with OCR</td>
+                </tr>
+                <tr class="details-row">
+                    <td></td>
+                    <td class="details-cell">Time-consuming manual reading of full-text documents with manual note-taking</td>
+                    <td class="details-cell">Automated text extraction with intelligent OCR capabilities, including figure and table recognition</td>
+                </tr>
+                
+                <tr class="feature-row">
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <span>Data Extraction</span>
+                            <i class="toggle-icon bi bi-chevron-down"></i>
+                        </div>
+                    </td>
+                    <td>Manual, error-prone process</td>
+                    <td>Structured, consistent extraction</td>
+                </tr>
+                <tr class="details-row">
+                    <td></td>
+                    <td class="details-cell">Manual extraction into spreadsheets or forms, prone to errors and inconsistencies</td>
+                    <td class="details-cell">Structured, consistent extraction with customizable templates that maintain standardized data formats</td>
+                </tr>
+                
+                <tr class="feature-row">
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <span>Quality Assessment</span>
+                            <i class="toggle-icon bi bi-chevron-down"></i>
+                        </div>
+                    </td>
+                    <td>Separate manual process</td>
+                    <td>Integrated workflow with frameworks</td>
+                </tr>
+                <tr class="details-row">
+                    <td></td>
+                    <td class="details-cell">Separate manual process requiring additional tools and documentation</td>
+                    <td class="details-cell">Integrated quality assessment workflow with customizable criteria based on standard frameworks (e.g., GRADE, ROBINS-I)</td>
+                </tr>
+                
+                <tr class="feature-row">
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <span>Cost Efficiency</span>
+                            <i class="toggle-icon bi bi-chevron-down"></i>
+                        </div>
+                    </td>
+                    <td>High labor costs</td>
+                    <td>Significantly reduced resources</td>
+                </tr>
+                <tr class="details-row">
+                    <td></td>
+                    <td class="details-cell">High labor costs for researcher time and potential need for research assistants</td>
+                    <td class="details-cell">Significantly reduced time and resource requirements, allowing researchers to focus on analysis rather than screening</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- FAQ Section -->
+<div class="container faq-section">
+    <h2>Frequently Asked Questions</h2>
+    
+    <div class="row">
+        <div class="col-lg-10 offset-lg-1">
+            <!-- FAQ Item 1 -->
+            <div class="faq-card">
+                <div class="faq-question">
+                    Do I need to have programming knowledge to use MetaScreener?
+                </div>
+                <div class="faq-answer">
+                    <p>No programming knowledge is required. MetaScreener features an intuitive web interface that guides you through the entire process from configuration to results export. All operations can be performed through the browser interface.</p>
+                </div>
+            </div>
+            
+            <!-- FAQ Item 2 -->
+            <div class="faq-card">
+                <div class="faq-question">
+                    Which LLM providers are supported and do I need my own API key?
+                </div>
+                <div class="faq-answer">
+                    <p>MetaScreener currently supports OpenAI (GPT models), Anthropic (Claude models), Google (Gemini models), and DeepSeek. You will need to provide your own API key for any of these services. This ensures your data privacy and gives you flexibility in choosing the model that best fits your needs and budget.</p>
+                </div>
+            </div>
+            
+            <!-- FAQ Item 3 -->
+            <div class="faq-card">
+                <div class="faq-question">
+                    What file formats can I use for literature screening?
+                </div>
+                <div class="faq-answer">
+                    <p>MetaScreener supports two primary input formats:</p>
+                    <ul>
+                        <li>RIS files: Standard format exported from databases like PubMed, Scopus, Web of Science, etc., containing citation metadata and abstracts.</li>
+                        <li>PDF files: For full-text screening, you can upload PDF documents directly. Our system uses OCR technology to extract text from scanned PDFs when needed.</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- FAQ Item 4 -->
+            <div class="faq-card">
+                <div class="faq-question">
+                    How accurate is MetaScreener compared to human reviewers?
+                </div>
+                <div class="faq-answer">
+                    <p>In validation studies, MetaScreener has demonstrated sensitivity rates of 95-98% in identifying relevant studies when compared to expert human reviewers. This means it rarely misses studies that should be included. The specificity varies by field and criteria complexity but typically ranges from 70-85%, significantly reducing the number of irrelevant studies that need manual review.</p>
+                    <p>MetaScreener is designed as a human-AI collaborative tool, where AI does the initial screening and humans make the final decisions, combining the efficiency of automation with human expertise.</p>
+                </div>
+            </div>
+            
+            <!-- FAQ Item 5 -->
+            <div class="faq-card">
+                <div class="faq-question">
+                    What happens if the screening process is interrupted?
+                </div>
+                <div class="faq-answer">
+                    <p>MetaScreener includes a robust pause and resume functionality. If your session is interrupted for any reason (browser crash, network issues, etc.), you can resume screening from where you left off. All screening results are automatically saved to the local database as they are processed.</p>
+                </div>
+            </div>
+            
+            <!-- FAQ Item 6 -->
+            <div class="faq-card">
+                <div class="faq-question">
+                    How can I export the screening results?
+                </div>
+                <div class="faq-answer">
+                    <p>MetaScreener offers multiple export options:</p>
+                    <ul>
+                        <li>CSV/Excel: For detailed analysis in spreadsheet applications</li>
+                        <li>RIS: For importing included studies into reference management software</li>
+                        <li>JSON: For programmatic access to structured data</li>
+                        <li>PDF reports: For documentation and sharing with collaborators</li>
+                    </ul>
+                    <p>Each export includes comprehensive metadata, decision rationales, and extraction data where applicable.</p>
+                </div>
+            </div>
+            
+            <!-- FAQ Item 7: Cost -->
+            <div class="faq-card">
+                <div class="faq-question">
+                    What is the cost of using MetaScreener?
+                </div>
+                <div class="faq-answer">
+                    <p>MetaScreener itself is completely free to use. However, you will need to provide your own API key for the LLM provider of your choice, and different providers have different pricing structures:</p>
+                    <ul>
+                        <li>OpenAI (GPT models): Generally charges per token (word fragments), with prices varying by model capability</li>
+                        <li>Anthropic (Claude models): Similar token-based pricing structure</li>
+                        <li>Google (Gemini models): Offers both token-based pricing and subscription options</li>
+                        <li>DeepSeek: Typically offers competitive pricing with both pay-as-you-go and volume discount options</li>
+                    </ul>
+                    <p>The actual cost depends on the volume of screening (number and length of documents) and your choice of model. For most systematic reviews, the total API cost typically ranges from a few dollars to tens of dollars, making it highly cost-effective compared to traditional manual screening.</p>
+                </div>
+            </div>
+            
+            <!-- FAQ Item 8: Data Privacy -->
+            <div class="faq-card">
+                <div class="faq-question">
+                    How is my data handled and is it secure?
+                </div>
+                <div class="faq-answer">
+                    <p>MetaScreener is designed with data privacy as a priority:</p>
+                    <ul>
+                        <li>Your data is processed locally in your browser wherever possible</li>
+                        <li>When using LLM providers, data is sent directly from your browser to the API using your own API key</li>
+                        <li>We do not store or have access to your API keys or the content of your documents</li>
+                        <li>All data is temporarily stored in your browser's local storage and can be cleared at any time</li>
+                    </ul>
+                    <p>For highly sensitive data, you may want to check the data handling policies of your chosen LLM provider, as data might be processed on their servers during API calls.</p>
+                </div>
+            </div>
+            
+            <!-- FAQ Item 9: Technical Requirements -->
+            <div class="faq-card">
+                <div class="faq-question">
+                    What are the technical requirements for running MetaScreener?
+                </div>
+                <div class="faq-answer">
+                    <p>MetaScreener has minimal requirements:</p>
+                    <ul>
+                        <li>Modern web browser (Chrome, Firefox, Safari, or Edge - latest or one version earlier)</li>
+                        <li>Internet connection for API calls to LLM providers</li>
+                        <li>No special hardware requirements beyond what's needed to run a modern browser</li>
+                        <li>No installation required - MetaScreener runs entirely in your web browser</li>
+                    </ul>
+                    <p>For large-scale screening projects (thousands of documents), a stable internet connection is recommended to ensure uninterrupted API communication.</p>
+                </div>
+            </div>
+            
+            <!-- FAQ Item 10: Citation -->
+            <div class="faq-card">
+                <div class="faq-question">
+                    How should I cite MetaScreener in my research?
+                </div>
+                <div class="faq-answer">
+                    <p>If you use MetaScreener in your research, please cite it as follows:</p>
+                    <p class="monospace" style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; font-size: 0.9rem;">
+                        Lewycka S, Hong C, Nguyen TP. (2025). MetaScreener: An AI-powered tool for literature screening in systematic reviews. Oxford University Clinical Research Unit, Centre for Tropical Medicine and Global Health, University of Oxford.
+                    </p>
+                    <p>Additionally, we encourage you to report the specific LLM model used, along with any metrics on performance and efficiency gained in your methodology section.</p>
+                </div>
+            </div>
+            
+            <!-- FAQ Item 11: Collaboration -->
+            <div class="faq-card">
+                <div class="faq-question">
+                    Can multiple researchers collaborate on the same screening project?
+                </div>
+                <div class="faq-answer">
+                    <p>MetaScreener currently works as a single-user application in your browser. For collaborative screening, we recommend the following approaches:</p>
+                    <ul>
+                        <li>Split your dataset into portions and have each team member screen their portion</li>
+                        <li>Export results regularly and share them with team members</li>
+                        <li>For duplicate screening validation, have a second reviewer screen a subset of articles independently</li>
+                    </ul>
+                    <p>Future versions may include multi-user collaborative features with shared workspaces and real-time synchronization.</p>
+                </div>
+            </div>
+            
+            <!-- FAQ Item 12: Learning Curve -->
+            <div class="faq-card">
+                <div class="faq-question">
+                    Is there a steep learning curve for using MetaScreener?
+                </div>
+                <div class="faq-answer">
+                    <p>MetaScreener is designed to be intuitive and user-friendly. Most researchers can become proficient within 1-2 hours of use. The interface guides you through each step of the process sequentially, from setting up your LLM provider to exporting your final results.</p>
+                    <p>For new users, we recommend starting with a small test dataset (20-50 articles) to familiarize yourself with the workflow before processing your full dataset. This allows you to adjust your screening criteria and LLM settings for optimal performance.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add the FAQ toggle script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set up FAQ toggle functionality
+        document.querySelectorAll('.faq-question').forEach(question => {
+            question.addEventListener('click', function() {
+                this.parentElement.classList.toggle('active');
+            });
+        });
+        
+        // Hide all detail rows initially
+        document.querySelectorAll('.details-row').forEach(row => {
+            row.style.display = 'none';
+        });
+        
+        // Set up comparison table row toggle
+        document.querySelectorAll('.feature-row').forEach(row => {
+            row.addEventListener('click', function() {
+                // Toggle active class
+                this.classList.toggle('active');
+                
+                // Toggle the display of the next row (details row)
+                const detailsRow = this.nextElementSibling;
+                if (detailsRow && detailsRow.classList.contains('details-row')) {
+                    detailsRow.style.display = (detailsRow.style.display === 'none' || detailsRow.style.display === '') ? 'table-row' : 'none';
+                }
+            });
+        });
+    });
+</script>
 
 {% endblock %} 
