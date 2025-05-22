@@ -87,7 +87,7 @@
         border-radius: 4px !important;
         box-shadow: 0 1px 2px rgba(0,0,0,0.01);
         transition: all 0.2s ease;
-        margin-bottom: 0.6rem;
+        margin-bottom: 1.2rem;
     }
     .card:hover {
         box-shadow: 0 1px 3px rgba(0,0,0,0.03);
@@ -158,16 +158,27 @@
     
     /* Section styling */
     .section-container {
-        background-color: #fff;
+        background-color: rgba(255, 255, 255, 0.95);
         border-radius: 6px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.08);
         padding: 1rem;
-        margin-bottom: 1rem;
-        border: 1px solid #f1f5f9;
+        margin-bottom: 2.5rem;
+        border: 1px solid rgba(123, 44, 191, 0.12);
         transition: all 0.2s ease;
+        position: relative;
     }
     .section-container:hover {
-        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+    }
+    .section-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+        border-radius: 6px 6px 0 0;
     }
     .section-title {
         font-size: 0.95rem;
@@ -359,7 +370,7 @@
     }
     
     .best-practices-header button {
-        color: var(--primary-color);
+        color: #212529;
         font-weight: 500;
         font-size: 0.85rem;
         width: 100%;
@@ -368,7 +379,7 @@
     
     .best-practices-header button:hover {
         text-decoration: none;
-        color: var(--secondary-color);
+        color: #000000;
     }
     
     .best-practices-header button:focus {
@@ -387,7 +398,7 @@
     
     .best-practices {
         background-color: #f8f9ff;
-        border-left: 3px solid var(--primary-color);
+        border-left: 3px solid #212529;
         padding: 0.75rem 1rem;
         border-radius: 0;
         transition: all 0.2s ease;
@@ -395,7 +406,7 @@
     
     .best-practices:hover {
         transform: translateY(0);
-        box-shadow: 0 1px 3px rgba(123, 44, 191, 0.05);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
     
     .best-practices ul {
@@ -410,7 +421,7 @@
     }
     
     .best-practices li strong {
-        color: var(--primary-color);
+        color: #212529;
     }
     
     .best-practices li:last-child {
@@ -419,7 +430,7 @@
     
     /* Framework selection area */
     .framework-selection-container {
-        background: linear-gradient(to right, #f8f9ff, #f8fafc);
+        background: linear-gradient(to right, #f0f4ff, #f2f6fc);
         padding: 1rem;
         border-radius: 6px;
         margin-bottom: 1rem;
@@ -643,7 +654,26 @@
             Basic mode provides guided input. Advanced mode allows customizing criteria structure and AI prompt instructions (use with caution).
         </p>
     </div>
-    <hr class="mb-4">
+
+    <!-- AI Best Practices Tips (Collapsible) -->
+    <div class="best-practices-container" style="margin-top: 0.75rem; margin-bottom: 2.5rem;">
+        <div class="best-practices-header" id="tipHeader">
+            <button class="btn btn-link btn-sm text-left w-100 d-flex justify-content-between align-items-center collapsed" type="button" data-toggle="collapse" data-target="#bestPracticesTips" aria-expanded="false" aria-controls="bestPracticesTips">
+                <span><i class="fas fa-lightbulb mr-2" style="color: #212529;"></i>Tips for Effective Criteria</span>
+                <i class="fas fa-chevron-down toggle-icon ml-1" style="color: #212529;"></i>
+            </button>
+        </div>
+        <div id="bestPracticesTips" class="collapse" aria-labelledby="tipHeader">
+            <div class="best-practices">
+                <ul class="pl-3">
+                    <li><strong>Be Specific:</strong> Use precise terms (e.g., "patients aged 18-65" instead of "adults").</li>
+                    <li><strong>Be Clear:</strong> Use bullet points or short phrases. Define ambiguous terms if necessary.</li>
+                    <li><strong>Focus on Abstract:</strong> Write criteria based on information typically found in an abstract.</li>
+                    <li><strong>Be Consistent:</strong> Avoid contradictory statements between inclusion and exclusion fields.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
 
     <!-- Framework Selection -->
     <div class="framework-selection-container">
@@ -665,31 +695,14 @@
         </select>
     </div>
 
-    <!-- AI Best Practices Tips (Collapsible) -->
-    <div class="best-practices-container">
-        <div class="best-practices-header" id="tipHeader">
-            <button class="btn btn-link btn-sm text-left w-100 d-flex justify-content-between align-items-center collapsed" type="button" data-toggle="collapse" data-target="#bestPracticesTips" aria-expanded="false" aria-controls="bestPracticesTips">
-                <span><i class="fas fa-lightbulb mr-2"></i>Tips for Effective Criteria</span>
-                <i class="fas fa-chevron-down toggle-icon ml-1"></i>
-            </button>
-        </div>
-        <div id="bestPracticesTips" class="collapse" aria-labelledby="tipHeader">
-            <div class="best-practices">
-                <ul class="pl-3">
-                    <li><strong>Be Specific:</strong> Use precise terms (e.g., "patients aged 18-65" instead of "adults").</li>
-                    <li><strong>Be Clear:</strong> Use bullet points or short phrases. Define ambiguous terms if necessary.</li>
-                    <li><strong>Focus on Abstract:</strong> Write criteria based on information typically found in an abstract.</li>
-                    <li><strong>Be Consistent:</strong> Avoid contradictory statements between inclusion and exclusion fields.</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
     <form method="POST" action="{{ url_for('set_criteria') }}" id="criteriaForm">
         <!-- Saved Criteria Management -->
-        <div class="section-container">
-            <div class="section-title">
-                <i class="fas fa-save mr-2"></i> Manage Saved Criteria Sets
+        <div class="framework-selection-container" style="margin-top: 3rem;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <label class="mb-0">
+                    <i class="fas fa-save mr-2" style="color: var(--primary-color);"></i>
+                    <strong>Manage Saved Criteria Sets</strong>
+                </label>
             </div>
             <div class="row align-items-end">
                 <div class="col-md-8">
@@ -730,20 +743,24 @@
         </div>
         
         <!-- Criteria Sections -->
-        <div class="section-container">
-            <h3 class="mb-4">
-                <i class="fas fa-clipboard-list mr-2" style="color: var(--primary-color);"></i>
-                {% if supported_frameworks is defined and current_framework_id in supported_frameworks %}
-                    {{ supported_frameworks[current_framework_id].display_name }}
-                {% else %}
-                    Screening
-                {% endif %} 
-                Criteria
-            </h3>
+        <div class="framework-selection-container" style="margin-top: 3rem;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <label class="mb-0">
+                    <i class="fas fa-clipboard-list mr-2" style="color: var(--primary-color);"></i>
+                    <strong>
+                    {% if supported_frameworks is defined and current_framework_id in supported_frameworks %}
+                        {{ supported_frameworks[current_framework_id].display_name }}
+                    {% else %}
+                        Screening
+                    {% endif %} 
+                    Criteria
+                    </strong>
+                </label>
+            </div>
 
             {# Macro for generating include/exclude/maybe accordions dynamically #}
             {% macro criteria_accordion_item(field_prefix, element_label, element_desc, parent_id, is_first=false) %}
-            <div class="card mb-3">
+            <div class="card mb-4">
                 <div class="card-header" id="heading{{ field_prefix | upper }}">
                     <h2 class="mb-0">
                         <button class="btn btn-link btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapse{{ field_prefix | upper }}" aria-expanded="false" aria-controls="collapse{{ field_prefix | upper }}">
@@ -807,7 +824,7 @@
                 {% endif %}
                 
                 <!-- Other General Criteria -->
-                <div class="card mb-3">
+                <div class="card mb-4">
                     <div class="card-header" id="headingOther">
                         <h2 class="mb-0">
                             <button class="btn btn-link btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapseOther" aria-expanded="false" aria-controls="collapseOther">
@@ -841,9 +858,12 @@
         </div>
         
         <!-- Advanced AI Prompt Settings Section -->
-        <div class="advanced-settings section-container">
-            <div class="section-title">
-                <i class="fas fa-robot mr-2"></i> Advanced AI Prompt Settings
+        <div class="advanced-settings framework-selection-container" style="margin-top: 3rem; display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <label class="mb-0">
+                    <i class="fas fa-robot mr-2" style="color: var(--primary-color);"></i>
+                    <strong>Advanced AI Prompt Settings</strong>
+                </label>
             </div>
             <p class="text-muted mb-4">
                 <i class="fas fa-info-circle mr-1"></i>

@@ -89,21 +89,21 @@
     
     /* Tips部分与Screening Criteria页面保持一致的样式 */
     .best-practices-container {
-        margin: 0.75rem 0 1rem 0;
+        margin: 0.75rem 0 2.5rem 0;
         border-radius: 4px;
-        border: 1px solid rgba(123, 44, 191, 0.1);
+        border: 1px solid rgba(0, 0, 0, 0.1);
         overflow: hidden;
         transition: all 0.2s ease;
     }
     
     .best-practices-header {
         padding: 0.4rem 0.6rem;
-        background-color: rgba(123, 44, 191, 0.03);
-        border-bottom: 1px solid rgba(123, 44, 191, 0.05);
+        background-color: rgba(0, 0, 0, 0.03);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     }
     
     .best-practices-header button {
-        color: var(--primary-color);
+        color: #212529;
         font-weight: 500;
         font-size: 0.85rem;
         width: 100%;
@@ -112,7 +112,7 @@
     
     .best-practices-header button:hover {
         text-decoration: none;
-        color: var(--secondary-color);
+        color: #000000;
     }
     
     .best-practices-header button:focus {
@@ -131,7 +131,7 @@
     
     .best-practices {
         background-color: #f8f9ff;
-        border-left: 3px solid var(--primary-color);
+        border-left: 3px solid #212529;
         padding: 0.75rem 1rem;
         border-radius: 0;
         transition: all 0.2s ease;
@@ -139,7 +139,7 @@
     
     .best-practices:hover {
         transform: translateY(0);
-        box-shadow: 0 1px 3px rgba(123, 44, 191, 0.05);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
     
     .best-practices ul {
@@ -154,7 +154,7 @@
     }
     
     .best-practices li strong {
-        color: var(--primary-color);
+        color: #212529;
     }
     
     .best-practices li:last-child {
@@ -187,20 +187,39 @@
         transform: translateY(0);
         box-shadow: 0 1px 3px rgba(123, 44, 191, 0.2);
     }
+    
+    /* 增加卡片间距 */
+    .extraction-card {
+        margin-bottom: 3rem !important;
+    }
+    
+    /* 功能区紫色填充白色输入样式 */
+    .framework-selection-container {
+        background: linear-gradient(to right, #f0f4ff, #f2f6fc);
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s ease;
+    }
+    .framework-selection-container:hover {
+        box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="section-card">
     <h2>Data Extraction <span class="badge badge-pill badge-warning">Beta</span></h2>
-    <p>Define the specific data points you want to extract from a PDF document, then upload it for processing.</p>
+    <p style="color: #475569; font-weight: 500;">Define the specific data points you want to extract from a PDF document, then upload it for processing.</p>
     
     {# --- Tips with collapsible styling, matching Screening Criteria page --- #}
     <div class="best-practices-container">
         <div class="best-practices-header" id="tipHeader">
             <button class="btn btn-link btn-sm text-left w-100 d-flex justify-content-between align-items-center" type="button" data-toggle="collapse" data-target="#bestPracticesTips" aria-expanded="false" aria-controls="bestPracticesTips">
-                <span><i class="fas fa-lightbulb mr-2"></i>Tips for Effective Extraction Instructions</span>
-                <i class="fas fa-chevron-down toggle-icon ml-1"></i>
+                <span><i class="fas fa-lightbulb mr-2" style="color: #212529;"></i>Tips for Effective Extraction Instructions</span>
+                <i class="fas fa-chevron-down toggle-icon ml-1" style="color: #212529;"></i>
             </button>
         </div>
         <div id="bestPracticesTips" class="collapse" aria-labelledby="tipHeader">
@@ -219,68 +238,70 @@
     {# --- Extraction Form --- #}
     <form method="POST" action="{{ url_for('extract_data_pdf') }}" enctype="multipart/form-data" id="extract_form">
         
-        <div class="card mb-3">
-            <div class="card-header" style="background-color: rgba(123, 44, 191, 0.03); border-bottom: 1px solid rgba(123, 44, 191, 0.08);">
-                <h3 class="mb-0"><i class="fas fa-list-ul mr-2" style="color: var(--primary-color);"></i>Define Data Fields to Extract</h3>
+        <div class="framework-selection-container" style="margin-top: 2rem;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <label class="mb-0">
+                    <i class="fas fa-list-ul mr-2" style="color: var(--primary-color);"></i>
+                    <strong>Define Data Fields to Extract</strong>
+                </label>
             </div>
-            <div class="card-body">
-                <div id="extraction-fields-container">
-                    {# Initial Field Group (Example) - Can be added dynamically #}
-                    <div class="field-group">
-                        <div class="form-row">
-                            <div class="form-group col-md-3">
-                                <label for="field_name_0">
-                                    <i class="fas fa-key mr-1 text-muted small"></i>Field Name (Key)
-                                </label>
-                                <input type="text" name="field_name_0" class="form-control form-control-sm" placeholder="e.g., sample_size" required>
-                            </div>
-                            <div class="form-group col-md-6">
-                                <label for="instruction_0">
-                                    <i class="fas fa-question-circle mr-1 text-muted small"></i>Extraction Instruction / Question
-                                </label>
-                                <input type="text" name="instruction_0" class="form-control form-control-sm" placeholder="e.g., What was the total sample size?" required>
-                            </div>
-                            <div class="form-group col-md-3">
-                                <label for="example_0">
-                                    <i class="fas fa-align-left mr-1 text-muted small"></i>Expected Format / Example
-                                </label>
-                                <input type="text" name="example_0" class="form-control form-control-sm" placeholder="e.g., 123">
-                            </div>
+            <div id="extraction-fields-container">
+                {# Initial Field Group (Example) - Can be added dynamically #}
+                <div class="field-group">
+                    <div class="form-row">
+                        <div class="form-group col-md-3">
+                            <label for="field_name_0">
+                                <i class="fas fa-key mr-1 text-muted small"></i>Field Name (Key)
+                            </label>
+                            <input type="text" name="field_name_0" class="form-control form-control-sm" placeholder="e.g., sample_size" required>
                         </div>
-                        <button type="button" class="btn btn-outline-danger btn-sm delete-field-btn" onclick="removeField(this)">
-                            <i class="fas fa-trash mr-1"></i>Remove Field
-                        </button>
+                        <div class="form-group col-md-6">
+                            <label for="instruction_0">
+                                <i class="fas fa-question-circle mr-1 text-muted small"></i>Extraction Instruction / Question
+                            </label>
+                            <input type="text" name="instruction_0" class="form-control form-control-sm" placeholder="e.g., What was the total sample size?" required>
+                        </div>
+                        <div class="form-group col-md-3">
+                            <label for="example_0">
+                                <i class="fas fa-align-left mr-1 text-muted small"></i>Expected Format / Example
+                            </label>
+                            <input type="text" name="example_0" class="form-control form-control-sm" placeholder="e.g., 123">
+                        </div>
                     </div>
+                    <button type="button" class="btn btn-outline-danger btn-sm delete-field-btn" onclick="removeField(this)">
+                        <i class="fas fa-trash mr-1"></i>Remove Field
+                    </button>
                 </div>
-                <button type="button" id="add-field-btn" class="btn btn-outline-secondary btn-sm mt-2">
-                    <i class="fas fa-plus-circle mr-1"></i>Add Another Field
-                </button>
             </div>
+            <button type="button" id="add-field-btn" class="btn btn-outline-secondary btn-sm mt-2">
+                <i class="fas fa-plus-circle mr-1"></i>Add Another Field
+            </button>
         </div>
 
-        <div class="card mb-3">
-            <div class="card-header" style="background-color: rgba(123, 44, 191, 0.03); border-bottom: 1px solid rgba(123, 44, 191, 0.08);">
-                <h3 class="mb-0"><i class="fas fa-file-pdf mr-2" style="color: var(--primary-color);"></i>Upload PDF for Extraction</h3>
+        <div class="framework-selection-container" style="margin-top: 3rem;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <label class="mb-0">
+                    <i class="fas fa-file-pdf mr-2" style="color: var(--primary-color);"></i>
+                    <strong>Upload PDF for Extraction</strong>
+                </label>
             </div>
-            <div class="card-body">
-                <div class="alert alert-warning small">
-                    <i class="fas fa-exclamation-triangle mr-1"></i>
-                    <strong>Warning:</strong> Data extraction is experimental. Always verify results. Processing can be slow and costly.
-                </div>
-                <div class="form-group mt-2">
-                    <label for="pdf_extract_file">Select PDF Document:</label>
-                    <div class="custom-file">
-                        <input type="file" name="pdf_extract_file" id="pdf_extract_file" class="custom-file-input" required accept=".pdf">
-                        <label class="custom-file-label" for="pdf_extract_file">Choose PDF file...</label>
-                    </div>
-                    <small class="form-text text-muted mt-1">Maximum file size: 50MB</small>
-                </div>
-                
-                <button id="start_extract_button" type="submit" class="btn submit-btn mt-2">
-                    <span id="extract_spinner" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true" style="display: none;"></span>
-                    <i class="fas fa-bolt mr-1"></i>Extract Data from PDF
-                </button>
+            <div class="alert alert-warning small">
+                <i class="fas fa-exclamation-triangle mr-1"></i>
+                <strong>Warning:</strong> Data extraction is experimental. Always verify results. Processing can be slow and costly.
             </div>
+            <div class="form-group mt-2">
+                <label for="pdf_extract_file">Select PDF Document:</label>
+                <div class="custom-file">
+                    <input type="file" name="pdf_extract_file" id="pdf_extract_file" class="custom-file-input" required accept=".pdf">
+                    <label class="custom-file-label" for="pdf_extract_file">Choose PDF file...</label>
+                </div>
+                <small class="form-text text-muted mt-1">Maximum file size: 50MB</small>
+            </div>
+            
+            <button id="start_extract_button" type="submit" class="btn submit-btn mt-2">
+                <span id="extract_spinner" class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true" style="display: none;"></span>
+                <i class="fas fa-bolt mr-1"></i>Extract Data from PDF
+            </button>
         </div>
     </form>
 </div>
