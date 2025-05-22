@@ -42,35 +42,16 @@
 {% endblock %}
 
 {% block content %}
-{# --- Full-Text Screening Section (Single PDF) --- #}
+{# --- PDF Full-Text Screening Section (Single or Multiple PDFs) --- #}
 <div class="section-card">
-    <h2>Screen Full Text (Single PDF)</h2>
-    <p>Upload a single PDF document to screen its full text against the current criteria.</p>
+    <h2>Full-Text PDF Screening</h2>
+    <p>Upload one or more PDF documents to screen their full text against your criteria. You can upload a single PDF or batch process multiple files.</p>
     <div class="alert alert-warning small">
         <strong>Warning:</strong> Screening full text can be slow, costly (uses many API tokens), and may exceed LLM context limits, potentially leading to errors or incomplete analysis. Use judiciously.
     </div>
-    <form method="POST" action="{{ url_for('screen_pdf_decision') }}" enctype="multipart/form-data" id="pdf_screen_form">
-        <div class="form-group">
-            <label for="pdf_file">Upload PDF File:</label>
-            <input type="file" name="pdf_file" id="pdf_file" class="form-control-file form-control-sm" required accept=".pdf">
-        </div>
-         <button id="start_pdf_screen_button" type="submit" class="btn btn-warning btn-sm">
-            <span id="pdf_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
-            Screen PDF Full Text
-        </button>
-    </form>
-</div>
-
-{# --- NEW: Batch Full-Text PDF Screening Section --- #}
-<div class="section-card">
-    <h2>Batch Screen Full Text (Multiple PDFs)</h2>
-    <p>Upload multiple PDF documents to screen their full text. You can filter which PDFs to process by filename or their order in the uploaded list.</p>
-    <div class="alert alert-info small">
-        <strong>Note:</strong> This is a batch operation. Ensure your API key and criteria are correctly set. Progress will be shown live. No individual PDF previews during this batch process.
-    </div>
     <form id="batch_pdf_screen_form" enctype="multipart/form-data">
         <div class="form-group">
-            <label for="batch_pdf_files_input_control">Upload PDF Files (select multiple):</label>
+            <label for="batch_pdf_files_input_control">Upload PDF Files (select one or multiple):</label>
             <input type="file" name="batch_pdf_files_input_control" id="batch_pdf_files_input_control" class="form-control-file form-control-sm" required accept=".pdf" multiple>
         </div>
 
@@ -108,26 +89,25 @@
 
         <button id="start_batch_pdf_screen_button" type="button" class="btn btn-primary btn-sm">
             <span id="batch_pdf_spinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
-            Start Batch PDF Screening
+            Start PDF Screening
         </button>
     </form>
 
     <div id="batch_pdf_progress_area" class="mt-3" style="display: none;">
-        <h4>Batch PDF Screening Progress:</h4>
+        <h4>PDF Screening Progress:</h4>
         <div class="progress mb-2">
             <div id="batch_pdf_progress_bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
         </div>
         <p id="batch_pdf_progress_status" class="mt-1 small text-muted"></p>
         <div id="batch_pdf_progress_log_container" style="display:none;">
-            <strong>Live Log (Batch PDF):</strong>
+            <strong>Live Log:</strong>
             <div id="batch_pdf_progress_log" style="max-height: 150px; overflow-y: auto; font-size: 0.8em; background-color: #f0f0f0; padding: 8px; border: 1px solid #ccc; margin-top:8px; border-radius: 4px; white-space: pre-line;"></div>
         </div>
     </div>
     <div id="batch_pdf_results_link_area" class="mt-3" style="display:none;">
-        <a href="#" id="view_batch_pdf_results_link" class="btn btn-success">View Batch PDF Screening Results</a> 
+        <a href="#" id="view_batch_pdf_results_link" class="btn btn-success">View PDF Screening Results</a> 
     </div>
 </div>
-{# --- END NEW Batch Section --- #}
 {% endblock %}
 
 {% block extra_js %}
@@ -147,6 +127,8 @@ function saveScreeningResultToHistory(screeningType, screeningId, fileName, tota
     
     const now = new Date();
     const timestamp = now.toISOString();
+    
+    // 确定显示名称 - 单个PDF显示文件名，多个则显示批量
     const historyEntryName = `${screeningType} - ${fileName || 'PDF Batch'} (${totalItems} items) - ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
 
     const newEntry = {
@@ -172,20 +154,6 @@ function saveScreeningResultToHistory(screeningType, screeningId, fileName, tota
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // --- PDF Screening Spinner Logic (Single PDF) --- 
-    const pdfScreenForm = document.getElementById('pdf_screen_form');
-    const pdfScreenButton = document.getElementById('start_pdf_screen_button');
-    const pdfSpinner = document.getElementById('pdf_spinner');
-    if (pdfScreenForm && pdfScreenButton && pdfSpinner) {
-        pdfScreenForm.addEventListener('submit', function() {
-            const pdfFileInput = document.getElementById('pdf_file');
-            if (pdfFileInput && pdfFileInput.files.length > 0) {
-                pdfSpinner.style.display = 'inline-block';
-                pdfScreenButton.disabled = true;
-            }
-        });
-    }
-
     // --- Batch PDF Screening Logic --- 
     const batchPdfFilesInputControl = document.getElementById('batch_pdf_files_input_control');
     const selectedFilesPreviewArea = document.getElementById('batch_selected_files_preview_area');
@@ -264,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const batchOrderFilterInput = document.getElementById('batch_pdf_order_filter');
 
             if (currentBatchFiles.length === 0) { // Check our managed list
-                alert('Please select one or more PDF files for batch screening.');
+                alert('Please select one or more PDF files for screening.');
                 return;
             }
 
@@ -280,7 +248,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if(batchLogContainer) batchLogContainer.style.display = 'block';
             if(batchLog) batchLog.innerHTML = ''; // Clear previous log
             if(batchProgressBar) { batchProgressBar.style.width = '0%'; batchProgressBar.textContent = '0%'; batchProgressBar.classList.remove('bg-success', 'bg-danger'); batchProgressBar.classList.add('bg-info'); }
-            if(batchProgressStatus) batchProgressStatus.textContent = 'Initializing batch PDF screening...';
+            if(batchProgressStatus) batchProgressStatus.textContent = 'Initializing PDF screening...';
             if(batchResultsLinkArea) batchResultsLinkArea.style.display = 'none';
             startBatchPdfScreenButton.disabled = true;
             const batchSpinner = document.getElementById('batch_pdf_spinner');
@@ -313,7 +281,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             const jsonData = JSON.parse(message.substring(6));
                             if (jsonData.type === 'start') {
                                 if(batchProgressStatus) batchProgressStatus.textContent = `Starting... Total files to process: ${jsonData.total_to_process} out of ${jsonData.total_uploaded} uploaded.`;
-                                if(batchLog) batchLog.innerHTML += `<div>[${new Date().toLocaleTimeString()}] Batch Started. Files to process: ${jsonData.total_to_process}. Filter: ${jsonData.filter_info || 'none'}</div>`;
+                                if(batchLog) batchLog.innerHTML += `<div>[${new Date().toLocaleTimeString()}] Started. Files to process: ${jsonData.total_to_process}. Filter: ${jsonData.filter_info || 'none'}</div>`;
                             } else if (jsonData.type === 'progress') {
                                 if (batchProgressBar) {
                                     batchProgressBar.style.width = jsonData.percentage + '%';
@@ -334,7 +302,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     batchResultsLinkArea.style.display = 'block';
                                     
                                     // Save the screening result to history
-                                    saveScreeningResultToHistory('Full-Text PDF Screening', jsonData.batch_session_id, 'Batch PDF Files', jsonData.total_to_process);
+                                    saveScreeningResultToHistory('Full-Text PDF Screening', jsonData.batch_session_id, 'PDF Files', jsonData.total_to_process);
                                 }
                                 xhrBatchPdf.abort();
                             } else if (jsonData.type === 'error') {
@@ -348,7 +316,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 xhrBatchPdf.abort();
                             }
                         } catch (e) { 
-                            console.error("Batch PDF SSE Parse Error:", e, message); 
+                            console.error("PDF SSE Parse Error:", e, message); 
                             if(batchLog) batchLog.innerHTML += `<div class="text-danger">[${new Date().toLocaleTimeString()}] Error parsing server message.</div>`;
                         } 
                     }
@@ -361,7 +329,7 @@ document.addEventListener('DOMContentLoaded', function() {
             xhrBatchPdf.onerror = function() { 
                 startBatchPdfScreenButton.disabled = false; 
                 if(batchSpinner) batchSpinner.style.display = 'none'; 
-                if(batchLog) batchLog.innerHTML += `<div class="text-danger">[${new Date().toLocaleTimeString()}] Connection error during batch screening.</div>`;
+                if(batchLog) batchLog.innerHTML += `<div class="text-danger">[${new Date().toLocaleTimeString()}] Connection error during PDF screening.</div>`;
             }; 
             xhrBatchPdf.send(formData);
         });

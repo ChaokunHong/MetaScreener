@@ -2,82 +2,520 @@
 
 {% block title %}Upload for Quality Assessment{% endblock %}
 
+{% block extra_head %}
+<style>
+    /* 调整整体字体风格，与其他页面保持一致 */
+    h2 {
+        font-size: 1.3rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    h5 {
+        font-size: 1rem;
+        margin-bottom: 0.6rem;
+    }
+    
+    p {
+        font-size: 0.85rem;
+    }
+    
+    .lead {
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+    
+    label {
+        font-size: 0.8rem;
+        margin-bottom: 0.25rem;
+        font-weight: 500;
+    }
+    
+    .btn {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+    }
+    
+    .form-control, .form-select {
+        font-size: 0.85rem;
+        padding: 0.3rem 0.5rem;
+    }
+    
+    .form-text {
+        font-size: 0.75rem;
+    }
+    
+    .card {
+        border-radius: 6px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        margin-bottom: 1rem;
+    }
+    
+    .card-header {
+        padding: 0.5rem 0.75rem;
+        background-color: rgba(123, 44, 191, 0.03);
+        border-bottom: 1px solid rgba(123, 44, 191, 0.08);
+    }
+    
+    .card-body {
+        padding: 0.75rem;
+    }
+    
+    /* 文件列表样式 */
+    #selected-files-list {
+        margin-bottom: 1rem;
+    }
+    
+    #selected-files-list h6 {
+        font-size: 0.85rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    #selected-files-list .list-group-item {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8rem;
+    }
+    
+    /* 框架信息卡片样式 */
+    .card.bg-light {
+        background-color: #f8f9ff !important;
+        border: 1px solid rgba(123, 44, 191, 0.1);
+    }
+    
+    .card.bg-light .card-header {
+        background-color: rgba(123, 44, 191, 0.05);
+        border-bottom: 1px solid rgba(123, 44, 191, 0.08);
+    }
+    
+    /* 上传表单样式 */
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    /* 可折叠提示框样式 */
+    .frameworks-container {
+        margin: 0.75rem 0 1rem 0;
+        border-radius: 4px;
+        border: 1px solid rgba(123, 44, 191, 0.1);
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+    
+    .frameworks-header {
+        padding: 0.4rem 0.6rem;
+        background-color: rgba(123, 44, 191, 0.03);
+        border-bottom: 1px solid rgba(123, 44, 191, 0.05);
+    }
+    
+    .frameworks-header button {
+        color: var(--primary-color);
+        font-weight: 500;
+        font-size: 0.85rem;
+        width: 100%;
+        padding: 0;
+    }
+    
+    .frameworks-header button:hover {
+        text-decoration: none;
+        color: var(--secondary-color);
+    }
+    
+    .frameworks-header button:focus {
+        text-decoration: none;
+        box-shadow: none;
+    }
+    
+    .toggle-icon {
+        transition: transform 0.3s ease;
+        font-size: 0.7rem;
+    }
+    
+    .collapsed .toggle-icon {
+        transform: rotate(180deg);
+    }
+    
+    .frameworks-content {
+        background-color: #f8f9ff;
+        padding: 0.75rem 1rem;
+        border-radius: 0;
+        transition: all 0.2s ease;
+    }
+    
+    .frameworks-content ul {
+        margin-bottom: 0;
+        padding-left: 1rem;
+    }
+    
+    .frameworks-content li {
+        margin-bottom: 0.3rem;
+        position: relative;
+        font-size: 0.8rem;
+    }
+    
+    .frameworks-content li strong {
+        color: var(--primary-color);
+    }
+    
+    .frameworks-content li:last-child {
+        margin-bottom: 0;
+    }
+    
+    .frameworks-content p {
+        margin-bottom: 0.5rem;
+    }
+    
+    .frameworks-content p.small {
+        font-size: 0.75rem;
+        margin-top: 0.5rem;
+    }
+    
+    /* 美化文件上传控件 */
+    .file-upload-container {
+        position: relative;
+        overflow: hidden;
+        background-color: #f8f9ff;
+        border: 1px dashed rgba(123, 44, 191, 0.3);
+        border-radius: 6px;
+        padding: 1.5rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .file-upload-container:hover {
+        background-color: rgba(123, 44, 191, 0.03);
+        border-color: rgba(123, 44, 191, 0.5);
+    }
+    
+    .file-upload-container input[type="file"] {
+        position: absolute;
+        left: 0;
+        top: 0;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+    
+    .file-upload-icon {
+        color: var(--primary-color);
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .file-upload-text {
+        color: #333;
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .file-upload-hint {
+        color: #666;
+        font-size: 0.75rem;
+    }
+    
+    /* 美化选择框 */
+    .custom-select-container {
+        background-color: #f8f9ff;
+        border: 2px solid rgba(123, 44, 191, 0.3);
+        border-radius: 6px;
+        padding: 0.75rem;
+        position: relative;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+        transition: all 0.2s ease;
+        margin-top: 1rem;
+    }
+    
+    .custom-select-container:hover {
+        border-color: rgba(123, 44, 191, 0.6);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-1px);
+    }
+    
+    .custom-select-container:focus-within {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 4px rgba(123, 44, 191, 0.15);
+    }
+    
+    .custom-select-label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-bottom: 0.5rem;
+    }
+    
+    .select-wrapper {
+        position: relative;
+        background-color: white;
+        border: 1px solid rgba(123, 44, 191, 0.3);
+        border-radius: 4px;
+        padding: 0.4rem 0.6rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .select-wrapper:hover {
+        background-color: rgba(123, 44, 191, 0.03);
+    }
+    
+    .select-wrapper:after {
+        content: '';
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 8px solid #333;
+        transform: translateY(-50%);
+        pointer-events: none;
+    }
+    
+    .custom-select {
+        width: 100%;
+        border: none;
+        background-color: transparent;
+        font-size: 0.85rem;
+        color: #2d3748;
+        appearance: none;
+        padding-right: 1.8rem;
+        cursor: pointer;
+        z-index: 1;
+        position: relative;
+        background-image: none;
+    }
+    
+    .custom-select:focus {
+        outline: none;
+    }
+    
+    .select-hint {
+        font-size: 0.75rem;
+        color: var(--primary-color);
+        margin-top: 0.25rem;
+        margin-bottom: 0.25rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .select-hint i {
+        margin-right: 0.25rem;
+        font-size: 0.7rem;
+    }
+    
+    /* 表单分组标题 */
+    .form-section-title {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #4a5568;
+        margin: 1rem 0 0.5rem 0;
+        display: flex;
+        align-items: center;
+    }
+    
+    .form-section-title i {
+        color: var(--primary-color);
+        margin-right: 0.5rem;
+    }
+    
+    /* 提交按钮样式 */
+    .submit-btn {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        font-weight: 500;
+        box-shadow: 0 2px 4px rgba(123, 44, 191, 0.2);
+        transition: all 0.2s ease;
+    }
+    
+    .submit-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 6px rgba(123, 44, 191, 0.3);
+    }
+    
+    .submit-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 3px rgba(123, 44, 191, 0.2);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <h2>Upload Document(s) for Quality Assessment</h2>
-    <p class="lead mb-4">Upload one or more PDF documents here. The system will perform an AI-driven quality assessment for each document based on established checklists relevant to its type. You can optionally specify a single document type for all uploaded files if they are the same, or the AI will attempt to classify each document individually.</p>
+<div class="section-card">
+    <h2>Quality Assessment</h2>
+    <p class="lead">Upload PDF documents to evaluate their methodological quality using AI-driven assessment based on established research checklists.</p>
 
     {# Information about Assessment Tools #}
     {% if assessment_tools_info %}
-    <div class="card bg-light mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">Supported Assessment Frameworks</h5>
+    <div class="frameworks-container">
+        <div class="frameworks-header" id="frameworksHeader">
+            <button class="btn btn-link btn-sm text-left w-100 d-flex justify-content-between align-items-center" type="button" data-toggle="collapse" data-target="#frameworksContent" aria-expanded="false" aria-controls="frameworksContent">
+                <span><i class="fas fa-clipboard-check mr-2"></i>Supported Assessment Frameworks</span>
+                <i class="fas fa-chevron-down toggle-icon ml-1"></i>
+            </button>
         </div>
-        <div class="card-body">
-            <p>This tool utilizes AI to apply criteria from recognized quality assessment tools tailored to different study designs. Current frameworks include:</p>
-            <ul>
-                {% for doc_type, tool_info in assessment_tools_info.items() %}
-                    <li><strong>{{ doc_type }}</strong>: Assessed using criteria based on <em>{{ tool_info.tool_name }}</em>.</li>
-                {% endfor %}
-            </ul>
-            <p class="small text-muted">
-                The AI assessment provides an initial evaluation. Users are encouraged to review the AI's judgments and apply their own expertise.
-                The specific criteria for each tool are simplified and adapted for AI application and may not represent the full, official checklist.
-            </p>
+        <div id="frameworksContent" class="collapse" aria-labelledby="frameworksHeader">
+            <div class="frameworks-content">
+                <p>This tool utilizes AI to apply criteria from recognized quality assessment tools tailored to different study designs:</p>
+                <ul>
+                    {% for doc_type, tool_info in assessment_tools_info.items() %}
+                        <li><strong>{{ doc_type }}</strong>: Assessed using criteria based on <em>{{ tool_info.tool_name }}</em>.</li>
+                    {% endfor %}
+                </ul>
+                <p class="small text-muted">
+                    The AI assessment provides an initial evaluation. Users are encouraged to review the AI's judgments and apply their own expertise.
+                    The specific criteria for each tool are simplified and adapted for AI application and may not represent the full, official checklist.
+                </p>
+            </div>
         </div>
     </div>
     {% endif %}
     
     <form method="POST" enctype="multipart/form-data" action="{{ url_for('.upload_document_for_assessment') }}" id="qaUploadForm">
-        
-        <div class="form-group mb-3">
-            <label for="pdf_files">Select PDF File(s):</label>
-            <input type="file" class="form-control" id="pdf_files" name="pdf_files" accept=".pdf" required multiple onchange="updateSelectedFilesList(this.files)">
-        </div>
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-upload mr-2" style="color: var(--primary-color);"></i>Upload Documents</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="pdf_files" class="d-none">Select PDF File(s):</label>
+                    <div class="file-upload-container" id="upload-container">
+                        <i class="fas fa-file-upload file-upload-icon"></i>
+                        <div class="file-upload-text">Click or drop PDF files here</div>
+                        <div class="file-upload-hint">Supports multiple files selection</div>
+                        <input type="file" class="form-control-sm" id="pdf_files" name="pdf_files" accept=".pdf" required multiple onchange="updateSelectedFilesList(this.files)">
+                    </div>
+                </div>
 
-        <div id="selected-files-list" class="mb-3" style="display:none;">
-            <h6>Selected Files:</h6>
-            <ul class="list-group"></ul>
-        </div>
+                <div id="selected-files-list" style="display:none;">
+                    <h6><i class="fas fa-file-pdf mr-1"></i>Selected Files:</h6>
+                    <ul class="list-group list-group-flush"></ul>
+                </div>
 
-        <div class="form-group mb-3">
-            <label for="document_type">Document Type (Optional - applies to all selected files if specified):</label>
-            <select class="form-select" id="document_type" name="document_type">
-                <option value="">Let AI Decide / Not Specified for each</option>
-                <option value="Systematic Review">Systematic Review / Meta-Analysis</option>
-                <option value="RCT">Randomized Controlled Trial (RCT)</option>
-                <option value="Cohort Study">Cohort Study</option>
-                <option value="Case-Control Study">Case-Control Study</option>
-                <option value="Diagnostic Study">Diagnostic Study</option>
-                <option value="Qualitative Study">Qualitative Study</option>
-                <option value="Other">Other (General)</option>
-            </select>
-            <small class="form-text text-muted">If not specified, the system will attempt to classify each document individually.</small>
-        </div>
+                <div class="form-section-title">
+                    <i class="fas fa-tasks"></i>Assessment Configuration
+                </div>
 
-        <button type="submit" class="btn btn-primary mt-3">Upload and Assess Selected File(s)</button>
+                <div class="form-group mb-2">
+                    <div class="custom-select-container">
+                        <label for="document_type" class="custom-select-label">
+                            <i class="fas fa-file-medical-alt mr-1"></i>Document Type (Optional):
+                        </label>
+                        <div class="select-hint">
+                            <i class="fas fa-info-circle"></i>Click to select document type
+                        </div>
+                        <div class="select-wrapper">
+                            <select class="custom-select" id="document_type" name="document_type">
+                                <option value="">Let AI Decide / Not Specified for each</option>
+                                <option value="Systematic Review">Systematic Review / Meta-Analysis</option>
+                                <option value="RCT">Randomized Controlled Trial (RCT)</option>
+                                <option value="Cohort Study">Cohort Study</option>
+                                <option value="Case-Control Study">Case-Control Study</option>
+                                <option value="Diagnostic Study">Diagnostic Study</option>
+                                <option value="Qualitative Study">Qualitative Study</option>
+                                <option value="Other">Other (General)</option>
+                            </select>
+                        </div>
+                        <small class="form-text text-muted mt-2">If not specified, the system will attempt to classify each document individually.</small>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn submit-btn mt-3">
+                    <i class="fas fa-check-circle mr-1"></i>Upload and Start Assessment
+                </button>
+            </div>
+        </div>
     </form>
-
 </div>
 
 <script>
 function updateSelectedFilesList(files) {
     const listContainer = document.getElementById('selected-files-list');
     const ul = listContainer.querySelector('ul');
+    const uploadContainer = document.getElementById('upload-container');
+    
     ul.innerHTML = ''; // Clear previous list
 
     if (files.length > 0) {
         listContainer.style.display = 'block';
+        uploadContainer.style.borderStyle = 'solid';
+        uploadContainer.querySelector('.file-upload-text').textContent = 'Add more files';
+        uploadContainer.querySelector('.file-upload-hint').textContent = files.length + ' file(s) selected';
+        
         for (let i = 0; i < files.length; i++) {
             const li = document.createElement('li');
-            li.className = 'list-group-item list-group-item-sm';
-            li.textContent = files[i].name + ' (' + (files[i].size / 1024).toFixed(2) + ' KB)';
+            li.className = 'list-group-item';
+            
+            // 文件大小格式化
+            let fileSize = '';
+            if (files[i].size < 1024) {
+                fileSize = files[i].size + ' B';
+            } else if (files[i].size < 1024 * 1024) {
+                fileSize = (files[i].size / 1024).toFixed(1) + ' KB';
+            } else {
+                fileSize = (files[i].size / (1024 * 1024)).toFixed(1) + ' MB';
+            }
+            
+            li.innerHTML = `<i class="fas fa-file-pdf mr-1" style="color: var(--primary-color);"></i> ${files[i].name} <span class="text-muted">(${fileSize})</span>`;
             ul.appendChild(li);
         }
     } else {
         listContainer.style.display = 'none';
+        uploadContainer.style.borderStyle = 'dashed';
+        uploadContainer.querySelector('.file-upload-text').textContent = 'Click or drop PDF files here';
+        uploadContainer.querySelector('.file-upload-hint').textContent = 'Supports multiple files selection';
     }
 }
+
+// 添加拖放功能
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadContainer = document.getElementById('upload-container');
+    const fileInput = document.getElementById('pdf_files');
+    
+    if (uploadContainer && fileInput) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadContainer.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadContainer.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadContainer.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight() {
+            uploadContainer.style.backgroundColor = 'rgba(123, 44, 191, 0.05)';
+            uploadContainer.style.borderColor = 'rgba(123, 44, 191, 0.6)';
+        }
+        
+        function unhighlight() {
+            uploadContainer.style.backgroundColor = '#f8f9ff';
+            uploadContainer.style.borderColor = 'rgba(123, 44, 191, 0.3)';
+        }
+        
+        uploadContainer.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            fileInput.files = files;
+            updateSelectedFilesList(files);
+        }
+    }
+});
 </script>
 
 {% endblock %} 

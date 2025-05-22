@@ -5,25 +5,60 @@
 {% block extra_head %}
 <style>
     /* Basic/Advanced Toggle Styles */
-    .mode-toggle label { margin-right: 15px; font-weight: normal; cursor: pointer; }
-    .mode-toggle input[type="radio"] { margin-right: 5px; }
+    .mode-toggle {
+        background-color: #f8fafc;
+        padding: 0.5rem;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        margin-bottom: 0.75rem;
+    }
+    .mode-toggle label { 
+        margin-right: 8px; 
+        font-weight: 500; 
+        cursor: pointer; 
+        padding: 0.2rem 0.4rem;
+        border-radius: 3px;
+        transition: all 0.2s ease;
+        font-size: 0.8rem;
+    }
+    .mode-toggle label:hover {
+        background-color: rgba(123, 44, 191, 0.05);
+    }
+    .mode-toggle input[type="radio"] { 
+        margin-right: 3px; 
+    }
+    
     /* Hide advanced sections by default */
     .advanced-settings { display: none; }
+    
     /* Styling for prompt setting textareas */
     .prompt-textarea { 
         font-family: monospace; 
-        font-size: 0.85rem; 
+        font-size: 0.8rem; 
         min-height: 100px; 
-        background-color: #e9ecef; 
-        border: 1px solid #ced4da;
+        background-color: #f8fafc; 
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        padding: 0.5rem;
+        line-height: 1.5;
+        transition: all 0.2s ease;
     }
+    .prompt-textarea:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px rgba(123, 44, 191, 0.1);
+        transform: translateY(-1px);
+    }
+    
     .advanced-warning {
-        font-size: 0.9em;
+        font-size: 0.8em;
         color: #dc3545; /* Bootstrap danger color */
-        border-left: 3px solid #dc3545;
-        padding-left: 10px;
-        margin-top: 15px;
+        border-left: 2px solid #dc3545;
+        padding: 0.75rem 1rem;
+        margin-top: 12px;
+        background-color: rgba(220, 53, 69, 0.03);
+        border-radius: 0 4px 4px 0;
     }
+    
     /* Consistent card styling */
     .criteria-section { 
         margin-bottom: 0; 
@@ -31,247 +66,426 @@
         border-left: 0; 
         border-right: 0; 
         border-top: 0; 
+        padding: 1rem;
     } 
-    .criteria-section:first-of-type { border-top: 1px solid rgba(0,0,0,.125); }
+    .criteria-section:first-of-type { border-top: 1px solid rgba(0,0,0,.1); }
     
     /* Card header styling */
     .card-header {
-        padding: .75rem 1.25rem;
-        background-color: rgba(123, 44, 191, 0.05); /* Light purple header for accordion */
-        border-bottom: 1px solid rgba(123, 44, 191, 0.1);
+        padding: 0.5rem 0.75rem;
+        background: linear-gradient(to right, rgba(123, 44, 191, 0.02), rgba(155, 93, 229, 0.01));
+        border-bottom: 1px solid rgba(123, 44, 191, 0.06);
+        border-radius: 4px 4px 0 0 !important;
+        transition: all 0.2s ease;
+    }
+    .card:hover .card-header {
+        background: linear-gradient(to right, rgba(123, 44, 191, 0.04), rgba(155, 93, 229, 0.01));
+    }
+    .card {
+        overflow: hidden;
+        border: 1px solid rgba(123, 44, 191, 0.08);
+        border-radius: 4px !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.01);
+        transition: all 0.2s ease;
+        margin-bottom: 0.6rem;
+    }
+    .card:hover {
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        transform: translateY(-1px);
     }
     .card-header .btn-link {
-        font-size: 1.1rem;
-        font-weight: bold;
+        font-size: 0.85rem;
+        font-weight: 600;
         text-decoration: none;
         color: #333;
         width: 100%;
         text-align: left;
         padding: 0;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .card-header .btn-link::after {
+        content: '\f106';
+        font-family: 'Font Awesome 5 Free';
+        font-weight: 900;
+        color: var(--primary-color);
+        transition: transform 0.3s ease;
+        font-size: 0.8rem;
+    }
+    .card-header .btn-link.collapsed::after {
+        transform: rotate(180deg);
     }
     .card-header .btn-link:hover {
         text-decoration: none;
-        color: #007bff;
+        color: var(--primary-color);
     }
     .card-header .btn-link:focus {
         box-shadow: none;
+        outline: none;
     }
     .card .card-body {
-        padding: 1.25rem;
+        padding: 1rem;
+        background-color: #ffffff;
     }
     
     /* Textarea and form field styles */
     .criteria-subsection textarea { 
-        margin-bottom: 1.25rem; 
-        border-color: #ced4da;
+        margin-bottom: 1rem; 
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        padding: 0.5rem;
+        transition: all 0.2s ease;
+        background-color: #f8fafc;
+        font-size: 0.85rem;
+        resize: vertical;
+        min-height: 70px;
+    }
+    .criteria-subsection textarea:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px rgba(123, 44, 191, 0.1);
+        transform: translateY(-1px);
+        background-color: #ffffff;
     }
     .criteria-subsection:last-child textarea { 
-        margin-bottom: 0.75rem; 
+        margin-bottom: 0.5rem; 
     }
     .textarea-is-placeholder {
-        color: #999;
+        color: #94a3b8;
+        font-style: italic;
     }
     
     /* Section styling */
     .section-container {
         background-color: #fff;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
+        border-radius: 6px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid #f1f5f9;
+        transition: all 0.2s ease;
+    }
+    .section-container:hover {
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     }
     .section-title {
-        font-size: 1.2rem;
+        font-size: 0.95rem;
         font-weight: 600;
-        margin-bottom: 1rem;
-        color: #495057;
+        margin-bottom: 0.75rem;
+        color: #1e293b;
         border-bottom: 1px solid #e9ecef;
-        padding-bottom: 0.5rem;
+        padding-bottom: 0.4rem;
+        position: relative;
+    }
+    .section-title::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        bottom: -1px;
+        width: 30px;
+        height: 2px;
+        background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+        border-radius: 2px;
     }
     
     /* Buttons styling - using site variables for consistent branding */
     .btn {
-        border-radius: 6px;
+        border-radius: 4px;
         font-weight: 500;
-        padding: 0.375rem 0.75rem;
+        padding: 0.25rem 0.5rem;
         transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        font-size: 0.8rem;
     }
     .btn-primary {
-        background-color: var(--primary-color);
-        border-color: var(--primary-color);
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        border: none;
+        box-shadow: 0 1px 3px rgba(123, 44, 191, 0.1);
     }
     .btn-primary:hover {
-        background-color: var(--hover-color);
-        border-color: var(--hover-color);
+        background: linear-gradient(135deg, #8a3ad0 0%, #a56ce8 100%);
         transform: translateY(-1px);
+        box-shadow: 0 2px 5px rgba(123, 44, 191, 0.15);
+    }
+    .btn-primary:active, .btn-primary:focus {
+        background: linear-gradient(135deg, #7026a9 0%, #9b5de5 100%);
+        box-shadow: 0 1px 2px rgba(123, 44, 191, 0.2);
     }
     .btn-success {
-        background-color: var(--success-color);
-        border-color: var(--success-color);
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        border: none;
+        box-shadow: 0 1px 3px rgba(5, 150, 105, 0.1);
     }
     .btn-success:hover {
-        background-color: #057857;
-        border-color: #057857;
+        background: linear-gradient(135deg, #047857 0%, #059669 100%);
         transform: translateY(-1px);
+        box-shadow: 0 2px 5px rgba(5, 150, 105, 0.15);
     }
     .btn-info {
-        background-color: var(--info-color);
-        border-color: var(--info-color);
+        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+        border: none;
+        color: white;
+        box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
     }
     .btn-info:hover {
-        background-color: #2563eb;
-        border-color: #2563eb;
+        background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
         transform: translateY(-1px);
+        box-shadow: 0 2px 5px rgba(37, 99, 235, 0.15);
+        color: white;
     }
     .btn-warning {
-        background-color: var(--warning-color);
-        border-color: var(--warning-color);
-        color: #212529;
+        background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+        border: none;
+        color: white;
+        box-shadow: 0 1px 3px rgba(217, 119, 6, 0.1);
     }
     .btn-warning:hover {
-        background-color: #c77700;
-        border-color: #c77700;
-        color: #212529;
+        background: linear-gradient(135deg, #b45309 0%, #d97706 100%);
         transform: translateY(-1px);
+        box-shadow: 0 2px 5px rgba(217, 119, 6, 0.15);
+        color: white;
     }
     .btn-danger {
-        background-color: var(--danger-color);
-        border-color: var(--danger-color);
+        background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+        border: none;
+        box-shadow: 0 1px 3px rgba(220, 38, 38, 0.1);
     }
     .btn-danger:hover {
-        background-color: #b91c1c;
-        border-color: #b91c1c;
+        background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
         transform: translateY(-1px);
+        box-shadow: 0 2px 5px rgba(220, 38, 38, 0.15);
+    }
+    .btn-outline-danger {
+        color: #dc2626;
+        border-color: #dc2626;
+        transition: all 0.2s ease;
+    }
+    .btn-outline-danger:hover {
+        background-color: rgba(220, 38, 38, 0.05);
+        color: #b91c1c;
+        border-color: #b91c1c;
     }
     .btn-sm {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.875rem;
+        padding: 0.15rem 0.4rem;
+        font-size: 0.75rem;
+        border-radius: 3px;
     }
     .btn-lg {
         padding: 0.5rem 1rem;
-        font-size: 1.1rem;
+        font-size: 0.9rem;
+        border-radius: 6px;
     }
     
     /* Help buttons and popovers */
     .help-button {
         padding: 0;
-        color: #6c757d;
-        font-size: 1.1rem;
-        margin-left: 10px;
+        color: #64748b;
+        font-size: 0.8rem;
+        margin-left: 4px;
         cursor: pointer;
-        transition: color 0.2s;
+        transition: all 0.2s ease;
+        width: 16px;
+        height: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background-color: #f1f5f9;
     }
     .help-button:hover {
-        color: #007bff;
+        color: var(--primary-color);
+        background-color: #e2e8f0;
         text-decoration: none;
+        transform: translateY(-1px);
     }
     .popover {
-        max-width: 500px;
+        max-width: 300px;
         white-space: pre-wrap;
-        font-size: 0.9rem;
-        box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+        font-size: 0.8rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border: none;
+        border-radius: 6px;
     }
     .popover-header {
-        background-color: #f8f9fa;
-        border-bottom: 1px solid #dee2e6;
-        font-weight: bold;
-        color: #495057;
-        padding: 0.75rem 1rem;
+        background: linear-gradient(to right, rgba(123, 44, 191, 0.05), rgba(155, 93, 229, 0.02));
+        border-bottom: 1px solid rgba(123, 44, 191, 0.08);
+        font-weight: 600;
+        color: #1e293b;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px 6px 0 0;
+        font-size: 0.85rem;
     }
     .popover-body {
-        padding: 1rem;
+        padding: 0.75rem;
         line-height: 1.5;
-        color: #212529;
+        color: #334155;
         background-color: #fff;
+        border-radius: 0 0 6px 6px;
     }
     
     /* Subsection styles */
     .criteria-subsection {
-        margin-bottom: 1.5rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s ease;
+    }
+    .criteria-subsection:hover label {
+        color: var(--primary-color);
+    }
+    .criteria-subsection label {
+        font-weight: 500;
+        transition: all 0.2s ease;
+        color: #334155;
+        font-size: 0.8rem;
+        margin-bottom: 0.2rem;
     }
     .criteria-subsection:last-child {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.2rem;
     }
     
     /* Best practices box */
-    .best-practices {
-        background-color: rgba(155, 93, 229, 0.05);
-        border-left: 4px solid var(--primary-color);
-        padding: 1rem;
-        margin: 1.5rem 0;
-        border-radius: 0 8px 8px 0;
+    .best-practices-container {
+        margin: 0.75rem 0 1rem 0;
+        border-radius: 4px;
+        border: 1px solid rgba(123, 44, 191, 0.1);
+        overflow: hidden;
+        transition: all 0.2s ease;
     }
-    .best-practices h5 {
+    
+    .best-practices-header {
+        padding: 0.4rem 0.6rem;
+        background-color: rgba(123, 44, 191, 0.03);
+        border-bottom: 1px solid rgba(123, 44, 191, 0.05);
+    }
+    
+    .best-practices-header button {
         color: var(--primary-color);
-        margin-bottom: 0.75rem;
+        font-weight: 500;
+        font-size: 0.85rem;
+        width: 100%;
+        padding: 0;
     }
+    
+    .best-practices-header button:hover {
+        text-decoration: none;
+        color: var(--secondary-color);
+    }
+    
+    .best-practices-header button:focus {
+        text-decoration: none;
+        box-shadow: none;
+    }
+    
+    .toggle-icon {
+        transition: transform 0.3s ease;
+        font-size: 0.7rem;
+    }
+    
+    .collapsed .toggle-icon {
+        transform: rotate(180deg);
+    }
+    
+    .best-practices {
+        background-color: #f8f9ff;
+        border-left: 3px solid var(--primary-color);
+        padding: 0.75rem 1rem;
+        border-radius: 0;
+        transition: all 0.2s ease;
+    }
+    
+    .best-practices:hover {
+        transform: translateY(0);
+        box-shadow: 0 1px 3px rgba(123, 44, 191, 0.05);
+    }
+    
     .best-practices ul {
         margin-bottom: 0;
+        padding-left: 1rem;
     }
+    
     .best-practices li {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.3rem;
+        position: relative;
+        font-size: 0.8rem;
     }
+    
+    .best-practices li strong {
+        color: var(--primary-color);
+    }
+    
     .best-practices li:last-child {
         margin-bottom: 0;
     }
     
     /* Framework selection area */
     .framework-selection-container {
-        background-color: #f8f9fa;
+        background: linear-gradient(to right, #f8f9ff, #f8fafc);
         padding: 1rem;
         border-radius: 6px;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s ease;
+    }
+    .framework-selection-container:hover {
+        box-shadow: 0 2px 5px rgba(0,0,0,0.04);
     }
     
     /* Action buttons area */
     .action-buttons-container {
-        margin-top: 2rem;
-        padding-top: 1.5rem;
+        margin-top: 1.5rem;
+        padding-top: 1rem;
         border-top: 1px solid #e9ecef;
     }
     
     /* Enhanced action buttons */
     .btn-action {
         font-weight: 600;
-        letter-spacing: 0.5px;
-        border-radius: 6px;
+        letter-spacing: 0.3px;
+        border-radius: 5px;
         position: relative;
         overflow: hidden;
-        transition: all 0.3s ease;
-        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        font-size: 0.85rem;
+        padding: 0.5rem 1rem;
+        box-shadow: 0 2px 5px rgba(123, 44, 191, 0.1);
     }
     
     .btn-action:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 3px 8px rgba(0,123,255,0.3) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 3px 8px rgba(123, 44, 191, 0.15) !important;
     }
     
     .btn-action-secondary {
         font-weight: 500;
-        border-radius: 6px;
-        transition: all 0.3s ease;
-        font-size: 0.85rem;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        font-size: 0.8rem;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
     
     .btn-action-secondary:hover {
-        background-color: rgba(220,53,69,0.1);
+        background-color: rgba(220,53,69,0.05);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.06);
     }
     
     @media (max-width: 767.98px) {
         .btn-action, .btn-action-secondary {
             display: block;
             width: 100%;
+            margin-bottom: 0.5rem;
         }
     }
     
     /* Page Exit Animation */
     .page-transition-exit {
         opacity: 1;
-        transition: opacity 0.8s cubic-bezier(0.19, 1, 0.22, 1), transform 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+        transition: opacity 0.6s cubic-bezier(0.19, 1, 0.22, 1), transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
     }
     .page-transition-exit-active {
         opacity: 0;
-        transform: translateY(-10px);
+        transform: translateY(-5px);
     }
     
     /* Enhanced Transition message styles */
@@ -281,20 +495,20 @@
         left: 50%;
         transform: translate(-50%, -50%) scale(0.95);
         background: rgba(15, 23, 42, 0.85);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
         color: white;
-        padding: 20px 40px;
-        border-radius: 12px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         z-index: 1000;
         opacity: 0;
-        transition: all 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
-        font-size: 18px;
+        transition: all 0.3s cubic-bezier(0.215, 0.61, 0.355, 1);
+        font-size: 14px;
         font-weight: 500;
         letter-spacing: 0.2px;
         text-align: center;
-        min-width: 300px;
+        min-width: 240px;
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
     .transition-message.show {
@@ -306,15 +520,15 @@
     .loading-spinner {
         display: inline-flex;
         align-items: center;
-        margin-left: 15px;
-        height: 24px;
+        margin-left: 10px;
+        height: 16px;
         vertical-align: middle;
     }
     .loading-spinner .dot {
         display: inline-block;
-        width: 8px;
-        height: 8px;
-        margin: 0 3px;
+        width: 5px;
+        height: 5px;
+        margin: 0 2px;
         border-radius: 50%;
         background-color: #ffffff;
         animation: pulse 1.4s infinite ease-in-out;
@@ -335,29 +549,109 @@
             opacity: 1;
         }
     }
+    
+    /* Custom select styling */
+    select.form-control {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%237B2CBF' width='18px' height='18px'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.5rem center;
+        background-size: 12px;
+        padding-right: 1.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.85rem;
+        height: calc(1.5em + 0.5rem + 2px);
+        padding: 0.25rem 0.5rem;
+    }
+    select.form-control:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px rgba(123, 44, 191, 0.1);
+    }
+    
+    /* Input group styling */
+    .input-group {
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .input-group-append .btn {
+        border-top-right-radius: 4px !important;
+        border-bottom-right-radius: 4px !important;
+    }
+    .input-group-text {
+        font-size: 0.85rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    /* Reduce heading and text sizes */
+    h2 {
+        font-size: 1.3rem;
+        margin-bottom: 0.75rem;
+    }
+    h3 {
+        font-size: 1.1rem;
+        margin-bottom: 0.75rem;
+    }
+    p, .text-muted {
+        font-size: 0.85rem;
+    }
+    small {
+        font-size: 0.75rem;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .section-container {
+            padding: 1rem;
+        }
+        .card-header {
+            padding: 0.6rem 0.8rem;
+        }
+        .card .card-body {
+            padding: 0.8rem;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="section-card">
-    <h2 class="mb-4">Screening Criteria & AI Settings</h2>
+    <h2 class="mb-4">
+        <i class="fas fa-filter mr-2" style="color: var(--primary-color);"></i>
+        Screening Criteria & AI Settings
+    </h2>
     
     <!-- Mode Toggle -->
     <div class="form-group mode-toggle mb-4">
+        <div class="d-flex align-items-center mb-2">
+            <i class="fas fa-sliders-h mr-2" style="color: var(--primary-color);"></i>
+            <strong>View Mode:</strong>
+        </div>
         <label class="mr-3">
-            <input type="radio" name="criteria_mode" value="basic" checked> Basic Mode (Recommended)
+            <input type="radio" name="criteria_mode" value="basic" checked> 
+            <i class="fas fa-user-check mr-1"></i> Basic Mode (Recommended)
         </label>
         <label>
-            <input type="radio" name="criteria_mode" value="advanced"> Advanced Mode
+            <input type="radio" name="criteria_mode" value="advanced"> 
+            <i class="fas fa-tools mr-1"></i> Advanced Mode
         </label>
-        <p class="text-muted small mt-2 mb-0">Basic mode provides guided input. Advanced mode allows customizing criteria structure and AI prompt instructions (use with caution).</p>
+        <p class="text-muted small mt-2 mb-0">
+            <i class="fas fa-info-circle mr-1"></i> 
+            Basic mode provides guided input. Advanced mode allows customizing criteria structure and AI prompt instructions (use with caution).
+        </p>
     </div>
     <hr class="mb-4">
 
     <!-- Framework Selection -->
     <div class="framework-selection-container">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <label for="framework_select" class="mb-0"><strong>Choose Criteria Framework:</strong></label>
+            <label for="framework_select" class="mb-0">
+                <i class="fas fa-sitemap mr-2" style="color: var(--primary-color);"></i>
+                <strong>Choose Criteria Framework:</strong>
+            </label>
             <button type="button" class="btn btn-link help-button" data-toggle="popover" data-placement="right" data-trigger="click" title="Framework Selection Guide" data-content="<strong>PICOT</strong>: Standard for clinical intervention studies. Use for treatment efficacy evaluations.<br><br><strong>PICOS</strong>: Extension of PICOT with emphasis on study design. Ideal for systematic reviews.<br><br><strong>PECO</strong>: For epidemiological/exposure studies examining risk factors without interventions.<br><br><strong>PICOC</strong>: Adds context consideration. Appropriate when setting is important to study relevance.<br><br><strong>SPIDER</strong>: Designed for qualitative research. Use when exploring experiences, views, or social phenomena.<br><br><strong>ECLIPSE</strong>: For health service/management questions. Focuses on service delivery rather than clinical outcomes.<br><br><strong>CLIP</strong>: For rehabilitation/therapy studies. Emphasizes client characteristics and professional roles.<br><br><strong>BeHEMoTh</strong>: For theory-based interventions. Use when examining behavior change models or theoretical frameworks.">
                 <i class="fas fa-question-circle"></i>
             </button>
@@ -371,63 +665,103 @@
         </select>
     </div>
 
-    <!-- AI Best Practices Tips (Always Visible) -->
-    <div class="best-practices">
-        <h5><i class="fas fa-lightbulb mr-2"></i>Tips for Effective Criteria:</h5>
-        <ul class="pl-3">
-            <li><strong>Be Specific:</strong> Use precise terms (e.g., "patients aged 18-65" instead of "adults").</li>
-            <li><strong>Be Clear:</strong> Use bullet points or short phrases. Define ambiguous terms if necessary.</li>
-            <li><strong>Focus on Abstract:</strong> Write criteria based on information typically found in an abstract.</li>
-            <li><strong>Be Consistent:</strong> Avoid contradictory statements between inclusion and exclusion fields.</li>
-        </ul>
+    <!-- AI Best Practices Tips (Collapsible) -->
+    <div class="best-practices-container">
+        <div class="best-practices-header" id="tipHeader">
+            <button class="btn btn-link btn-sm text-left w-100 d-flex justify-content-between align-items-center collapsed" type="button" data-toggle="collapse" data-target="#bestPracticesTips" aria-expanded="false" aria-controls="bestPracticesTips">
+                <span><i class="fas fa-lightbulb mr-2"></i>Tips for Effective Criteria</span>
+                <i class="fas fa-chevron-down toggle-icon ml-1"></i>
+            </button>
+        </div>
+        <div id="bestPracticesTips" class="collapse" aria-labelledby="tipHeader">
+            <div class="best-practices">
+                <ul class="pl-3">
+                    <li><strong>Be Specific:</strong> Use precise terms (e.g., "patients aged 18-65" instead of "adults").</li>
+                    <li><strong>Be Clear:</strong> Use bullet points or short phrases. Define ambiguous terms if necessary.</li>
+                    <li><strong>Focus on Abstract:</strong> Write criteria based on information typically found in an abstract.</li>
+                    <li><strong>Be Consistent:</strong> Avoid contradictory statements between inclusion and exclusion fields.</li>
+                </ul>
+            </div>
+        </div>
     </div>
 
     <form method="POST" action="{{ url_for('set_criteria') }}" id="criteriaForm">
         <!-- Saved Criteria Management -->
         <div class="section-container">
-            <div class="section-title">Manage Saved Criteria Sets</div>
+            <div class="section-title">
+                <i class="fas fa-save mr-2"></i> Manage Saved Criteria Sets
+            </div>
             <div class="row align-items-end">
                 <div class="col-md-8">
                     <div class="form-group mb-md-0">
                         <label for="saved_criteria_select" class="sr-only">Load Saved Criteria:</label>
                         <div class="input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">
+                                    <i class="fas fa-list"></i>
+                                </span>
+                            </div>
                             <select id="saved_criteria_select" class="form-control" title="Select a saved criteria set to load or manage">
                                 <option value="">-- Select a saved criteria set --</option>
                             </select>
                             <div class="input-group-append">
-                                <button type="button" id="load_criteria_button" class="btn btn-info">Load</button>
-                                <button type="button" id="update_loaded_local_set_button" class="btn btn-success" style="display:none;">Update</button>
-                                <button type="button" id="delete_criteria_button" class="btn btn-danger" style="display:none;">Delete</button>
+                                <button type="button" id="load_criteria_button" class="btn btn-info">
+                                    <i class="fas fa-download mr-1"></i> Load
+                                </button>
+                                <button type="button" id="update_loaded_local_set_button" class="btn btn-success" style="display:none;">
+                                    <i class="fas fa-sync-alt mr-1"></i> Update
+                                </button>
+                                <button type="button" id="delete_criteria_button" class="btn btn-danger" style="display:none;">
+                                    <i class="fas fa-trash-alt mr-1"></i> Delete
+                                </button>
                             </div>
                         </div>
-                        <small id="loaded_set_name_display" class="form-text text-muted mt-2" style="display:none;">Form currently shows: <strong></strong> (unsaved changes unless updated/applied)</small>
+                        <small id="loaded_set_name_display" class="form-text text-muted mt-2" style="display:none;">
+                            <i class="fas fa-info-circle mr-1"></i> Form currently shows: <strong></strong> (unsaved changes unless updated/applied)
+                        </small>
                     </div>
                 </div>
                 <div class="col-md-4 text-md-right mt-3 mt-md-0">
-                     <button type="button" id="save_criteria_as_button" class="btn btn-success"><i class="fas fa-save mr-1"></i>Save as New Set</button>
+                     <button type="button" id="save_criteria_as_button" class="btn btn-success">
+                         <i class="fas fa-save mr-1"></i> Save as New Set
+                     </button>
                 </div>
             </div>
         </div>
         
         <!-- Criteria Sections -->
         <div class="section-container">
-            <h3 class="mb-4">{% if supported_frameworks is defined and current_framework_id in supported_frameworks %}{{ supported_frameworks[current_framework_id].display_name }}{% else %}Screening{% endif %} Criteria</h3>
+            <h3 class="mb-4">
+                <i class="fas fa-clipboard-list mr-2" style="color: var(--primary-color);"></i>
+                {% if supported_frameworks is defined and current_framework_id in supported_frameworks %}
+                    {{ supported_frameworks[current_framework_id].display_name }}
+                {% else %}
+                    Screening
+                {% endif %} 
+                Criteria
+            </h3>
 
             {# Macro for generating include/exclude/maybe accordions dynamically #}
             {% macro criteria_accordion_item(field_prefix, element_label, element_desc, parent_id, is_first=false) %}
             <div class="card mb-3">
                 <div class="card-header" id="heading{{ field_prefix | upper }}">
                     <h2 class="mb-0">
-                        <button class="btn btn-link btn-block text-left {% if not is_first %}collapsed{% endif %}" type="button" data-toggle="collapse" data-target="#collapse{{ field_prefix | upper }}" aria-expanded="{{ 'true' if is_first else 'false' }}" aria-controls="collapse{{ field_prefix | upper }}">
-                            {{ element_label }} - {{ element_desc }}
+                        <button class="btn btn-link btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapse{{ field_prefix | upper }}" aria-expanded="false" aria-controls="collapse{{ field_prefix | upper }}">
+                            <span>
+                                <i class="fas fa-tag mr-2" style="color: var(--primary-color);"></i>
+                                {{ element_label }} - {{ element_desc }}
+                            </span>
                         </button>
                     </h2>
                 </div>
-                <div id="collapse{{ field_prefix | upper }}" class="collapse {% if is_first %}show{% endif %}" aria-labelledby="heading{{ field_prefix | upper }}" data-parent="#{{ parent_id }}">
+                <div id="collapse{{ field_prefix | upper }}" class="collapse" aria-labelledby="heading{{ field_prefix | upper }}" data-parent="#{{ parent_id }}">
                     <div class="card-body criteria-section">
                         <div class="criteria-subsection">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <label for="{{ field_prefix }}_include" class="mb-0">What characteristics related to {{ element_desc.lower() }} <em>must</em> be present to INCLUDE?</label>
+                                <label for="{{ field_prefix }}_include" class="mb-0">
+                                    <i class="fas fa-check-circle mr-1" style="color: var(--success-color);"></i>
+                                    What characteristics related to {{ element_desc.lower() }} <em>must</em> be present to INCLUDE?
+                                </label>
                                 <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click" data-placement="right" title="Include Criteria Examples & Tips" data-content="{{ default_framework_criteria.get(field_prefix ~ '_include', '') | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
                                     <i class="fas fa-question-circle"></i>
                                 </button>
@@ -436,7 +770,10 @@
                         </div>
                         <div class="criteria-subsection">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <label for="{{ field_prefix }}_exclude" class="mb-0">What characteristics related to {{ element_desc.lower() }} <em>must NOT</em> be present (EXCLUDE)?</label>
+                                <label for="{{ field_prefix }}_exclude" class="mb-0">
+                                    <i class="fas fa-times-circle mr-1" style="color: var(--danger-color);"></i>
+                                    What characteristics related to {{ element_desc.lower() }} <em>must NOT</em> be present (EXCLUDE)?
+                                </label>
                                 <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click" data-placement="right" title="Exclude Criteria Examples & Tips" data-content="{{ default_framework_criteria.get(field_prefix ~ '_exclude', '') | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
                                     <i class="fas fa-question-circle"></i>
                                 </button>
@@ -445,7 +782,10 @@
                         </div>
                         <div class="criteria-subsection">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <label for="{{ field_prefix }}_maybe" class="mb-0">What missing or unclear details about {{ element_desc.lower() }} would lead to a 'MAYBE' decision?</label>
+                                <label for="{{ field_prefix }}_maybe" class="mb-0">
+                                    <i class="fas fa-question-circle mr-1" style="color: var(--warning-color);"></i>
+                                    What missing or unclear details about {{ element_desc.lower() }} would lead to a 'MAYBE' decision?
+                                </label>
                                 <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click" data-placement="right" title="Maybe Criteria Examples & Tips" data-content="{{ default_framework_criteria.get(field_prefix ~ '_maybe', '') | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
                                     <i class="fas fa-question-circle"></i>
                                 </button>
@@ -461,7 +801,7 @@
                 {% if supported_frameworks is defined and current_framework_id in supported_frameworks %}
                     {% for element in supported_frameworks[current_framework_id]['elements'] %}
                         {% if element.id != 'other' %}
-                            {{ criteria_accordion_item(element.id, element.id|upper, element.name, parent_id='criteriaAccordion', is_first=loop.first) }}
+                            {{ criteria_accordion_item(element.id, element.id|upper, element.name, parent_id='criteriaAccordion', is_first=false) }}
                         {% endif %}
                     {% endfor %}
                 {% endif %}
@@ -471,18 +811,27 @@
                     <div class="card-header" id="headingOther">
                         <h2 class="mb-0">
                             <button class="btn btn-link btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapseOther" aria-expanded="false" aria-controls="collapseOther">
-                                Other General Criteria
+                                <span>
+                                    <i class="fas fa-ellipsis-h mr-2" style="color: var(--primary-color);"></i>
+                                    Other General Criteria
+                                </span>
                             </button>
                         </h2>
                     </div>
                     <div id="collapseOther" class="collapse" aria-labelledby="headingOther" data-parent="#criteriaAccordion">
                         <div class="card-body criteria-section">
                             <div class="form-group criteria-subsection">
-                                <label for="other_inclusion" class="mb-2">Other Specific Inclusion Criteria:</label>
+                                <label for="other_inclusion" class="mb-2">
+                                    <i class="fas fa-check-circle mr-1" style="color: var(--success-color);"></i>
+                                    Other Specific Inclusion Criteria:
+                                </label>
                                 <textarea name="other_inclusion" id="other_inclusion" class="form-control" rows="3" placeholder="List any other essential criteria for inclusion not covered by the selected framework.">{{ criteria.other_inclusion if criteria and criteria.other_inclusion else '' }}</textarea>
                             </div>
                             <div class="form-group criteria-subsection">
-                                <label for="other_exclusion" class="mb-2">Other Specific Exclusion Criteria:</label>
+                                <label for="other_exclusion" class="mb-2">
+                                    <i class="fas fa-times-circle mr-1" style="color: var(--danger-color);"></i>
+                                    Other Specific Exclusion Criteria:
+                                </label>
                                 <textarea name="other_exclusion" id="other_exclusion" class="form-control" rows="3" placeholder="List any other specific criteria for exclusion not covered by the selected framework.">{{ criteria.other_exclusion if criteria and criteria.other_exclusion else '' }}</textarea>
                             </div>
                         </div>
@@ -493,22 +842,40 @@
         
         <!-- Advanced AI Prompt Settings Section -->
         <div class="advanced-settings section-container">
-            <div class="section-title">Advanced AI Prompt Settings</div>
-            <p class="text-muted mb-4">Modify how the AI is instructed. Changes can significantly impact performance and reliability.</p>
+            <div class="section-title">
+                <i class="fas fa-robot mr-2"></i> Advanced AI Prompt Settings
+            </div>
+            <p class="text-muted mb-4">
+                <i class="fas fa-info-circle mr-1"></i>
+                Modify how the AI is instructed. Changes can significantly impact performance and reliability.
+            </p>
             
             <div class="form-group">
-                <label for="ai_system_prompt" class="mb-2">AI System Prompt / Role:</label>
+                <label for="ai_system_prompt" class="mb-2">
+                    <i class="fas fa-cog mr-1"></i>
+                    AI System Prompt / Role:
+                </label>
                 <textarea name="ai_system_prompt" id="ai_system_prompt" class="form-control prompt-textarea criteria-field-for-placeholder" rows="4">{{ criteria.ai_system_prompt if criteria and criteria.ai_system_prompt else config_defaults.DEFAULT_SYSTEM_PROMPT }}</textarea>
-                <small class="form-text text-muted">Define the overall role or persona for the AI assistant.</small>
+                <small class="form-text text-muted">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Define the overall role or persona for the AI assistant.
+                </small>
             </div>
 
             <div class="form-group">
-                <label for="ai_output_format_instructions" class="mb-2">AI Output Format Instructions:</label>
+                <label for="ai_output_format_instructions" class="mb-2">
+                    <i class="fas fa-file-alt mr-1"></i>
+                    AI Output Format Instructions:
+                </label>
                 <textarea name="ai_output_format_instructions" id="ai_output_format_instructions" class="form-control prompt-textarea criteria-field-for-placeholder" rows="5">{{ criteria.ai_output_format_instructions if criteria and criteria.ai_output_format_instructions else config_defaults.DEFAULT_OUTPUT_INSTRUCTIONS }}</textarea>
-                <small class="form-text text-muted">Instruct the AI on its response format. Use {abstract} placeholder.</small>
+                <small class="form-text text-muted">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Instruct the AI on its response format. Use {abstract} placeholder.
+                </small>
             </div>
             
             <div class="advanced-warning mt-4">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
                 <strong>Warning:</strong> Modifying these prompts incorrectly can lead to unpredictable AI behavior, poor screening results, or errors. Proceed with caution and test thoroughly after changes.
             </div>
         </div>
@@ -518,10 +885,10 @@
             <div class="row justify-content-center">
                 <div class="col-md-8">
                     <div class="d-flex flex-column flex-md-row justify-content-center">
-                        <button type="submit" class="btn btn-primary" name="submit_action" value="save_and_apply">
+                        <button type="submit" class="btn btn-primary btn-action" name="submit_action" value="save_and_apply">
                             <i class="fas fa-check-circle mr-2"></i>Apply Criteria for Screening
                         </button>
-                        <a href="{{ url_for('reset_criteria') }}" class="btn btn-outline-danger mt-3 mt-md-0 ml-md-3">
+                        <a href="{{ url_for('reset_criteria') }}" class="btn btn-outline-danger btn-action-secondary mt-3 mt-md-0 ml-md-3">
                             <i class="fas fa-undo mr-1"></i>Reset to Defaults
                         </a>
                     </div>
@@ -533,8 +900,8 @@
 
 <!-- Enhanced transition message that shows during page transition -->
 <div id="transitionMessage" class="transition-message">
-    <div>Criteria saved successfully!</div>
-    <div style="margin-top: 8px; display: flex; align-items: center; justify-content: center;">
+    <div><i class="fas fa-check-circle mr-2" style="font-size: 24px;"></i> Criteria saved successfully!</div>
+    <div style="margin-top: 12px; display: flex; align-items: center; justify-content: center;">
         Redirecting to Screening Actions
         <div class="loading-spinner">
             <span class="dot"></span>
@@ -552,8 +919,8 @@ let currentlyLoadedSetName = null;
 let formDirty = false; 
 
 // Enhanced smooth page transition when redirecting
-function smoothRedirect(url, delay = 500) {
-    // Show transition message - no need to set text content as it's already in the HTML
+function smoothRedirect(url, delay = 800) {
+    // Show transition message with animation
     const transitionMsg = document.getElementById('transitionMessage');
     transitionMsg.classList.add('show');
     
@@ -574,18 +941,35 @@ function smoothRedirect(url, delay = 500) {
 
 function onFrameworkChange(newFw){
     if(!newFw) return;
+    
+    // Show loading indicator
+    const frameworkSelect = document.getElementById('framework_select');
+    if (frameworkSelect) {
+        frameworkSelect.disabled = true;
+        frameworkSelect.classList.add('loading-select');
+    }
+    
+    // Add loading class to container
+    const container = document.querySelector('.framework-selection-container');
+    if (container) {
+        container.insertAdjacentHTML('beforeend', '<div class="loading-overlay"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="sr-only">Loading...</span></div></div>');
+    }
+    
     // Reload page with selected framework param
     const url = new URL(window.location.href);
     url.searchParams.set('framework_id', newFw);
     window.location.href = url.toString();
 }
-
 // Prepare dynamic prefixes list from server-side
-const elementPrefixes = {% if element_prefixes is defined %}{{ element_prefixes | tojson }}{% else %}[]{% endif %};
+const elementPrefixes = JSON.parse('{{ (element_prefixes if element_prefixes is defined else []) | tojson | safe }}');
 function getAllCriteriaFieldIds() {
     const suffixes = ['include','exclude','maybe'];
     let ids = [];
-    elementPrefixes.forEach(p => suffixes.forEach(s => ids.push(`${p}_${s}`)));
+    if (elementPrefixes && Array.isArray(elementPrefixes)) {
+        elementPrefixes.forEach(prefix => {
+            suffixes.forEach(suffix => ids.push(`${prefix}_${suffix}`));
+        });
+    }
     ids.push('other_inclusion','other_exclusion','ai_system_prompt','ai_output_format_instructions');
     return ids;
 }
@@ -594,13 +978,36 @@ const allCriteriaFields = getAllCriteriaFieldIds().map(id => document.getElement
 
 function setFormDirty(isDirty) {
     formDirty = isDirty;
-    updateButtonStates(); 
+    updateButtonStates();
+    
+    // Visual indication that form has unsaved changes
+    if (isDirty) {
+        // Add a subtle "unsaved changes" indicator
+        const saveButton = document.getElementById('save_criteria_as_button');
+        if (saveButton && !saveButton.classList.contains('btn-pulse')) {
+            saveButton.classList.add('btn-pulse');
+        }
+    } else {
+        const saveButton = document.getElementById('save_criteria_as_button');
+        if (saveButton) {
+            saveButton.classList.remove('btn-pulse');
+        }
+    }
 }
 
 allCriteriaFields.forEach(field => {
     if(field) {
         field.addEventListener('input', () => {
             setFormDirty(true);
+        });
+        
+        // Add visual feedback when field is focused
+        field.addEventListener('focus', () => {
+            field.closest('.criteria-subsection').classList.add('active-subsection');
+        });
+        
+        field.addEventListener('blur', () => {
+            field.closest('.criteria-subsection').classList.remove('active-subsection');
         });
     }
 });
@@ -621,6 +1028,14 @@ function updateButtonStates() {
         loadedSetNameDisplayStrong.textContent = currentlyLoadedSetName;
         updateButton.style.display = 'inline-block';
         updateButton.disabled = !formDirty; 
+        
+        // Add a visual indicator for update button
+        if (formDirty) {
+            updateButton.classList.add('btn-pulse');
+        } else {
+            updateButton.classList.remove('btn-pulse');
+        }
+        
         deleteButton.style.display = (selectedValueInDropdown === currentlyLoadedSetName) ? 'inline-block' : 'none';
     } else {
         loadedSetNameDisplay.style.display = 'none';
@@ -636,7 +1051,11 @@ function populateSavedCriteriaDropdown() {
     const criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
     const currentSelectedValueInDropdown = select.value;
     select.innerHTML = '<option value="">-- Select a saved criteria set --</option>';
-    for (const name in criteriaSets) {
+    
+    // Sort criteria sets alphabetically
+    const sortedNames = Object.keys(criteriaSets).sort((a, b) => a.localeCompare(b));
+    
+    for (const name of sortedNames) {
         const option = document.createElement('option');
         option.value = name;
         option.textContent = name;
@@ -649,6 +1068,13 @@ function populateSavedCriteriaDropdown() {
         select.value = currentlyLoadedSetName;
     }
     updateButtonStates(); 
+    
+    // Update dropdown UI based on number of items
+    if (sortedNames.length > 0) {
+        select.classList.add('has-items');
+    } else {
+        select.classList.remove('has-items');
+    }
 }
 
 function saveCriteriaToLocalStorage(setName, showOverwriteConfirm = true) {
@@ -663,23 +1089,207 @@ function saveCriteriaToLocalStorage(setName, showOverwriteConfirm = true) {
         const element = document.getElementById(id);
         if (element) currentCriteria[id] = element.value;
     });
+    
+    // Add timestamp for sorting and display
+    currentCriteria.savedAt = new Date().toISOString();
+    
     criteriaSets[setName] = currentCriteria;
     localStorage.setItem(CRITERIA_SETS_KEY, JSON.stringify(criteriaSets));
     return true;
 }
 
+// Show animated toast notification
+function showToast(message, type = 'success') {
+    // Create toast container if it doesn't exist
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container';
+        document.body.appendChild(toastContainer);
+    }
+    
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    
+    // Add icon based on type
+    let icon = 'check-circle';
+    if (type === 'error') icon = 'exclamation-circle';
+    if (type === 'warning') icon = 'exclamation-triangle';
+    if (type === 'info') icon = 'info-circle';
+    
+    toast.innerHTML = `
+        <div class="toast-content">
+            <i class="fas fa-${icon} mr-2"></i>
+            <span>${message}</span>
+        </div>
+        <button class="toast-close">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    // Add to container
+    toastContainer.appendChild(toast);
+    
+    // Add show class after a small delay for animation
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    // Add close button functionality
+    const closeBtn = toast.querySelector('.toast-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        });
+    }
+    
+    // Auto-close after 5 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.remove();
+                }
+            }, 300);
+        }
+    }, 5000);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    // 添加styles for toast notifications
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 300px;
+            max-width: calc(100vw - 40px);
+            transform: translateX(120%);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            border-left: 4px solid #7B2CBF;
+        }
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        .toast-content {
+            display: flex;
+            align-items: center;
+        }
+        .toast-success {
+            border-left-color: #059669;
+        }
+        .toast-success i {
+            color: #059669;
+        }
+        .toast-error {
+            border-left-color: #DC2626;
+        }
+        .toast-error i {
+            color: #DC2626;
+        }
+        .toast-warning {
+            border-left-color: #D97706;
+        }
+        .toast-warning i {
+            color: #D97706;
+        }
+        .toast-info {
+            border-left-color: #3B82F6;
+        }
+        .toast-info i {
+            color: #3B82F6;
+        }
+        .toast-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0;
+            margin-left: 8px;
+        }
+        .toast-close:hover {
+            color: #1e293b;
+        }
+        
+        /* Button pulse animation for unsaved changes */
+        .btn-pulse {
+            animation: pulse-animation 2s infinite;
+        }
+        @keyframes pulse-animation {
+            0% {
+                box-shadow: 0 0 0 0px rgba(123, 44, 191, 0.2);
+            }
+            100% {
+                box-shadow: 0 0 0 10px rgba(123, 44, 191, 0);
+            }
+        }
+        
+        /* Active subsection styling */
+        .active-subsection {
+            background-color: rgba(123, 44, 191, 0.03);
+            border-radius: 8px;
+            padding: 8px;
+            margin: -8px;
+            transition: all 0.3s ease;
+        }
+        
+        /* Loading indicator for framework change */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+        }
+        .loading-select {
+            opacity: 0.6;
+        }
+        
+        /* Enhanced select with items */
+        .has-items {
+            background-color: #f0f9ff;
+            border-color: #7B2CBF;
+        }
+    `;
+    document.head.appendChild(styleElement);
+    
     const saveBtn = document.getElementById('save_criteria_as_button');
     if(saveBtn) {
         saveBtn.addEventListener('click', function() {
             const setName = prompt("Enter a name for this local criteria set (new or to overwrite):");
             if (!setName || setName.trim() === '') {
-                alert("Criteria set name cannot be empty.");
+                showToast("Criteria set name cannot be empty.", "error");
                 return;
             }
             const trimmedSetName = setName.trim();
             if (saveCriteriaToLocalStorage(trimmedSetName)) {
-                alert(`Criteria set '${trimmedSetName}' saved to local storage!`);
+                showToast(`Criteria set '${trimmedSetName}' saved to local storage!`, "success");
                 currentlyLoadedSetName = trimmedSetName;
                 setFormDirty(false);
                 populateSavedCriteriaDropdown(); 
@@ -694,21 +1304,52 @@ document.addEventListener('DOMContentLoaded', function() {
             const select = document.getElementById('saved_criteria_select');
             if(!select) return;
             const setName = select.value;
-            if (!setName) { alert("Please select a criteria set to load."); return; }
+            if (!setName) { 
+                showToast("Please select a criteria set to load.", "warning"); 
+                return; 
+            }
             const criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
             const selectedCriteria = criteriaSets[setName];
             if (selectedCriteria) {
-                getAllCriteriaFieldIds().forEach(id => {
-                    const element = document.getElementById(id);
-                    if (element && selectedCriteria[id] !== undefined) {
-                        element.value = selectedCriteria[id];
-                    }
+                // Add a subtle loading effect
+                document.querySelectorAll('.section-container').forEach(container => {
+                    container.style.opacity = '0.7';
                 });
-                currentlyLoadedSetName = setName;
-                setFormDirty(false); 
-                updateButtonStates();
-                alert(`Criteria set '${setName}' loaded into the form. If you wish to use these for screening, click 'Apply Criteria for Screening'.`);
-            } else { alert("Error: Could not find the selected criteria set."); }
+                
+                setTimeout(() => {
+                    getAllCriteriaFieldIds().forEach(id => {
+                        const element = document.getElementById(id);
+                        if (element && selectedCriteria[id] !== undefined) {
+                            element.value = selectedCriteria[id];
+                            
+                            // Add highlight animation
+                            element.classList.add('highlight-field');
+                            setTimeout(() => {
+                                element.classList.remove('highlight-field');
+                            }, 1000);
+                        }
+                    });
+                    
+                    // Restore opacity
+                    document.querySelectorAll('.section-container').forEach(container => {
+                        container.style.opacity = '1';
+                    });
+                    
+                    currentlyLoadedSetName = setName;
+                    setFormDirty(false); 
+                    updateButtonStates();
+                    
+                    showToast(`Criteria set '${setName}' loaded into the form. Click 'Apply Criteria for Screening' to use for screening.`, "info");
+                    
+                    // Scroll to criteria sections
+                    const criteriaSection = document.querySelector('#criteriaAccordion');
+                    if (criteriaSection) {
+                        criteriaSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 300);
+            } else { 
+                showToast("Error: Could not find the selected criteria set.", "error"); 
+            }
         });
     }
 
@@ -716,15 +1357,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if(updateLoadedBtn) {
         updateLoadedBtn.addEventListener('click', function(){
             if (!currentlyLoadedSetName) {
-                alert("Error: No criteria set is currently active in the form to update.");
+                showToast("Error: No criteria set is currently active in the form to update.", "error");
                 return;
             }
             if (saveCriteriaToLocalStorage(currentlyLoadedSetName, false)) { 
-                alert(`Locally saved criteria set '${currentlyLoadedSetName}' updated successfully!`);
+                showToast(`Locally saved criteria set '${currentlyLoadedSetName}' updated successfully!`, "success");
                 setFormDirty(false); 
                 updateButtonStates(); 
             } else {
-                alert("Error: Failed to update the local criteria set."); 
+                showToast("Error: Failed to update the local criteria set.", "error"); 
             }
         });
     }
@@ -735,12 +1376,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const select = document.getElementById('saved_criteria_select');
             if(!select) return;
             const setName = select.value;
-            if (!setName) { alert("Please select a criteria set to delete from the dropdown."); return; }
+            if (!setName) { 
+                showToast("Please select a criteria set to delete from the dropdown.", "warning"); 
+                return; 
+            }
             if (confirm(`Are you sure you want to delete the locally saved criteria set '${setName}'? This cannot be undone.`)) {
                 let criteriaSets = JSON.parse(localStorage.getItem(CRITERIA_SETS_KEY) || '{}');
                 delete criteriaSets[setName];
                 localStorage.setItem(CRITERIA_SETS_KEY, JSON.stringify(criteriaSets));
-                alert(`Criteria set '${setName}' deleted successfully!`);
+                
+                showToast(`Criteria set '${setName}' deleted successfully!`, "success");
+                
                 if (currentlyLoadedSetName === setName) { 
                     currentlyLoadedSetName = null;
                     setFormDirty(true); 
@@ -756,18 +1402,49 @@ document.addEventListener('DOMContentLoaded', function() {
     function toggleAdvancedSettings() {
         if(document.querySelector('input[name="criteria_mode"]:checked') && advancedSettingsDiv){
             if (document.querySelector('input[name="criteria_mode"]:checked').value === 'advanced') {
+                // Use a slide-down effect
+                advancedSettingsDiv.style.maxHeight = '0';
                 advancedSettingsDiv.style.display = 'block';
+                setTimeout(() => {
+                    advancedSettingsDiv.style.maxHeight = advancedSettingsDiv.scrollHeight + 'px';
+                    advancedSettingsDiv.style.opacity = '1';
+                }, 10);
             } else {
-                advancedSettingsDiv.style.display = 'none';
+                // Use a slide-up effect
+                advancedSettingsDiv.style.maxHeight = '0';
+                advancedSettingsDiv.style.opacity = '0';
+                setTimeout(() => {
+                    advancedSettingsDiv.style.display = 'none';
+                }, 300); // Match the transition duration
             }
         }
     }
+    
     if(modeRadios.length > 0 && advancedSettingsDiv){
+        // Add transition styles
+        advancedSettingsDiv.style.transition = 'max-height 0.3s ease-out, opacity 0.3s ease-out';
+        advancedSettingsDiv.style.overflow = 'hidden';
+        advancedSettingsDiv.style.opacity = '0';
+        advancedSettingsDiv.style.maxHeight = '0';
+        
         modeRadios.forEach(radio => radio.addEventListener('change', toggleAdvancedSettings));
         toggleAdvancedSettings(); 
     }
 
     populateSavedCriteriaDropdown();
+    
+    // Add highlight field style
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `
+        .highlight-field {
+            animation: highlight-animation 1s ease-in-out;
+        }
+        @keyframes highlight-animation {
+            0% { background-color: rgba(123, 44, 191, 0.1); }
+            100% { background-color: transparent; }
+        }
+    `;
+    document.head.appendChild(styleEl);
     
     // 添加表单AJAX提交处理
     const criteriaForm = document.getElementById('criteriaForm');
@@ -779,7 +1456,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const submitButton = criteriaForm.querySelector('button[type="submit"]');
             const originalButtonText = submitButton.innerHTML;
             submitButton.disabled = true;
-            submitButton.innerHTML = 'Saving... <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
+            
+            // Add visual feedback that submission is in progress
+            document.body.classList.add('form-submitting');
             
             fetch('{{ url_for("set_criteria") }}', {
                 method: 'POST',
@@ -800,19 +1480,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         submitButton.disabled = false;
                         submitButton.innerHTML = originalButtonText;
+                        document.body.classList.remove('form-submitting');
                         window.location.href = '{{ url_for("screening_actions_page") }}';
                     }
                 } else {
-                    alert(data.message || 'An unexpected error occurred.');
+                    showToast(data.message || 'An unexpected error occurred.', 'error');
                     submitButton.disabled = false;
                     submitButton.innerHTML = originalButtonText;
+                    document.body.classList.remove('form-submitting');
                 }
             })
             .catch(error => {
                 console.error('Error submitting criteria:', error);
-                alert('A network error occurred. Please try again.');
+                showToast('A network error occurred. Please try again.', 'error');
                 submitButton.disabled = false;
                 submitButton.innerHTML = originalButtonText;
+                document.body.classList.remove('form-submitting');
             });
         });
     }
@@ -844,6 +1527,16 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         console.error("jQuery or Bootstrap Popover not loaded");
     }
+    
+    // Add style for form submission state
+    const formSubmitStyle = document.createElement('style');
+    formSubmitStyle.textContent = `
+        .form-submitting .section-container {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+    `;
+    document.head.appendChild(formSubmitStyle);
 });
 </script>
 {% endblock %} 

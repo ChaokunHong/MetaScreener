@@ -30,15 +30,15 @@
 }
 
 .spinner-container .spinner-border {
-  width: 3rem;
-  height: 3rem;
+  width: 2.5rem;
+  height: 2.5rem;
   color: var(--primary-color) !important;
 }
 
 /* Improve focus styles for accessibility */
 :focus {
-  outline: 3px solid rgba(123, 44, 191, 0.3) !important;
-  outline-offset: 2px;
+  outline: 2px solid rgba(123, 44, 191, 0.25) !important;
+  outline-offset: 1px;
 }
 
 /* Smooth scrolling for better UX */
@@ -69,8 +69,9 @@ body {
   font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   color: var(--text-color);
   background-color: var(--light-bg);
-  padding-top: 70px;
-  padding-bottom: 60px;
+  padding-top: 56px; /* Reduced from 70px */
+  padding-bottom: 40px; /* Reduced from 60px */
+  font-size: 0.85rem;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -80,11 +81,15 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 h1, h2 {
-  margin-bottom: 0.8em;
+  margin-bottom: 0.6em;
+}
+
+h1 {
+  font-size: 1.8rem;
 }
 
 h2 {
-  font-size: 1.75rem;
+  font-size: 1.3rem;
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 0.3em;
 }
@@ -92,58 +97,75 @@ h2 {
 /* Navigation bar */
 .navbar-custom {
   background-color: var(--primary-color) !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 0.3rem 1rem;
+  min-height: 56px;
 }
 
 .navbar-dark .navbar-nav .nav-item.active > .nav-link {
-  border-bottom: 3px solid white;
-  padding-bottom: calc(0.5rem - 3px);
+  border-bottom: 2px solid white;
+  padding-bottom: calc(0.4rem - 2px);
   color: white;
   font-weight: 500;
 }
 
-.navbar-dark .navbar-nav .nav-link:hover {
+.navbar-dark .navbar-nav .nav-link {
   color: rgba(255, 255, 255, 0.85);
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.navbar-dark .navbar-nav .nav-link:hover {
+  color: rgba(255, 255, 255, 1);
 }
 
 .navbar-brand {
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  font-size: 1.1rem;
+  padding: 0;
+}
+
+.navbar-brand img {
+  height: 24px;
+  margin-right: 6px;
 }
 
 /* Cards and sections */
 .section-card {
-  margin-bottom: 25px;
-  padding: 20px;
+  margin-bottom: 15px;
+  padding: 1rem;
   border: 1px solid var(--border-color);
-  border-radius: 10px;
+  border-radius: 6px;
   background-color: var(--background-color);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  transition: box-shadow 0.3s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  transition: box-shadow 0.2s ease;
 }
 
 .section-card:hover {
-  box-shadow: 0 4px 6px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
 }
 
 .criteria-section {
   margin-bottom: 15px;
   background-color: #f9f9f9;
-  padding: 15px;
-  border-radius: 10px;
+  padding: 12px;
+  border-radius: 6px;
   border: 1px solid var(--border-color);
 }
 
 /* Buttons */
 .btn {
-  border-radius: 6px;
+  border-radius: 4px;
   transition: all 0.2s ease;
   font-weight: 500;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.7rem;
 }
 
 .btn:focus {
-  box-shadow: 0 0 0 0.2rem rgba(123, 44, 191, 0.25);
+  box-shadow: 0 0 0 0.15rem rgba(123, 44, 191, 0.2);
 }
 
 .btn-primary {
@@ -198,82 +220,88 @@ h2 {
 }
 
 .btn-group-sm > .btn, .btn-sm {
-  padding: .25rem .5rem;
-  font-size: .875rem;
+  padding: .15rem .4rem;
+  font-size: .75rem;
   line-height: 1.5;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 /* Form elements */
 .form-control {
-  border-radius: 6px;
+  border-radius: 4px;
   border-color: var(--border-color);
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.6rem;
+  height: calc(1.5em + 0.6rem + 2px);
 }
 
 .form-control:focus {
   border-color: var(--secondary-color);
-  box-shadow: 0 0 0 0.2rem rgba(155, 93, 229, 0.25);
+  box-shadow: 0 0 0 0.15rem rgba(155, 93, 229, 0.2);
 }
 
 textarea {
-  min-height: 70px;
-  font-size: 0.95rem;
+  min-height: 60px;
+  font-size: 0.85rem;
 }
 
 .form-group label {
   font-weight: 500;
   color: var(--title-color);
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
 }
 
 /* Alerts and notifications */
 .alert {
-  margin-top: 15px;
-  border-radius: 6px;
+  margin-top: 12px;
+  border-radius: 4px;
   border-width: 0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
 }
 
 .alert-success {
-  background-color: rgba(5, 150, 105, 0.1);
+  background-color: rgba(5, 150, 105, 0.08);
   color: var(--success-color);
-  border-left: 4px solid var(--success-color);
+  border-left: 3px solid var(--success-color);
 }
 
 .alert-danger {
-  background-color: rgba(220, 38, 38, 0.1);
+  background-color: rgba(220, 38, 38, 0.08);
   color: var(--danger-color);
-  border-left: 4px solid var(--danger-color);
+  border-left: 3px solid var(--danger-color);
 }
 
 .alert-warning {
-  background-color: rgba(217, 119, 6, 0.1);
+  background-color: rgba(217, 119, 6, 0.08);
   color: var(--warning-color);
-  border-left: 4px solid var(--warning-color);
+  border-left: 3px solid var(--warning-color);
 }
 
 .alert-info {
-  background-color: rgba(59, 130, 246, 0.1);
+  background-color: rgba(59, 130, 246, 0.08);
   color: var(--info-color);
-  border-left: 4px solid var(--info-color);
+  border-left: 3px solid var(--info-color);
 }
 
 /* Progress logs */
 #progress_log, #test_progress_log {
   max-height: 150px;
   overflow-y: auto;
-  font-size: 0.8em;
+  font-size: 0.75em;
   background-color: var(--background-color);
-  padding: 12px;
+  padding: 10px;
   border: 1px solid var(--border-color);
   margin-top: 8px;
-  border-radius: 6px;
+  border-radius: 4px;
   white-space: pre-line;
 }
 
 #progress_log div, #test_progress_log div {
-  padding: 4px 0;
+  padding: 3px 0;
   border-bottom: 1px dashed var(--border-color);
 }
 
@@ -283,7 +311,7 @@ textarea {
 
 .log-item-decision {
   font-weight: bold;
-  margin-left: 5px;
+  margin-left: 4px;
 }
 
 .log-decision-INCLUDE {
@@ -310,38 +338,61 @@ textarea {
 
 /* Footer */
 .footer {
-  padding: 1rem 0;
-  color: #6c757d;
+  padding: 0.5rem 0;
+  color: #4a5568;
   text-align: center;
   font-size: 0.9em;
+  font-weight: 500;
   border-top: 1px solid var(--border-color);
   position: fixed;
   left: 0;
   bottom: 0;
   width: 100%;
   background-color: var(--background-color);
+  height: 40px;
+}
+
+.footer a {
+  margin-right: 1rem;
+  color: #4a5568;
+  text-decoration: none;
+  font-size: 0.95em;
+  font-weight: 500;
+}
+
+.footer a:hover {
+  color: var(--primary-color);
+  text-decoration: none;
 }
 
 /* Misc helpers */
 .api-key-info {
   font-size: 0.85em;
   color: #555;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
 }
 
 /* Tables */
 .table {
   border-collapse: collapse;
-  border-radius: 6px;
+  border-radius: 4px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  font-size: 0.85rem;
 }
 
 .table thead th {
   background-color: var(--light-bg);
   color: var(--title-color);
   font-weight: 600;
-  border-bottom: 2px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.table td {
+  padding: 0.5rem;
+  vertical-align: middle;
 }
 
 .table-striped tbody tr:nth-of-type(odd) {
@@ -355,6 +406,15 @@ textarea {
 /* Custom switch */
 .custom-switch .custom-control-label::before {
   background-color: #cbd5e0;
+  height: 1rem;
+  width: 1.75rem;
+  border-radius: 0.5rem;
+}
+
+.custom-switch .custom-control-label::after {
+  width: calc(1rem - 4px);
+  height: calc(1rem - 4px);
+  border-radius: 0.5rem;
 }
 
 .custom-control-input:checked ~ .custom-control-label::before {
@@ -363,6 +423,12 @@ textarea {
 }
 
 /* Badges */
+.badge {
+  font-weight: 500;
+  font-size: 75%;
+  padding: 0.2em 0.5em;
+}
+
 .badge-primary {
   background-color: var(--primary-color);
 }
@@ -387,4 +453,20 @@ textarea {
 /* Custom fonts for code/monospace */
 code, pre, .monospace {
   font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-} 
+  font-size: 0.85em;
+}
+
+/* Modal styles */
+.modal-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-body {
+  padding: 1rem;
+}
+
+.modal-footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #e2e8f0;
+}
