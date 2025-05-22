@@ -107,8 +107,8 @@
                 </div>
                 <div class="col-md-6 text-center text-md-right">
                     <a href="#" class="mr-3" data-toggle="modal" data-target="#disclaimerModal">Disclaimer</a>
-                    <a href="https://www.metascreener.net/" class="mr-3" target="_blank">Official Website</a>
-                    <a href="https://metascreener.onrender.com" target="_blank">Alternative Site</a>
+                    <a href="#" class="mr-3" data-toggle="modal" data-target="#aboutUsModal">About Us</a>
+                    <a href="#" data-toggle="modal" data-target="#contributionsModal">Contributions and Acknowledgments</a>
                 </div>
             </div>
         </div>
@@ -156,6 +156,81 @@
                     <p>MetaScreener is provided "as-is" without any warranties of any kind, express or implied. The accuracy of AI-driven screening and data extraction heavily depends on the chosen LLM, the quality of the input data, and the clarity of the defined criteria.</p>
                     <p>Users are solely responsible for verifying all results and making final decisions. The developers assume no liability for any outcomes resulting from the use of this software.</p>
                     <p>Please use responsibly and in accordance with all applicable ethical guidelines and institutional policies.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- About Us Modal -->
+    <div class="modal fade" id="aboutUsModal" tabindex="-1" role="dialog" aria-labelledby="aboutUsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="aboutUsModalLabel">About Us</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <h4 class="mb-4">Development Team</h4>
+                    
+                    <div class="mb-4">
+                        <h5>Sonia Lewycka</h5>
+                        <p class="mb-1"><a href="mailto:slewycka@oucru.org">slewycka@oucru.org</a></p>
+                        <p class="text-muted">Centre for Tropical Medicine and Global Health, Nuffield Department of Medicine, University of Oxford</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>Chaokun Hong</h5>
+                        <p class="mb-1"><a href="mailto:chaokun.hong@ndm.ox.ac.uk">chaokun.hong@ndm.ox.ac.uk</a></p>
+                        <p class="text-muted">Centre for Tropical Medicine and Global Health, Nuffield Department of Medicine, University of Oxford</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>Thao Phuong Nguyen</h5>
+                        <p class="mb-1"><a href="mailto:ngthao.20107@gmail.com">ngthao.20107@gmail.com</a></p>
+                        <p class="text-muted">Oxford University Clinical Research Unit, National Hospital for Tropical Diseases, Hanoi, Vietnam</p>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="mt-4">
+                        <h5>Feedback</h5>
+                        <p>We welcome feedback about MetaScreener's performance, functionality, and improvements, especially usage data from actual literature screening workflows (sensitivity, specificity, time saved, etc.). Your real-world usage data is invaluable for improving this tool! We will include any valuable feedback in the contributions or acknowledgments.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contributions and Acknowledgments Modal -->
+    <div class="modal fade" id="contributionsModal" tabindex="-1" role="dialog" aria-labelledby="contributionsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="contributionsModalLabel">Contributions and Acknowledgments</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-4">
+                        <h5>Shuo Feng</h5>
+                        <p>Faculty of Medicine, Macau University of Science and Technology</p>
+                        <p><a href="mailto:fengsh27mail@gmail.com">fengsh27mail@gmail.com</a></p>
+                        
+                        <h6 class="mt-3 font-weight-bold">Contributions:</h6>
+                        <ul>
+                            <li>Contributed valuable suggestions for UI/UX improvements and functionality enhancements, including the implementation of pause/resume functionality for large dataset screening, optimized log display, and streamlined history record management</li>
+                            <li>Provided thorough testing after each modification to ensure functionality and usability</li>
+                        </ul>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>

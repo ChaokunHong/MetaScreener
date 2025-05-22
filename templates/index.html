@@ -367,41 +367,17 @@
                 <p class="feature-description">Extract structured data from full-text documents with customizable extraction templates and JSON formatting.</p>
             </div>
         </div>
+        <div class="col-md-4 mb-4">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="bi bi-shield-check"></i>
+                </div>
+                <h3 class="feature-title">Quality Assessment</h3>
+                <p class="feature-description">Evaluate the methodological quality of included studies with customizable assessment tools and automated scoring systems.</p>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- Getting Started Section -->
-<div class="container getting-started-section">
-    <h2>Ready to transform your literature screening?</h2>
-    <p class="mb-4">Choose your path to get started with MetaScreener</p>
-    
-    <div class="action-cards">
-        <div class="action-card">
-            <div class="action-icon">
-                <i class="bi bi-lightning-charge"></i>
-            </div>
-            <h3 class="action-title">Quick Start</h3>
-            <p class="action-description">Configure your LLM and begin screening immediately with default settings.</p>
-            <a href="{{ url_for('llm_config_page') }}" class="btn btn-primary action-btn">Get Started</a>
-        </div>
-        
-        <div class="action-card">
-            <div class="action-icon">
-                <i class="bi bi-sliders"></i>
-            </div>
-            <h3 class="action-title">Customize Criteria</h3>
-            <p class="action-description">Define detailed inclusion and exclusion criteria for your specific review needs.</p>
-            <a href="{{ url_for('screening_criteria_page') }}" class="btn btn-primary action-btn">Define Criteria</a>
-        </div>
-        
-        <div class="action-card">
-            <div class="action-icon">
-                <i class="bi bi-file-earmark-text"></i>
-            </div>
-            <h3 class="action-title">Screen Documents</h3>
-            <p class="action-description">Upload RIS files or PDFs and start the screening process directly.</p>
-            <a href="{{ url_for('screening_actions_page') }}" class="btn btn-primary action-btn">Screen Now</a>
-        </div>
-    </div>
-</div>
+
 {% endblock %} 
