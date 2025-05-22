@@ -37,13 +37,67 @@
         color: #a94442;
         font-weight: bold;
     }
+    
+    /* 渐变按钮样式 */
+    .gradient-btn {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white !important;
+        border: none;
+        padding: 0.3rem 0.7rem;
+        border-radius: 4px;
+        font-weight: 500;
+        box-shadow: 0 2px 4px rgba(123, 44, 191, 0.2);
+        transition: all 0.2s ease;
+    }
+    
+    .gradient-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 6px rgba(123, 44, 191, 0.3);
+        color: white !important;
+    }
+    
+    .gradient-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 3px rgba(123, 44, 191, 0.2);
+    }
+    
+    /* 标题样式 */
+    .test-screening-title {
+        background-color: rgba(23, 162, 184, 0.15); /* 淡蓝色背景 */
+        color: #212529; /* 黑色文字 */
+        padding: 0.6rem 1rem;
+        margin: -1rem -1rem 1rem -1rem;
+        border-bottom: 1px solid rgba(23, 162, 184, 0.3);
+        border-radius: 6px 6px 0 0;
+    }
+    
+    .full-screening-title {
+        background-color: rgba(40, 167, 69, 0.15); /* 淡绿色背景 */
+        color: #212529; /* 黑色文字 */
+        padding: 0.6rem 1rem;
+        margin: -1rem -1rem 1rem -1rem;
+        border-bottom: 1px solid rgba(40, 167, 69, 0.3);
+        border-radius: 6px 6px 0 0;
+    }
+    
+    /* 增加卡片间距 */
+    .section-card {
+        margin-bottom: 7rem;
+    }
+    
+    /* 减小进度区域标题字体 */
+    #test_progress_area h4, #progress_area h4 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #555;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 {# --- Test Screening Section --- #}
 <div class="section-card">
-    <h2>Test Screening (Sampled Abstracts)</h2>
+    <h2 class="test-screening-title">Test Screening (Sampled Abstracts)</h2>
     <p>Upload a .ris file to screen a sample of abstracts with progress updates. Compare AI decisions and view metrics.</p>
     <form id="test_screen_form" enctype="multipart/form-data"> 
         <div class="form-row">
@@ -104,7 +158,7 @@
 
 {# --- Full Dataset (Abstracts) Screening Section --- #}
 <div class="section-card">
-    <h2>Screen Full Dataset (Abstracts)</h2>
+    <h2 class="full-screening-title">Screen Full Dataset (Abstracts)</h2>
     <p>Upload your .ris file to screen all entries based on abstracts using the current settings. Progress is displayed live.</p>
     <form id="full_screen_form_id" enctype="multipart/form-data">
         <div class="form-group">
