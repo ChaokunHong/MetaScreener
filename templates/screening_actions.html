@@ -121,6 +121,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (item.type === 'Full Abstract Screening') {
                     typeSpan.className = 'badge bg-success';
                     typeSpan.innerHTML = '<i class="bi bi-journal-text"></i> Full';
+                } else if (item.type === 'Full-Text PDF Screening') {
+                    typeSpan.className = 'badge bg-warning text-dark';
+                    typeSpan.innerHTML = '<i class="bi bi-file-earmark-pdf"></i> PDF Batch';
+                } else if (item.type === 'Single Full-Text PDF Screening') {
+                    typeSpan.className = 'badge bg-danger';
+                    typeSpan.innerHTML = '<i class="bi bi-file-earmark-pdf"></i> PDF';
                 }
                 
                 // Delete button
@@ -196,6 +202,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     viewButton.href = `{{ url_for('show_test_results', session_id='__SESSION_ID__') }}`.replace('__SESSION_ID__', encodeURIComponent(item.id));
                 } else if (item.type === 'Full Abstract Screening') {
                     viewButton.href = `{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}`.replace('__SCREENING_ID__', encodeURIComponent(item.id));
+                } else if (item.type === 'Full-Text PDF Screening') {
+                    viewButton.href = `{{ url_for('show_batch_pdf_results_placeholder', batch_session_id='__BATCH_ID__') }}`.replace('__BATCH_ID__', encodeURIComponent(item.id));
+                } else if (item.type === 'Single Full-Text PDF Screening') {
+                    viewButton.href = `{{ url_for('show_pdf_result', pdf_screening_id='__PDF_ID__') }}`.replace('__PDF_ID__', encodeURIComponent(item.id));
                 } else {
                     viewButton.href = '#';
                     viewButton.className = 'btn btn-sm btn-secondary disabled';

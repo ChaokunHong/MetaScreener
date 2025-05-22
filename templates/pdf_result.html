@@ -67,6 +67,60 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+// Constants for storage
+const RESULTS_HISTORY_KEY = 'metaScreenerResultsHistory';
+const MAX_RESULTS_HISTORY_ITEMS = 50; // Maximum number of history items to keep
+
+// Function to save screening result to history
+function saveScreeningResultToHistory(screeningType, screeningId, fileName) {
+    if (!screeningId) {
+        console.error("Screening ID is missing, cannot save to history.");
+        return;
+    }
+
+    let history = JSON.parse(localStorage.getItem(RESULTS_HISTORY_KEY) || '[]');
+    
+    // Check if this result is already in history to avoid duplicates
+    if (history.some(item => item.id === screeningId)) {
+        console.log("Result already exists in history, skipping save.");
+        return;
+    }
+    
+    const now = new Date();
+    const timestamp = now.toISOString();
+    const historyEntryName = `${screeningType} - ${fileName || 'Unknown File'} - ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+
+    const newEntry = {
+        id: screeningId,
+        name: historyEntryName,
+        type: screeningType,
+        fileName: fileName || 'Unknown File',
+        totalItems: 1, // Single PDF
+        timestamp: timestamp,
+        screeningId: screeningId
+    };
+
+    // Add new entry to the beginning
+    history.unshift(newEntry);
+
+    // Limit history size
+    if (history.length > MAX_RESULTS_HISTORY_ITEMS) {
+        history = history.slice(0, MAX_RESULTS_HISTORY_ITEMS);
+    }
+
+    localStorage.setItem(RESULTS_HISTORY_KEY, JSON.stringify(history));
+    console.log("Saved single PDF screening result to history:", newEntry);
+}
+
+// Save the current PDF screening result to history when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    const pdfId = "{{ pdf_id }}";
+    const filename = "{{ filename }}";
+    saveScreeningResultToHistory('Single Full-Text PDF Screening', pdfId, filename);
+});
+</script>
+
 <script type="module">
     // Ensure this runs after DOM is loaded, though extra_js is usually at the end.
     // Alternatively, wrap in document.addEventListener('DOMContentLoaded', function() { ... });
