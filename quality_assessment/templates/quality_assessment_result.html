@@ -190,7 +190,8 @@
         </div>
 
         {# Progress Bar Display - Show if pending_assessment OR processing_assessment #}
-        <div class="progress-container" id="progress-container" style="{% if result and (result.status == 'processing_assessment' or result.status == 'pending_assessment') %}display:block;{% else %}display:none;{% endif %}">
+        {% set progress_container_attr %}style="{% if result and (result.status == 'processing_assessment' or result.status == 'pending_assessment') %}display:block;{% else %}display:none;{% endif %}"{% endset %}
+        <div class="progress-container" id="progress-container" {{ progress_container_attr }}>
             <p class="mb-1" id="progress-message">
                 {% if result and result.status == 'pending_assessment' %}
                     Assessment Queued. Waiting for processing to start...
@@ -201,8 +202,9 @@
                 {% endif %}
             </p>
             <div class="progress" style="height: 20px;">
+                {% set progress_bar_inner_attr %}style="width: {% if result and result.status == 'pending_assessment' %}2%{% elif result and result.progress and result.progress.total > 0 %}{{ (result.progress.current / result.progress.total * 100)|int }}%{% else %}5%{% endif %};"{% endset %}
                 <div class="progress-bar progress-bar-striped progress-bar-animated" id="progress-bar-inner" role="progressbar" 
-                     style="width: {% if result and result.status == 'pending_assessment' %}2%{% elif result and result.progress and result.progress.total > 0 %}{{ (result.progress.current / result.progress.total * 100)|int }}%{% else %}5%{% endif %};" 
+                     {{ progress_bar_inner_attr }} 
                      aria-valuenow="{% if result and result.status == 'pending_assessment' %}2{% elif result and result.progress and result.progress.total > 0 %}{{ (result.progress.current / result.progress.total * 100)|int }}{% else %}5{% endif %}" 
                      aria-valuemin="0" aria-valuemax="100">
                      <span id="progress-bar-text">
@@ -216,7 +218,8 @@
                      </span>
                 </div>
             </div>
-            <small id="pending-countdown-text" class="text-muted mt-1" style="{% if result and result.status == 'pending_assessment' %}display:block;{% else %}display:none;{% endif %}">Next check in: <span id="countdown-timer">5</span> seconds</small>
+            {% set pending_countdown_text_attr %}style="{% if result and result.status == 'pending_assessment' %}display:block;{% else %}display:none;{% endif %}"{% endset %}
+            <small id="pending-countdown-text" class="text-muted mt-1" {{ pending_countdown_text_attr }}>Next check in: <span id="countdown-timer">5</span> seconds</small>
         </div>
 
         {# Table for completed results - only shown if status is completed via JS or direct page load #}

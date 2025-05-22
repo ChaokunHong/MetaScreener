@@ -4,130 +4,246 @@
 
 {% block extra_head %}
 <style>
+    /* 调整整体字体风格，与其他页面保持一致 */
+    h2 {
+        font-size: 1.3rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    h4 {
+        font-size: 1.1rem;
+        margin-bottom: 0.6rem;
+    }
+    
+    p {
+        font-size: 0.85rem;
+    }
+    
+    .lead {
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+    
+    .btn {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+    }
+    
+    .card {
+        border-radius: 6px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        margin-bottom: 1rem;
+    }
+    
+    .card-header {
+        padding: 0.5rem 0.75rem;
+        background-color: rgba(123, 44, 191, 0.03);
+        border-bottom: 1px solid rgba(123, 44, 191, 0.08);
+    }
+    
+    .card-body {
+        padding: 0.75rem;
+    }
+    
+    /* 进度条与状态样式 */
     .individual-assessment-progress .progress {
-        height: 10px;
-        margin-top: 5px;
+        height: 8px;
+        margin-top: 4px;
         margin-bottom: 0;
     }
+    
     .status-badge {
-        font-size: 0.8em;
-        padding: 0.3em 0.6em;
-        white-space: nowrap; /* Prevent badge text from wrapping */
-        flex-shrink: 0; /* Prevent status badge from shrinking */
+        font-size: 0.7em;
+        padding: 0.25em 0.5em;
+        white-space: nowrap;
+        flex-shrink: 0;
+        border-radius: 3px;
     }
+    
     .filename-truncate {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        /* max-width is now applied dynamically or via a more specific selector if needed below */
         display: inline-block; 
         vertical-align: middle; 
     }
+    
     #batch-summary-table .filename-truncate {
-        max-width: 250px; /* Max width specifically for filename in summary table */
+        max-width: 250px;
     }
+    
     .list-group-item h6 {
-        display: flex; /* Use flex to align filename and ID parts */
-        align-items: baseline; /* Align text baselines */
-        overflow: hidden; /* Added to help contain the flex items */
-        flex-grow: 1; /* Allow h6 to take available space */
-        margin-right: 10px; /* Add some space before the badge */
+        display: flex;
+        align-items: baseline;
+        overflow: hidden;
+        flex-grow: 1;
+        margin-right: 10px;
+        font-size: 0.85rem;
+        margin-bottom: 0.3rem;
     }
+    
     .list-group-item h6 .text-muted {
-        margin-left: 8px; /* Space between filename and ID */
-        white-space: nowrap; /* Prevent ID part from wrapping */
-        flex-shrink: 0; /* Prevent (ID: ...) part from shrinking too much */
+        margin-left: 8px;
+        white-space: nowrap;
+        flex-shrink: 0;
+        font-size: 0.75rem;
     }
+    
+    /* 表格样式 */
     #batch-summary-table th, #batch-summary-table td {
-        font-size: 0.9rem;
-        padding: 0.5rem;
+        font-size: 0.8rem;
+        padding: 0.4rem 0.5rem;
     }
+    
     #batch-summary-table .quality-score {
-        font-weight: bold;
+        font-weight: 500;
     }
-    .quality-low { color: green; }
-    .quality-medium { color: orange; }
-    .quality-high { color: red; }
+    
+    .quality-low { color: #059669; }
+    .quality-medium { color: #f59e0b; }
+    .quality-high { color: #dc2626; }
 
-    /* Custom Purple for Progress Bars */
+    /* 进度条样式 */
     .progress-bar.bg-purple {
-        background-color: #6f42c1; /* Bootstrap purple, or your preferred shade */
+        background-color: var(--primary-color);
     }
+    
     .progress-bar.bg-purple-pending {
-        background-color: #b39ddb; /* Lighter purple for pending/initial state */
+        background-color: #b39ddb;
     }
 
-    /* Max width for filename in the individual progress list */
+    /* 文件名最大宽度 */
     #individual-assessments-card .filename-truncate {
-        max-width: 400px; /* Adjust this value as needed */
+        max-width: 400px;
     }
 
-    /* Ensure the parent div of h6 and status-badge handles overflow if h6 is too wide */
+    /* 保证列表项布局 */
     .list-group-item > .d-flex {
         overflow: hidden; 
+    }
+    
+    /* 列表项样式 */
+    .list-group-item {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+    }
+    
+    .list-group-item small {
+        font-size: 0.75rem;
+    }
+    
+    /* 进度信息文本 */
+    .form-text.text-muted {
+        font-size: 0.75rem;
+    }
+    
+    /* 表格样式 */
+    .table {
+        margin-bottom: 1rem;
+    }
+    
+    .table-dark th {
+        background-color: var(--primary-color) !important;
+        color: white;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    /* 缩略文件名和图标样式 */
+    .bi {
+        font-size: 0.9em;
+    }
+    
+    small .bi {
+        font-size: 0.85em;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="section-card">
     <h2>Batch Assessment Status</h2>
-    <p class="lead">Status for Batch ID: <strong>{{ batch_id }}</strong></p>
+    <p class="lead">Batch ID: <strong>{{ batch_id }}</strong></p>
 
     {% if batch_info %}
         <div class="card mb-3" id="batch-summary-card">
             <div class="card-header">
-                Batch Summary
+                <h4 class="mb-0"><i class="fas fa-tasks mr-2" style="color: var(--primary-color);"></i>Batch Summary</h4>
             </div>
             <div class="card-body">
-                <p><strong>Overall Batch Status:</strong> <span id="overall-batch-status" class="badge bg-info">{{ batch_info.status | title }}</span></p>
-                <p id="overall-batch-progress-text">Calculating progress...</p>
-                <div class="progress mb-2" style="height: 15px;">
+                <p><strong>Overall Status:</strong> <span id="overall-batch-status" class="badge bg-info">{{ batch_info.status | title }}</span></p>
+                <p id="overall-batch-progress-text" class="mb-2">Calculating progress...</p>
+                <div class="progress mb-3" style="height: 12px;">
                     <div id="overall-batch-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-purple" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
                 </div>
-                <p><strong>Total Files Attempted:</strong> {{ batch_info.original_attempt_count }}</p>
-                <p><strong>Successfully Queued for Assessment:</strong> {{ batch_info.successful_filenames | length }}</p>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Total Files Attempted:</strong> {{ batch_info.original_attempt_count }}</p>
+                        <p class="mb-1"><strong>Successfully Queued:</strong> {{ batch_info.successful_filenames | length }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        {% if batch_info.failed_filenames and batch_info.failed_filenames | length > 0 %}
+                        <p class="mb-1"><strong>Failed to Upload/Queue:</strong> {{ batch_info.failed_filenames | length }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
                 {% if batch_info.successful_filenames %}
-                    <ul class="list-unstyled">
+                <div class="mt-2">
+                    <p class="mb-1"><strong>Queued Files:</strong></p>
+                    <ul class="list-unstyled mb-0">
                         {% for name in batch_info.successful_filenames %}
-                            <li><small><i class="bi bi-file-earmark-pdf"></i> {{ name }}</small></li>
+                            <li><small><i class="fas fa-file-pdf mr-1" style="color: var(--primary-color);"></i> {{ name }}</small></li>
                         {% endfor %}
                     </ul>
+                </div>
                 {% endif %}
+                
                 {% if batch_info.failed_filenames and batch_info.failed_filenames | length > 0 %}
-                <p class="mt-2"><strong>Failed to Upload/Queue:</strong> {{ batch_info.failed_filenames | length }}</p>
-                    <ul class="list-unstyled">
+                <div class="mt-2">
+                    <p class="mb-1"><strong>Failed Files:</strong></p>
+                    <ul class="list-unstyled mb-0">
                         {% for name in batch_info.failed_filenames %}
-                            <li><small><i class="bi bi-x-circle-fill text-danger"></i> {{ name }}</small></li>
+                            <li><small><i class="fas fa-times-circle mr-1 text-danger"></i> {{ name }}</small></li>
                         {% endfor %}
                     </ul>
+                </div>
                 {% endif %}
             </div>
         </div>
 
         {# Placeholder for the Summary Table - initially hidden or shown when batch is complete #}
-        <div id="batch-summary-table-container" class="mt-4" style="display: none;">
-            <h4>Batch Results Summary</h4>
-            <table class="table table-bordered table-hover" id="batch-summary-table">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Filename</th>
-                        <th>Document Type</th>
-                        <th>Assessment Tool</th>
-                        <th>Quality Issues (Negative Findings / Total Criteria)</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {# Table rows will be populated by JavaScript #}
-                </tbody>
-            </table>
+        <div id="batch-summary-table-container" class="mt-3" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-table mr-2" style="color: var(--primary-color);"></i>Batch Results Summary</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover mb-0" id="batch-summary-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Filename</th>
+                                    <th>Document Type</th>
+                                    <th>Assessment Tool</th>
+                                    <th>Quality Issues</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {# Table rows will be populated by JavaScript #}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
         {# Individual Progress - can be hidden once summary table is shown, or kept #}
         <div class="card mt-3" id="individual-assessments-card">
             <div class="card-header">
-                Individual Assessments Progress
+                <h4 class="mb-0"><i class="fas fa-list-alt mr-2" style="color: var(--primary-color);"></i>Individual Assessments Progress</h4>
             </div>
             <ul class="list-group list-group-flush">
                 {% if batch_info.assessment_ids %}
@@ -144,12 +260,12 @@
                             </div>
                             <div class="individual-assessment-progress mt-1">
                                 <small id="progress-text-{{ assessment_id }}" class="form-text text-muted">Waiting for status...</small>
-                                <div class="progress" style="height: 10px;">
+                                <div class="progress">
                                     <div id="progress-bar-{{ assessment_id }}" class="progress-bar progress-bar-striped progress-bar-animated bg-purple-pending" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                                 </div>
                             </div>
                             <div class="mt-2 text-right">
-                                <a href="{{ url_for('.view_assessment_result', assessment_id=assessment_id) }}" id="link-{{assessment_id}}" class="btn btn-sm btn-outline-primary">View Detailed Result</a>
+                                <a href="{{ url_for('.view_assessment_result', assessment_id=assessment_id) }}" id="link-{{assessment_id}}" class="btn btn-sm btn-outline-primary">View Results</a>
                             </div>
                         </li>
                     {% endfor %}
@@ -159,13 +275,15 @@
             </ul>
         </div>
 
-        <div class="mt-4">
-            <a href="{{ url_for('.upload_document_for_assessment') }}" class="btn btn-secondary">Upload More Documents</a>
+        <div class="mt-3">
+            <a href="{{ url_for('.upload_document_for_assessment') }}" class="btn btn-secondary">
+                <i class="fas fa-upload mr-1"></i>Upload More Documents
+            </a>
         </div>
 
     {% else %}
         <div class="alert alert-warning">
-            No information found for this batch ID.
+            <p class="mb-0">No information found for this batch ID.</p>
         </div>
     {% endif %}
 </div>
@@ -243,7 +361,7 @@
                 const actionCell = row.insertCell();
                 const detailLink = document.createElement('a');
                 detailLink.href = "{{ url_for('.view_assessment_result', assessment_id='__ID__') }}".replace('__ID__', item.assessment_id);
-                detailLink.className = 'btn btn-sm btn-outline-info';
+                detailLink.className = 'btn btn-sm btn-outline-primary';
                 detailLink.textContent = 'Details';
                 actionCell.appendChild(detailLink);
             });

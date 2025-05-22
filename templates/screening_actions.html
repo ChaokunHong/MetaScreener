@@ -10,12 +10,116 @@
     .card {
         transition: all 0.3s ease;
     }
+    
+    /* 调整字体大小和样式以与其他页面保持一致 */
+    h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    h4 {
+        font-size: 1.1rem;
+        margin-bottom: 0.6rem;
+    }
+    
+    h5 {
+        font-size: 0.95rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    p {
+        font-size: 0.85rem;
+    }
+    
+    .lead {
+        font-size: 0.9rem;
+    }
+    
+    .section-card {
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        border-radius: 6px;
+    }
+    
+    .btn {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .card-body {
+        padding: 0.75rem;
+    }
+    
+    .card-footer {
+        padding: 0.5rem;
+    }
+    
+    .text-muted.small {
+        font-size: 0.75rem;
+    }
+    
+    .badge {
+        font-size: 0.7rem;
+    }
+    
+    .card-title {
+        font-size: 0.9rem;
+    }
+    
+    .card-text.small {
+        font-size: 0.75rem;
+    }
+    
+    /* 提交按钮样式 */
+    .submit-btn {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        font-weight: 500;
+        box-shadow: 0 2px 4px rgba(123, 44, 191, 0.2);
+        transition: all 0.2s ease;
+    }
+    
+    .submit-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 6px rgba(123, 44, 191, 0.3);
+    }
+    
+    .submit-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 3px rgba(123, 44, 191, 0.2);
+    }
+    
+    /* 渐变按钮样式，匹配submit-btn */
+    .gradient-btn {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white !important;
+        border: none;
+        padding: 0.3rem 0.7rem;
+        border-radius: 4px;
+        font-weight: 500;
+        box-shadow: 0 2px 4px rgba(123, 44, 191, 0.2);
+        transition: all 0.2s ease;
+    }
+    
+    .gradient-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 6px rgba(123, 44, 191, 0.3);
+        color: white !important;
+    }
+    
+    .gradient-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 3px rgba(123, 44, 191, 0.2);
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4"> {# Match the container class from your provided source for consistency #}
-    <div class="row mb-4">
+<div class="container mt-3"> {# 减小上边距 #}
+    <div class="row mb-3"> {# 减小下边距 #}
         <div class="col-12">
             <h1>Screening Actions Dashboard</h1>
             <p class="lead">Choose a screening task to begin your literature review process.</p>
@@ -23,29 +127,27 @@
     </div>
 
     <div class="row">
-        <div class="col-md-6 mb-4"> {# Adjusted to col-md-6 to take more space if only two main items #}
+        <div class="col-md-6 mb-3"> {# 减小下边距 #}
             <div class="section-card h-100 d-flex flex-column">
                 <h4><i class="bi bi-file-earmark-text-fill"></i> Abstract Screening</h4>
                 <p class="flex-grow-1">Upload a RIS file to screen abstracts based on your defined criteria. Supports filtering by title and line numbers for large datasets.</p>
-                <a href="{{ url_for('abstract_screening_page') }}" class="btn btn-primary mt-auto align-self-start">Go to Abstract Screening</a>
+                <a href="{{ url_for('abstract_screening_page') }}" class="btn submit-btn mt-auto align-self-start">Go to Abstract Screening</a>
             </div>
         </div>
 
-        <div class="col-md-6 mb-4"> {# Adjusted to col-md-6 #}
+        <div class="col-md-6 mb-3"> {# 减小下边距 #}
             <div class="section-card h-100 d-flex flex-column">
                 <h4><i class="bi bi-file-earmark-pdf-fill"></i> Full-Text PDF Screening</h4>
-                <p class="flex-grow-1">Screen individual PDF documents or upload multiple PDFs for batch full-text analysis against your criteria. Features PDF preview for single documents.</p>
-                <a href="{{ url_for('full_text_screening_page') }}" class="btn btn-primary mt-auto align-self-start">Go to Full-Text Screening</a>
+                <p class="flex-grow-1">Upload one or more PDF documents for full-text analysis against your criteria. Easily process single or multiple files with progress tracking and detailed results.</p>
+                <a href="{{ url_for('full_text_screening_page') }}" class="btn submit-btn mt-auto align-self-start">Go to Full-Text Screening</a>
             </div>
         </div>
-        
-        {# Data Extraction block is REMOVED as per your request #}
     </div>
 
-    <hr class="my-4">
+    <hr class="my-3"> {# 减小边距 #}
 
     <!-- Screening Results History Section -->
-    <div class="row mb-5">
+    <div class="row mb-4"> {# 减小下边距 #}
         <div class="col-12">
             <div class="section-card">
                 <h5><i class="bi bi-clock-history"></i> Recent Screening Results History</h5>
@@ -123,9 +225,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     typeSpan.innerHTML = '<i class="bi bi-journal-text"></i> Full';
                 } else if (item.type === 'Full-Text PDF Screening') {
                     typeSpan.className = 'badge bg-warning text-dark';
-                    typeSpan.innerHTML = '<i class="bi bi-file-earmark-pdf"></i> PDF Batch';
-                } else if (item.type === 'Single Full-Text PDF Screening') {
-                    typeSpan.className = 'badge bg-danger';
                     typeSpan.innerHTML = '<i class="bi bi-file-earmark-pdf"></i> PDF';
                 }
                 
@@ -182,7 +281,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 cardFooter.className = 'card-footer bg-transparent border-top-0 text-end p-2';
                 
                 const viewButton = document.createElement('a');
-                viewButton.className = 'btn btn-sm btn-primary';
+                viewButton.className = 'btn btn-sm gradient-btn';
                 viewButton.innerHTML = '<i class="bi bi-eye"></i> View Results';
                 
                 if (isLikelyExpired) {
@@ -204,8 +303,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     viewButton.href = `{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}`.replace('__SCREENING_ID__', encodeURIComponent(item.id));
                 } else if (item.type === 'Full-Text PDF Screening') {
                     viewButton.href = `{{ url_for('show_batch_pdf_results_placeholder', batch_session_id='__BATCH_ID__') }}`.replace('__BATCH_ID__', encodeURIComponent(item.id));
-                } else if (item.type === 'Single Full-Text PDF Screening') {
-                    viewButton.href = `{{ url_for('show_pdf_result', pdf_screening_id='__PDF_ID__') }}`.replace('__PDF_ID__', encodeURIComponent(item.id));
                 } else {
                     viewButton.href = '#';
                     viewButton.className = 'btn btn-sm btn-secondary disabled';
