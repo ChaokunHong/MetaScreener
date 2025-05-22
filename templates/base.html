@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Exo+2:wght@600;700&display=swap" rel="stylesheet">
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
@@ -37,6 +37,54 @@
     <!-- Page-specific styles -->
     <style>
         /* Any additional page-specific inline styles can go here */
+        .brand-text {
+            font-family: 'Exo 2', sans-serif;
+            font-weight: 700;
+            font-size: 1.25rem;
+            letter-spacing: 0.8px;
+            padding-left: 6px;
+            position: relative;
+            display: inline-block;
+            text-transform: uppercase;
+            color: #fff;
+            text-shadow: 0 0 10px #7B2CBF, 0 0 20px #7B2CBF, 0 0 30px #7B2CBF;
+            position: relative;
+        }
+        
+        /* 创建流动霓虹灯光效果 */
+        .brand-text::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 10px;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, #9B5DE5, transparent);
+            filter: blur(8px);
+            animation: flow-light 3s linear infinite;
+            z-index: -1;
+            opacity: 0.8;
+        }
+        
+        /* 创建文字后面的辉光效果 */
+        .brand-text::after {
+            content: 'MetaScreener';
+            position: absolute;
+            left: 6px;
+            top: 0;
+            color: rgba(255, 255, 255, 0.1);
+            z-index: -2;
+            filter: blur(1px);
+        }
+        
+        @keyframes flow-light {
+            0% {
+                left: -30px;
+            }
+            100% {
+                left: 100%;
+            }
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
@@ -53,7 +101,7 @@
     <nav class="navbar navbar-expand-md navbar-dark fixed-top navbar-custom">
         <a class="navbar-brand" href="{{ url_for('index') }}">
             <img src="{{ url_for('static', filename='images/logo_optimized.png') }}" alt="MetaScreener Logo" height="30" class="d-inline-block align-top mr-1">
-            MetaScreener
+            <span class="brand-text">MetaScreener</span>
         </a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
