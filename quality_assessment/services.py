@@ -24,6 +24,7 @@ from gevent import spawn, joinall # Ensure gevent is imported here
 import threading
 import fcntl  # For file locking on Unix systems
 import uuid
+import redis # Add this
 
 # Placeholder for storing assessment data (in a real app, this would be a database)
 _assessments_db = {}
@@ -44,6 +45,19 @@ QA_PDF_CLEANUP_INTERVAL_SECONDS = 60 * 60
 os.makedirs(DATA_DIR, exist_ok=True)
 # Create QA PDF upload directory if it doesn't exist
 os.makedirs(QA_PDF_UPLOAD_DIR, exist_ok=True)
+
+# New Redis client instance specifically for Celery results, mirrors Celery task's client
+# This avoids issues with decode_responses=True from redis_storage.py's client
+# if Celery stores pickled bytes.
+_celery_redis_client = None
+
+def get_celery_redis_client():
+    global _celery_redis_client
+    if _celery_redis_client is None:
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+        # IMPORTANT: Celery task uses pickle, so we should not decode responses automatically here.
+        _celery_redis_client = redis.Redis.from_url(redis_url)
+    return _celery_redis_client
 
 def cleanup_old_qa_pdfs():
     """Cleans up PDF files older than QA_PDF_CLEANUP_INTERVAL_SECONDS in QA_PDF_UPLOAD_DIR."""
@@ -730,15 +744,76 @@ def process_uploaded_document(pdf_file_stream, original_filename: str, selected_
     return assessment_id
 
 def get_assessment_result(assessment_id: str):
-    """Retrieves the assessment result for a given ID."""
+    """Retrieves the assessment result for a given ID. 
+       Tries _assessments_db first, then Celery results from Redis."""
+    # 1. Try in-memory DB (for older gevent tasks or if populated by other means)
     data = _assessments_db.get(assessment_id)
     if data:
         details = data.get('assessment_details')
-        details_count = len(details) if isinstance(details, list) else 0 # Safe way to get length
-        print(f"GET_RESULT_LOGIC: For assessment ID {assessment_id}, status: {data.get('status')}, details count being returned: {details_count}, summary: {data.get('summary_negative_findings')}")
-    else:
-        print(f"GET_RESULT_LOGIC: No data found in _assessments_db for assessment ID {assessment_id}")
-    return data
+        details_count = len(details) if isinstance(details, list) else 0
+        print(f"GET_RESULT_LOGIC: Found in _assessments_db for ID {assessment_id}, status: {data.get('status')}, details count: {details_count}")
+        return data
+
+    # 2. If not in _assessments_db, try to fetch from Redis (for Celery tasks)
+    print(f"GET_RESULT_LOGIC: ID {assessment_id} not in _assessments_db. Trying Redis for Celery result.")
+    try:
+        r_client = get_celery_redis_client()
+        redis_key = f"quality_results:{assessment_id}"
+        celery_result_raw = r_client.get(redis_key)
+
+        if celery_result_raw:
+            print(f"GET_RESULT_LOGIC: Found raw data in Redis for key {redis_key}.")
+            celery_result_data = pickle.loads(celery_result_raw)
+            
+            status = "completed" 
+            filename_to_report = "Batch Assessment" 
+            document_type = celery_result_data.get('assessment_config', {}).get('document_type', 'Unknown')
+            message = None
+            
+            individual_file_results = celery_result_data.get('results', [])
+            if len(individual_file_results) == 1:
+                filename_to_report = individual_file_results[0].get('filename', 'Unknown file')
+            elif not individual_file_results:
+                 filename_to_report = "No files processed"
+
+            has_internal_errors = any(res.get('error') for res in individual_file_results if isinstance(res, dict))
+            if has_internal_errors:
+                status = "error" 
+                message = "One or more files in the batch encountered an error during processing."
+
+            adapted_data = {
+                "status": status,
+                "filename": filename_to_report, 
+                "document_type": document_type,
+                "progress": {"current": 100, "total": 100, "message": "Completed"} if status == "completed" else {"current": 0, "total":100, "message": message or "Processing error"}, # Added current/total for error case in progress
+                "message": message, 
+                
+                "assessment_details": celery_result_data.get('results'), 
+                "raw_text": "N/A for Celery batch result summary", 
+                "text_preview": "N/A",
+                "user_review": None,
+                "classification_evidence": None, 
+                "saved_pdf_filename": None, 
+                "summary_negative_findings": sum(1 for r in individual_file_results if isinstance(r,dict) and r.get('quality_score', 1) == 0 and not r.get('error') ),
+                "summary_total_criteria_evaluated": celery_result_data.get('total_processed',0) 
+            }
+            print(f"GET_RESULT_LOGIC: Adapted Celery result for ID {assessment_id}. Status: {status}, Filename: {filename_to_report}")
+            
+            return adapted_data
+        else:
+            print(f"GET_RESULT_LOGIC: No data in Redis for key {redis_key}.")
+            return None
+
+    except redis.exceptions.RedisError as e_redis:
+        print(f"GET_RESULT_LOGIC: Redis error while fetching for ID {assessment_id}: {e_redis}")
+        return None 
+    except pickle.PickleError as e_pickle:
+        print(f"GET_RESULT_LOGIC: Pickle error deserializing data for ID {assessment_id}: {e_pickle}")
+        return None 
+    except Exception as e_general:
+        print(f"GET_RESULT_LOGIC: Unexpected error fetching Celery result for ID {assessment_id}: {e_general}")
+        traceback.print_exc()
+        return None
 
 # --- Functions to be developed further --- #
 
