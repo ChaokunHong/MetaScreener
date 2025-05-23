@@ -93,14 +93,25 @@ def _save_assessments_to_file(assessment_id_to_log: Optional[str] = None):
     """Save assessment data to file for persistence"""
     try:
         if assessment_id_to_log and assessment_id_to_log in _assessments_db:
-            current_assessment_data_to_save = _assessments_db[assessment_id_to_log]
-            print(f"SAVE_LOGIC: For {assessment_id_to_log}, status being saved: {current_assessment_data_to_save.get('status')}, details count: {len(current_assessment_data_to_save.get('assessment_details', []))}, summary: {current_assessment_data_to_save.get('summary_negative_findings')}")
+            current_assessment_data_to_save = _assessments_db.get(assessment_id_to_log) # Use .get() for safety
+            if current_assessment_data_to_save: # Check if data exists
+                assessment_details = current_assessment_data_to_save.get('assessment_details', [])
+                details_count = len(assessment_details) if assessment_details is not None else 0 # Safe count
+                
+                print(f"SAVE_LOGIC: For {assessment_id_to_log}, "
+                      f"status being saved: {current_assessment_data_to_save.get('status')}, "
+                      f"details count: {details_count}, " # Use safe count
+                      f"summary: {current_assessment_data_to_save.get('summary_negative_findings')}")
+            else:
+                print(f"SAVE_LOGIC: Attempted to log save for {assessment_id_to_log}, but data not found in _assessments_db.")
         
         with open(ASSESSMENTS_FILE, 'wb') as f:
             pickle.dump((_assessments_db, _next_assessment_id), f)
-        print(f"SAVE_LOGIC: Assessment data (potentially including {assessment_id_to_log if assessment_id_to_log else 'N/A'}) saved to {ASSESSMENTS_FILE}")
+        print(f"SAVE_LOGIC: Full _assessments_db (count: {len(_assessments_db)}) and _next_assessment_id ({_next_assessment_id}) saved to {ASSESSMENTS_FILE}")
+
     except Exception as e:
         print(f"Error saving assessment data: {e}")
+        traceback.print_exc() # Print full traceback for saving errors
 
 def _load_assessments_from_file():
     """Load assessment data from file if available"""
@@ -743,77 +754,121 @@ def process_uploaded_document(pdf_file_stream, original_filename: str, selected_
 
     return assessment_id
 
+def register_celery_item(filename: str, document_type: str, celery_processing_uuid: str) -> str:
+    """
+    Registers an individual item that will be processed by a Celery batch task.
+    Generates a numerical ID, creates an initial entry in _assessments_db.
+    Returns the numerical_id.
+    """
+    numerical_id = _generate_safe_assessment_id() # This handles its own load/save for ID generation
+    
+    # Create initial entry in _assessments_db
+    _assessments_db[numerical_id] = {
+        "status": "pending_celery", # New status indicating it's waiting for Celery
+        "filename": filename,
+        "document_type": document_type,
+        "celery_processing_uuid": celery_processing_uuid, # Link to the main Celery task result
+        "progress": {"current": 0, "total": 100, "message": "Queued for Celery processing"},
+        "assessment_details": [], # Initialize
+        "raw_text": "Text will be processed by Celery.", # Placeholder
+        "text_preview": "N/A",
+        "user_review": None,
+        "classification_evidence": None,
+        "saved_pdf_filename": None # Celery path handles files differently for preview
+    }
+    _save_assessments_to_file(assessment_id_to_log=numerical_id) # Save this new entry
+    print(f"SERVICE_LOGIC: Registered celery item. Numerical ID: {numerical_id}, Filename: {filename}, Celery UUID: {celery_processing_uuid}")
+    return numerical_id
+
 def get_assessment_result(assessment_id: str):
-    """Retrieves the assessment result for a given ID. 
-       Tries _assessments_db first, then Celery results from Redis."""
-    # 1. Try in-memory DB (for older gevent tasks or if populated by other means)
-    data = _assessments_db.get(assessment_id)
-    if data:
-        details = data.get('assessment_details')
-        details_count = len(details) if isinstance(details, list) else 0
-        print(f"GET_RESULT_LOGIC: Found in _assessments_db for ID {assessment_id}, status: {data.get('status')}, details count: {details_count}")
-        return data
+    """
+    Retrieves the assessment result for a given numerical ID.
+    If the item is pending Celery processing, it attempts to fetch and update 
+    its status from the main Celery batch result in Redis.
+    """
+    # Ensure assessment_id is treated as a string key for the dictionary
+    str_assessment_id = str(assessment_id)
+    item_data = _assessments_db.get(str_assessment_id)
 
-    # 2. If not in _assessments_db, try to fetch from Redis (for Celery tasks)
-    print(f"GET_RESULT_LOGIC: ID {assessment_id} not in _assessments_db. Trying Redis for Celery result.")
-    try:
-        r_client = get_celery_redis_client()
-        redis_key = f"quality_results:{assessment_id}"
-        celery_result_raw = r_client.get(redis_key)
-
-        if celery_result_raw:
-            print(f"GET_RESULT_LOGIC: Found raw data in Redis for key {redis_key}.")
-            celery_result_data = pickle.loads(celery_result_raw)
-            
-            status = "completed" 
-            filename_to_report = "Batch Assessment" 
-            document_type = celery_result_data.get('assessment_config', {}).get('document_type', 'Unknown')
-            message = None
-            
-            individual_file_results = celery_result_data.get('results', [])
-            if len(individual_file_results) == 1:
-                filename_to_report = individual_file_results[0].get('filename', 'Unknown file')
-            elif not individual_file_results:
-                 filename_to_report = "No files processed"
-
-            has_internal_errors = any(res.get('error') for res in individual_file_results if isinstance(res, dict))
-            if has_internal_errors:
-                status = "error" 
-                message = "One or more files in the batch encountered an error during processing."
-
-            adapted_data = {
-                "status": status,
-                "filename": filename_to_report, 
-                "document_type": document_type,
-                "progress": {"current": 100, "total": 100, "message": "Completed"} if status == "completed" else {"current": 0, "total":100, "message": message or "Processing error"}, # Added current/total for error case in progress
-                "message": message, 
-                
-                "assessment_details": celery_result_data.get('results'), 
-                "raw_text": "N/A for Celery batch result summary", 
-                "text_preview": "N/A",
-                "user_review": None,
-                "classification_evidence": None, 
-                "saved_pdf_filename": None, 
-                "summary_negative_findings": sum(1 for r in individual_file_results if isinstance(r,dict) and r.get('quality_score', 1) == 0 and not r.get('error') ),
-                "summary_total_criteria_evaluated": celery_result_data.get('total_processed',0) 
-            }
-            print(f"GET_RESULT_LOGIC: Adapted Celery result for ID {assessment_id}. Status: {status}, Filename: {filename_to_report}")
-            
-            return adapted_data
-        else:
-            print(f"GET_RESULT_LOGIC: No data in Redis for key {redis_key}.")
-            return None
-
-    except redis.exceptions.RedisError as e_redis:
-        print(f"GET_RESULT_LOGIC: Redis error while fetching for ID {assessment_id}: {e_redis}")
-        return None 
-    except pickle.PickleError as e_pickle:
-        print(f"GET_RESULT_LOGIC: Pickle error deserializing data for ID {assessment_id}: {e_pickle}")
-        return None 
-    except Exception as e_general:
-        print(f"GET_RESULT_LOGIC: Unexpected error fetching Celery result for ID {assessment_id}: {e_general}")
-        traceback.print_exc()
+    if item_data is None:
+        print(f"GET_RESULT_LOGIC: No data found in _assessments_db for numerical ID {str_assessment_id}")
         return None
+
+    if item_data.get("status") == "pending_celery":
+        print(f"GET_RESULT_LOGIC: Item {str_assessment_id} is 'pending_celery'. Checking Celery batch results.")
+        celery_processing_uuid = item_data.get("celery_processing_uuid")
+        
+        if not celery_processing_uuid:
+            print(f"GET_RESULT_LOGIC: ERROR - Item {str_assessment_id} is 'pending_celery' but missing 'celery_processing_uuid'.")
+            item_data["status"] = "error"
+            item_data["message"] = "Configuration error: Missing Celery processing UUID link."
+            return item_data
+
+        try:
+            r_client = get_celery_redis_client()
+            redis_key_celery_batch = f"quality_results:{celery_processing_uuid}"
+            celery_batch_raw = r_client.get(redis_key_celery_batch)
+
+            if celery_batch_raw:
+                print(f"GET_RESULT_LOGIC: Found Celery batch raw data in Redis for Celery UUID {celery_processing_uuid} (linked to item {str_assessment_id}).")
+                celery_batch_data = pickle.loads(celery_batch_raw)
+                
+                item_filename = item_data.get("filename")
+                file_specific_result = None
+                
+                for res in celery_batch_data.get("results", []):
+                    if isinstance(res, dict) and res.get("filename") == item_filename: # Match on original_filename if Celery task uses it
+                        # Fallback: if Celery task uses 'original_filename' in its results items
+                        if res.get("filename") is None and 'original_filename' in res and res.get("original_filename") == item_filename:
+                           file_specific_result = res
+                        elif res.get("filename") == item_filename:
+                           file_specific_result = res
+
+                    if file_specific_result: # Break if found
+                        break
+                
+                if file_specific_result:
+                    print(f"GET_RESULT_LOGIC: Found specific result for file '{item_filename}' in Celery batch {celery_processing_uuid}.")
+                    
+                    item_data["status"] = "error" if file_specific_result.get("error") else "completed"
+                    
+                    if item_data["status"] == "error":
+                        item_data["message"] = str(file_specific_result.get("error", "Unknown error from Celery task item."))
+                        item_data["progress"] = {"current": 100, "total": 100, "message": item_data["message"]}
+                    else: # Completed
+                        item_data["message"] = "Successfully processed by Celery."
+                        item_data["progress"] = {"current": 100, "total": 100, "message": "Completed"}
+
+                    item_data["assessment_details"] = file_specific_result 
+                    
+                    if 'quality_score' in file_specific_result:
+                         item_data['summary_quality_score'] = file_specific_result['quality_score']
+
+                    _assessments_db[str_assessment_id] = item_data
+                    _save_assessments_to_file(assessment_id_to_log=str_assessment_id)
+                    print(f"GET_RESULT_LOGIC: Updated item {str_assessment_id} from Celery batch. New status: {item_data['status']}")
+                else:
+                    print(f"GET_RESULT_LOGIC: File '{item_filename}' not found in Celery batch results for {celery_processing_uuid}. Item {str_assessment_id} remains 'pending_celery'.")
+            else:
+                print(f"GET_RESULT_LOGIC: Celery batch result not yet found in Redis for {redis_key_celery_batch} (linked to item {str_assessment_id}). Item remains 'pending_celery'.")
+        
+        except redis.exceptions.RedisError as e_redis:
+            print(f"GET_RESULT_LOGIC: Redis error for item {str_assessment_id} (Celery UUID {celery_processing_uuid}): {e_redis}")
+        except pickle.PickleError as e_pickle:
+            print(f"GET_RESULT_LOGIC: Pickle error for item {str_assessment_id} (Celery UUID {celery_processing_uuid}): {e_pickle}")
+            item_data["status"] = "error"
+            item_data["message"] = "Failed to read Celery result (corrupted data)."
+            item_data["progress"] = {"current": 100, "total": 100, "message": "Data corruption error"}
+        except Exception as e_general:
+            print(f"GET_RESULT_LOGIC: Unexpected error processing 'pending_celery' item {str_assessment_id} (Celery UUID {celery_processing_uuid}): {e_general}")
+            traceback.print_exc()
+            item_data["status"] = "error"
+            item_data["message"] = f"Unexpected error: {str(e_general)[:100]}"
+            item_data["progress"] = {"current": 100, "total": 100, "message": "Unexpected processing error"}
+
+    if item_data:
+         print(f"GET_RESULT_LOGIC: Returning data for numerical ID {str_assessment_id}, Status: {item_data.get('status')}")
+    return item_data
 
 # --- Functions to be developed further --- #
 
