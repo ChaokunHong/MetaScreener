@@ -25,6 +25,43 @@ logger = logging.getLogger(__name__)
 # Redis client for storing results and progress
 redis_client = redis.Redis.from_url(os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
 
+def _prepare_quality_assessment_prompt(text, config):
+    """Prepare the quality assessment prompt"""
+    # This would be customized based on your quality assessment criteria
+    base_prompt = """
+    Please assess the quality of this research document based on the following criteria:
+    1. Methodology clarity and rigor
+    2. Data presentation and analysis
+    3. Literature review completeness
+    4. Conclusion validity
+    5. Overall scientific quality
+    
+    Document content:
+    {text}
+    
+    Please provide:
+    - A quality score from 1-10
+    - Detailed assessment of each criterion
+    - Specific recommendations for improvement
+    
+    Format your response as JSON with keys: score, details, recommendations
+    """
+    return base_prompt.format(text=text[:5000])  # Limit text length
+
+def _parse_quality_response(response):
+    """Parse the quality assessment response"""
+    try:
+        # Try to parse as JSON first
+        import json
+        return json.loads(response)
+    except:
+        # Fallback to text parsing
+        return {
+            'score': 5,  # Default score
+            'details': response,
+            'recommendations': ['Manual review recommended']
+        }
+
 class CallbackTask(Task):
     """Base task class with error handling and callbacks"""
     def on_success(self, retval, task_id, args, kwargs):
@@ -375,7 +412,7 @@ def process_quality_assessment(self, file_paths, assessment_config, llm_config, 
                     }
                 else:
                     # Prepare quality assessment prompt
-                    assessment_prompt = self._prepare_quality_assessment_prompt(
+                    assessment_prompt = _prepare_quality_assessment_prompt(
                         extracted_text, assessment_config
                     )
                     
@@ -391,7 +428,7 @@ def process_quality_assessment(self, file_paths, assessment_config, llm_config, 
                     processing_time = time.time() - start_time
                     
                     # Parse quality assessment response
-                    quality_data = self._parse_quality_response(ai_response)
+                    quality_data = _parse_quality_response(ai_response)
                     
                     result = {
                         'filename': original_filename,
@@ -447,43 +484,6 @@ def process_quality_assessment(self, file_paths, assessment_config, llm_config, 
         logger.error(f"Quality assessment task failed: {e}")
         logger.error(traceback.format_exc())
         raise
-    
-    def _prepare_quality_assessment_prompt(self, text, config):
-        """Prepare the quality assessment prompt"""
-        # This would be customized based on your quality assessment criteria
-        base_prompt = """
-        Please assess the quality of this research document based on the following criteria:
-        1. Methodology clarity and rigor
-        2. Data presentation and analysis
-        3. Literature review completeness
-        4. Conclusion validity
-        5. Overall scientific quality
-        
-        Document content:
-        {text}
-        
-        Please provide:
-        - A quality score from 1-10
-        - Detailed assessment of each criterion
-        - Specific recommendations for improvement
-        
-        Format your response as JSON with keys: score, details, recommendations
-        """
-        return base_prompt.format(text=text[:5000])  # Limit text length
-    
-    def _parse_quality_response(self, response):
-        """Parse the quality assessment response"""
-        try:
-            # Try to parse as JSON first
-            import json
-            return json.loads(response)
-        except:
-            # Fallback to text parsing
-            return {
-                'score': 5,  # Default score
-                'details': response,
-                'recommendations': ['Manual review recommended']
-            }
 
 @celery.task(bind=True, base=CallbackTask, queue='maintenance')
 def cleanup_temp_files(self, older_than_hours=24):
