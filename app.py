@@ -25,6 +25,21 @@ import pickle
 from gevent import monkey, spawn, joinall # Import gevent utilities
 monkey.patch_all() # Patch standard libraries to be gevent-friendly
 
+# Celery integration
+try:
+    from celery_app import celery
+    from screen_webapp.tasks import (
+        process_literature_screening, 
+        process_pdf_screening, 
+        process_quality_assessment,
+        get_task_result,
+        get_task_progress
+    )
+    CELERY_ENABLED = True
+except ImportError as e:
+    print(f"Celery not available: {e}")
+    CELERY_ENABLED = False
+
 # Initialize Redis client
 redis_client = FlaskRedis()
 
@@ -2784,6 +2799,314 @@ if os.environ.get('WERKZEUG_RUN_MAIN') != 'true': # Avoid running in Flask reloa
 if __name__ == '__main__':
     app_logger.info("Starting Flask app in debug mode...") # Example for __main__
     app.run(debug=True, host='0.0.0.0', port=5050)#test
+
+# --- Celery Async Task Routes ---
+@app.route('/async_literature_screening', methods=['POST'])
+def async_literature_screening():
+    """Start asynchronous literature screening using Celery"""
+    if not CELERY_ENABLED:
+        return jsonify({
+            'status': 'error',
+            'message': 'Async processing not available. Celery is not configured.'
+        }), 503
+    
+    try:
+        # Validate file upload
+        if 'file' not in request.files:
+            return jsonify({'status': 'error', 'message': 'No file uploaded'}), 400
+        
+        uploaded_file = request.files['file']
+        if uploaded_file.filename == '' or not allowed_file(uploaded_file.filename):
+            return jsonify({'status': 'error', 'message': 'Invalid file type'}), 400
+        
+        # Save uploaded file temporarily
+        temp_file_path = os.path.join(UPLOAD_FOLDER, f"async_lit_{uuid.uuid4()}.ris")
+        uploaded_file.save(temp_file_path)
+        
+        # Get form data
+        line_range_input = request.form.get('line_range_filter', '').strip()
+        title_filter_input = request.form.get('title_text_filter', '').strip()
+        
+        # Parse line range if provided
+        line_range = None
+        if line_range_input:
+            try:
+                # Quick check of file size to get total count
+                with open(temp_file_path, 'rb') as f:
+                    df_temp = load_literature_ris(f)
+                    total_count = len(df_temp) if df_temp is not None else 0
+                start_idx, end_idx = parse_line_range(line_range_input, total_count)
+                line_range = (start_idx, end_idx)
+            except Exception as e:
+                os.remove(temp_file_path)
+                return jsonify({'status': 'error', 'message': f'Invalid line range: {str(e)}'}), 400
+        
+        # Get screening criteria and LLM config
+        criteria_prompt = get_screening_criteria()
+        llm_config = get_current_llm_config(session)
+        llm_config['system_prompt'] = DEFAULT_SYSTEM_PROMPT
+        
+        # Generate screening ID
+        screening_id = str(uuid.uuid4())
+        
+        # Start Celery task
+        task = process_literature_screening.delay(
+            temp_file_path,
+            criteria_prompt,
+            llm_config,
+            dict(session),  # Convert session to dict for serialization
+            screening_id,
+            line_range,
+            title_filter_input
+        )
+        
+        app_logger.info(f"Started async literature screening task {task.id} for screening {screening_id}")
+        
+        return jsonify({
+            'status': 'success',
+            'task_id': task.id,
+            'screening_id': screening_id,
+            'message': 'Literature screening started. Check progress using task_id.'
+        })
+        
+    except Exception as e:
+        app_logger.exception(f"Error starting async literature screening: {e}")
+        return jsonify({'status': 'error', 'message': f'Server error: {str(e)}'}), 500
+
+@app.route('/async_pdf_screening', methods=['POST'])
+def async_pdf_screening():
+    """Start asynchronous PDF screening using Celery"""
+    if not CELERY_ENABLED:
+        return jsonify({
+            'status': 'error', 
+            'message': 'Async processing not available. Celery is not configured.'
+        }), 503
+    
+    try:
+        # Validate file uploads
+        if 'pdfs' not in request.files:
+            return jsonify({'status': 'error', 'message': 'No PDF files uploaded'}), 400
+        
+        uploaded_files = request.files.getlist('pdfs')
+        if not uploaded_files or all(f.filename == '' for f in uploaded_files):
+            return jsonify({'status': 'error', 'message': 'No valid PDF files selected'}), 400
+        
+        # Save uploaded PDFs temporarily
+        pdf_files_info = []
+        for uploaded_file in uploaded_files:
+            if uploaded_file.filename != '' and uploaded_file.filename.lower().endswith('.pdf'):
+                temp_file_path = os.path.join(UPLOAD_FOLDER, f"async_pdf_{uuid.uuid4()}_{uploaded_file.filename}")
+                uploaded_file.save(temp_file_path)
+                pdf_files_info.append({
+                    'path': temp_file_path,
+                    'filename': uploaded_file.filename
+                })
+        
+        if not pdf_files_info:
+            return jsonify({'status': 'error', 'message': 'No valid PDF files were processed'}), 400
+        
+        # Get screening criteria and LLM config
+        criteria_prompt = get_screening_criteria()
+        llm_config = get_current_llm_config(session)
+        llm_config['system_prompt'] = DEFAULT_SYSTEM_PROMPT
+        
+        # Generate batch ID
+        batch_id = str(uuid.uuid4())
+        
+        # Start Celery task
+        task = process_pdf_screening.delay(
+            pdf_files_info,
+            criteria_prompt,
+            llm_config,
+            dict(session),  # Convert session to dict for serialization
+            batch_id
+        )
+        
+        app_logger.info(f"Started async PDF screening task {task.id} for batch {batch_id} with {len(pdf_files_info)} files")
+        
+        return jsonify({
+            'status': 'success',
+            'task_id': task.id,
+            'batch_id': batch_id,
+            'total_files': len(pdf_files_info),
+            'message': 'PDF screening started. Check progress using task_id.'
+        })
+        
+    except Exception as e:
+        app_logger.exception(f"Error starting async PDF screening: {e}")
+        return jsonify({'status': 'error', 'message': f'Server error: {str(e)}'}), 500
+
+@app.route('/async_quality_assessment', methods=['POST'])
+def async_quality_assessment():
+    """Start asynchronous quality assessment using Celery"""
+    if not CELERY_ENABLED:
+        return jsonify({
+            'status': 'error',
+            'message': 'Async processing not available. Celery is not configured.'
+        }), 503
+    
+    try:
+        # Validate file uploads
+        if 'documents' not in request.files:
+            return jsonify({'status': 'error', 'message': 'No documents uploaded'}), 400
+        
+        uploaded_files = request.files.getlist('documents')
+        if not uploaded_files or all(f.filename == '' for f in uploaded_files):
+            return jsonify({'status': 'error', 'message': 'No valid documents selected'}), 400
+        
+        # Save uploaded documents temporarily
+        document_files_info = []
+        for uploaded_file in uploaded_files:
+            if uploaded_file.filename != '':
+                temp_file_path = os.path.join(UPLOAD_FOLDER, f"async_qa_{uuid.uuid4()}_{uploaded_file.filename}")
+                uploaded_file.save(temp_file_path)
+                document_files_info.append({
+                    'path': temp_file_path,
+                    'filename': uploaded_file.filename
+                })
+        
+        if not document_files_info:
+            return jsonify({'status': 'error', 'message': 'No valid documents were processed'}), 400
+        
+        # Get assessment configuration (placeholder - customize based on your needs)
+        assessment_config = {
+            'criteria': 'standard_quality_assessment',
+            'include_methodology': True,
+            'include_data_quality': True,
+            'include_reporting': True
+        }
+        
+        # Get LLM config
+        llm_config = get_current_llm_config(session)
+        llm_config['system_prompt'] = "You are an expert in research quality assessment. Evaluate the provided document for methodological rigor, data quality, and reporting standards."
+        
+        # Generate assessment ID
+        assessment_id = str(uuid.uuid4())
+        
+        # Start Celery task
+        task = process_quality_assessment.delay(
+            document_files_info,
+            assessment_config,
+            llm_config,
+            dict(session),  # Convert session to dict for serialization
+            assessment_id
+        )
+        
+        app_logger.info(f"Started async quality assessment task {task.id} for assessment {assessment_id} with {len(document_files_info)} files")
+        
+        return jsonify({
+            'status': 'success',
+            'task_id': task.id,
+            'assessment_id': assessment_id,
+            'total_files': len(document_files_info),
+            'message': 'Quality assessment started. Check progress using task_id.'
+        })
+        
+    except Exception as e:
+        app_logger.exception(f"Error starting async quality assessment: {e}")
+        return jsonify({'status': 'error', 'message': f'Server error: {str(e)}'}), 500
+
+@app.route('/task_progress/<task_id>')
+def task_progress(task_id):
+    """Get progress of a Celery task"""
+    if not CELERY_ENABLED:
+        return jsonify({
+            'status': 'error',
+            'message': 'Task monitoring not available. Celery is not configured.'
+        }), 503
+    
+    try:
+        progress = get_task_progress(task_id)
+        return jsonify({
+            'status': 'success',
+            'progress': progress
+        })
+    except Exception as e:
+        app_logger.exception(f"Error getting task progress for {task_id}: {e}")
+        return jsonify({'status': 'error', 'message': f'Server error: {str(e)}'}), 500
+
+@app.route('/task_result/<task_id>')
+def task_result(task_id):
+    """Get result of a completed Celery task"""
+    if not CELERY_ENABLED:
+        return jsonify({
+            'status': 'error',
+            'message': 'Task results not available. Celery is not configured.'
+        }), 503
+    
+    try:
+        result = get_task_result(task_id)
+        return jsonify({
+            'status': 'success',
+            'result': result
+        })
+    except Exception as e:
+        app_logger.exception(f"Error getting task result for {task_id}: {e}")
+        return jsonify({'status': 'error', 'message': f'Server error: {str(e)}'}), 500
+
+@app.route('/cancel_task/<task_id>', methods=['POST'])
+def cancel_task(task_id):
+    """Cancel a running Celery task"""
+    if not CELERY_ENABLED:
+        return jsonify({
+            'status': 'error',
+            'message': 'Task cancellation not available. Celery is not configured.'
+        }), 503
+    
+    try:
+        celery.control.revoke(task_id, terminate=True)
+        app_logger.info(f"Cancelled task {task_id}")
+        return jsonify({
+            'status': 'success',
+            'message': f'Task {task_id} cancelled successfully'
+        })
+    except Exception as e:
+        app_logger.exception(f"Error cancelling task {task_id}: {e}")
+        return jsonify({'status': 'error', 'message': f'Server error: {str(e)}'}), 500
+
+@app.route('/async_results/<result_type>/<result_id>')
+def async_results(result_type, result_id):
+    """Get results from async processing tasks"""
+    try:
+        if result_type == 'screening':
+            # Get literature screening results
+            results_data = redis_client.get(f"screening_results:{result_id}")
+            if results_data:
+                data = pickle.loads(results_data)
+                return render_template('screening_results.html', 
+                                     screening_data=data, 
+                                     screening_id=result_id,
+                                     current_year=datetime.datetime.now().year)
+        
+        elif result_type == 'pdf_batch':
+            # Get PDF batch screening results
+            results_data = redis_client.get(f"pdf_batch_results:{result_id}")
+            if results_data:
+                data = pickle.loads(results_data)
+                return render_template('pdf_batch_results.html',
+                                     batch_data=data,
+                                     batch_id=result_id,
+                                     current_year=datetime.datetime.now().year)
+        
+        elif result_type == 'quality':
+            # Get quality assessment results
+            results_data = redis_client.get(f"quality_results:{result_id}")
+            if results_data:
+                data = pickle.loads(results_data)
+                return render_template('quality_results.html',
+                                     assessment_data=data,
+                                     assessment_id=result_id,
+                                     current_year=datetime.datetime.now().year)
+        
+        flash('Results not found or may have expired.', 'warning')
+        return redirect(url_for('screening_actions_page'))
+        
+    except Exception as e:
+        app_logger.exception(f"Error retrieving async results {result_type}/{result_id}: {e}")
+        flash(f'Error retrieving results: {str(e)}', 'error')
+        return redirect(url_for('screening_actions_page'))
+
+# --- End Celery Routes ---
 
 # --- Full Dataset Screening State Management ---
 @app.route('/save_screening_state', methods=['POST'])

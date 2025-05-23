@@ -20,6 +20,8 @@ googleapis-common-protos==1.70.0
 grpcio==1.71.0
 grpcio-status==1.71.0
 gunicorn>=20.0
+gevent>=21.0.0
+greenlet>=1.0.0
 h11==0.16.0
 httpcore==1.0.9
 httplib2==0.22.0
@@ -64,3 +66,8 @@ Werkzeug>=2.0
 Pillow>=9.0.0
 pytesseract>=0.3.8
 APScheduler>=3.6.0
+celery>=5.2.0
+kombu>=5.2.0
+billiard>=3.6.0
+flower>=1.0.0
+eventlet>=0.33.0
