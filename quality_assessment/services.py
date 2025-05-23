@@ -21,14 +21,19 @@ import pickle
 from pathlib import Path
 import time
 from gevent import spawn, joinall # Ensure gevent is imported here
+import threading
+import fcntl  # For file locking on Unix systems
+import uuid
 
 # Placeholder for storing assessment data (in a real app, this would be a database)
 _assessments_db = {}
 _next_assessment_id = 1
+_id_lock = threading.Lock()  # Thread lock for ID generation
 
 # Define file path for persistent storage
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 ASSESSMENTS_FILE = os.path.join(DATA_DIR, 'assessments.pickle')
+ID_LOCK_FILE = os.path.join(DATA_DIR, 'id_generation.lock')  # File lock for ID generation
 # Define directory for storing uploaded PDFs for quality assessment preview
 QA_PDF_UPLOAD_DIR = os.path.join(DATA_DIR, 'quality_assessment_pdfs')
 
@@ -104,6 +109,47 @@ def _load_assessments_from_file():
 # Load assessments data at module import time
 _load_assessments_from_file()
 print(f"Initial _assessments_db keys after load: {list(_assessments_db.keys())}") # Log keys after initial load
+
+def _generate_safe_assessment_id():
+    """
+    Generate assessment ID safely with file locking to prevent concurrent access issues.
+    Uses both thread lock and file lock for maximum safety across processes.
+    """
+    global _next_assessment_id
+    
+    # Use thread lock for thread safety within same process
+    with _id_lock:
+        # Use file lock for process safety across different workers
+        try:
+            # Create/open lock file
+            with open(ID_LOCK_FILE, 'w') as lock_file:
+                # Acquire exclusive file lock (Unix systems)
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+                
+                try:
+                    # Reload current state from file to get latest ID
+                    _load_assessments_from_file()
+                    
+                    # Generate new ID
+                    new_id = str(_next_assessment_id)
+                    _next_assessment_id += 1
+                    
+                    # Save updated state immediately
+                    _save_assessments_to_file()
+                    
+                    print(f"SAFE_ID_GEN: Generated assessment ID {new_id} (next will be {_next_assessment_id})")
+                    return new_id
+                    
+                finally:
+                    # Release file lock automatically when exiting with statement
+                    pass
+                    
+        except Exception as e:
+            print(f"ERROR in safe ID generation: {e}")
+            # Fallback to UUID if file locking fails
+            fallback_id = str(uuid.uuid4())
+            print(f"SAFE_ID_GEN: Using fallback UUID: {fallback_id}")
+            return fallback_id
 
 # --- START: Define Quality Assessment Criteria --- #
 
@@ -533,9 +579,8 @@ def process_uploaded_document(pdf_file_stream, original_filename: str, selected_
     and initiates quality assessment.
     Returns an assessment_id.
     """
-    global _next_assessment_id
-    assessment_id = str(_next_assessment_id)
-    _next_assessment_id += 1
+    # Use safe ID generation to prevent concurrent access issues
+    assessment_id = _generate_safe_assessment_id()
 
     saved_pdf_filename = None
     saved_pdf_full_path = None
