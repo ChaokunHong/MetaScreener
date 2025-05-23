@@ -14,11 +14,15 @@ def make_celery(app_name=None):
 
 # Create Celery instance
 celery = make_celery()
+# Add app alias to support different import patterns
+app = celery
 
 # Import tasks to register them
 try:
     from screen_webapp import tasks
-except ImportError:
+    print("Tasks imported and registered successfully")
+except ImportError as e:
+    print(f"Failed to import tasks: {e}")
     # Tasks will be imported when the module is available
     pass
 
