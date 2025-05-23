@@ -10,8 +10,29 @@ from typing import Optional # Added for type hint
 from .services import process_uploaded_document, get_assessment_result, QUALITY_ASSESSMENT_TOOLS, _assessments_db, QA_PDF_UPLOAD_DIR
 # from .forms import DocumentUploadForm, AssessmentReviewForm 
 
-# Placeholder for batch assessments status (in a real app, use a database)
+# Import Redis storage utilities
+from .redis_storage import save_batch_status, get_batch_status, update_batch_status, delete_batch_status
+
+# Legacy in-memory storage for backward compatibility (will be phased out)
 _batch_assessments_status = {}
+
+def get_batch_info(batch_id: str):
+    """Get batch info from Redis first, fallback to memory storage"""
+    # Try Redis first
+    batch_info = get_batch_status(batch_id)
+    if batch_info:
+        return batch_info
+    
+    # Fallback to memory storage for backward compatibility
+    return _batch_assessments_status.get(batch_id)
+
+def save_batch_info(batch_id: str, batch_data: dict):
+    """Save batch info to both Redis and memory storage"""
+    # Save to Redis (primary storage)
+    save_batch_status(batch_id, batch_data)
+    
+    # Also save to memory for backward compatibility
+    _batch_assessments_status[batch_id] = batch_data
 
 # Allowed extensions for PDF files
 ALLOWED_EXTENSIONS = {'pdf'}
@@ -64,7 +85,7 @@ def upload_document_for_assessment():
                 return redirect(url_for('.view_assessment_result', assessment_id=assessment_ids_in_batch[0]))
             else:
                 batch_id = str(uuid.uuid4())
-                _batch_assessments_status[batch_id] = {
+                batch_data = {
                     "status": "processing",
                     "assessment_ids": assessment_ids_in_batch,
                     "total_files": len(assessment_ids_in_batch),
@@ -72,9 +93,11 @@ def upload_document_for_assessment():
                     "successful_filenames": successful_uploads,
                     "failed_filenames": failed_uploads
                 }
+                # Save to Redis instead of memory
+                save_batch_info(batch_id, batch_data)
                 flash(f'{len(successful_uploads)} document(s) queued for assessment. {len(failed_uploads)} failed.', 'info')
                 current_app.logger.info(f"BATCH_UPLOAD: Multiple files ({len(successful_uploads)} success, {len(failed_uploads)} failed). Batch ID: {batch_id}. Redirecting to batch status.")
-                current_app.logger.info(f"BATCH_UPLOAD: Batch data for {batch_id}: {_batch_assessments_status[batch_id]}")
+                current_app.logger.info(f"BATCH_UPLOAD: Batch data for {batch_id}: {batch_data}")
                 return redirect(url_for('.view_batch_status', batch_id=batch_id))
 
         elif failed_uploads:
@@ -91,10 +114,10 @@ def upload_document_for_assessment():
 @quality_bp.route('/batch_status/<batch_id>')
 def view_batch_status(batch_id):
     current_app.logger.info(f"BATCH_STATUS_VIEW: Accessed for batch_id: {batch_id}")
-    batch_info = _batch_assessments_status.get(batch_id)
+    batch_info = get_batch_info(batch_id)
     if not batch_info:
         flash("Batch assessment not found or has expired (server may have restarted).", 'error')
-        current_app.logger.warning(f"BATCH_STATUS_VIEW: Batch ID {batch_id} not found in _batch_assessments_status.")
+        current_app.logger.warning(f"BATCH_STATUS_VIEW: Batch ID {batch_id} not found in storage.")
         return redirect(url_for('.upload_document_for_assessment'))
     
     current_app.logger.info(f"BATCH_STATUS_VIEW: Rendering batch status for {batch_id} with info: {batch_info}")
@@ -284,7 +307,7 @@ def serve_saved_pdf(assessment_id):
 # --- NEW API for Batch Summary --- #
 @quality_bp.route('/batch_summary/<batch_id>')
 def get_batch_summary(batch_id):
-    batch_info = _batch_assessments_status.get(batch_id)
+    batch_info = get_batch_info(batch_id)
     if not batch_info:
         return jsonify({"error": "Batch not found"}), 404
 
@@ -331,10 +354,10 @@ def get_batch_summary(batch_id):
 def view_batch_results(batch_id):
     """Enhanced batch results page with comprehensive summary and export options"""
     current_app.logger.info(f"BATCH_RESULTS_VIEW: Accessed for batch_id: {batch_id}")
-    batch_info = _batch_assessments_status.get(batch_id)
+    batch_info = get_batch_info(batch_id)
     if not batch_info:
         flash("Batch assessment not found or has expired (server may have restarted).", 'error')
-        current_app.logger.warning(f"BATCH_RESULTS_VIEW: Batch ID {batch_id} not found in _batch_assessments_status.")
+        current_app.logger.warning(f"BATCH_RESULTS_VIEW: Batch ID {batch_id} not found in storage.")
         return redirect(url_for('.upload_document_for_assessment'))
     
     # Get detailed results for all assessments in this batch
@@ -432,7 +455,7 @@ def download_batch_results(batch_id, format):
     import io
     from flask import send_file
     
-    batch_info = _batch_assessments_status.get(batch_id)
+    batch_info = get_batch_info(batch_id)
     if not batch_info:
         flash("Batch assessment not found.", 'error')
         return redirect(url_for('.upload_document_for_assessment'))
