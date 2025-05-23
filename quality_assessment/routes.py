@@ -7,7 +7,7 @@ import uuid # For generating batch IDs
 from typing import Optional # Added for type hint
 
 # We will also need to import services and forms later
-from .services import process_uploaded_document, get_assessment_result, QUALITY_ASSESSMENT_TOOLS, _assessments_db, QA_PDF_UPLOAD_DIR
+from .services import process_uploaded_document, get_assessment_result, QUALITY_ASSESSMENT_TOOLS, _assessments_db, QA_PDF_UPLOAD_DIR, register_celery_item
 # from .forms import DocumentUploadForm, AssessmentReviewForm 
 
 # Import Redis storage utilities
@@ -134,65 +134,101 @@ def async_upload_documents():
             'message': 'Async processing not available. Celery is not configured.'
         }), 503
     
+    temp_files_info_for_celery = [] # Initialize here to be in scope for finally/except cleanup
     try:
-        # Validate file uploads
         uploaded_files = request.files.getlist("pdf_files")
         current_app.logger.info(f"ASYNC_QA_UPLOAD: Received {len(uploaded_files)} files in request.")
         
         if not uploaded_files or not any(f.filename for f in uploaded_files):
             return jsonify({'status': 'error', 'message': 'No PDF files uploaded'}), 400
         
-        # Process and save uploaded files
-        files_info = []
         for uploaded_file in uploaded_files:
             if uploaded_file.filename != '' and allowed_file(uploaded_file.filename):
                 secure_name = secure_filename(uploaded_file.filename)
-                temp_file_path = os.path.join(QA_PDF_UPLOAD_DIR, f"async_qa_{uuid.uuid4()}_{secure_name}")
+                temp_file_path = os.path.join(QA_PDF_UPLOAD_DIR, f"celery_async_qa_{uuid.uuid4()}_{secure_name}")
                 uploaded_file.save(temp_file_path)
-                files_info.append({
-                    'path': temp_file_path,
-                    'filename': uploaded_file.filename
+                temp_files_info_for_celery.append({
+                    'path': temp_file_path,      
+                    'original_filename': uploaded_file.filename 
                 })
         
-        if not files_info:
-            return jsonify({'status': 'error', 'message': 'No valid PDF files were processed'}), 400
+        if not temp_files_info_for_celery:
+            return jsonify({'status': 'error', 'message': 'No valid PDF files were processed for async task'}), 400
         
-        # Get assessment configuration
         selected_document_type = request.form.get('document_type')
         assessment_config = {
             'document_type': selected_document_type,
-            'tools_info': QUALITY_ASSESSMENT_TOOLS
+            'tools_info': QUALITY_ASSESSMENT_TOOLS 
         }
         
-        # Get LLM configuration from session
         from config import get_current_llm_config
         from flask import session
         llm_config = get_current_llm_config(session)
         
-        # Generate assessment ID
-        assessment_id = str(uuid.uuid4())
+        celery_processing_uuid = str(uuid.uuid4()) 
+        frontend_batch_uuid = str(uuid.uuid4())
         
-        # Start Celery task
+        numerical_item_ids = []
+        for file_info_for_celery in temp_files_info_for_celery:
+            original_fname = file_info_for_celery['original_filename']
+            try:
+                num_id = register_celery_item(
+                    filename=original_fname,
+                    document_type=assessment_config['document_type'],
+                    celery_processing_uuid=celery_processing_uuid
+                )
+                numerical_item_ids.append(num_id)
+                current_app.logger.info(f"ASYNC_QA_UPLOAD: Registered item '{original_fname}' with numerical ID {num_id} for Celery batch {frontend_batch_uuid} (Celery proc. UUID: {celery_processing_uuid})")
+            except Exception as e_reg:
+                current_app.logger.error(f"ASYNC_QA_UPLOAD: Failed to register item '{original_fname}' for Celery: {e_reg}")
+        
+        if not numerical_item_ids:
+             current_app.logger.error(f"ASYNC_QA_UPLOAD: No items were successfully registered for Celery processing.")
+             # Clean up already saved temp files if registration fails for all
+             for finfo_cleanup in temp_files_info_for_celery:
+                 if 'path' in finfo_cleanup and os.path.exists(finfo_cleanup['path']):
+                    try: os.remove(finfo_cleanup['path'])
+                    except: pass
+             return jsonify({'status': 'error', 'message': 'Failed to prepare any items for asynchronous assessment.'}), 500
+
+        batch_info_for_redis = {
+            "assessment_ids": numerical_item_ids, 
+            "status": "processing_celery",        
+            "celery_processing_uuid": celery_processing_uuid, 
+            "total_files_in_batch": len(numerical_item_ids),
+            "original_upload_count": len(uploaded_files)
+        }
+        save_batch_status(frontend_batch_uuid, batch_info_for_redis) 
+        current_app.logger.info(f"ASYNC_QA_UPLOAD: Saved batch info for {frontend_batch_uuid} to Redis (qa_batch:{frontend_batch_uuid}) with items: {numerical_item_ids}")
+
         task = process_quality_assessment.delay(
-            files_info,
+            temp_files_info_for_celery, 
             assessment_config,
             llm_config,
-            dict(session),  # Convert session to dict for serialization
-            assessment_id
+            dict(session), 
+            celery_processing_uuid 
         )
         
-        current_app.logger.info(f"Started async quality assessment task {task.id} for assessment {assessment_id} with {len(files_info)} files")
+        current_app.logger.info(f"ASYNC_QA_UPLOAD: Started Celery task {task.id} for internal processing UUID {celery_processing_uuid} (Frontend batch UUID: {frontend_batch_uuid}) with {len(temp_files_info_for_celery)} files.")
         
         return jsonify({
             'status': 'success',
-            'task_id': task.id,
-            'assessment_id': assessment_id,
-            'total_files': len(files_info),
-            'message': 'Quality assessment started. Check progress using task_id.'
+            'task_id': task.id, 
+            'assessment_id': frontend_batch_uuid, 
+            'total_files': len(numerical_item_ids), 
+            'message': 'Quality assessment (async) started. Batch ID assigned.'
         })
         
     except Exception as e:
         current_app.logger.exception(f"Error starting async quality assessment: {e}")
+        for finfo in temp_files_info_for_celery: 
+            if 'path' in finfo and os.path.exists(finfo['path']):
+                try:
+                    os.remove(finfo['path'])
+                except OSError as e_remove_final:
+                    current_app.logger.error(f"ASYNC_QA_UPLOAD: Error cleaning up temp file {finfo['path']} on global exception: {e_remove_final}")
+                except Exception as e_clean_final_generic:
+                    current_app.logger.error(f"ASYNC_QA_UPLOAD: Generic error cleaning temp file {finfo['path']} on global exception: {e_clean_final_generic}")
         return jsonify({'status': 'error', 'message': f'Server error: {str(e)}'}), 500
 
 @quality_bp.route('/batch_status/<batch_id>')
