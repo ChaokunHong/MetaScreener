@@ -41,6 +41,12 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# Add root route for quality assessment main page
+@quality_bp.route('/')
+def quality_assessment_main():
+    """Main quality assessment page - redirect to upload page"""
+    return redirect(url_for('.upload_document_for_assessment'))
+
 @quality_bp.route('/upload', methods=['GET', 'POST'])
 def upload_document_for_assessment():
     if request.method == 'POST':
