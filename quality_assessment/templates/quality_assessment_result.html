@@ -561,7 +561,7 @@
         }
 
         try {
-            const response = await fetch(`/quality/assessment_status/${assessmentId}?_=${Date.now()}`);
+            const response = await fetch(`/quality_assessment/assessment_status/${assessmentId}?_=${Date.now()}`);
             if (!response.ok) {
                 console.error('Status check failed:', response.status);
                 // Only schedule next poll if it's a recoverable error
