@@ -279,6 +279,11 @@
             <a href="{{ url_for('.upload_document_for_assessment') }}" class="btn btn-secondary">
                 <i class="fas fa-upload mr-1"></i>Upload More Documents
             </a>
+            {% if batch_info and batch_info.assessment_ids %}
+            <a href="{{ url_for('.view_batch_results', batch_id=batch_id) }}" class="btn btn-success ml-2">
+                <i class="fas fa-chart-bar mr-1"></i>View Complete Summary
+            </a>
+            {% endif %}
         </div>
 
     {% else %}
@@ -410,6 +415,17 @@
             if(overallProgressBar) overallProgressBar.classList.remove('progress-bar-animated');
             
             renderBatchSummaryTable(); // Fetch and render the summary table
+            
+            // Show complete summary button when batch is finished
+            const viewSummaryBtn = document.createElement('a');
+            viewSummaryBtn.href = "{{ url_for('.view_batch_results', batch_id=batch_id) }}";
+            viewSummaryBtn.className = "btn btn-success ml-2";
+            viewSummaryBtn.innerHTML = '<i class="fas fa-chart-bar mr-1"></i>View Complete Summary';
+            
+            const uploadBtn = document.querySelector('a[href*="upload_document_for_assessment"]');
+            if (uploadBtn && uploadBtn.parentNode && !document.querySelector('a[href*="view_batch_results"]')) {
+                uploadBtn.parentNode.appendChild(viewSummaryBtn);
+            }
         }
     }
 

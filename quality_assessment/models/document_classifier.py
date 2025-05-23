@@ -196,6 +196,145 @@ STATISTICAL_METHODS = {
     ]
 }
 
+# Ultra-rigorous document classification system prompt designed to minimize hallucinations
+DOCUMENT_CLASSIFICATION_SYSTEM_PROMPT = """
+You are a professional literature classification expert with extensive training in research methodology and study design recognition.
+
+CRITICAL CLASSIFICATION CONSTRAINTS:
+1. BASE CLASSIFICATION STRICTLY ON EXPLICIT TEXTUAL EVIDENCE - Never infer study design from unstated implications
+2. DISTINGUISH CLEARLY between "explicitly described," "partially indicated," and "not mentioned"
+3. REQUIRE MULTIPLE CONVERGENT EVIDENCE TYPES - Design features, methodological markers, and statistical approaches must align
+4. WHEN EVIDENCE IS CONFLICTING OR INSUFFICIENT - Choose "Uncertain" rather than forcing a classification
+5. QUOTE EXACT TEXT - Every classification claim must be supported by direct quotations
+
+PROHIBITED CLASSIFICATION BEHAVIORS:
+- Inferring study type from journal names, author affiliations, or publication context
+- Assuming standard procedures that are not explicitly described
+- Classifying based on single pieces of ambiguous evidence
+- Using general knowledge to supplement missing methodological information
+- Making assumptions about study design based on statistical methods alone
+
+MANDATORY CLASSIFICATION PROTOCOL:
+1. DESIGN FEATURE VERIFICATION: What explicit design elements are described?
+2. METHODOLOGICAL MARKER CONFIRMATION: What specific methodological terms are used?
+3. STATISTICAL APPROACH VALIDATION: What statistical methods are explicitly mentioned and how do they align?
+4. CONVERGENT EVIDENCE ASSESSMENT: Do multiple evidence types consistently point to the same classification?
+5. UNCERTAINTY ACKNOWLEDGMENT: Are there conflicting signals or insufficient information?
+
+EVIDENCE STRENGTH HIERARCHY:
+- EXPLICIT DESIGN STATEMENTS (e.g., "This randomized controlled trial...") - Strongest
+- DETAILED METHODOLOGICAL DESCRIPTIONS - Strong  
+- STATISTICAL METHOD SPECIFICATIONS - Moderate
+- TERMINOLOGY USAGE - Weak
+- IMPLIED OR ASSUMED FEATURES - Insufficient (Do not use)
+"""
+
+DOCUMENT_CLASSIFICATION_PROMPT = """
+TASK: Classify this medical literature with maximum precision and minimal interpretation.
+
+DOCUMENT CONTENT FOR CLASSIFICATION:
+{document_text}
+
+ULTRA-RIGOROUS CLASSIFICATION PROTOCOL:
+
+PHASE 1: EXPLICIT DESIGN FEATURE EXTRACTION
+Search for direct statements about study design:
+- Does the document explicitly state its study type? Quote exact statements.
+- What design-related terms are explicitly used? List with exact quotes.
+- Are there clear temporal descriptions (prospective/retrospective/cross-sectional)? Quote evidence.
+- How are participants/subjects explicitly described? Quote relevant text.
+
+PHASE 2: METHODOLOGICAL MARKER VERIFICATION  
+Identify explicit methodological descriptions:
+- Randomization procedures: Quote exact descriptions (not assumptions)
+- Control/comparison group setup: Quote explicit descriptions
+- Data collection methods: Quote exact procedures described
+- Follow-up procedures: Quote explicit descriptions only
+- Outcome measurement: Quote exact assessment methods
+
+PHASE 3: STATISTICAL APPROACH DOCUMENTATION
+Document explicitly mentioned statistical methods:
+- Primary statistical analyses: Quote exact methods named
+- Study design-specific statistics: Quote relevant statistical approaches
+- Sample size/power considerations: Quote explicit statements
+- Effect measures: Quote exact measures reported
+
+PHASE 4: CONVERGENT EVIDENCE EVALUATION
+Assess consistency across evidence types:
+- Do design statements, methods, and statistics converge on one classification?
+- Are there conflicting signals that suggest mixed or unclear design?
+- Is evidence sufficient for confident classification?
+- What classification is most defensible based on available evidence?
+
+PHASE 5: CONSERVATIVE CLASSIFICATION ASSIGNMENT
+Apply strict classification standards:
+
+RCT: Award ONLY if:
+- Explicit randomization procedures are described
+- Control/comparison groups are clearly defined
+- Intervention allocation is explicitly described
+- Multiple convergent evidence types support RCT classification
+
+SYSTEMATIC REVIEW: Award ONLY if:
+- Systematic search methodology is explicitly described
+- Study selection criteria are clearly defined
+- Multiple databases or comprehensive search is documented
+- Data synthesis/meta-analysis approach is described
+
+COHORT STUDY: Award ONLY if:
+- Prospective or retrospective cohort design is explicitly stated
+- Follow-up procedures are clearly described
+- Exposure-outcome temporal relationship is documented
+- Cohort characteristics are explicitly defined
+
+CASE-CONTROL STUDY: Award ONLY if:
+- Case definition and selection is explicitly described
+- Control selection methodology is clearly defined
+- Exposure assessment approach is documented
+- Case-control comparison is explicitly described
+
+CROSS-SECTIONAL STUDY: Award ONLY if:
+- Point-in-time assessment is explicitly described
+- Cross-sectional design is clearly stated or implied by methods
+- Simultaneous measurement approach is documented
+
+DIAGNOSTIC STUDY: Award ONLY if:
+- Index test and reference standard are explicitly described
+- Diagnostic accuracy assessment is clearly the primary aim
+- Sensitivity/specificity or related measures are reported
+
+QUALITATIVE RESEARCH: Award ONLY if:
+- Qualitative methodology is explicitly described
+- Qualitative data collection methods are documented
+- Qualitative analysis approach is clearly defined
+
+UNCERTAIN: Choose when:
+- Evidence is conflicting or insufficient
+- Multiple design types are possible
+- Key methodological information is missing
+- Classification cannot be made with confidence
+
+CRITICAL CONSTRAINTS:
+- Never force a classification when evidence is insufficient
+- Never assume unstated design features
+- Never supplement with external knowledge
+- Always acknowledge limitations and uncertainties
+- Base conclusions solely on documented evidence
+
+Return classification in this SIMPLE JSON format (ensure all fields are present and properly closed):
+```json
+{
+  "primary_classification": "Most defensible classification based on evidence",
+  "confidence_level": "high/medium/low",
+  "supporting_evidence": ["Key quote supporting final classification 1", "Key quote supporting final classification 2", "Key quote supporting final classification 3"],
+  "classification_reasoning": "Detailed explanation of why this classification was chosen",
+  "alternative_possibilities": "Other possible classifications considered",
+  "evidence_strength": "strong/moderate/weak/insufficient",
+  "uncertainty_factors": "Any aspects that remain uncertain or ambiguous"
+}
+```
+"""
+
 def clean_text(text: str) -> str:
     """
     Clean text, removing unnecessary whitespace and special characters
@@ -411,4 +550,45 @@ def get_document_evidence(text: str, doc_type: str) -> List[str]:
             seen.add(simplified)
             unique_evidence.append(ev)
     
-    return unique_evidence 
+    return unique_evidence
+
+def classify_document_with_ai(text: str, llm_config: Dict = None) -> Tuple[str, Dict[str, any]]:
+    """
+    Use enhanced AI to classify document type with rigorous analysis and minimal hallucination
+    
+    Parameters:
+        text: The full text content of the document
+        llm_config: LLM configuration including recommended parameters for reliability
+    
+    Returns:
+        (document_type, detailed_analysis): The classified type and detailed analysis
+    """
+    # For now, this is a placeholder that falls back to the rule-based system
+    # In the future, this would integrate with the LLM API using the ultra-rigorous prompt
+    # with recommended parameters: temperature=0.1, top_p=0.8, etc.
+    
+    # Fallback to existing rule-based classification
+    doc_type, scores = classify_document_type(text)
+    
+    # Enhanced analysis structure with uncertainty handling
+    detailed_analysis = {
+        "classification_method": "rule-based",
+        "confidence_level": "medium" if doc_type != "Unknown" else "low",
+        "evidence_strength": "moderate",
+        "type_scores": scores,
+        "classification_notes": f"Rule-based classification result: {doc_type}",
+        "recommended_llm_parameters": {
+            "temperature": 0.1,
+            "top_p": 0.8,
+            "frequency_penalty": 0.2,
+            "presence_penalty": 0.1,
+            "max_tokens": 1200
+        },
+        "uncertainty_factors": [
+            "Rule-based classification may miss nuanced design features",
+            "Limited ability to handle mixed or novel study designs",
+            "Cannot assess methodological quality, only design type"
+        ]
+    }
+    
+    return doc_type, detailed_analysis 

@@ -5,358 +5,373 @@
 {% block extra_head %}
 <style>
     .result-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
     }
+    
     .result-header h2 {
-        flex-grow: 1;
-        margin-right: 15px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        margin-bottom: 0.5rem;
+        word-break: break-word;
     }
-    .result-box { padding: 15px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; margin-bottom: 20px; }
     
-    /* Table Styles */
-    .quality-assessment-table {
-        margin-top: 20px;
-        border: 1px solid #dee2e6;
-    }
-    .quality-assessment-table th {
-        background-color: #f8f9fa; /* Light grey for table header */
+    /* Quality Score Display */
+    .quality-score-display {
+        font-size: 2rem;
         font-weight: 600;
-        text-align: center;
-        vertical-align: middle;
+        margin-bottom: 0.5rem;
     }
-    .quality-assessment-table td {
-        vertical-align: top; /* Align content to the top of the cell */
-        padding: 0.75rem;
-    }
-    .criterion-text-cell strong {
-        font-size: 1.05em;
-        color: #333;
-    }
-    .criterion-text-cell .text-muted {
-        font-size: 0.85em;
-    }
-
-    .ai-reasoning {
-        font-style: italic;
-        color: #555;
-        font-size: 0.9em; 
-        margin-top: 5px;
-        margin-bottom: 8px;
-        padding-left: 10px;
-        border-left: 2px solid #ced4da;
-    }
-    .evidence-list {
-        list-style-type: none;
-        padding-left: 0;
-        font-size: 0.85em;
-        margin-top: 5px;
-    }
-    .evidence-list li {
-        background-color: #f0f0f0;
-        padding: 5px 8px;
+    .quality-excellent { color: var(--success-color); }
+    .quality-good { color: #22c55e; }
+    .quality-fair { color: var(--warning-color); }
+    .quality-poor { color: var(--danger-color); }
+    
+    /* Progress Styles */
+    .progress-mini {
+        height: 0.5rem;
+        background: var(--border-color);
         border-radius: 3px;
-        font-family: monospace;
-        white-space: pre-wrap;
-        margin-bottom: 4px;
-        border: 1px solid #e0e0e0;
-    }
-    .evidence-list strong {
-        font-size: 0.95em;
-        color: #444;
-        display: block;
-        margin-bottom: 3px;
-    }
-
-    /* Judgment Cell Styles */
-    .judgment-cell {
-        padding: 0.5rem;
-        border-radius: 0.25rem;
-        text-align: center;
-        font-weight: 500;
-        min-height: 38px; /* Ensure consistent height with buttons */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1.2;
-    }
-    .ai-judgment-cell[data-judgment*="Yes"]:not([data-judgment*="Probably"]) { background-color: #d1f0d5; color: #0f5132; border: 1px solid #a3cfbb; } /* Pastel Green */
-    .ai-judgment-cell[data-judgment*="No"]:not([data-judgment*="Probably"]) { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; } /* Pastel Red */
-    .ai-judgment-cell[data-judgment*="Probably"] { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; } /* Pastel Yellow */
-    .ai-judgment-cell[data-judgment*="Information"], .ai-judgment-cell[data-judgment*="Unclear"], .ai-judgment-cell[data-judgment*="Error"] {
-        background-color: #e9ecef; color: #495057; border: 1px solid #ced4da; /* Pastel Grey */
-    }
-
-    /* User Judgment Options */
-    .user-judgment-options .judgment-option {
-        display: block;
-        width: 100%;
-        margin-bottom: 6px;
-        padding: 0.375rem 0.75rem;
-        font-size: 0.9rem;
-        border: 1px solid #ced4da;
-        background-color: #f8f9fa;
-        color: #495057;
-        transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
-    }
-    .user-judgment-options .judgment-option:hover {
-        background-color: #e9ecef;
-        border-color: #adb5bd;
-    }
-    .user-judgment-options .judgment-option.selected-yes { background-color: #d1f0d5 !important; color: #0f5132 !important; border-color: #a3cfbb !important; font-weight: bold; }
-    .user-judgment-options .judgment-option.selected-no { background-color: #f8d7da !important; color: #721c24 !important; border-color: #f5c6cb !important; font-weight: bold; }
-    .user-judgment-options .judgment-option.selected-probably { background-color: #fff3cd !important; color: #856404 !important; border-color: #ffeeba !important; font-weight: bold; }
-    .user-judgment-options .judgment-option.selected-unclear { background-color: #e9ecef !important; color: #495057 !important; border-color: #ced4da !important; font-weight: bold; }
-
-    /* Status Badge Colors (using lighter, pastel versions) */
-    .badge.bg-status-pending_assessment, .badge.bg-status-processing_assessment {
-        background-color: #ffe0b2; /* Lighter orange/yellow */
-        color: #5d4037; 
-    }
-    .badge.bg-status-completed {
-        background-color: #c8e6c9; /* Lighter green */
-        color: #2e7d32; 
-    }
-    .badge.bg-status-error {
-        background-color: #ffcdd2; /* Lighter red */
-        color: #b71c1c; 
-    }
-    .pdf-preview-container { margin-top: 20px; border: 1px solid #ccc; }
-    #pdf-canvas { border: 1px solid black; direction: ltr; width: 100%; }
-    #pdf-controls { margin-bottom: 10px; text-align: center; }
-    .progress-container {
-        margin-bottom: 15px;
-        min-height: 60px; /* Adjust as needed */
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
-    .progress-container p.mb-1 {
-        min-height: 1.2em; 
-        margin-bottom: 0.25rem !important;
-    }
-    .progress {
-        height: 20px;
+        overflow: hidden;
+        margin-top: 0.5rem;
     }
     
-    /* Hidden class for classification evidence container */
-    .evidence-container {
-        display: none;
+    .progress-mini-bar {
+        height: 100%;
+        background: var(--success-color);
+        transition: width 0.3s ease;
     }
-    .evidence-container.show {
-        display: block;
+    
+    /* Judgment Styles */
+    .judgment-badge {
+        padding: 0.4rem 0.8rem;
+        border-radius: 4px;
+        font-weight: 500;
+        font-size: 0.85rem;
+        text-align: center;
+        display: inline-block;
+        min-width: 80px;
+    }
+    
+    .judgment-yes { background-color: #d1f0d5; color: #0f5132; border: 1px solid #a3cfbb; }
+    .judgment-no { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .judgment-maybe { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    .judgment-unclear { background-color: #e9ecef; color: #495057; border: 1px solid #ced4da; }
+    
+    /* Evidence Styles */
+    .evidence-section {
+        background: var(--light-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 0.75rem;
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+    }
+    
+    .evidence-quote {
+        background: white;
+        border-left: 3px solid var(--primary-color);
+        padding: 0.5rem;
+        margin: 0.25rem 0;
+        font-style: italic;
+        border-radius: 0 3px 3px 0;
+    }
+    
+    /* PDF Viewer Styles */
+    .pdf-viewer-section {
+        background: var(--light-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 1rem;
+    }
+    
+    #pdf-canvas {
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        max-width: 100%;
+        height: auto;
+    }
+    
+    /* Responsive table */
+    .assessment-table th {
+        background: var(--light-bg);
+        font-weight: 600;
+        font-size: 0.85rem;
+        padding: 0.75rem 0.5rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+    
+    .assessment-table td {
+        padding: 0.75rem 0.5rem;
+        vertical-align: top;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .criterion-text {
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+    
+    .criterion-id {
+        font-size: 0.75rem;
+        color: var(--text-color);
+        opacity: 0.7;
+    }
+    
+    @media (max-width: 768px) {
+        .result-header {
+            text-align: center;
+        }
+        
+        .assessment-table {
+            font-size: 0.8rem;
+        }
+        
+        .quality-score-display {
+            font-size: 1.5rem;
+        }
     }
 </style>
-<!-- Add Bootstrap JavaScript bundle to ensure collapse functionality works -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='js/pdfjs/pdf.mjs') }}" type="module"></script>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="section-card">
     {% if result %}
+        <!-- Header -->
         <div class="result-header">
-            <h2 title="{{ result.filename }}">Quality Assessment: {{ result.filename }}</h2>
-            <a href="{{ url_for('.upload_document_for_assessment') }}" class="btn btn-secondary btn-sm flex-shrink-0">Upload Another</a>
-        </div>
-        
-        <div class="result-box">
-            <p><strong>Status:</strong> <span class="badge bg-status-{{ result.status.lower() if result and result.status else 'unknown' }}">{{ result.status.replace('_',' ').title() if result and result.status else "Unknown" }}</span></p>
-            <p><strong>Document Type:</strong> {{ result.document_type if result and result.document_type != "Unknown" else "Type not specified or classification pending" }}</p>
-            
-            {% if result and result.classification_evidence %}
-            <div class="mt-3">
-                <p><strong>Classification Evidence:</strong> <button id="toggle-evidence" class="btn btn-sm btn-outline-info" type="button">Show/Hide</button></p>
-                <div id="classificationEvidence" class="evidence-container">
-                    <div class="card card-body">
-                        <ul class="evidence-list">
-                            {% for evidence in result.classification_evidence %}
-                                <li>{{ evidence }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div class="flex-grow-1 mr-3">
+                    <h2>Quality Assessment Results</h2>
+                    <p class="text-muted mb-0">{{ result.filename }}</p>
                 </div>
-            </div>
-            {% endif %}
-            
-            <div class="mt-3 d-flex justify-content-end">
-                <button id="manual-refresh" class="btn btn-primary btn-sm">Refresh Results</button>
+                <div class="flex-shrink-0">
+                    <a href="{{ url_for('.upload_document_for_assessment') }}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-upload"></i> Upload Another
+                    </a>
+                    <button id="manual-refresh" class="btn btn-primary btn-sm ml-2">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
             </div>
         </div>
 
-        {# Progress Bar Display - Show if pending_assessment OR processing_assessment #}
-        {% set progress_container_attr %}style="{% if result and (result.status == 'processing_assessment' or result.status == 'pending_assessment') %}display:block;{% else %}display:none;{% endif %}"{% endset %}
-        <div class="progress-container" id="progress-container" {{ progress_container_attr }}>
-            <p class="mb-1" id="progress-message">
-                {% if result and result.status == 'pending_assessment' %}
-                    Assessment Queued. Waiting for processing to start...
-                {% elif result and result.progress and result.progress.message %}
-                    {{ result.progress.message }}
-                {% else %}
-                    Processing...
-                {% endif %}
-            </p>
-            <div class="progress" style="height: 20px;">
-                {% set progress_bar_inner_attr %}style="width: {% if result and result.status == 'pending_assessment' %}2%{% elif result and result.progress and result.progress.total > 0 %}{{ (result.progress.current / result.progress.total * 100)|int }}%{% else %}5%{% endif %};"{% endset %}
-                <div class="progress-bar progress-bar-striped progress-bar-animated" id="progress-bar-inner" role="progressbar" 
-                     {{ progress_bar_inner_attr }} 
-                     aria-valuenow="{% if result and result.status == 'pending_assessment' %}2{% elif result and result.progress and result.progress.total > 0 %}{{ (result.progress.current / result.progress.total * 100)|int }}{% else %}5{% endif %}" 
-                     aria-valuemin="0" aria-valuemax="100">
-                     <span id="progress-bar-text">
-                     {% if result and result.status == 'pending_assessment' %}
-                        Queued
-                     {% elif result and result.progress and result.progress.total > 0 %}
-                        {{ result.progress.current }}/{{ result.progress.total }}
-                     {% else %}
-                        Processing...
-                     {% endif %}
-                     </span>
-                </div>
-            </div>
-            {% set pending_countdown_text_attr %}style="{% if result and result.status == 'pending_assessment' %}display:block;{% else %}display:none;{% endif %}"{% endset %}
-            <small id="pending-countdown-text" class="text-muted mt-1" {{ pending_countdown_text_attr }}>Next check in: <span id="countdown-timer">5</span> seconds</small>
-        </div>
-
-        {# Table for completed results - only shown if status is completed via JS or direct page load #}
-        {% if result and result.status == 'completed' and result.assessment_details %}
-            <div id="completed-assessment-details">
-                <h4>Quality Assessment Results</h4>
-                
-                <!-- Summary Card -->
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Document Summary</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p><strong>Document ID:</strong> {{ assessment_id }}</p>
-                                <p><strong>Filename:</strong> {{ result.filename }}</p>
-                                <p><strong>Type:</strong> <span class="badge bg-info">{{ result.document_type }}</span></p>
-                            </div>
-                            <div class="col-md-6">
-                                <p><strong>Quality Tool:</strong> {{ QUALITY_ASSESSMENT_TOOLS[result.document_type].tool_name if result.document_type in QUALITY_ASSESSMENT_TOOLS else "Standard Assessment" }}</p>
-                                <p><strong>Total Criteria:</strong> {{ result.assessment_details|length }}</p>
-                                <p><strong>Status:</strong> <span class="badge bg-success">Evaluated</span></p>
-                            </div>
+        <!-- Status and Progress -->
+        <div class="card mb-3" id="status-card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <strong class="mr-2">Status:</strong>
+                            <span class="badge" id="status-badge">{{ result.status.replace('_',' ').title() if result and result.status else "Unknown" }}</span>
+                        </div>
+                        <div class="mt-2">
+                            <strong>Document Type:</strong> 
+                            <span class="badge badge-info">{{ result.document_type if result and result.document_type != "Unknown" else "Not classified" }}</span>
+                        </div>
+                        <div class="mt-2">
+                            <strong>Assessment Tool:</strong> 
+                            {{ QUALITY_ASSESSMENT_TOOLS[result.document_type].tool_name if result.document_type in QUALITY_ASSESSMENT_TOOLS else "Standard Assessment" }}
                         </div>
                     </div>
-                </div>
-                
-                <!-- Results Table -->
-                <div class="table-responsive">
-                    <table class="table table-bordered table-hover quality-assessment-table">
-                        <thead class="table-dark">
-                            <tr>
-                                <th style="width: 35%;">Criterion / Question</th>
-                                <th style="width: 35%;">AI Reasoning & Evidence</th>
-                                <th style="width: 15%;">AI Judgment</th>
-                                <th style="width: 15%;">Your Judgment</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% set judgment_options = ["Yes", "Probably Yes", "No Information", "Probably No", "No"] %}
-                            {% for item in result.assessment_details %}
-                            <tr>
-                                <td class="criterion-text-cell">
-                                    <strong>{{ item.criterion_text }}</strong>
-                                    <small class="text-muted d-block">({{ item.criterion_id }})</small>
-                                </td>
-                                <td>
-                                    <p class="ai-reasoning">{{ item.reason | default("No reasoning provided.") }}</p>
-                                    {% if item.evidence_quotes and item.evidence_quotes|length > 0 and item.evidence_quotes[0] %}
-                                        <div class="mt-2">
-                                            <button class="btn btn-sm btn-outline-secondary mb-2 toggle-evidence-btn">Show/Hide Evidence</button>
-                                            <div class="evidence-quotes-container" style="display: none;">
-                                                <strong class="d-block">Evidence:</strong>
-                                                <ul class="evidence-list">
-                                                    {% for quote in item.evidence_quotes %}
-                                                        {% if quote and quote|trim != "" %}<li>{{ quote }}</li>{% endif %}
-                                                    {% endfor %}
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    {% elif item.reason and "No direct evidence quotes" not in item.reason and "Error:" not in item.judgment %}
-                                        <p class="text-muted small mt-2"><em>No direct evidence quotes extracted by AI.</em></p>
+                    <div class="col-md-6">
+                        <!-- Progress Container -->
+                        <div id="progress-container" class="d-none">
+                            <div class="text-center">
+                                <div class="h5 mb-2" id="progress-message">
+                                    {% if result and result.status == 'pending_assessment' %}
+                                        Queued for Processing
+                                    {% elif result and result.progress and result.progress.message %}
+                                        {{ result.progress.message }}
+                                    {% else %}
+                                        Processing...
                                     {% endif %}
-                                </td>
-                                <td>
-                                    <div class="judgment-cell ai-judgment-cell" data-judgment="{{ item.judgment }}">
-                                        {{ item.judgment }}
+                                </div>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                         id="progress-bar-inner" 
+                                         role="progressbar" 
+                                         aria-valuenow="10" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                        <span id="progress-bar-text">
+                                            {% if result and result.status == 'pending_assessment' %}
+                                                Queued
+                                            {% elif result and result.progress and result.progress.total > 0 %}
+                                                {{ result.progress.current }}/{{ result.progress.total }}
+                                            {% else %}
+                                                Processing...
+                                            {% endif %}
+                                        </span>
                                     </div>
-                                </td>
-                                <td>
-                                    <div class="user-judgment-options" data-criterion-id="{{ item.criterion_id }}">
-                                        {% for option in judgment_options %}
-                                        <button type="button" class="btn judgment-option" data-value="{{ option }}">{{ option }}</button>
-                                        {% endfor %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <!-- Legend and Explanation -->
-                <div class="card mt-3">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0">Assessment Legend</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-4">
-                                <h6>Positive Judgments</h6>
-                                <div class="judgment-cell ai-judgment-cell" data-judgment="Yes">Yes</div>
-                                <div class="judgment-cell ai-judgment-cell" data-judgment="Probably Yes">Probably Yes</div>
-                            </div>
-                            <div class="col-md-4">
-                                <h6>Negative Judgments</h6>
-                                <div class="judgment-cell ai-judgment-cell" data-judgment="No">No</div>
-                                <div class="judgment-cell ai-judgment-cell" data-judgment="Probably No">Probably No</div>
-                            </div>
-                            <div class="col-md-4">
-                                <h6>Other Judgments</h6>
-                                <div class="judgment-cell ai-judgment-cell" data-judgment="No Information">No Information</div>
-                                <div class="judgment-cell ai-judgment-cell" data-judgment="Error">Error</div>
+                                </div>
+                                <small id="countdown-text" class="text-muted mt-1 d-none">
+                                    Next check in: <span id="countdown-timer">5</span> seconds
+                                </small>
                             </div>
                         </div>
+                        
+                        <!-- Quality Score (for completed assessments) -->
+                        {% if result and result.status == 'completed' and result.assessment_details %}
+                        {% set total_criteria = result.assessment_details|length %}
+                        {% set negative_findings = result.summary_negative_findings or 0 %}
+                        {% set quality_score = ((total_criteria - negative_findings) / total_criteria * 100)|round(1) if total_criteria > 0 else 0 %}
+                        <div class="text-center">
+                            <div class="quality-score-display {% if quality_score >= 80 %}quality-excellent{% elif quality_score >= 60 %}quality-good{% elif quality_score >= 40 %}quality-fair{% else %}quality-poor{% endif %}">
+                                {{ quality_score }}%
+                            </div>
+                            <h6 class="mb-2">Overall Quality Score</h6>
+                            <small class="text-muted">{{ total_criteria - negative_findings }}/{{ total_criteria }} criteria met</small>
+                            <div class="progress-mini">
+                                <div class="progress-mini-bar" data-width="{{ quality_score }}"></div>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
-            </div> {# End of completed-assessment-details #}
-        {% elif result and result.status == 'error' %}
-            <div class="alert alert-danger" id="error-message-container">
-                 An error occurred: {{ result.message if result.message else "Unknown error during assessment."}}
             </div>
-        {# Placeholder for other messages if needed, initially hidden or managed by JS #}
-        {% elif result and result.status not in ['completed', 'processing_assessment', 'pending_assessment', 'error'] %}
-            <div class="alert alert-warning" id="other-status-container" style="display:none;">
-                Assessment details are not yet available (Status: <span id="other-status-text">{{ result.status }}</span>). Page will attempt to refresh.
-            </div>
+        </div>
+
+        <!-- Error Message -->
+        {% if result and result.status == 'error' %}
+        <div class="alert alert-danger" id="error-message-container">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <strong>Assessment Error:</strong> {{ result.message if result.message else "An unknown error occurred during assessment." }}
+        </div>
         {% endif %}
 
-        <div class="mt-4">
-            <h4>Original PDF Preview</h4>
-            <button id="toggle-pdf-preview" class="btn btn-info btn-sm mb-2">Show/Hide Original PDF Preview</button>
-            <div id="pdf-viewer-container" class="pdf-preview-container" style="display:none;">
-                <div id="pdf-controls">
-                    <button id="pdf-prev" class="btn btn-light btn-sm">Previous</button>
-                    <span class="mx-2">Page: <span id="pdf-page-num"></span> / <span id="pdf-page-count"></span></span>
-                    <button id="pdf-next" class="btn btn-light btn-sm">Next</button>
+        <!-- Assessment Results Table -->
+        {% if result and result.status == 'completed' and result.assessment_details %}
+        <div id="assessment-results">
+            <h4 class="mb-3">Assessment Details</h4>
+            
+            <div class="table-responsive">
+                <table class="table assessment-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40%;">Assessment Criterion</th>
+                            <th style="width: 35%;">AI Analysis</th>
+                            <th style="width: 15%;">AI Judgment</th>
+                            <th style="width: 10%;">Issues</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in result.assessment_details %}
+                        <tr>
+                            <td>
+                                <div class="criterion-text">{{ item.criterion_text }}</div>
+                                <div class="criterion-id">{{ item.criterion_id }}</div>
+                            </td>
+                            <td>
+                                <div class="mb-2">{{ item.reason | default("No reasoning provided.") }}</div>
+                                {% if item.evidence_quotes and item.evidence_quotes|length > 0 and item.evidence_quotes[0] %}
+                                <button class="btn btn-sm btn-outline-secondary toggle-evidence-btn" onclick="toggleEvidence(this)">
+                                    <i class="fas fa-quote-left"></i> Show Evidence
+                                </button>
+                                <div class="evidence-section" style="display: none;">
+                                    <strong class="d-block mb-2">Supporting Evidence:</strong>
+                                    {% for quote in item.evidence_quotes %}
+                                        {% if quote and quote|trim != "" %}
+                                        <div class="evidence-quote">{{ quote }}</div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set judgment_lower = item.judgment.lower() %}
+                                <span class="judgment-badge 
+                                    {% if 'yes' in judgment_lower and 'probably' not in judgment_lower %}judgment-yes
+                                    {% elif 'no' in judgment_lower and 'probably' not in judgment_lower %}judgment-no
+                                    {% elif 'probably' in judgment_lower %}judgment-maybe
+                                    {% else %}judgment-unclear{% endif %}">
+                                    {{ item.judgment }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                {% set judgment_lower = item.judgment.lower() %}
+                                {% if 'no' in judgment_lower or 'error' in judgment_lower %}
+                                    <i class="fas fa-exclamation-triangle text-warning" title="Potential quality issue"></i>
+                                {% elif 'unclear' in judgment_lower or 'information' in judgment_lower %}
+                                    <i class="fas fa-question-circle text-info" title="Unclear or missing information"></i>
+                                {% else %}
+                                    <i class="fas fa-check-circle text-success" title="Criterion met"></i>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Summary -->
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-chart-pie mr-2"></i>
+                        Assessment Summary
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 text-primary">{{ result.assessment_details|length }}</div>
+                                <small class="text-muted">Total Criteria</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 text-success">{{ (result.assessment_details|length) - (result.summary_negative_findings or 0) }}</div>
+                                <small class="text-muted">Criteria Met</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 text-warning">{{ result.summary_negative_findings or 0 }}</div>
+                                <small class="text-muted">Issues Found</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 quality-score {% if quality_score >= 80 %}text-success{% elif quality_score >= 60 %}text-success{% elif quality_score >= 40 %}text-warning{% else %}text-danger{% endif %}">{{ quality_score }}%</div>
+                                <small class="text-muted">Quality Score</small>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <canvas id="pdf-canvas"></canvas>
             </div>
         </div>
+        {% endif %}
+
+        <!-- PDF Preview Section -->
+        <div class="mt-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">Document Preview</h4>
+                <button id="toggle-pdf-preview" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-file-pdf mr-1"></i> Show PDF Preview
+                </button>
+            </div>
+            <div id="pdf-viewer-container" class="pdf-viewer-section" style="display:none;">
+                <div class="text-center mb-3">
+                    <button id="pdf-prev" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                    <span class="mx-3">
+                        Page <span id="pdf-page-num">1</span> of <span id="pdf-page-count">-</span>
+                    </span>
+                    <button id="pdf-next" class="btn btn-outline-primary btn-sm">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <div class="text-center">
+                    <canvas id="pdf-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+
     {% else %}
         <div class="alert alert-danger">
-            <h2>Error</h2>
-            <p>Assessment result not found. It might have expired or was not processed correctly.</p>
-            <p><a href="{{ url_for('.upload_document_for_assessment') }}" class="btn btn-primary">Return to Upload Page</a></p>
+            <h4><i class="fas fa-exclamation-triangle mr-2"></i>Assessment Not Found</h4>
+            <p>The assessment result could not be found. It might have expired or was not processed correctly.</p>
+            <a href="{{ url_for('.upload_document_for_assessment') }}" class="btn btn-primary">
+                <i class="fas fa-upload mr-1"></i> Return to Upload Page
+            </a>
         </div>
     {% endif %}
 </div>
@@ -367,409 +382,444 @@
     const assessmentId = "{{ assessment_id | default('') }}";
     let initialStatus = "{{ result.status.lower() if result and result.status else '' }}";
     let currentStatus = initialStatus;
-    let timeoutIdForPoll = null; 
-    
-    let initialResultData = {}; // Default to empty object
-    const rawJsonDataString = '{{ result_json_for_js | safe }}';
-    try {
-        initialResultData = JSON.parse(rawJsonDataString);
-        console.log("- Full Result (parsed successfully from template):", initialResultData);
-    } catch (e) {
-        console.error("CRITICAL ERROR: Failed to parse initial JSON data from template string.");
-        console.error("Error details:", e);
-        console.error("Problematic JSON string was (check for unescaped control characters like newlines in text fields):");
-        console.error(rawJsonDataString);
-        // initialResultData remains {} as default, allowing UI to initialize minimally
-        // and polling to take over for subsequent updates.
-    }
-    
-    console.log("Initial status information:");
-    console.log("- Assessment ID:", assessmentId);
-    console.log("- Initial Status:", initialStatus);
-    // console.log("- Full Result (raw string):", rawJsonDataString); // Already logged if error
-    
-    const resultBoxBadge = document.querySelector('.result-box .badge');
-    const progressBarContainer = document.getElementById('progress-container');
+    let pollTimeoutId = null;
+
+    // DOM Elements
+    const statusBadge = document.getElementById('status-badge');
+    const progressContainer = document.getElementById('progress-container');
     const progressBarInner = document.getElementById('progress-bar-inner');
     const progressBarText = document.getElementById('progress-bar-text');
-    const progressMessageElem = document.getElementById('progress-message');
-    
-    const pendingCountdownTextElem = document.getElementById('pending-countdown-text');
-
-    const completedAssessmentDetailsContainer = document.getElementById('completed-assessment-details');
-    const errorMessageContainer = document.getElementById('error-message-container');
-    
-    console.log("DOM element check:");
-    console.log("- Progress Container:", progressBarContainer);
-    
-    const toggleEvidenceBtn = document.getElementById('toggle-evidence');
-    const classificationEvidence = document.getElementById('classificationEvidence');
-    if (toggleEvidenceBtn && classificationEvidence) {
-        toggleEvidenceBtn.addEventListener('click', function() {
-            if (classificationEvidence.classList.contains('show')) {
-                classificationEvidence.classList.remove('show');
-                toggleEvidenceBtn.textContent = "Show";
-            } else {
-                classificationEvidence.classList.add('show');
-                toggleEvidenceBtn.textContent = "Hide";
-            }
-        });
-    }
-    
-    function forceRefresh() {
-        console.log("Forcing page refresh");
-        window.location.href = window.location.href.split('?')[0] + '?t=' + new Date().getTime();
-    }
-    
+    const progressMessage = document.getElementById('progress-message');
+    const countdownText = document.getElementById('countdown-text');
+    const countdownTimer = document.getElementById('countdown-timer');
     const manualRefreshButton = document.getElementById('manual-refresh');
-    if (manualRefreshButton) {
-        manualRefreshButton.addEventListener('click', function() {
-            console.log("Manual refresh requested by user");
-            this.textContent = "Refreshing...";
-            this.disabled = true;
-            forceRefresh();
-        });
-    }
 
-    console.log("Initial page status:", initialStatus, "Assessment ID:", assessmentId);
-    
-    if (initialStatus === "completed" && completedAssessmentDetailsContainer) {
-        completedAssessmentDetailsContainer.style.display = 'block';
-    }
-    // Initial display of progress bar if pending or processing is handled by Jinja style
-
-    function updateUIBasedOnStatus(status, data) {
-        console.log("updateUIBasedOnStatus - Status:", status, "Data:", data);
-        currentStatus = status.toLowerCase(); 
-
-        if (resultBoxBadge) {
-            resultBoxBadge.className = `badge bg-status-${currentStatus}`;
-            resultBoxBadge.textContent = currentStatus.replace('_', ' ').replace(/\\b\\w/g, l => l.toUpperCase());
-        }
-
-        // Default all dynamic sections to hidden, then show the correct one.
-        if (progressBarContainer) progressBarContainer.style.display = 'none';
-        if (completedAssessmentDetailsContainer) completedAssessmentDetailsContainer.style.display = 'none';
-        if (errorMessageContainer) errorMessageContainer.style.display = 'none';
-        if (pendingCountdownTextElem) pendingCountdownTextElem.style.display = 'none';
-
-        if (currentStatus === 'pending_assessment') {
-            console.log("UI Status: Pending Assessment - Showing unified progress bar");
-            if (progressBarContainer) progressBarContainer.style.display = 'block';
-            if (progressMessageElem) progressMessageElem.textContent = data?.progress?.message || "Assessment Queued. Initializing...";
-            if (progressBarInner) {
-                progressBarInner.style.width = '2%';
-                progressBarInner.setAttribute('aria-valuenow', '2');
-            }
-            if (progressBarText) progressBarText.textContent = "Queued";
-            if (pendingCountdownTextElem) pendingCountdownTextElem.style.display = 'block';
-
-        } else if (currentStatus === 'processing_assessment') {
-            console.log("UI Status: Processing Assessment - Showing unified progress bar");
-            if (progressBarContainer) progressBarContainer.style.display = 'block';
-            // pendingCountdownTextElem should be hidden (already handled by default hiding above)
-
-            if (data && data.progress) {
-                const progress = data.progress;
-                // DETAILED LOGGING START
-                console.log("[Processing Mode] Raw progress object from API:", JSON.stringify(progress));
-                console.log(`[Processing Mode] progress.current: ${progress.current} (type: ${typeof progress.current})`);
-                console.log(`[Processing Mode] progress.total: ${progress.total} (type: ${typeof progress.total})`);
-                console.log(`[Processing Mode] progress.message: ${progress.message}`);
-                // DETAILED LOGGING END
-
-                let percent = 0;
-                if (typeof progress.total === 'number' && typeof progress.current === 'number' && progress.total > 0) {
-                    percent = (progress.current / progress.total) * 100;
-                } else { 
-                    percent = 5; 
-                    console.warn("[Processing Mode] progress.total is not a positive number or types are incorrect. Defaulting percent to 5.", progress);
-                }
-                percent = Math.min(100, Math.max(0, percent));
-                console.log("[Processing Mode] Calculated percent:", percent);
-
-                if (progressBarInner) {
-                    progressBarInner.style.width = percent + '%';
-                    progressBarInner.setAttribute('aria-valuenow', percent);
-                    console.log(`[Processing Mode] progressBarInner.style.width set to: ${percent}%`);
-                }
-                if (progressBarText) {
-                    let textToShow = 'Processing...';
-                    if (typeof progress.total === 'number' && typeof progress.current === 'number' && progress.total > 0) {
-                        textToShow = `${progress.current}/${progress.total}`;
-                    } else if (percent > 2) {
-                        textToShow = `${Math.round(percent)}%`;
-                    }
-                    progressBarText.textContent = textToShow;
-                    console.log(`[Processing Mode] progressBarText.textContent set to: ${textToShow}`);
-                }
-                if (progressMessageElem) {
-                    progressMessageElem.textContent = progress.message || 'Processing...';
-                    console.log(`[Processing Mode] progressMessageElem.textContent set to: ${progress.message || 'Processing...'}`);
-                }
-            } else { 
-                console.warn("[Processing Mode] No data.progress object found. Using fallback UI.");
-                if (progressMessageElem) progressMessageElem.textContent = 'Processing assessment details...';
-                if (progressBarInner) progressBarInner.style.width = '5%'; 
-                if (progressBarText) progressBarText.textContent = 'Processing...';
-            }
-        } else if (currentStatus === 'completed') {
-            console.log("UI Status: Completed - Ensuring results table is visible and progress bar/countdown are hidden.");
-            // progressBarContainer is already set to display:none by default at function start
-            // pendingCountdownTextElem is already set to display:none by default at function start
-            if (completedAssessmentDetailsContainer) {
-                 completedAssessmentDetailsContainer.style.display = 'block'; // Explicitly show results table
-                 console.log("completedAssessmentDetailsContainer display set to block");
-            }
-            // Note: The page is expected to reload shortly after this state is reached (triggered by pollStatus)
-            // So, this JS-driven display of completedAssessmentDetailsContainer is mainly for the brief moment
-            // IF the reload is delayed or if polling logic changes. Primary display is via Jinja on reload.
-        } else if (currentStatus === 'error') {
-            console.log("UI Status: Error - Displaying error message.");
-            // progressBarContainer and pendingCountdownTextElem already hidden by default
-            if (errorMessageContainer) {
-                errorMessageContainer.style.display = 'block';
-                errorMessageContainer.textContent = `An error occurred: ${data && data.message ? data.message : "Unknown error during assessment."}`;
-            }
-        } else { 
-            console.log("Unknown status in updateUIBasedOnStatus:", currentStatus, "Hiding dynamic sections.");
-            // All main dynamic sections already set to display:none by default at the start of this function.
-        }
-    }
-
-    // Countdown timer logic (updates #countdown-timer inside #pending-countdown-text)
-    let countdownInterval;
-    let isPolling = false; 
-    const countdownTimerSpan = document.getElementById('countdown-timer'); // Span for the number
-    
-    function startCountdown(seconds) {
-        if (countdownInterval) clearInterval(countdownInterval);
-        if (!countdownTimerSpan) return;
+    // Initialize status badge colors
+    function updateStatusBadge(status) {
+        if (!statusBadge) return;
+        statusBadge.className = 'badge';
         
-        let countdown = seconds;
-        countdownTimerSpan.textContent = countdown;
+        switch(status.toLowerCase()) {
+            case 'completed':
+                statusBadge.classList.add('badge-success');
+                break;
+            case 'processing_assessment':
+                statusBadge.classList.add('badge-info');
+                break;
+            case 'pending_assessment':
+                statusBadge.classList.add('badge-warning');
+                break;
+            case 'error':
+                statusBadge.classList.add('badge-danger');
+                break;
+            default:
+                statusBadge.classList.add('badge-secondary');
+        }
+    }
+
+    // Update UI based on status
+    function updateUI(status, data = {}) {
+        const newStatus = status.toLowerCase();
+        
+        // Don't update if status hasn't changed and we don't have new progress data
+        if (newStatus === currentStatus && (!data.progress || !data.progress.current)) {
+            return;
+        }
+        
+        currentStatus = newStatus;
+        updateStatusBadge(status);
+        
+        if (statusBadge) {
+            statusBadge.textContent = status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        // Hide all dynamic sections first
+        if (progressContainer) {
+            progressContainer.classList.add('d-none');
+            progressContainer.classList.remove('d-block');
+        }
+        if (countdownText) {
+            countdownText.classList.add('d-none');
+            countdownText.classList.remove('d-block');
+        }
+
+        switch (currentStatus) {
+            case 'pending_assessment':
+                if (progressContainer) {
+                    progressContainer.classList.remove('d-none');
+                    progressContainer.classList.add('d-block');
+                }
+                if (countdownText) {
+                    countdownText.classList.remove('d-none');
+                    countdownText.classList.add('d-block');
+                }
+                if (progressMessage) progressMessage.textContent = 'Queued for Processing';
+                if (progressBarInner) progressBarInner.style.width = '5%';
+                if (progressBarText) progressBarText.textContent = 'Queued';
+                startCountdown(5);
+                break;
+                
+            case 'processing_assessment':
+                if (progressContainer) {
+                    progressContainer.classList.remove('d-none');
+                    progressContainer.classList.add('d-block');
+                }
+                if (data.progress) {
+                    const percent = data.progress.total > 0 ? 
+                        (data.progress.current / data.progress.total * 100) : 10;
+                    if (progressBarInner) progressBarInner.style.width = percent + '%';
+                    if (progressBarText) progressBarText.textContent = 
+                        data.progress.total > 0 ? 
+                        `${data.progress.current}/${data.progress.total}` : 'Processing...';
+                    if (progressMessage) progressMessage.textContent = 
+                        data.progress.message || 'Processing...';
+                }
+                break;
+                
+            case 'completed':
+                // Only reload if we're transitioning from a non-completed state
+                if (initialStatus !== 'completed') {
+                    console.log('Assessment completed - reloading page in 2 seconds');
+                    // Clear any existing polling timeouts
+                    if (pollTimeoutId) {
+                        clearTimeout(pollTimeoutId);
+                        pollTimeoutId = null;
+                    }
+                    // Show completion message immediately
+                    if (progressContainer) {
+                        progressContainer.classList.add('d-none');
+                    }
+                    // Reload after a delay to show the completed state
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                }
+                break;
+                
+            case 'error':
+                console.log('Assessment error detected');
+                // Clear any existing polling timeouts
+                if (pollTimeoutId) {
+                    clearTimeout(pollTimeoutId);
+                    pollTimeoutId = null;
+                }
+                break;
+        }
+    }
+
+    // Countdown timer
+    let countdownInterval;
+    function startCountdown(seconds) {
+        // Clear any existing countdown first
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+        
+        if (!countdownTimer) return;
+        
+        let count = seconds;
+        countdownTimer.textContent = count;
         
         countdownInterval = setInterval(() => {
-            countdown--;
-            if (countdown <= 0) {
+            count--;
+            if (count <= 0) {
                 clearInterval(countdownInterval);
-                countdownTimerSpan.textContent = "0";
-                if (!isPolling) {
-                    console.log("Countdown reached zero - triggering status check");
-                    if (progressMessageElem && currentStatus === 'pending_assessment') { // Check currentStatus here
-                         progressMessageElem.textContent = "Checking status now...";
-                    }
-                    if (timeoutIdForPoll) { 
-                        clearTimeout(timeoutIdForPoll);
-                        timeoutIdForPoll = null;
-                    }
-                    pollStatus(); 
-                    // No automatic forceRefresh or complex restart logic here, pollStatus will reschedule
+                countdownInterval = null;
+                // Only poll if we're still in pending state
+                if (currentStatus === 'pending_assessment') {
+                    pollStatus();
                 }
                 return;
             }
-            countdownTimerSpan.textContent = countdown;
+            countdownTimer.textContent = count;
         }, 1000);
     }
-    
-    async function pollStatus() {
-        console.log("pollStatus called. Current reported status:", currentStatus);
-        if (timeoutIdForPoll) { 
-            clearTimeout(timeoutIdForPoll);
-            timeoutIdForPoll = null;
-        }
 
-        isPolling = true;
-        if (!assessmentId) { console.log("Polling stopped - no ID."); isPolling = false; return; }
-        if (currentStatus === 'error') { console.log("Polling stopped - error state."); isPolling = false; return; }
+    // Improved poll scheduling with better error handling
+    function scheduleNextPoll() {
+        // Clear any existing timeout first
+        if (pollTimeoutId) {
+            clearTimeout(pollTimeoutId);
+            pollTimeoutId = null;
+        }
         
-        const refreshButton = document.getElementById('manual-refresh');
-        if (refreshButton) {
-            refreshButton.textContent = "Checking...";
-            refreshButton.disabled = true;
+        // Only continue polling if we're in a processing state
+        if (currentStatus === 'pending_assessment') {
+            pollTimeoutId = setTimeout(pollStatus, 5000);
+        } else if (currentStatus === 'processing_assessment') {
+            pollTimeoutId = setTimeout(pollStatus, 3000);
+        }
+        // For completed or error states, stop polling entirely
+    }
+
+    // Improved poll status with better error handling
+    async function pollStatus() {
+        // Don't poll if we're already in a final state
+        if (!assessmentId || currentStatus === 'error' || currentStatus === 'completed') {
+            return;
         }
 
         try {
-            const response = await fetch(`/quality/assessment_status/${assessmentId}?_=${new Date().getTime()}`);
+            const response = await fetch(`/quality/assessment_status/${assessmentId}?_=${Date.now()}`);
             if (!response.ok) {
-                console.error('Status check API failed:', response.status, response.statusText);
-                if (response.status === 404) {
-                    updateUIBasedOnStatus('error', { message: "Assessment process not found (404)." });
-                    return; 
+                console.error('Status check failed:', response.status);
+                // Only schedule next poll if it's a recoverable error
+                if (response.status >= 500) {
+                    scheduleNextPoll();
                 }
-                timeoutIdForPoll = setTimeout(pollStatus, 10000); 
                 return;
             }
+
             const data = await response.json();
-            console.log("API response data:", data);
             
-            const newStatus = data.status.toLowerCase();
-            const statusChanged = newStatus !== currentStatus;
-            if (statusChanged) {
-                console.log(`Status changed from ${currentStatus} to ${newStatus}`);
+            // Only update UI if status actually changed or we got meaningful progress data
+            const statusChanged = data.status !== currentStatus;
+            const hasProgressUpdate = data.progress && 
+                (data.progress.current !== undefined || data.progress.message);
+            
+            if (statusChanged || hasProgressUpdate) {
+                updateUI(data.status, data);
             }
             
-            updateUIBasedOnStatus(newStatus, data); // This will handle UI changes
+            // Schedule next poll only if we're still in a processing state
+            scheduleNextPoll();
             
-            // Manage next poll / countdown
-            if (newStatus === 'pending_assessment') {
-                startCountdown(5); // Restart/start 5s countdown
-                timeoutIdForPoll = setTimeout(pollStatus, 5000);
-            } else if (newStatus === 'processing_assessment') {
-                if (countdownInterval) clearInterval(countdownInterval); // Stop countdown if it was running for pending
-                if (pendingCountdownTextElem) pendingCountdownTextElem.style.display = 'none';
-                timeoutIdForPoll = setTimeout(pollStatus, 3000);
-            } else if (newStatus === 'completed' && (currentStatus !== 'completed' || statusChanged)) {
-                console.log("Assessment completed! Reloading page for full results...");
-                if (progressBarContainer) progressBarContainer.style.display = 'block'; // Show bar briefly
-                if (progressMessageElem) progressMessageElem.textContent = "Assessment completed! Loading results...";
-                if (progressBarInner) progressBarInner.style.width = '100%';
-                if (progressBarText) progressBarText.textContent = "Completed";
-                
-                setTimeout(() => { 
-                    window.location.href = window.location.href.split('?')[0] + '?t=' + new Date().getTime(); 
-                }, 1500);
-                // No more polling after this point as page reloads
-            } else if (newStatus === 'error') {
-                // Stop polling by not setting a new timeout
-                console.error("Assessment error. Polling stopped.");
-            } else if (newStatus !== 'completed' && newStatus !== 'error') { 
-                timeoutIdForPoll = setTimeout(pollStatus, 8000);
-            }
-
         } catch (error) {
-            console.error('Error during pollStatus fetch operation:', error);
-            timeoutIdForPoll = setTimeout(pollStatus, 10000); 
-        } finally {
-            isPolling = false;
-            if (refreshButton) {
-                refreshButton.textContent = "Refresh Results";
-                refreshButton.disabled = false;
+            console.error('Error polling status:', error);
+            // On network errors, try again but with longer delay
+            if (currentStatus === 'pending_assessment' || currentStatus === 'processing_assessment') {
+                pollTimeoutId = setTimeout(pollStatus, 10000); // 10 second delay on error
             }
         }
     }
 
-    localStorage.setItem(`assessment_${assessmentId}_status`, initialStatus);
-    updateUIBasedOnStatus(initialStatus, initialResultData);
-    
-    console.log("Initial poll scheduling based on status...");
-    if (initialStatus !== "error" && initialStatus !== "completed") {
-        if (initialStatus === 'pending_assessment') {
-            startCountdown(5); // This will also lead to a poll
-            timeoutIdForPoll = setTimeout(pollStatus, 5000); // Schedule first poll for pending
-        } else { // For processing or other initial active states
-            timeoutIdForPoll = setTimeout(pollStatus, 500); // Quick first poll
-        }
+    // Manual refresh
+    if (manualRefreshButton) {
+        manualRefreshButton.addEventListener('click', () => {
+            manualRefreshButton.disabled = true;
+            manualRefreshButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+            window.location.reload();
+        });
     }
 
-    // --- User Judgment Interaction Logic (remains the same) --- 
-    document.querySelectorAll('.user-judgment-options .judgment-option').forEach(button => {
-        button.addEventListener('click', function() {
-            const parentOptions = this.closest('.user-judgment-options');
-            parentOptions.querySelectorAll('.judgment-option').forEach(btn => {
-                btn.classList.remove('selected-yes', 'selected-no', 'selected-probably', 'selected-unclear');
-            });
-            const value = this.dataset.value;
-            if (value.includes("Yes") && !value.includes("Probably")) { this.classList.add('selected-yes'); }
-            else if (value.includes("No") && !value.includes("Probably")) { this.classList.add('selected-no'); }
-            else if (value.includes("Probably")) { this.classList.add('selected-probably'); }
-            else { this.classList.add('selected-unclear'); }
-            const criterionId = parentOptions.dataset.criterionId;
-            console.log(`User selected: ${value} for criterion ${criterionId} of assessment ${assessmentId}`);
-        });
-    });
+    // Evidence toggle function
+    window.toggleEvidence = function(button) {
+        const evidenceSection = button.nextElementSibling;
+        const icon = button.querySelector('i');
+        
+        if (evidenceSection.style.display === 'none') {
+            evidenceSection.style.display = 'block';
+            button.innerHTML = '<i class="fas fa-eye-slash"></i> Hide Evidence';
+        } else {
+            evidenceSection.style.display = 'none';
+            button.innerHTML = '<i class="fas fa-quote-left"></i> Show Evidence';
+        }
+    };
 
-    // --- PDF Viewer Logic (remains the same) --- 
-    const pdfViewerContainer = document.getElementById('pdf-viewer-container');
-    const toggleButton = document.getElementById('toggle-pdf-preview');
+    // PDF Viewer Logic
+    const pdfToggle = document.getElementById('toggle-pdf-preview');
+    const pdfContainer = document.getElementById('pdf-viewer-container');
     const pdfCanvas = document.getElementById('pdf-canvas');
     const pageNumSpan = document.getElementById('pdf-page-num');
     const pageCountSpan = document.getElementById('pdf-page-count');
     const prevButton = document.getElementById('pdf-prev');
     const nextButton = document.getElementById('pdf-next');
+    
     let pdfDoc = null;
     let pageNum = 1;
     let pageRendering = false;
     let pageNumPending = null;
-    const scale = 1.5;
-    const { pdfjsLib } = globalThis;
+    const scale = 1.2;
     
-    document.querySelectorAll('.toggle-evidence-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const container = this.nextElementSibling;
-            if (container.style.display === 'none') {
-                container.style.display = 'block';
-                this.textContent = 'Hide Evidence';
-            } else {
-                container.style.display = 'none';
-                this.textContent = 'Show Evidence';
+    // Initialize progress bars and initial display state
+    function initializeProgressBars() {
+        // Set quality score progress bar width
+        const progressMiniBars = document.querySelectorAll('.progress-mini-bar');
+        progressMiniBars.forEach(bar => {
+            const width = bar.getAttribute('data-width');
+            if (width) {
+                bar.style.width = width + '%';
             }
         });
-    });
-
-    async function loadAndRenderPdf() {
-        if (!assessmentId || !pdfCanvas || !pdfjsLib) {
-            console.error("PDF viewer prerequisites missing.");
-            if(pdfViewerContainer) pdfViewerContainer.innerHTML = '<p class="text-danger">PDF viewer cannot be initialized.</p>';
-            return;
-        }
-        pdfjsLib.GlobalWorkerOptions.workerSrc = "{{ url_for('static', filename='js/pdfjs/pdf.worker.mjs') }}";
-        const pdfUrl = `/quality/serve_pdf/${assessmentId}`;
-        try {
-            const loadingIndicator = document.createElement('p');
-            loadingIndicator.textContent = 'Loading PDF preview...';
-            if(pdfCanvas.parentNode) pdfCanvas.parentNode.insertBefore(loadingIndicator, pdfCanvas);
-            const loadingTask = pdfjsLib.getDocument(pdfUrl);
-            pdfDoc = await loadingTask.promise;
-            if(loadingIndicator.parentNode) loadingIndicator.remove();
-            if(pageCountSpan) pageCountSpan.textContent = pdfDoc.numPages;
-            renderPage(pageNum);
-            if (prevButton) prevButton.addEventListener('click', onPrevPage);
-            if (nextButton) nextButton.addEventListener('click', onNextPage);
-        } catch (reason) {
-            console.error("Error loading PDF for preview:", reason);
-            if(pdfViewerContainer) {
-                if("{{ result.filename }}".startsWith('demo_')) {
-                    pdfViewerContainer.innerHTML = '<div class="alert alert-info">This is a demo assessment. No actual PDF file is available for preview.</div>';
-                } else {
-                    pdfViewerContainer.innerHTML = '<div class="alert alert-warning">PDF preview unavailable. The PDF file may have been removed or is not accessible.</div>';
+        
+        // Set initial progress bar width based on current status
+        if (progressBarInner) {
+            let initialWidth = 10; // default
+            if (initialStatus === 'pending_assessment') {
+                initialWidth = 5;
+            } else if (initialStatus === 'processing_assessment') {
+                // For processing status, try to get initial width from aria-valuenow
+                const ariaValue = progressBarInner.getAttribute('aria-valuenow');
+                if (ariaValue && !isNaN(ariaValue)) {
+                    initialWidth = parseInt(ariaValue);
                 }
+            }
+            progressBarInner.style.width = initialWidth + '%';
+        }
+        
+        // Set initial visibility based on status
+        if (initialStatus === 'processing_assessment' || initialStatus === 'pending_assessment') {
+            if (progressContainer) {
+                progressContainer.classList.remove('d-none');
+                progressContainer.classList.add('d-block');
+            }
+        }
+        
+        if (initialStatus === 'pending_assessment') {
+            if (countdownText) {
+                countdownText.classList.remove('d-none');
+                countdownText.classList.add('d-block');
             }
         }
     }
+    
+    // Initialize
+    initializeProgressBars();
+    updateUI(initialStatus);
+    
+    // Only start polling if we're in a processing state
+    if (initialStatus === 'pending_assessment' || initialStatus === 'processing_assessment') {
+        scheduleNextPoll();
+    }
+
+    // PDF Viewer Implementation
+    if (pdfToggle && pdfContainer) {
+        pdfToggle.addEventListener('click', async () => {
+            const isVisible = pdfContainer.style.display === 'block';
+            pdfContainer.style.display = isVisible ? 'none' : 'block';
+            pdfToggle.innerHTML = isVisible ? 
+                '<i class="fas fa-file-pdf mr-1"></i> Show PDF Preview' : 
+                '<i class="fas fa-eye-slash mr-1"></i> Hide PDF Preview';
+                
+            if (!isVisible && !pdfDoc) {
+                await loadPDF();
+            }
+        });
+    }
+
+    async function loadPDF() {
+        if (!assessmentId || !window.pdfjsLib) {
+            console.error('PDF.js not loaded or no assessment ID');
+            return;
+        }
+
+        try {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = "{{ url_for('static', filename='js/pdfjs/pdf.worker.mjs') }}";
+            const pdfUrl = `/quality/serve_pdf/${assessmentId}`;
+            
+            pdfContainer.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading PDF...</div>';
+            
+            const loadingTask = window.pdfjsLib.getDocument(pdfUrl);
+            pdfDoc = await loadingTask.promise;
+            
+            // Restore container content
+            pdfContainer.innerHTML = `
+                <div class="text-center mb-3">
+                    <button id="pdf-prev" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                    <span class="mx-3">
+                        Page <span id="pdf-page-num">1</span> of <span id="pdf-page-count">${pdfDoc.numPages}</span>
+                    </span>
+                    <button id="pdf-next" class="btn btn-outline-primary btn-sm">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <div class="text-center">
+                    <canvas id="pdf-canvas"></canvas>
+                </div>
+            `;
+            
+            // Re-attach event listeners
+            setupPDFControls();
+            await renderPage(1);
+            
+        } catch (error) {
+            console.error('Error loading PDF:', error);
+            pdfContainer.innerHTML = '<div class="alert alert-warning">PDF preview unavailable.</div>';
+        }
+    }
+
+    function setupPDFControls() {
+        const newPrevButton = document.getElementById('pdf-prev');
+        const newNextButton = document.getElementById('pdf-next');
+        
+        if (newPrevButton) {
+            newPrevButton.addEventListener('click', () => {
+                if (pageNum <= 1) return;
+                pageNum--;
+                queueRenderPage(pageNum);
+            });
+        }
+        
+        if (newNextButton) {
+            newNextButton.addEventListener('click', () => {
+                if (pageNum >= pdfDoc.numPages) return;
+                pageNum++;
+                queueRenderPage(pageNum);
+            });
+        }
+    }
+
     async function renderPage(num) {
-        if (!pdfDoc || !pdfCanvas) return;
+        if (!pdfDoc) return;
+        
         pageRendering = true;
+        const canvas = document.getElementById('pdf-canvas');
+        if (!canvas) return;
+        
         try {
             const page = await pdfDoc.getPage(num);
             const viewport = page.getViewport({ scale: scale });
-            const canvasContext = pdfCanvas.getContext('2d');
-            pdfCanvas.height = viewport.height;
-            pdfCanvas.width = viewport.width;
-            const renderContext = { canvasContext: canvasContext, viewport: viewport };
+            const context = canvas.getContext('2d');
+            
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+            
             await page.render(renderContext).promise;
+            
+            // Update controls
+            const pageNumSpan = document.getElementById('pdf-page-num');
+            const prevButton = document.getElementById('pdf-prev');
+            const nextButton = document.getElementById('pdf-next');
+            
+            if (pageNumSpan) pageNumSpan.textContent = num;
+            if (prevButton) prevButton.disabled = num <= 1;
+            if (nextButton) nextButton.disabled = num >= pdfDoc.numPages;
+            
         } catch (error) {
-            console.error("Error rendering page:", error);
+            console.error('Error rendering page:', error);
         }
+        
         pageRendering = false;
-        if (pageNumPending !== null) { renderPage(pageNumPending); pageNumPending = null; }
-        if(pageNumSpan) pageNumSpan.textContent = num;
-        if(prevButton) prevButton.disabled = num <= 1;
-        if(nextButton) nextButton.disabled = num >= pdfDoc.numPages;
+        if (pageNumPending !== null) {
+            renderPage(pageNumPending);
+            pageNumPending = null;
+        }
     }
-    function queueRenderPage(num) { if (pageRendering) { pageNumPending = num; } else { renderPage(num); } }
-    function onPrevPage() { if (pageNum <= 1) return; pageNum--; queueRenderPage(pageNum); }
-    function onNextPage() { if (pageNum >= pdfDoc.numPages) return; pageNum++; queueRenderPage(pageNum); }
 
-    if (toggleButton && pdfViewerContainer) {
-      toggleButton.addEventListener('click', () => {
-            const isVisible = pdfViewerContainer.style.display === 'block';
-            pdfViewerContainer.style.display = isVisible ? 'none' : 'block';
-            toggleButton.textContent = isVisible ? 'Show Original PDF Preview' : 'Hide Original PDF Preview';
-            if (isVisible === false && !pdfDoc) { 
-                loadAndRenderPdf();
-            }
-        });
+    function queueRenderPage(num) {
+        if (pageRendering) {
+            pageNumPending = num;
+        } else {
+            renderPage(num);
+        }
     }
+
+    // Cleanup function for when the page is unloaded
+    window.addEventListener('beforeunload', () => {
+        if (pollTimeoutId) {
+            clearTimeout(pollTimeoutId);
+        }
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+        }
+    });
 </script>
-{% endblock %} 
+{% endblock %}

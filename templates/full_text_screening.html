@@ -268,20 +268,30 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const xhrBatchPdf = new XMLHttpRequest();
-            xhrBatchPdf.open("POST", "{{ url_for('batch_screen_pdfs_stream_placeholder') }}", true); 
+            xhrBatchPdf.open("POST", "{{ url_for('batch_screen_pdfs_stream_placeholder') }}", true);
+            
+            // Enable real-time streaming
+            xhrBatchPdf.setRequestHeader('Cache-Control', 'no-cache');
+            xhrBatchPdf.setRequestHeader('Accept', 'text/event-stream');
+            
             let lastBatchCharIndex = 0;
 
             xhrBatchPdf.onprogress = function() {
                 const newText = xhrBatchPdf.responseText.substring(lastBatchCharIndex);
                 lastBatchCharIndex = xhrBatchPdf.responseText.length;
                 const messages = newText.split('\n\n');
-                messages.forEach(message => {
+                
+                // Process each message except the last one (which might be incomplete)
+                for (let i = 0; i < messages.length - 1; i++) {
+                    const message = messages[i];
+                    if (message.trim()) { // Only process non-empty messages
                     if (message.startsWith("data: ")) {
                         try {
                             const jsonData = JSON.parse(message.substring(6));
                             if (jsonData.type === 'start') {
                                 if(batchProgressStatus) batchProgressStatus.textContent = `Starting... Total files to process: ${jsonData.total_to_process} out of ${jsonData.total_uploaded} uploaded.`;
                                 if(batchLog) batchLog.innerHTML += `<div>[${new Date().toLocaleTimeString()}] Started. Files to process: ${jsonData.total_to_process}. Filter: ${jsonData.filter_info || 'none'}</div>`;
+                                if(batchLog) batchLog.scrollTop = batchLog.scrollHeight;
                             } else if (jsonData.type === 'progress') {
                                 if (batchProgressBar) {
                                     batchProgressBar.style.width = jsonData.percentage + '%';
@@ -290,12 +300,24 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (batchProgressStatus) {
                                     batchProgressStatus.textContent = `Processing ${jsonData.current_file_name} (${jsonData.count}/${jsonData.total_to_process})...`;
                                 }
-                                if(batchLog) batchLog.innerHTML += `<div>[${new Date().toLocaleTimeString()}] File ${jsonData.count}/${jsonData.total_to_process}: ${jsonData.current_file_name} - ${jsonData.decision || 'Processing...'}</div>`;
-                                if(batchLog) batchLog.scrollTop = batchLog.scrollHeight; 
+                                if(batchLog) {
+                                    // Add decision styling
+                                    let decisionClass = "";
+                                    if(jsonData.decision === "INCLUDE") decisionClass = "text-success";
+                                    else if(jsonData.decision === "EXCLUDE") decisionClass = "text-danger";
+                                    else if(jsonData.decision === "MAYBE") decisionClass = "text-warning";
+                                    else decisionClass = "text-muted";
+                                    
+                                    batchLog.innerHTML += `<div>[${new Date().toLocaleTimeString()}] File ${jsonData.count}/${jsonData.total_to_process}: ${jsonData.current_file_name} - <span class="${decisionClass}">${jsonData.decision || 'Processing...'}</span></div>`;
+                                    batchLog.scrollTop = batchLog.scrollHeight;
+                                } 
                             } else if (jsonData.type === 'complete') {
                                 if(batchProgressBar) {batchProgressBar.classList.remove('bg-info'); batchProgressBar.classList.add('bg-success'); batchProgressBar.textContent = "Complete";}
                                 if(batchProgressStatus) batchProgressStatus.textContent = jsonData.message;
-                                if(batchLog) batchLog.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${jsonData.message}</div>`;
+                                if(batchLog) {
+                                    batchLog.innerHTML += `<div class="text-success font-weight-bold">[${new Date().toLocaleTimeString()}] ${jsonData.message}</div>`;
+                                    batchLog.scrollTop = batchLog.scrollHeight;
+                                }
                                 if (jsonData.batch_session_id && batchResultsLinkArea) {
                                     let baseUrl = "{{ url_for('show_batch_pdf_results_placeholder', batch_session_id='__BATCH_ID__') }}";
                                     document.getElementById('view_batch_pdf_results_link').href = baseUrl.replace('__BATCH_ID__', jsonData.batch_session_id);
@@ -308,19 +330,29 @@ document.addEventListener('DOMContentLoaded', function() {
                             } else if (jsonData.type === 'error') {
                                 if(batchProgressBar) {batchProgressBar.classList.remove('bg-info'); batchProgressBar.classList.add('bg-danger'); batchProgressBar.textContent = "Error";}
                                 if(batchProgressStatus) batchProgressStatus.textContent = `Error: ${jsonData.message}`;
-                                if(batchLog) batchLog.innerHTML += `<div class="text-danger">[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}</div>`;
+                                if(batchLog) {
+                                    batchLog.innerHTML += `<div class="text-danger">[${new Date().toLocaleTimeString()}] Error: ${jsonData.message}</div>`;
+                                    batchLog.scrollTop = batchLog.scrollHeight;
+                                }
                                 if (jsonData.needs_config) {
                                     const configUrl = "{{ url_for('llm_config_page') }}";
-                                    if(batchLog) batchLog.innerHTML += `<div>Please <a href="${configUrl}" target="_blank">configure API Key</a>.</div>`;
+                                    if(batchLog) {
+                                        batchLog.innerHTML += `<div>Please <a href="${configUrl}" target="_blank">configure API Key</a>.</div>`;
+                                        batchLog.scrollTop = batchLog.scrollHeight;
+                                    }
                                 }
                                 xhrBatchPdf.abort();
                             }
                         } catch (e) { 
                             console.error("PDF SSE Parse Error:", e, message); 
-                            if(batchLog) batchLog.innerHTML += `<div class="text-danger">[${new Date().toLocaleTimeString()}] Error parsing server message.</div>`;
+                            if(batchLog) {
+                                batchLog.innerHTML += `<div class="text-danger">[${new Date().toLocaleTimeString()}] Error parsing server message.</div>`;
+                                batchLog.scrollTop = batchLog.scrollHeight;
+                            }
                         } 
                     }
-                });
+                }
+                }
             };
             xhrBatchPdf.onloadend = function() { 
                 startBatchPdfScreenButton.disabled = false; 
@@ -329,7 +361,10 @@ document.addEventListener('DOMContentLoaded', function() {
             xhrBatchPdf.onerror = function() { 
                 startBatchPdfScreenButton.disabled = false; 
                 if(batchSpinner) batchSpinner.style.display = 'none'; 
-                if(batchLog) batchLog.innerHTML += `<div class="text-danger">[${new Date().toLocaleTimeString()}] Connection error during PDF screening.</div>`;
+                if(batchLog) {
+                    batchLog.innerHTML += `<div class="text-danger">[${new Date().toLocaleTimeString()}] Connection error during PDF screening.</div>`;
+                    batchLog.scrollTop = batchLog.scrollHeight;
+                }
             }; 
             xhrBatchPdf.send(formData);
         });
