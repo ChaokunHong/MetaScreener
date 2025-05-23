@@ -108,40 +108,90 @@ print(f"Initial _assessments_db keys after load: {list(_assessments_db.keys())}"
 # --- START: Define Quality Assessment Criteria --- #
 
 # Define known quality assessment tools and their items
-# This is a simplified example. In a real system, this could be more detailed
-# and potentially loaded from a configuration file or database.
+# This contains complete, standardized quality assessment tools
+# for different document types, following international standards.
 QUALITY_ASSESSMENT_TOOLS = {
     "Systematic Review": {
-        "tool_name": "AMSTAR 2 (Abbreviated)",
+        "tool_name": "AMSTAR 2 (A MeaSurement Tool to Assess systematic Reviews) - 16 items",
         "criteria": [
-            {"id": "sr_q1", "text": "Did the research questions and inclusion criteria for the review include the components of PICO?", "guidance": "PICO: Population, Intervention, Comparator, Outcome"},
-            {"id": "sr_q2", "text": "Did the report of the review contain an explicit statement that the review methods were established prior to the conduct of the review and did the report justify any significant deviations from the protocol?", "guidance": "Look for mention of a protocol (e.g., PROSPERO registration, published protocol)."},
-            {"id": "sr_q3", "text": "Did the review authors explain their selection of the study designs for inclusion in the review?", "guidance": "Consider if reasons are given for why certain study designs were included or excluded."},
-            {"id": "sr_q4", "text": "Did the review authors use a comprehensive literature search strategy?", "guidance": "At least two databases, reference list searching, keywords and/or MeSH terms."},
-            {"id": "sr_q5", "text": "Did the review authors perform study selection in duplicate?", "guidance": "Look for mention of two independent reviewers for study selection."}
-            # ... more AMSTAR 2 items can be added here
+            {"id": "sr_q1", "text": "Did the research questions and inclusion criteria for the review include the components of PICO?", "guidance": "PICO: Population, Intervention, Comparator, Outcome. The research question should be clearly defined and include all relevant PICO components.", "critical": True},
+            {"id": "sr_q2", "text": "Did the report of the review contain an explicit statement that the review methods were established prior to the conduct of the review and did the report justify any significant deviations from the protocol?", "guidance": "Look for mention of a protocol (e.g., PROSPERO registration, published protocol). Any deviations from the protocol should be justified.", "critical": True},
+            {"id": "sr_q3", "text": "Did the review authors explain their selection of the study designs for inclusion in the review?", "guidance": "Consider if reasons are given for why certain study designs were included or excluded. The rationale should be appropriate for the research question."},
+            {"id": "sr_q4", "text": "Did the review authors use a comprehensive literature search strategy?", "guidance": "At least two databases should be searched. The search should include keywords and/or MeSH terms, reference list searching, and other comprehensive strategies.", "critical": True},
+            {"id": "sr_q5", "text": "Did the review authors perform study selection in duplicate?", "guidance": "Look for mention of two independent reviewers for study selection with a process for resolving disagreements."},
+            {"id": "sr_q6", "text": "Did the review authors perform data extraction in duplicate?", "guidance": "Data extraction should be performed by at least two independent reviewers with a process for resolving disagreements."},
+            {"id": "sr_q7", "text": "Did the review authors provide a list of excluded studies and justify the exclusions?", "guidance": "A list of excluded studies (at full-text level) should be provided with reasons for exclusion.", "critical": True},
+            {"id": "sr_q8", "text": "Did the review authors describe the included studies in adequate detail?", "guidance": "Adequate details should include: study design, population, interventions, comparators, outcomes, and study characteristics."},
+            {"id": "sr_q9", "text": "Did the review authors use a satisfactory technique for assessing the risk of bias (RoB) in individual studies that were included in the review?", "guidance": "An appropriate tool should be used for assessing risk of bias (e.g., RoB 2 for RCTs, ROBINS-I for non-randomized studies).", "critical": True},
+            {"id": "sr_q10", "text": "Did the review authors report on the sources of funding for the studies included in the review?", "guidance": "Information about funding sources for included studies should be reported."},
+            {"id": "sr_q11", "text": "If meta-analysis was performed, did the review authors use appropriate methods for statistical combination of results?", "guidance": "Appropriate statistical methods should be used. Fixed vs. random effects model choice should be justified.", "critical": True},
+            {"id": "sr_q12", "text": "If meta-analysis was performed, did the review authors assess the potential impact of RoB in individual studies on the results of the meta-analysis or other evidence synthesis?", "guidance": "The impact of risk of bias on the results should be assessed and discussed.", "critical": True},
+            {"id": "sr_q13", "text": "Did the review authors account for RoB in individual studies when interpreting/discussing the results of the review?", "guidance": "Risk of bias should be considered in the interpretation and discussion of results."},
+            {"id": "sr_q14", "text": "Did the review authors provide a satisfactory explanation for, and discussion of, any heterogeneity observed in the results of the review?", "guidance": "Heterogeneity should be investigated and explained. Sources of heterogeneity should be explored."},
+            {"id": "sr_q15", "text": "If they performed quantitative synthesis, did the review authors carry out an adequate investigation of publication bias (small study bias) and discuss its likely impact on the results of the review?", "guidance": "Publication bias should be investigated using appropriate methods (e.g., funnel plots, statistical tests) when there are sufficient studies."},
+            {"id": "sr_q16", "text": "Did the review authors report any potential sources of conflict of interest, including any funding they received for conducting the review?", "guidance": "Sources of funding and potential conflicts of interest for the review should be clearly reported."}
         ]
     },
     "RCT": {
-        "tool_name": "Cochrane RoB 2 (Simplified Domains)",
+        "tool_name": "Cochrane RoB 2 (Risk of Bias tool for randomized trials) - Complete",
         "criteria": [
-            {"id": "rct_d1_1", "text": "Was the allocation sequence random?", "domain": "D1: Randomization process"},
-            {"id": "rct_d1_2", "text": "Was the allocation sequence concealed until participants were enrolled and assigned to interventions?", "domain": "D1: Randomization process"},
-            {"id": "rct_d2_1", "text": "Were participants and personnel blind to intervention assignment?", "domain": "D2: Deviations from intended interventions (blinding of participants and personnel)"},
-            {"id": "rct_d3_1", "text": "Were outcome assessors blind to intervention assignment?", "domain": "D3: Missing outcome data (blinding of outcome assessors)"},
-            {"id": "rct_d4_1", "text": "Were incomplete outcome data adequately addressed?", "domain": "D4: Measurement of the outcome"},
-            {"id": "rct_d5_1", "text": "Were the study's outcomes reported selectively?", "domain": "D5: Selection of the reported result"}
-            # ... more RoB 2 items/domains can be added here
+            # Domain 1: Randomization process
+            {"id": "rct_d1_1", "text": "Was the allocation sequence random?", "domain": "D1: Randomization process", "guidance": "Consider if the allocation sequence was adequately generated (e.g., computer-generated random numbers, random number tables)."},
+            {"id": "rct_d1_2", "text": "Was the allocation sequence concealed until participants were enrolled and assigned to interventions?", "domain": "D1: Randomization process", "guidance": "Assess if allocation was concealed from those recruiting/enrolling participants (e.g., central allocation, sequentially numbered sealed envelopes)."},
+            {"id": "rct_d1_3", "text": "Were there baseline imbalances that suggest a problem with randomization?", "domain": "D1: Randomization process", "guidance": "Look for imbalances in baseline characteristics that might indicate randomization failure."},
+            
+            # Domain 2: Deviations from intended interventions
+            {"id": "rct_d2_1", "text": "Were participants aware of their assigned intervention during the trial?", "domain": "D2: Deviations from intended interventions", "guidance": "Assess if participants were blinded to treatment allocation."},
+            {"id": "rct_d2_2", "text": "Were carers and people delivering the interventions aware of participants' assigned intervention during the trial?", "domain": "D2: Deviations from intended interventions", "guidance": "Assess if care providers/personnel were blinded to treatment allocation."},
+            {"id": "rct_d2_3", "text": "Were there deviations from the intended intervention that arose because of the experimental context?", "domain": "D2: Deviations from intended interventions", "guidance": "Consider deviations that would not occur outside the trial context."},
+            {"id": "rct_d2_4", "text": "Was an appropriate analysis used to estimate the effect of assignment to intervention?", "domain": "D2: Deviations from intended interventions", "guidance": "For effect of assignment to intervention: intention-to-treat analysis should be used."},
+            
+            # Domain 3: Missing outcome data
+            {"id": "rct_d3_1", "text": "Were data for this outcome available for all, or nearly all, participants randomized?", "domain": "D3: Missing outcome data", "guidance": "Assess completeness of outcome data and whether missing data rates are similar across groups."},
+            {"id": "rct_d3_2", "text": "Is there evidence that the result was not biased by missing outcome data?", "domain": "D3: Missing outcome data", "guidance": "Consider if missing data could substantially impact the observed effect."},
+            {"id": "rct_d3_3", "text": "Could missingness in the outcome depend on its true value?", "domain": "D3: Missing outcome data", "guidance": "Assess if reasons for missing data are related to the outcome itself."},
+            
+            # Domain 4: Measurement of the outcome
+            {"id": "rct_d4_1", "text": "Was the method of measuring the outcome inappropriate?", "domain": "D4: Measurement of the outcome", "guidance": "Consider if the measurement method was valid and reliable."},
+            {"id": "rct_d4_2", "text": "Could measurement or ascertainment of the outcome have differed between intervention groups?", "domain": "D4: Measurement of the outcome", "guidance": "Assess if outcome assessment methods differed between groups."},
+            {"id": "rct_d4_3", "text": "Were outcome assessors aware of the intervention received by study participants?", "domain": "D4: Measurement of the outcome", "guidance": "Consider if outcome assessors were blinded to treatment allocation."},
+            {"id": "rct_d4_4", "text": "Could assessment of the outcome have been influenced by knowledge of intervention received?", "domain": "D4: Measurement of the outcome", "guidance": "For subjective outcomes, knowledge of intervention could bias assessment."},
+            
+            # Domain 5: Selection of the reported result
+            {"id": "rct_d5_1", "text": "Were the data that produced this result analyzed in accordance with a pre-specified analysis plan?", "domain": "D5: Selection of the reported result", "guidance": "Consider if the analysis matches the planned approach in the protocol."},
+            {"id": "rct_d5_2", "text": "Is the numerical result being assessed likely to have been selected, on the basis of the results, from multiple eligible outcome measurements?", "domain": "D5: Selection of the reported result", "guidance": "Assess selective reporting of outcome measurements or time points."},
+            {"id": "rct_d5_3", "text": "Is the numerical result being assessed likely to have been selected, on the basis of the results, from multiple eligible analyses of the data?", "domain": "D5: Selection of the reported result", "guidance": "Consider selective reporting of analyses (e.g., subgroup analyses, adjusted vs unadjusted)."}
         ]
     },
     "Diagnostic Study": {
-        "tool_name": "QUADAS-2 (Simplified Domains)",
+        "tool_name": "QUADAS-2 (Quality Assessment of Diagnostic Accuracy Studies) - Complete",
         "criteria": [
-            {"id": "ds_d1_rb", "text": "Was a consecutive or random sample of patients enrolled? (Risk of Bias - Patient Selection)", "domain": "D1: Patient Selection"},
-            {"id": "ds_d1_ac", "text": "Did the study avoid inappropriate exclusions? (Applicability - Patient Selection)", "domain": "D1: Patient Selection"},
-            {"id": "ds_d2_rb", "text": "Were the index test results interpreted without knowledge of the results of the reference standard? (Risk of Bias - Index Test)", "domain": "D2: Index Test"},
-            {"id": "ds_d3_rb", "text": "Were the reference standard results interpreted without knowledge of the results of the index test? (Risk of Bias - Reference Standard)", "domain": "D3: Reference Standard"}
-            # ... more QUADAS-2 items can be added here
+            # Domain 1: Patient Selection - Risk of Bias
+            {"id": "ds_d1_rb1", "text": "Was a consecutive or random sample of patients enrolled?", "domain": "D1: Patient Selection - Risk of Bias", "guidance": "Consecutive or random sampling reduces selection bias. Case-control designs or convenience sampling may introduce bias."},
+            {"id": "ds_d1_rb2", "text": "Was a case-control design avoided?", "domain": "D1: Patient Selection - Risk of Bias", "guidance": "Case-control designs can overestimate diagnostic accuracy."},
+            {"id": "ds_d1_rb3", "text": "Did the study avoid inappropriate exclusions?", "domain": "D1: Patient Selection - Risk of Bias", "guidance": "Exclusions should be clearly described and appropriate for the research question."},
+            
+            # Domain 1: Patient Selection - Applicability
+            {"id": "ds_d1_ac1", "text": "Are there concerns that the included patients and setting do not match the review question?", "domain": "D1: Patient Selection - Applicability", "guidance": "Consider if patient characteristics, setting, and intended use of index test match the review question."},
+            
+            # Domain 2: Index Test - Risk of Bias
+            {"id": "ds_d2_rb1", "text": "Were the index test results interpreted without knowledge of the results of the reference standard?", "domain": "D2: Index Test - Risk of Bias", "guidance": "Interpretation should be blinded to reference standard results to avoid bias."},
+            {"id": "ds_d2_rb2", "text": "If a threshold was used, was it pre-specified?", "domain": "D2: Index Test - Risk of Bias", "guidance": "Pre-specified thresholds prevent data-driven threshold selection which can inflate accuracy."},
+            
+            # Domain 2: Index Test - Applicability
+            {"id": "ds_d2_ac1", "text": "Are there concerns that the index test, its conduct, or interpretation differ from the review question?", "domain": "D2: Index Test - Applicability", "guidance": "Consider if the index test was performed as it would be in practice."},
+            
+            # Domain 3: Reference Standard - Risk of Bias
+            {"id": "ds_d3_rb1", "text": "Is the reference standard likely to correctly classify the target condition?", "domain": "D3: Reference Standard - Risk of Bias", "guidance": "The reference standard should be the best available method for establishing presence/absence of target condition."},
+            {"id": "ds_d3_rb2", "text": "Were the reference standard results interpreted without knowledge of the results of the index test?", "domain": "D3: Reference Standard - Risk of Bias", "guidance": "Interpretation should be blinded to index test results to avoid bias."},
+            
+            # Domain 3: Reference Standard - Applicability
+            {"id": "ds_d3_ac1", "text": "Are there concerns that the target condition as defined by the reference standard does not match the question?", "domain": "D3: Reference Standard - Applicability", "guidance": "Consider if the reference standard defines the same target condition as in the review question."},
+            
+            # Domain 4: Flow and Timing - Risk of Bias
+            {"id": "ds_d4_rb1", "text": "Was there an appropriate interval between index test and reference standard?", "domain": "D4: Flow and Timing - Risk of Bias", "guidance": "The interval should be short enough that the target condition is unlikely to change."},
+            {"id": "ds_d4_rb2", "text": "Did all patients receive the same reference standard?", "domain": "D4: Flow and Timing - Risk of Bias", "guidance": "Differential verification can introduce bias."},
+            {"id": "ds_d4_rb3", "text": "Were all patients included in the analysis?", "domain": "D4: Flow and Timing - Risk of Bias", "guidance": "Withdrawals should be explained and unlikely to introduce bias."}
         ]
     },
     "Cohort Study": {
@@ -678,25 +728,165 @@ def _construct_quality_assessment_prompt(criterion_text: str, criterion_guidance
     )
 
 def _parse_llm_json_response(llm_response_raw: str) -> Optional[Dict]:
+    """
+    Enhanced parsing of LLM JSON response with comprehensive error handling
+    Supports both simple and complex JSON structures from the enhanced prompts
+    """
     if not llm_response_raw or not isinstance(llm_response_raw, str):
         return None
+    
     try:
+        # First try to extract JSON from markdown code blocks
         json_block_match = re.search(r'```json\s*(\{.*?\})\s*```', llm_response_raw, re.DOTALL)
         if json_block_match:
             json_str_to_parse = json_block_match.group(1)
-            return json.loads(json_str_to_parse)
+            parsed_json = json.loads(json_str_to_parse)
+            return _validate_and_standardize_response(parsed_json)
+        
+        # Try to find JSON in the raw text
         first_brace = llm_response_raw.find('{')
         last_brace = llm_response_raw.rfind('}')
         if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
             potential_json_str = llm_response_raw[first_brace : last_brace + 1]
-            return json.loads(potential_json_str)
-        return None
+            parsed_json = json.loads(potential_json_str)
+            return _validate_and_standardize_response(parsed_json)
+            
+        # If no JSON structure found, create a fallback response
+        return _create_fallback_response(llm_response_raw)
+        
     except json.JSONDecodeError as e:
         print(f"Failed to decode JSON from LLM output: {e}. Raw: {llm_response_raw[:200]}")
-        return None
+        return _create_fallback_response(llm_response_raw, error_info=str(e))
     except Exception as e_parse:
         print(f"Unexpected error parsing LLM output: {e_parse}. Raw: {llm_response_raw[:200]}")
-        return None
+        return _create_fallback_response(llm_response_raw, error_info=str(e_parse))
+
+def _validate_and_standardize_response(parsed_json: Dict) -> Dict:
+    """
+    Validate and standardize the parsed JSON response to ensure required fields
+    Enhanced to handle simplified prompt structures while maintaining frontend compatibility
+    """
+    if not isinstance(parsed_json, dict):
+        return _create_fallback_response("Invalid JSON structure")
+    
+    # Extract the main judgment from various possible fields
+    judgment = None
+    reason = None
+    evidence_quotes = []
+    
+    # Handle different response structures from different prompt versions
+    if "judgment" in parsed_json:
+        judgment = parsed_json["judgment"]
+    elif "primary_classification" in parsed_json:
+        # For document classification responses
+        judgment = parsed_json["primary_classification"]
+    else:
+        judgment = "Error: No judgment found"
+    
+    # Extract reasoning from various possible fields
+    if "reason" in parsed_json:
+        reason = parsed_json["reason"]
+    elif "justification" in parsed_json:
+        reason = parsed_json["justification"]
+    elif "evidence_basis" in parsed_json:
+        reason = parsed_json["evidence_basis"]
+    elif "scoring_rationale" in parsed_json:
+        reason = parsed_json["scoring_rationale"]
+    elif "classification_reasoning" in parsed_json:
+        reason = parsed_json["classification_reasoning"]
+    else:
+        reason = "No detailed reasoning provided"
+    
+    # Extract evidence quotes from various possible fields (ensuring frontend compatibility)
+    evidence_sources = [
+        "evidence_quotes",           # Legacy field
+        "supporting_quotes",         # New simplified prompt field
+        "supporting_evidence",       # Alternative field
+    ]
+    
+    for source in evidence_sources:
+        if source in parsed_json:
+            potential_evidence = parsed_json[source]
+            if isinstance(potential_evidence, list):
+                evidence_quotes = potential_evidence
+                break
+            elif isinstance(potential_evidence, str) and potential_evidence.strip():
+                evidence_quotes = [potential_evidence]
+                break
+    
+    # Ensure evidence_quotes is a list of non-empty strings
+    if not isinstance(evidence_quotes, list):
+        evidence_quotes = [str(evidence_quotes)] if evidence_quotes else []
+    
+    # Clean up evidence quotes - remove empty/None values
+    evidence_quotes = [quote.strip() for quote in evidence_quotes if quote and str(quote).strip()]
+    
+    # If no evidence quotes found, create default message
+    if not evidence_quotes:
+        evidence_quotes = ["Assessment completed but specific evidence quotes not available"]
+    
+    # Create standardized response for frontend compatibility
+    standardized_response = {
+        "judgment": judgment,
+        "reason": reason,
+        "evidence_quotes": evidence_quotes  # Frontend expects this field name
+    }
+    
+    # Preserve additional analysis data if available (for future use or debugging)
+    analysis_fields = [
+        "reasoning_steps", "amstar2_analysis", "evidence_evaluation", "evidence_analysis",
+        "nos_framework", "systematic_search", "star_evaluation", "nos_evaluation",
+        "case_control_analysis", "axis_evaluation", "quadas2_analysis", 
+        "diagnostic_study_features", "qualitative_assessment", "design_feature_analysis",
+        "methodological_verification", "statistical_documentation", "convergent_evidence_assessment",
+        "classification_decision", "decision_logic", "confidence_level", "quality_impact", 
+        "stars_awarded", "scoring_confidence", "stars_earned", "methodological_assessment",
+        "overall_quality", "applicability_concerns", "research_quality", "confidence_assessment",
+        "limitations_acknowledged"
+    ]
+    
+    for field in analysis_fields:
+        if field in parsed_json:
+            standardized_response[field] = parsed_json[field]
+    
+    return standardized_response
+
+def _create_fallback_response(raw_response: str, error_info: str = None) -> Dict:
+    """
+    Create a fallback response when JSON parsing fails
+    """
+    # Try to extract simple judgment from text
+    judgment = "Error: Parse Failure"
+    if "low risk" in raw_response.lower():
+        judgment = "low risk"
+    elif "high risk" in raw_response.lower():
+        judgment = "high risk"
+    elif "some concerns" in raw_response.lower():
+        judgment = "some concerns"
+    elif "yes" in raw_response.lower():
+        judgment = "yes"
+    elif "partial yes" in raw_response.lower():
+        judgment = "partial yes"
+    elif "no" in raw_response.lower():
+        judgment = "no"
+    elif "star awarded" in raw_response.lower():
+        judgment = "star awarded"
+    elif "no star" in raw_response.lower():
+        judgment = "no star awarded"
+    elif "unclear" in raw_response.lower():
+        judgment = "unclear"
+    
+    reason_text = f"Raw response parsing failed. Original content: {raw_response[:200]}..."
+    if error_info:
+        reason_text += f" Error information: {error_info}"
+    
+    return {
+        "judgment": judgment,
+        "reason": reason_text,
+        "evidence_quotes": [],
+        "parsing_error": True,
+        "raw_response": raw_response[:500]  # Keep first 500 chars for debugging
+    }
 
 def run_ai_quality_assessment(assessment_id: str, app_context=None, llm_config=None):
     if not llm_config or not llm_config.get("api_key"):

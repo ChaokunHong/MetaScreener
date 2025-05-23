@@ -2358,6 +2358,7 @@ def batch_screen_pdfs_stream():
 
     total_files_to_process = len(files_ready_for_threads) 
     def generate_processing_progress(): # Inner generator function
+        from gevent import sleep
         yield f"data: {json.dumps({'type': 'start', 'total_uploaded': len(initial_manifest), 'total_to_process': total_files_to_process, 'filter_info': filter_description})}\n\n"
         
         processed_files_results = []
@@ -2380,64 +2381,101 @@ def batch_screen_pdfs_stream():
                       llm_base_url)
             greenlets_info.append({'greenlet': g, 'manifest': item_manifest_with_path})
 
-        join_timeout_batch_pdf = 3580 
-        app_logger.info(f"Batch PDF SSE: Waiting for {len(greenlets_info)} greenlets with timeout {join_timeout_batch_pdf}s.")
-        joinall([info['greenlet'] for info in greenlets_info], timeout=join_timeout_batch_pdf)
-        app_logger.info("Batch PDF SSE: Greenlet join completed or timed out.")
-
+        # Real-time progress monitoring instead of waiting for all to complete
         processed_count = 0
-        for info in greenlets_info:
-            glet = info['greenlet']
-            completed_item_manifest = info['manifest']
-            original_filename_for_log = completed_item_manifest['original_filename']
-            screening_result = None
-
-            try:
-                if glet.ready():
-                    if glet.successful():
-                        screening_result = glet.get(block=False)
-                    else:
-                        app_logger.error(f"Batch PDF SSE: Unhandled exception in greenlet for {original_filename_for_log}: {glet.exception}")
+        completed_greenlets = set()
+        
+        app_logger.info(f"Batch PDF SSE: Starting real-time monitoring of {len(greenlets_info)} greenlets.")
+        
+        # Monitor greenlets in real time
+        while processed_count < total_files_to_process:
+            sleep(0.5)  # Check every 500ms for completed tasks
+            
+            for i, info in enumerate(greenlets_info):
+                if i in completed_greenlets:
+                    continue  # Skip already processed greenlets
+                    
+                glet = info['greenlet']
+                completed_item_manifest = info['manifest']
+                original_filename_for_log = completed_item_manifest['original_filename']
+                
+                if glet.ready():  # Check if this greenlet has completed
+                    completed_greenlets.add(i)
+                    screening_result = None
+                    
+                    try:
+                        if glet.successful():
+                            screening_result = glet.get(block=False)
+                        else:
+                            app_logger.error(f"Batch PDF SSE: Unhandled exception in greenlet for {original_filename_for_log}: {glet.exception}")
+                            screening_result = {
+                                'original_index': completed_item_manifest['original_index'],
+                                'filename': original_filename_for_log, 
+                                'title_for_display': original_filename_for_log,
+                                'decision': 'GREENLET_ERROR',
+                                'reasoning': str(glet.exception)
+                            }
+                    except Exception as e_future:
+                        app_logger.error(f"Batch PDF SSE: Exception processing greenlet result for {original_filename_for_log}: {e_future}")
                         screening_result = {
                             'original_index': completed_item_manifest['original_index'],
                             'filename': original_filename_for_log, 
                             'title_for_display': original_filename_for_log,
-                            'decision': 'GREENLET_ERROR',
-                            'reasoning': str(glet.exception)
+                            'decision': 'PROCESSING_ERROR',
+                            'reasoning': str(e_future)
                         }
-                else:
-                    app_logger.warning(f"Batch PDF SSE: Greenlet for {original_filename_for_log} did not complete within timeout.")
-                    screening_result = {
-                        'original_index': completed_item_manifest['original_index'],
-                        'filename': original_filename_for_log,
-                        'title_for_display': original_filename_for_log,
-                        'decision': 'TIMEOUT_ERROR', 
-                        'reasoning': 'Processing timed out within gevent task.'
-                    }
-            except Exception as e_future:
-                app_logger.error(f"Batch PDF SSE: Exception processing greenlet result for {original_filename_for_log}: {e_future}")
-                screening_result = {
-                    'original_index': completed_item_manifest['original_index'],
-                    'filename': original_filename_for_log, 
-                    'title_for_display': original_filename_for_log,
-                    'decision': 'PROCESSING_ERROR',
-                    'reasoning': str(e_future)
-                }
-            
-            if screening_result:
-                processed_files_results.append(screening_result)
-            else:
-                 app_logger.error(f"Batch PDF SSE: No screening_result obtained for {original_filename_for_log}")
-                 processed_files_results.append({
-                    'original_index': completed_item_manifest['original_index'],
-                    'filename': original_filename_for_log, 
-                    'title_for_display': original_filename_for_log,
-                    'decision': 'UNKNOWN_ERROR',
-                    'reasoning': 'Result was not captured from greenlet processing.'
-                })
-
-            processed_count += 1
-            yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total_to_process': total_files_to_process, 'percentage': int((processed_count / total_files_to_process) * 100), 'current_file_name': screening_result.get('filename', original_filename_for_log), 'decision': screening_result.get('decision', 'ERROR')})}\n\n"
+                    
+                    if screening_result:
+                        processed_files_results.append(screening_result)
+                    else:
+                        app_logger.error(f"Batch PDF SSE: No screening_result obtained for {original_filename_for_log}")
+                        processed_files_results.append({
+                            'original_index': completed_item_manifest['original_index'],
+                            'filename': original_filename_for_log, 
+                            'title_for_display': original_filename_for_log,
+                            'decision': 'UNKNOWN_ERROR',
+                            'reasoning': 'Result was not captured from greenlet processing.'
+                        })
+                    
+                    processed_count += 1
+                    
+                    # Send real-time progress update
+                    progress_percentage = int((processed_count / total_files_to_process) * 100)
+                    yield f"data: {json.dumps({'type': 'progress', 'count': processed_count, 'total_to_process': total_files_to_process, 'percentage': progress_percentage, 'current_file_name': screening_result.get('filename', original_filename_for_log), 'decision': screening_result.get('decision', 'ERROR')})}\n\n"
+                    
+                    app_logger.info(f"Batch PDF SSE: Completed {processed_count}/{total_files_to_process}: {original_filename_for_log} - {screening_result.get('decision', 'ERROR')}")
+        
+        # Handle any remaining incomplete greenlets (timeout case)
+        remaining_timeout = 10  # Additional 10 seconds for any stragglers
+        app_logger.info(f"Batch PDF SSE: All tasks completed or checking for stragglers with {remaining_timeout}s timeout")
+        
+        for i, info in enumerate(greenlets_info):
+            if i not in completed_greenlets:
+                glet = info['greenlet']
+                completed_item_manifest = info['manifest']
+                original_filename_for_log = completed_item_manifest['original_filename']
+                
+                try:
+                    # Give remaining tasks a short time to complete
+                    glet.join(timeout=remaining_timeout)
+                    
+                    if glet.ready() and glet.successful():
+                        screening_result = glet.get(block=False)
+                        processed_files_results.append(screening_result)
+                        app_logger.info(f"Batch PDF SSE: Late completion for {original_filename_for_log}")
+                    else:
+                        # Handle timeout or error for remaining tasks
+                        app_logger.warning(f"Batch PDF SSE: Greenlet for {original_filename_for_log} timed out or failed")
+                        timeout_result = {
+                            'original_index': completed_item_manifest['original_index'],
+                            'filename': original_filename_for_log,
+                            'title_for_display': original_filename_for_log,
+                            'decision': 'TIMEOUT_ERROR', 
+                            'reasoning': 'Processing timed out.'
+                        }
+                        processed_files_results.append(timeout_result)
+                except Exception as e_timeout:
+                    app_logger.error(f"Batch PDF SSE: Error handling timeout for {original_filename_for_log}: {e_timeout}")
 
         processed_files_results.sort(key=lambda x: x.get('original_index', float('inf')))
         

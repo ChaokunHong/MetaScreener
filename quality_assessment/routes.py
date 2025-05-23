@@ -325,3 +325,228 @@ def get_batch_summary(batch_id):
 # - API endpoint for AI to classify document type (if we go that route)
 # - API endpoint for AI to assess based on criteria
 # - Route for user to submit their own review/override AI 
+
+# --- NEW: Enhanced Batch Summary/Results Page --- #
+@quality_bp.route('/batch_results/<batch_id>')
+def view_batch_results(batch_id):
+    """Enhanced batch results page with comprehensive summary and export options"""
+    current_app.logger.info(f"BATCH_RESULTS_VIEW: Accessed for batch_id: {batch_id}")
+    batch_info = _batch_assessments_status.get(batch_id)
+    if not batch_info:
+        flash("Batch assessment not found or has expired (server may have restarted).", 'error')
+        current_app.logger.warning(f"BATCH_RESULTS_VIEW: Batch ID {batch_id} not found in _batch_assessments_status.")
+        return redirect(url_for('.upload_document_for_assessment'))
+    
+    # Get detailed results for all assessments in this batch
+    assessment_ids = batch_info.get("assessment_ids", [])
+    detailed_results = []
+    results_by_type = {}
+    overall_stats = {
+        'total_files': len(assessment_ids),
+        'completed': 0,
+        'processing': 0,
+        'error': 0,
+        'total_criteria_evaluated': 0,
+        'total_negative_findings': 0
+    }
+    
+    for idx, assessment_id in enumerate(assessment_ids):
+        result_data = get_assessment_result(assessment_id)
+        if result_data:
+            status = result_data.get("status", "unknown")
+            doc_type = result_data.get("document_type", "Unknown")
+            filename = result_data.get("filename", batch_info.get("successful_filenames", [])[idx] if idx < len(batch_info.get("successful_filenames", [])) else "Unknown Filename")
+            
+            # Initialize document type group if needed
+            if doc_type not in results_by_type:
+                results_by_type[doc_type] = {
+                    'tool_name': QUALITY_ASSESSMENT_TOOLS.get(doc_type, {}).get("tool_name", "Standard Assessment"),
+                    'files': [],
+                    'completed_count': 0,
+                    'total_criteria': 0,
+                    'total_negative': 0
+                }
+            
+            file_result = {
+                "assessment_id": assessment_id,
+                "filename": filename,
+                "status": status,
+                "document_type": doc_type
+            }
+            
+            # Update overall stats
+            if status == 'completed':
+                overall_stats['completed'] += 1
+                total_criteria = result_data.get("summary_total_criteria_evaluated", 0)
+                negative_findings = result_data.get("summary_negative_findings", 0)
+                
+                overall_stats['total_criteria_evaluated'] += total_criteria
+                overall_stats['total_negative_findings'] += negative_findings
+                
+                # Add completed-specific data
+                file_result.update({
+                    "total_criteria": total_criteria,
+                    "negative_findings": negative_findings,
+                    "quality_score": round((total_criteria - negative_findings) / total_criteria * 100, 1) if total_criteria > 0 else 0
+                })
+                
+                # Update type-specific stats
+                results_by_type[doc_type]['completed_count'] += 1
+                results_by_type[doc_type]['total_criteria'] += total_criteria
+                results_by_type[doc_type]['total_negative'] += negative_findings
+                
+            elif status in ['processing_assessment', 'pending_assessment']:
+                overall_stats['processing'] += 1
+            else:
+                overall_stats['error'] += 1
+                if 'message' in result_data:
+                    file_result['error_message'] = result_data['message']
+            
+            results_by_type[doc_type]['files'].append(file_result)
+            detailed_results.append(file_result)
+    
+    # Calculate type-specific averages
+    for doc_type, type_data in results_by_type.items():
+        if type_data['completed_count'] > 0:
+            type_data['avg_quality_score'] = round((type_data['total_criteria'] - type_data['total_negative']) / type_data['total_criteria'] * 100, 1) if type_data['total_criteria'] > 0 else 0
+        else:
+            type_data['avg_quality_score'] = 0
+    
+    # Calculate overall quality score
+    overall_stats['overall_quality_score'] = round((overall_stats['total_criteria_evaluated'] - overall_stats['total_negative_findings']) / overall_stats['total_criteria_evaluated'] * 100, 1) if overall_stats['total_criteria_evaluated'] > 0 else 0
+    
+    current_app.logger.info(f"BATCH_RESULTS_VIEW: Rendering enhanced batch results for {batch_id}")
+    return render_template('quality_assessment_batch_results.html', 
+                           batch_info=batch_info, 
+                           batch_id=batch_id,
+                           detailed_results=detailed_results,
+                           results_by_type=results_by_type,
+                           overall_stats=overall_stats,
+                           QUALITY_ASSESSMENT_TOOLS=QUALITY_ASSESSMENT_TOOLS)
+
+# --- NEW: Batch Results Download --- #
+@quality_bp.route('/download_batch_results/<batch_id>/<format>')
+def download_batch_results(batch_id, format):
+    """Download batch results in various formats (CSV, Excel, JSON)"""
+    import pandas as pd
+    import io
+    from flask import send_file
+    
+    batch_info = _batch_assessments_status.get(batch_id)
+    if not batch_info:
+        flash("Batch assessment not found.", 'error')
+        return redirect(url_for('.upload_document_for_assessment'))
+    
+    # Prepare data for export
+    assessment_ids = batch_info.get("assessment_ids", [])
+    export_data = []
+    
+    for idx, assessment_id in enumerate(assessment_ids):
+        result_data = get_assessment_result(assessment_id)
+        if result_data:
+            filename = result_data.get("filename", batch_info.get("successful_filenames", [])[idx] if idx < len(batch_info.get("successful_filenames", [])) else "Unknown Filename")
+            doc_type = result_data.get("document_type", "Unknown")
+            status = result_data.get("status", "unknown")
+            
+            row_data = {
+                'Assessment ID': assessment_id,
+                'Filename': filename,
+                'Document Type': doc_type,
+                'Assessment Tool': QUALITY_ASSESSMENT_TOOLS.get(doc_type, {}).get("tool_name", "Standard Assessment"),
+                'Status': status
+            }
+            
+            if status == 'completed':
+                total_criteria = result_data.get("summary_total_criteria_evaluated", 0)
+                negative_findings = result_data.get("summary_negative_findings", 0)
+                quality_score = round((total_criteria - negative_findings) / total_criteria * 100, 1) if total_criteria > 0 else 0
+                
+                row_data.update({
+                    'Total Criteria': total_criteria,
+                    'Negative Findings': negative_findings,
+                    'Quality Score (%)': quality_score,
+                    'Positive Findings': total_criteria - negative_findings
+                })
+                
+                # Add detailed assessment results if available
+                assessment_details = result_data.get("assessment_details", [])
+                if isinstance(assessment_details, list):
+                    for i, detail in enumerate(assessment_details):
+                        row_data[f'Criterion_{i+1}_Text'] = detail.get('criterion_text', '')
+                        row_data[f'Criterion_{i+1}_Judgment'] = detail.get('judgment', '')
+                        row_data[f'Criterion_{i+1}_Reason'] = detail.get('reason', '')
+            else:
+                row_data.update({
+                    'Total Criteria': 'N/A',
+                    'Negative Findings': 'N/A',
+                    'Quality Score (%)': 'N/A',
+                    'Positive Findings': 'N/A'
+                })
+                if 'message' in result_data:
+                    row_data['Error Message'] = result_data['message']
+            
+            export_data.append(row_data)
+    
+    if not export_data:
+        flash("No data available for export.", 'warning')
+        return redirect(url_for('.view_batch_results', batch_id=batch_id))
+    
+    # Create DataFrame
+    df = pd.DataFrame(export_data)
+    
+    # Generate filename base
+    batch_name = f"quality_assessment_batch_{batch_id[:8]}"
+    
+    try:
+        if format == 'csv':
+            output = io.StringIO()
+            df.to_csv(output, index=False, encoding='utf-8-sig')
+            output.seek(0)
+            
+            bytes_output = io.BytesIO(output.getvalue().encode('utf-8-sig'))
+            bytes_output.seek(0)
+            
+            return send_file(
+                bytes_output,
+                mimetype='text/csv',
+                as_attachment=True,
+                download_name=f"{batch_name}_results.csv"
+            )
+            
+        elif format == 'xlsx':
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df.to_excel(writer, index=False, sheet_name='Quality Assessment Results')
+            output.seek(0)
+            
+            return send_file(
+                output,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                download_name=f"{batch_name}_results.xlsx"
+            )
+            
+        elif format == 'json':
+            output = io.StringIO()
+            df.to_json(output, orient='records', indent=2)
+            output.seek(0)
+            
+            bytes_output = io.BytesIO(output.getvalue().encode('utf-8'))
+            bytes_output.seek(0)
+            
+            return send_file(
+                bytes_output,
+                mimetype='application/json',
+                as_attachment=True,
+                download_name=f"{batch_name}_results.json"
+            )
+        else:
+            flash(f"Unsupported format: {format}", 'error')
+            return redirect(url_for('.view_batch_results', batch_id=batch_id))
+            
+    except Exception as e:
+        current_app.logger.error(f"Error generating {format} export for batch {batch_id}: {e}")
+        flash(f"Error generating {format} file: {str(e)}", 'error')
+        return redirect(url_for('.view_batch_results', batch_id=batch_id))
+
+# We need to access _assessments_db for the flash message, either pass it or check status differently

@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+
+{% block title %}Batch Quality Assessment Results - AI Literature Screening Assistant{% endblock %}
+
+{% block extra_head %}
+<style>
+    .quality-score {
+        font-weight: 600;
+    }
+
+    .quality-excellent { color: var(--success-color); }
+    .quality-good { color: #22c55e; }
+    .quality-fair { color: var(--warning-color); }
+    .quality-poor { color: var(--danger-color); }
+
+    .document-type-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .document-type-header {
+        background: var(--light-bg);
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .document-type-header h5 {
+        margin: 0;
+        color: var(--primary-color);
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    .document-type-stats {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.8rem;
+        color: var(--text-color);
+    }
+
+    .filename-cell {
+        max-width: 250px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .download-section {
+        background: var(--light-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .download-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .progress-mini {
+        height: 0.4rem;
+        background: var(--border-color);
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 0.25rem;
+    }
+
+    .progress-mini-bar {
+        height: 100%;
+        background: var(--success-color);
+        transition: width 0.3s ease;
+    }
+
+    @media (max-width: 768px) {
+        .document-type-stats {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .download-buttons {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="section-card">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2>Batch Quality Assessment Results</h2>
+            <p class="text-muted mb-0">Batch ID: <code>{{ batch_id }}</code></p>
+        </div>
+        <div>
+            <a href="{{ url_for('.view_batch_status', batch_id=batch_id) }}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-tasks"></i> Back to Status
+            </a>
+            <a href="{{ url_for('.upload_document_for_assessment') }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-upload"></i> Upload More
+            </a>
+        </div>
+    </div>
+
+    <!-- Overall Summary -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h4 class="mb-0">Overall Assessment Summary</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="row">
+                        <div class="col-6 col-md-3">
+                            <div class="text-center">
+                                <div class="h4 mb-0">{{ overall_stats.total_files }}</div>
+                                <small class="text-muted">Total Files</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="text-center">
+                                <div class="h4 mb-0 text-success">{{ overall_stats.completed }}</div>
+                                <small class="text-muted">Completed</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="text-center">
+                                <div class="h4 mb-0 text-info">{{ overall_stats.processing }}</div>
+                                <small class="text-muted">Processing</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="text-center">
+                                <div class="h4 mb-0 text-warning">{{ overall_stats.error }}</div>
+                                <small class="text-muted">Errors</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <div class="quality-score h3 mb-1 {% if overall_stats.overall_quality_score >= 80 %}quality-excellent{% elif overall_stats.overall_quality_score >= 60 %}quality-good{% elif overall_stats.overall_quality_score >= 40 %}quality-fair{% else %}quality-poor{% endif %}">
+                            {{ overall_stats.overall_quality_score }}%
+                        </div>
+                        <h6 class="mb-2">Overall Quality Score</h6>
+                        <small class="text-muted">Based on {{ overall_stats.total_criteria_evaluated }} criteria</small>
+                        <div class="progress-mini">
+                            <div class="progress-mini-bar" style="width: {{ overall_stats.overall_quality_score }}%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if overall_stats.processing > 0 %}
+    <div class="alert alert-info mb-3">
+        <i class="fas fa-info-circle mr-2"></i>
+        <strong>Note:</strong> {{ overall_stats.processing }} document(s) still processing. This page will automatically refresh to show latest results.
+        <button onclick="location.reload()" class="btn btn-sm btn-outline-primary ml-2">
+            <i class="fas fa-sync-alt"></i> Refresh Page
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Results by Document Type -->
+    {% for doc_type, type_data in results_by_type.items() %}
+    <div class="document-type-section">
+        <div class="card">
+            <div class="document-type-header">
+                <div>
+                    <h5>{{ doc_type }}</h5>
+                    <div class="text-muted small">Assessment Tool: {{ type_data.tool_name }}</div>
+                </div>
+                <div class="document-type-stats">
+                    <span><strong>{{ type_data.completed_count }}</strong> / {{ type_data.files|length }} completed</span>
+                    {% if type_data.completed_count > 0 %}
+                    <span>Avg Quality: <strong class="{% if type_data.avg_quality_score >= 80 %}quality-excellent{% elif type_data.avg_quality_score >= 60 %}quality-good{% elif type_data.avg_quality_score >= 40 %}quality-fair{% else %}quality-poor{% endif %}">{{ type_data.avg_quality_score }}%</strong></span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%;">File Name</th>
+                            <th style="width: 15%;">Status</th>
+                            <th style="width: 15%;">Quality Score</th>
+                            <th style="width: 10%;">Criteria</th>
+                            <th style="width: 10%;">Issues</th>
+                            <th style="width: 20%;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for file_result in type_data.files %}
+                        <tr>
+                            <td class="filename-cell" title="{{ file_result.filename }}">
+                                <i class="fas fa-file-pdf text-danger mr-2"></i>
+                                {{ file_result.filename }}
+                            </td>
+                            <td>
+                                {% if file_result.status == 'completed' %}
+                                    <span class="badge badge-success">Completed</span>
+                                {% elif file_result.status in ['processing_assessment', 'pending_assessment'] %}
+                                    <span class="badge badge-info">Processing</span>
+                                {% else %}
+                                    <span class="badge badge-danger">Error</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if file_result.status == 'completed' %}
+                                    <span class="quality-score {% if file_result.quality_score >= 80 %}quality-excellent{% elif file_result.quality_score >= 60 %}quality-good{% elif file_result.quality_score >= 40 %}quality-fair{% else %}quality-poor{% endif %}">
+                                        {{ file_result.quality_score }}%
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if file_result.status == 'completed' %}
+                                    {{ file_result.total_criteria }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if file_result.status == 'completed' %}
+                                    <span class="{% if file_result.negative_findings == 0 %}text-success{% elif file_result.negative_findings <= 2 %}text-warning{% else %}text-danger{% endif %}">
+                                        {{ file_result.negative_findings }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('.view_assessment_result', assessment_id=file_result.assessment_id) }}" 
+                                   class="btn btn-sm btn-outline-primary"
+                                   {% if file_result.status != 'completed' %}disabled{% endif %}>
+                                    <i class="fas fa-eye"></i> View Details
+                                </a>
+                                {% if file_result.status == 'error' and file_result.get('error_message') %}
+                                    <small class="text-danger d-block mt-1">{{ file_result.error_message[:50] }}...</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Download Section -->
+    {% if overall_stats.completed > 0 %}
+    <div class="download-section">
+        <h5 class="mb-2">
+            <i class="fas fa-download mr-2"></i>
+            Export Batch Results
+        </h5>
+        <p class="text-muted mb-3">
+            Download complete batch assessment results including all evaluation details and statistics. Multiple formats available for different analysis needs.
+        </p>
+        <div class="download-buttons">
+            <a href="{{ url_for('.download_batch_results', batch_id=batch_id, format='csv') }}" 
+               class="btn btn-primary btn-sm">
+                <i class="fas fa-file-csv mr-2"></i>
+                Download CSV
+            </a>
+            <a href="{{ url_for('.download_batch_results', batch_id=batch_id, format='xlsx') }}" 
+               class="btn btn-primary btn-sm">
+                <i class="fas fa-file-excel mr-2"></i>
+                Download Excel
+            </a>
+            <a href="{{ url_for('.download_batch_results', batch_id=batch_id, format='json') }}" 
+               class="btn btn-primary btn-sm">
+                <i class="fas fa-file-code mr-2"></i>
+                Download JSON
+            </a>
+        </div>
+        <small class="text-muted d-block mt-2">
+            <i class="fas fa-info-circle mr-1"></i>
+            Export files contain detailed assessment criteria judgments and reasoning, suitable for further analysis and report generation.
+        </small>
+    </div>
+    {% endif %}
+
+    <!-- Statistics Cards -->
+    {% if overall_stats.completed > 0 %}
+    <div class="row mt-3">
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="h4 text-primary">{{ overall_stats.total_criteria_evaluated }}</div>
+                    <div class="text-muted small">Total Criteria</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="h4 text-success">{{ overall_stats.total_criteria_evaluated - overall_stats.total_negative_findings }}</div>
+                    <div class="text-muted small">Criteria Met</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="h4 text-warning">{{ overall_stats.total_negative_findings }}</div>
+                    <div class="text-muted small">Issues Found</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="h4 text-info">{{ results_by_type|length }}</div>
+                    <div class="text-muted small">Document Types</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Help Section -->
+    <div class="card mt-3 border-0" style="background: var(--light-bg);">
+        <div class="card-body">
+            <h6 class="card-title">
+                <i class="fas fa-question-circle mr-2 text-info"></i>
+                Understanding Quality Scores
+            </h6>
+            <div class="row">
+                <div class="col-md-6">
+                    <ul class="list-unstyled mb-0 small">
+                        <li><span class="quality-excellent">80-100%</span> - Excellent: High quality, meets most criteria</li>
+                        <li><span class="quality-good">60-79%</span> - Good: Good quality with minor improvement areas</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <ul class="list-unstyled mb-0 small">
+                        <li><span class="quality-fair">40-59%</span> - Fair: Acceptable quality, needs improvement</li>
+                        <li><span class="quality-poor">0-39%</span> - Poor: Low quality, significant improvement needed</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if overall_stats.processing > 0 %}
+<script>
+// Auto-refresh page every 30 seconds if there are still processing items
+setTimeout(function() {
+    location.reload();
+}, 30000);
+</script>
+{% endif %}
+{% endblock %}
