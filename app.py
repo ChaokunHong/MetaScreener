@@ -3149,4 +3149,14 @@ def save_screening_state():
         app_logger.exception(f"Error saving screening state: {e}")
         return jsonify({"status": "error", "message": f"Server error: {str(e)}"}), 500
 
+# Legacy URL redirect for quality assessment
+@app.route('/quality/')
+@app.route('/quality/<path:path>')
+def redirect_old_quality_urls(path=None):
+    """Redirect old /quality/ URLs to new /quality_assessment/ URLs"""
+    if path:
+        return redirect(f'/quality_assessment/{path}', code=301)
+    else:
+        return redirect('/quality_assessment/', code=301)
+
 
