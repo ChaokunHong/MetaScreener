@@ -146,7 +146,7 @@ def get_full_screening_session(screening_id):
 # app.executor = ThreadPoolExecutor(max_workers=5) 
 
 # --- Register the Blueprint ---
-app.register_blueprint(quality_bp, url_prefix='/quality') # Added a URL prefix for clarity
+app.register_blueprint(quality_bp, url_prefix='/quality_assessment') # Fixed URL prefix to match template expectations
 
 
 # --- ADDED: Helper function to parse line ranges ---
