@@ -13,6 +13,14 @@ from .services import process_uploaded_document, get_assessment_result, QUALITY_
 # Import Redis storage utilities
 from .redis_storage import save_batch_status, get_batch_status, update_batch_status, delete_batch_status
 
+# Import Celery task for async processing
+try:
+    from screen_webapp.tasks import process_quality_assessment
+    CELERY_ENABLED = True
+except ImportError:
+    CELERY_ENABLED = False
+    process_quality_assessment = None
+
 # Legacy in-memory storage for backward compatibility (will be phased out)
 _batch_assessments_status = {}
 
@@ -116,6 +124,76 @@ def upload_document_for_assessment():
             return redirect(request.url)
             
     return render_template('quality_assessment_upload.html', assessment_tools_info=QUALITY_ASSESSMENT_TOOLS)
+
+@quality_bp.route('/async_upload', methods=['POST'])
+def async_upload_documents():
+    """Asynchronous quality assessment upload using Celery"""
+    if not CELERY_ENABLED:
+        return jsonify({
+            'status': 'error',
+            'message': 'Async processing not available. Celery is not configured.'
+        }), 503
+    
+    try:
+        # Validate file uploads
+        uploaded_files = request.files.getlist("pdf_files")
+        current_app.logger.info(f"ASYNC_QA_UPLOAD: Received {len(uploaded_files)} files in request.")
+        
+        if not uploaded_files or not any(f.filename for f in uploaded_files):
+            return jsonify({'status': 'error', 'message': 'No PDF files uploaded'}), 400
+        
+        # Process and save uploaded files
+        files_info = []
+        for uploaded_file in uploaded_files:
+            if uploaded_file.filename != '' and allowed_file(uploaded_file.filename):
+                secure_name = secure_filename(uploaded_file.filename)
+                temp_file_path = os.path.join(QA_PDF_UPLOAD_DIR, f"async_qa_{uuid.uuid4()}_{secure_name}")
+                uploaded_file.save(temp_file_path)
+                files_info.append({
+                    'path': temp_file_path,
+                    'filename': uploaded_file.filename
+                })
+        
+        if not files_info:
+            return jsonify({'status': 'error', 'message': 'No valid PDF files were processed'}), 400
+        
+        # Get assessment configuration
+        selected_document_type = request.form.get('document_type')
+        assessment_config = {
+            'document_type': selected_document_type,
+            'tools_info': QUALITY_ASSESSMENT_TOOLS
+        }
+        
+        # Get LLM configuration from session
+        from config import get_current_llm_config
+        from flask import session
+        llm_config = get_current_llm_config(session)
+        
+        # Generate assessment ID
+        assessment_id = str(uuid.uuid4())
+        
+        # Start Celery task
+        task = process_quality_assessment.delay(
+            files_info,
+            assessment_config,
+            llm_config,
+            dict(session),  # Convert session to dict for serialization
+            assessment_id
+        )
+        
+        current_app.logger.info(f"Started async quality assessment task {task.id} for assessment {assessment_id} with {len(files_info)} files")
+        
+        return jsonify({
+            'status': 'success',
+            'task_id': task.id,
+            'assessment_id': assessment_id,
+            'total_files': len(files_info),
+            'message': 'Quality assessment started. Check progress using task_id.'
+        })
+        
+    except Exception as e:
+        current_app.logger.exception(f"Error starting async quality assessment: {e}")
+        return jsonify({'status': 'error', 'message': f'Server error: {str(e)}'}), 500
 
 @quality_bp.route('/batch_status/<batch_id>')
 def view_batch_status(batch_id):

@@ -69,6 +69,7 @@ from config import (
 )
 # --- Import the new Blueprint ---
 from quality_assessment import quality_bp
+from quality_assessment.services import QUALITY_ASSESSMENT_TOOLS
 
 app = Flask(__name__)
 # app.secret_key = os.urandom(24) # Old way
@@ -2947,58 +2948,57 @@ def async_quality_assessment():
     
     try:
         # Validate file uploads
-        if 'documents' not in request.files:
-            return jsonify({'status': 'error', 'message': 'No documents uploaded'}), 400
+        if 'pdf_files' not in request.files:
+            return jsonify({'status': 'error', 'message': 'No PDF files uploaded'}), 400
         
-        uploaded_files = request.files.getlist('documents')
+        uploaded_files = request.files.getlist('pdf_files')
         if not uploaded_files or all(f.filename == '' for f in uploaded_files):
-            return jsonify({'status': 'error', 'message': 'No valid documents selected'}), 400
+            return jsonify({'status': 'error', 'message': 'No valid PDF files selected'}), 400
         
-        # Save uploaded documents temporarily
-        document_files_info = []
+        # Save uploaded PDFs temporarily
+        files_info = []
         for uploaded_file in uploaded_files:
-            if uploaded_file.filename != '':
+            if uploaded_file.filename != '' and uploaded_file.filename.lower().endswith('.pdf'):
                 temp_file_path = os.path.join(UPLOAD_FOLDER, f"async_qa_{uuid.uuid4()}_{uploaded_file.filename}")
                 uploaded_file.save(temp_file_path)
-                document_files_info.append({
+                files_info.append({
                     'path': temp_file_path,
                     'filename': uploaded_file.filename
                 })
         
-        if not document_files_info:
-            return jsonify({'status': 'error', 'message': 'No valid documents were processed'}), 400
+        if not files_info:
+            return jsonify({'status': 'error', 'message': 'No valid PDF files were processed'}), 400
         
-        # Get assessment configuration (placeholder - customize based on your needs)
+        # Get assessment configuration
+        selected_document_type = request.form.get('document_type')
         assessment_config = {
-            'criteria': 'standard_quality_assessment',
-            'include_methodology': True,
-            'include_data_quality': True,
-            'include_reporting': True
+            'document_type': selected_document_type,
+            'quality_tools': QUALITY_ASSESSMENT_TOOLS
         }
         
         # Get LLM config
         llm_config = get_current_llm_config(session)
-        llm_config['system_prompt'] = "You are an expert in research quality assessment. Evaluate the provided document for methodological rigor, data quality, and reporting standards."
+        llm_config['system_prompt'] = DEFAULT_SYSTEM_PROMPT
         
         # Generate assessment ID
         assessment_id = str(uuid.uuid4())
         
         # Start Celery task
         task = process_quality_assessment.delay(
-            document_files_info,
+            files_info,
             assessment_config,
             llm_config,
             dict(session),  # Convert session to dict for serialization
             assessment_id
         )
         
-        app_logger.info(f"Started async quality assessment task {task.id} for assessment {assessment_id} with {len(document_files_info)} files")
+        app_logger.info(f"Started async quality assessment task {task.id} for assessment {assessment_id} with {len(files_info)} files")
         
         return jsonify({
             'status': 'success',
             'task_id': task.id,
             'assessment_id': assessment_id,
-            'total_files': len(document_files_info),
+            'total_files': len(files_info),
             'message': 'Quality assessment started. Check progress using task_id.'
         })
         
