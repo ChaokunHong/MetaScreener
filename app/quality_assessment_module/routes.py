@@ -7,7 +7,7 @@ import uuid # For generating batch IDs
 from typing import Optional # Added for type hint
 
 # We will also need to import services and forms later
-from .services import process_uploaded_document, quick_upload_document, get_assessment_result, QUALITY_ASSESSMENT_TOOLS, _assessments_db, QA_PDF_UPLOAD_DIR, register_celery_item
+from .services import process_uploaded_document, quick_upload_document, get_assessment_result, QUALITY_ASSESSMENT_TOOLS, _assessments_db, QA_PDF_UPLOAD_DIR, register_celery_item, _generate_safe_assessment_id, _save_assessment_to_redis
 # from .forms import DocumentUploadForm, AssessmentReviewForm 
 
 # Import Redis storage utilities
