@@ -9,7 +9,7 @@ from config.config import get_current_llm_config, get_llm_providers_info, get_ba
 from app.utils.utils import call_llm_api_raw_content # Using raw content to get JSON
 from werkzeug.utils import secure_filename # Added for saving PDF
 
-from flask import session, current_app # <--- IMPORT current_app
+from flask import current_app
 import json
 import re
 from typing import Dict, Optional
@@ -634,7 +634,7 @@ QUALITY_ASSESSMENT_TOOLS = {
 
 # --- END: Define Quality Assessment Criteria --- #
 
-def process_uploaded_document(pdf_file_stream, original_filename: str, selected_document_type: str = None):
+def process_uploaded_document(pdf_file_stream, original_filename: str, selected_document_type: str = None, session_data: dict = None):
     """
     Processes an uploaded PDF: extracts text, (optionally) determines document type, 
     and initiates quality assessment.
@@ -734,9 +734,11 @@ def process_uploaded_document(pdf_file_stream, original_filename: str, selected_
     # --- Fetch LLM Config IN REQUEST CONTEXT (before submitting to thread) ---
     llm_config_for_task = None
     try:
-        current_llm_main_config = get_current_llm_config(session) # This uses flask.session
+        if not session_data:
+            raise ValueError("Session data is required for LLM configuration")
+        current_llm_main_config = get_current_llm_config(session_data) # Use passed session data
         provider_name = current_llm_main_config['provider_name']
-        api_key_val = get_api_key_for_provider(provider_name, session) # This uses flask.session
+        api_key_val = get_api_key_for_provider(provider_name, session_data) # Use passed session data
         if not api_key_val:
             raise ValueError(f"API Key for {provider_name} not found in session or environment.")
         

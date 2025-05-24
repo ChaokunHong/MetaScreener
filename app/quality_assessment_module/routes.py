@@ -86,7 +86,7 @@ def upload_document_for_assessment():
                         current_app.logger.info(f"BATCH_UPLOAD: Quick upload completed for {original_filename} (ID: {assessment_id})")
                     else:
                         # Traditional sync mode (kept for compatibility)
-                        assessment_id = process_uploaded_document(file_storage.stream, original_filename, selected_document_type)
+                        assessment_id = process_uploaded_document(file_storage.stream, original_filename, selected_document_type, dict(session))
                         current_app.logger.info(f"BATCH_UPLOAD: Traditional upload completed for {original_filename} (ID: {assessment_id})")
                     
                     current_assessment_status = _assessments_db.get(assessment_id, {}).get('status')
