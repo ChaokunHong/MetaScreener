@@ -174,6 +174,7 @@ def async_upload_documents():
         }
         
         from config.config import get_current_llm_config
+        session_dict = dict(session)  # Convert session to dict early for safety
         llm_config = get_current_llm_config(session)
         
         celery_processing_uuid = str(uuid.uuid4()) 
@@ -225,7 +226,7 @@ def async_upload_documents():
             temp_files_info_for_celery, 
             assessment_config,
             llm_config,
-            dict(session), 
+            session_dict,  # Use the converted session dict
             celery_processing_uuid 
         )
         
