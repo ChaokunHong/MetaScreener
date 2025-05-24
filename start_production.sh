@@ -48,6 +48,7 @@ start_celery() {
     # Start main worker
     if ! check_service "celery.*worker.*default"; then
         celery -A celery_app worker \
+            --hostname=main_worker@%h \
             --loglevel=info \
             --queues=default,literature_screening,pdf_screening \
             --concurrency=4 \
@@ -61,6 +62,7 @@ start_celery() {
     # Start quality assessment worker
     if ! check_service "celery.*worker.*quality"; then
         celery -A celery_app worker \
+            --hostname=quality_worker@%h \
             --loglevel=info \
             --queues=quality_assessment \
             --concurrency=2 \
@@ -74,6 +76,7 @@ start_celery() {
     # Start maintenance worker
     if ! check_service "celery.*worker.*maintenance"; then
         celery -A celery_app worker \
+            --hostname=maintenance_worker@%h \
             --loglevel=info \
             --queues=maintenance \
             --concurrency=1 \
