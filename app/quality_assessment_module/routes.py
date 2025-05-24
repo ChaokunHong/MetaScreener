@@ -74,20 +74,20 @@ def upload_document_for_assessment():
         failed_uploads = []
         assessment_ids_in_batch = []
 
+        # Quick mode optimization: defer heavy operations
+        if upload_mode == 'quick':
+            return handle_ultra_quick_upload(uploaded_files, selected_document_type, successful_uploads, failed_uploads, assessment_ids_in_batch)
+
+        # Traditional mode processing (unchanged)
         for file_storage in uploaded_files:
             if file_storage and file_storage.filename and allowed_file(file_storage.filename):
                 original_filename = secure_filename(file_storage.filename)
                 try:
                     file_storage.stream.seek(0)
                     
-                    # Choose processing function based on mode
-                    if upload_mode == 'quick':
-                        assessment_id = quick_upload_document(file_storage.stream, original_filename, selected_document_type, dict(session))
-                        current_app.logger.info(f"BATCH_UPLOAD: Quick upload completed for {original_filename} (ID: {assessment_id})")
-                    else:
-                        # Traditional sync mode (kept for compatibility)
-                        assessment_id = process_uploaded_document(file_storage.stream, original_filename, selected_document_type, dict(session))
-                        current_app.logger.info(f"BATCH_UPLOAD: Traditional upload completed for {original_filename} (ID: {assessment_id})")
+                    # Traditional sync mode (kept for compatibility)
+                    assessment_id = process_uploaded_document(file_storage.stream, original_filename, selected_document_type, dict(session))
+                    current_app.logger.info(f"BATCH_UPLOAD: Traditional upload completed for {original_filename} (ID: {assessment_id})")
                     
                     current_assessment_status = _assessments_db.get(assessment_id, {}).get('status')
                     if assessment_id and current_assessment_status not in ['error']:
@@ -104,38 +104,155 @@ def upload_document_for_assessment():
                 failed_uploads.append(secure_filename(file_storage.filename) + " (invalid type)")
                 current_app.logger.warning(f"BATCH_UPLOAD: Skipped file {secure_filename(file_storage.filename)} due to invalid type.")
         
-        if successful_uploads:
-            if len(successful_uploads) == 1 and not failed_uploads:
-                flash(f'Document \'{successful_uploads[0]}\' uploaded. Assessment process initiated.', 'success')
-                current_app.logger.info(f"BATCH_UPLOAD: Single file success ({successful_uploads[0]}), redirecting to individual result.")
-                return redirect(url_for('.view_assessment_result', assessment_id=assessment_ids_in_batch[0]))
-            else:
-                batch_id = str(uuid.uuid4())
-                batch_data = {
-                    "status": "processing",
-                    "assessment_ids": assessment_ids_in_batch,
-                    "total_files": len(assessment_ids_in_batch),
-                    "original_attempt_count": len(uploaded_files),
-                    "successful_filenames": successful_uploads,
-                    "failed_filenames": failed_uploads
-                }
-                # Save to Redis instead of memory
-                save_batch_info(batch_id, batch_data)
-                flash(f'{len(successful_uploads)} document(s) queued for assessment. {len(failed_uploads)} failed.', 'info')
-                current_app.logger.info(f"BATCH_UPLOAD: Multiple files ({len(successful_uploads)} success, {len(failed_uploads)} failed). Batch ID: {batch_id}. Redirecting to batch status.")
-                current_app.logger.info(f"BATCH_UPLOAD: Batch data for {batch_id}: {batch_data}")
-                return redirect(url_for('.view_batch_status', batch_id=batch_id))
-
-        elif failed_uploads:
-            flash(f'All file uploads failed. Reasons: {", ".join(failed_uploads)}', 'error')
-            current_app.logger.warning(f"BATCH_UPLOAD: All file uploads failed.")
-            return redirect(request.url)
-        else: 
-            flash('No files were processed.', 'warning')
-            current_app.logger.warning("BATCH_UPLOAD: No files were processed (edge case).")
-            return redirect(request.url)
+        return handle_upload_results(successful_uploads, failed_uploads, assessment_ids_in_batch, uploaded_files)
             
     return render_template('quality_assessment_upload.html', assessment_tools_info=QUALITY_ASSESSMENT_TOOLS)
+
+def handle_ultra_quick_upload(uploaded_files, selected_document_type, successful_uploads, failed_uploads, assessment_ids_in_batch):
+    """Ultra-fast upload handler that minimizes blocking operations"""
+    import tempfile
+    from gevent import spawn
+    
+    # Pre-generate batch ID and assessment IDs
+    batch_id = str(uuid.uuid4())
+    temp_file_mapping = {}
+    
+    # Step 1: Minimal validation and create temporary references (no disk I/O yet)
+    for file_storage in uploaded_files:
+        if file_storage and file_storage.filename and allowed_file(file_storage.filename):
+            original_filename = secure_filename(file_storage.filename)
+            assessment_id = _generate_safe_assessment_id()
+            
+            # Store file content in memory temporarily
+            file_storage.stream.seek(0)
+            file_content = file_storage.stream.read()
+            file_storage.stream.seek(0)
+            
+            # Create minimal assessment record (in-memory only)
+            temp_file_mapping[assessment_id] = {
+                'filename': original_filename,
+                'content': file_content,
+                'size': len(file_content)
+            }
+            
+            successful_uploads.append(original_filename)
+            assessment_ids_in_batch.append(assessment_id)
+            current_app.logger.info(f"ULTRA_QUICK: Pre-processed {original_filename} (ID: {assessment_id})")
+        elif file_storage and file_storage.filename:
+            failed_uploads.append(secure_filename(file_storage.filename) + " (invalid type)")
+    
+    if not successful_uploads:
+        return handle_upload_results(successful_uploads, failed_uploads, assessment_ids_in_batch, uploaded_files)
+    
+    # Step 2: Create batch info immediately (lightweight operation)
+    batch_data = {
+        "status": "uploading",  # New intermediate status
+        "assessment_ids": assessment_ids_in_batch,
+        "total_files": len(assessment_ids_in_batch),
+        "original_attempt_count": len(uploaded_files),
+        "successful_filenames": successful_uploads,
+        "failed_filenames": failed_uploads,
+        "upload_mode": "ultra_quick"
+    }
+    
+    # Step 3: Quick Redis save (use pipeline for efficiency)
+    try:
+        from .redis_storage import get_redis_client
+        redis_client = get_redis_client()
+        pipe = redis_client.pipeline()
+        pipe.setex(f"qa_batch:{batch_id}", 604800, json.dumps(batch_data))
+        pipe.execute()
+        current_app.logger.info(f"ULTRA_QUICK: Batch {batch_id} saved to Redis via pipeline")
+    except Exception as e:
+        current_app.logger.error(f"ULTRA_QUICK: Redis save failed: {e}")
+        # Fallback to memory storage
+        _batch_assessments_status[batch_id] = batch_data
+    
+    # Step 4: Spawn async task for heavy I/O operations (non-blocking)
+    spawn(process_files_async, temp_file_mapping, selected_document_type, batch_id, dict(session))
+    
+    # Step 5: Immediate redirect (no waiting for file I/O)
+    flash(f'{len(successful_uploads)} document(s) queued for ultra-fast processing. {len(failed_uploads)} failed.', 'success')
+    current_app.logger.info(f"ULTRA_QUICK: Immediate redirect to batch {batch_id}")
+    return redirect(url_for('.view_batch_status', batch_id=batch_id))
+
+def process_files_async(temp_file_mapping, selected_document_type, batch_id, session_data):
+    """Async processing of file I/O operations"""
+    from gevent import sleep
+    
+    current_app.logger.info(f"ASYNC_PROCESSOR: Starting background processing for batch {batch_id}")
+    
+    # Update batch status to processing
+    try:
+        update_batch_status(batch_id, {"status": "processing"})
+    except Exception as e:
+        current_app.logger.error(f"ASYNC_PROCESSOR: Failed to update batch status: {e}")
+    
+    # Process each file
+    for assessment_id, file_info in temp_file_mapping.items():
+        try:
+            # Create file stream from content
+            import io
+            file_stream = io.BytesIO(file_info['content'])
+            
+            # Now do the actual file processing
+            assessment_id_result = quick_upload_document(
+                file_stream, 
+                file_info['filename'], 
+                selected_document_type, 
+                session_data
+            )
+            
+            current_app.logger.info(f"ASYNC_PROCESSOR: Completed processing {file_info['filename']} (ID: {assessment_id_result})")
+            
+            # Small delay to prevent overwhelming the system
+            sleep(0.1)
+            
+        except Exception as e:
+            current_app.logger.error(f"ASYNC_PROCESSOR: Error processing {file_info['filename']}: {e}")
+            # Update assessment record with error status
+            _assessments_db[assessment_id] = {
+                "status": "error",
+                "filename": file_info['filename'],
+                "message": f"Async processing failed: {str(e)}",
+                "progress": {"current": 0, "total": 100, "message": "Processing failed"}
+            }
+            _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
+    
+    current_app.logger.info(f"ASYNC_PROCESSOR: Completed background processing for batch {batch_id}")
+
+def handle_upload_results(successful_uploads, failed_uploads, assessment_ids_in_batch, uploaded_files):
+    """Handle upload results and determine redirect behavior"""
+    if successful_uploads:
+        if len(successful_uploads) == 1 and not failed_uploads:
+            flash(f'Document \'{successful_uploads[0]}\' uploaded. Assessment process initiated.', 'success')
+            current_app.logger.info(f"BATCH_UPLOAD: Single file success ({successful_uploads[0]}), redirecting to individual result.")
+            return redirect(url_for('.view_assessment_result', assessment_id=assessment_ids_in_batch[0]))
+        else:
+            batch_id = str(uuid.uuid4())
+            batch_data = {
+                "status": "processing",
+                "assessment_ids": assessment_ids_in_batch,
+                "total_files": len(assessment_ids_in_batch),
+                "original_attempt_count": len(uploaded_files),
+                "successful_filenames": successful_uploads,
+                "failed_filenames": failed_uploads
+            }
+            # Save to Redis instead of memory
+            save_batch_info(batch_id, batch_data)
+            flash(f'{len(successful_uploads)} document(s) queued for assessment. {len(failed_uploads)} failed.', 'info')
+            current_app.logger.info(f"BATCH_UPLOAD: Multiple files ({len(successful_uploads)} success, {len(failed_uploads)} failed). Batch ID: {batch_id}. Redirecting to batch status.")
+            current_app.logger.info(f"BATCH_UPLOAD: Batch data for {batch_id}: {batch_data}")
+            return redirect(url_for('.view_batch_status', batch_id=batch_id))
+
+    elif failed_uploads:
+        flash(f'All file uploads failed. Reasons: {", ".join(failed_uploads)}', 'error')
+        current_app.logger.warning(f"BATCH_UPLOAD: All file uploads failed.")
+        return redirect(request.url)
+    else: 
+        flash('No files were processed.', 'warning')
+        current_app.logger.warning("BATCH_UPLOAD: No files were processed (edge case).")
+        return redirect(request.url)
 
 @quality_bp.route('/async_upload', methods=['POST'])
 def async_upload_documents():

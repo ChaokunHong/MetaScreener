@@ -177,6 +177,19 @@
                 <div class="progress mb-3" style="height: 12px;">
                     <div id="overall-batch-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-purple" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
                 </div>
+                
+                {% if batch_info.status == 'uploading' %}
+                <div class="alert alert-info">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></div>
+                        <div>
+                            <strong>Ultra-Fast Upload in Progress</strong><br>
+                            <small>Files are being saved and prepared for processing. This page will automatically update when ready.</small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
                 <div class="row">
                     <div class="col-md-6">
                         <p class="mb-1"><strong>Total Files Attempted:</strong> {{ batch_info.original_attempt_count }}</p>
@@ -185,6 +198,17 @@
                     <div class="col-md-6">
                         {% if batch_info.failed_filenames and batch_info.failed_filenames | length > 0 %}
                         <p class="mb-1"><strong>Failed to Upload/Queue:</strong> {{ batch_info.failed_filenames | length }}</p>
+                        {% endif %}
+                        {% if batch_info.upload_mode %}
+                        <p class="mb-1"><strong>Upload Mode:</strong> 
+                            <span class="badge badge-success">
+                                {% if batch_info.upload_mode == 'ultra_quick' %}
+                                    ⚡ Ultra-Fast Mode
+                                {% else %}
+                                    {{ batch_info.upload_mode | title }}
+                                {% endif %}
+                            </span>
+                        </p>
                         {% endif %}
                     </div>
                 </div>
@@ -300,6 +324,8 @@
     const assessmentIds = JSON.parse('{{ batch_info.assessment_ids | tojson | safe if batch_info and batch_info.assessment_ids else "[]" }}');
     const statusApiUrlBase = "{{ url_for('.assessment_status', assessment_id='PLACEHOLDER') }}".replace('PLACEHOLDER', '');
     const batchSummaryApiUrl = "{{ url_for('.get_batch_summary', batch_id=batch_id) }}";
+    const batchStatusApiUrl = "{{ url_for('.get_batch_info_api', batch_id=batch_id) }}";
+    const currentBatchStatus = "{{ batch_info.status if batch_info else 'unknown' }}";
 
     let pollIntervals = {}; 
     let assessmentStates = {}; 
@@ -309,7 +335,45 @@
         completed: 0, errors: 0, processing: 0, pending: assessmentIds.length, total: assessmentIds.length
     };
     let masterPollInterval = null; 
+    let batchStatusPollInterval = null;  // New: poll for batch status changes
     let summaryTableRendered = false; // Flag to ensure table is rendered only once
+
+    // Handle uploading status - poll batch status until it moves to processing
+    if (currentBatchStatus === 'uploading') {
+        console.log("Batch is in uploading status, starting batch status polling...");
+        startBatchStatusPolling();
+    }
+
+    function startBatchStatusPolling() {
+        // Check batch status every 2 seconds when uploading
+        batchStatusPollInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`{{ url_for('.view_batch_status', batch_id=batch_id) }}?ajax=1&_=${new Date().getTime()}`);
+                if (response.ok) {
+                    const html = await response.text();
+                    
+                    // Check if status has changed from uploading
+                    if (!html.includes('uploading') || html.includes('processing')) {
+                        console.log("Batch status changed from uploading, refreshing page...");
+                        clearInterval(batchStatusPollInterval);
+                        // Refresh the page to show updated status
+                        window.location.reload();
+                    }
+                }
+            } catch (error) {
+                console.warn("Batch status polling error:", error);
+            }
+        }, 2000);
+
+        // Set a maximum timeout for uploading status (30 seconds)
+        setTimeout(() => {
+            if (batchStatusPollInterval) {
+                console.log("Upload timeout reached, refreshing page...");
+                clearInterval(batchStatusPollInterval);
+                window.location.reload();
+            }
+        }, 30000);
+    }
 
     function getQualityClass(negativeFindings, totalCriteria) {
         if (typeof negativeFindings !== 'number' || typeof totalCriteria !== 'number' || totalCriteria === 0) return 'text-muted';
@@ -501,6 +565,7 @@
 
         switch (currentItemStatus) {
             case 'pending_assessment':
+            case 'pending_text_extraction':
                 statusBadge.className = 'status-badge badge bg-light text-dark';
                 itemProgressMsg = data.progress?.message || "Queued for processing";
                 itemProgressPercent = 2;
@@ -548,7 +613,8 @@
         recalculateOverallProgress(); 
     }
 
-    if (assessmentIds.length > 0) {
+    // Only start assessment polling if not in uploading status
+    if (currentBatchStatus !== 'uploading' && assessmentIds.length > 0) {
         console.log("Initializing status checks for batch:", batchId, "with IDs:", assessmentIds);
         assessmentIds.forEach(id => {
             // Get the detail link for the current assessment ID
@@ -570,10 +636,19 @@
         if (masterPollInterval) clearInterval(masterPollInterval);
         masterPollInterval = setInterval(pollAllAssessments, 3000); 
         recalculateOverallProgress(); 
+    } else if (currentBatchStatus === 'uploading') {
+        document.getElementById('overall-batch-progress-text').textContent = "Files are being uploaded and prepared for processing...";
     } else {
         document.getElementById('overall-batch-progress-text').textContent = "No documents were successfully queued for assessment in this batch.";
         recalculateOverallProgress(); 
     }
+
+    // Cleanup intervals when page unloads
+    window.addEventListener('beforeunload', () => {
+        Object.values(pollIntervals).forEach(interval => clearInterval(interval));
+        if (masterPollInterval) clearInterval(masterPollInterval);
+        if (batchStatusPollInterval) clearInterval(batchStatusPollInterval);
+    });
 
 </script>
 {% endblock %} 
