@@ -58,8 +58,11 @@ def quality_assessment_main():
 @quality_bp.route('/upload', methods=['GET', 'POST'])
 def upload_document_for_assessment():
     if request.method == 'POST':
+        # 检查是否使用快速上传模式
+        upload_mode = request.form.get('upload_mode', 'quick')  # 默认使用快速模式
+        
         uploaded_files = request.files.getlist("pdf_files")
-        current_app.logger.info(f"BATCH_UPLOAD: Received {len(uploaded_files)} files in upload request.")
+        current_app.logger.info(f"BATCH_UPLOAD: Received {len(uploaded_files)} files in {upload_mode} mode.")
         
         if not uploaded_files or not any(f.filename for f in uploaded_files):
             flash('No PDF files selected or all files are empty.', 'error')
@@ -76,9 +79,18 @@ def upload_document_for_assessment():
                 original_filename = secure_filename(file_storage.filename)
                 try:
                     file_storage.stream.seek(0)
-                    assessment_id = process_uploaded_document(file_storage.stream, original_filename, selected_document_type)
+                    
+                    # 根据模式选择处理函数
+                    if upload_mode == 'quick':
+                        assessment_id = quick_upload_document(file_storage.stream, original_filename, selected_document_type)
+                        current_app.logger.info(f"BATCH_UPLOAD: Quick upload completed for {original_filename} (ID: {assessment_id})")
+                    else:
+                        # 传统同步模式（保留兼容性）
+                        assessment_id = process_uploaded_document(file_storage.stream, original_filename, selected_document_type)
+                        current_app.logger.info(f"BATCH_UPLOAD: Traditional upload completed for {original_filename} (ID: {assessment_id})")
+                    
                     current_assessment_status = _assessments_db.get(assessment_id, {}).get('status')
-                    if assessment_id and current_assessment_status != 'error':
+                    if assessment_id and current_assessment_status not in ['error']:
                         successful_uploads.append(original_filename)
                         assessment_ids_in_batch.append(assessment_id)
                         current_app.logger.info(f"BATCH_UPLOAD: Successfully processed and queued {original_filename} (ID: {assessment_id}).")
