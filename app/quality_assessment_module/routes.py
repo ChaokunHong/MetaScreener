@@ -1,4 +1,4 @@
-from flask import render_template, request, redirect, url_for, flash, jsonify, current_app, send_from_directory
+from flask import render_template, request, redirect, url_for, flash, jsonify, current_app, send_from_directory, session
 from . import quality_bp # Import the blueprint
 from werkzeug.utils import secure_filename # For securing filenames
 import os
@@ -82,7 +82,7 @@ def upload_document_for_assessment():
                     
                     # Choose processing function based on mode
                     if upload_mode == 'quick':
-                        assessment_id = quick_upload_document(file_storage.stream, original_filename, selected_document_type)
+                        assessment_id = quick_upload_document(file_storage.stream, original_filename, selected_document_type, dict(session))
                         current_app.logger.info(f"BATCH_UPLOAD: Quick upload completed for {original_filename} (ID: {assessment_id})")
                     else:
                         # Traditional sync mode (kept for compatibility)
@@ -174,7 +174,6 @@ def async_upload_documents():
         }
         
         from config.config import get_current_llm_config
-        from flask import session
         llm_config = get_current_llm_config(session)
         
         celery_processing_uuid = str(uuid.uuid4()) 

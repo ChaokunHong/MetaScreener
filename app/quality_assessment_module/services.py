@@ -1303,7 +1303,7 @@ def _execute_assessment_logic(assessment_id: str, llm_config: Dict):
             _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
             _save_assessments_to_file(assessment_id_to_log=assessment_id)
 
-def quick_upload_document(pdf_file_stream, original_filename: str, selected_document_type: str = None):
+def quick_upload_document(pdf_file_stream, original_filename: str, selected_document_type: str = None, session_data: dict = None):
     """
     Quick upload mode: Only save PDF file, create assessment record, return ID immediately
     Text extraction and AI assessment happen asynchronously in background for instant response
@@ -1363,11 +1363,12 @@ def quick_upload_document(pdf_file_stream, original_filename: str, selected_docu
     
     # 4. Start background processing (async text extraction and AI assessment)
     try:
-        # Get LLM configuration
-        from flask import session
-        current_llm_main_config = get_current_llm_config(session)
+        # Get LLM configuration using passed session data
+        if not session_data:
+            raise ValueError("Session data is required for background processing")
+        current_llm_main_config = get_current_llm_config(session_data)
         provider_name = current_llm_main_config['provider_name']
-        api_key_val = get_api_key_for_provider(provider_name, session)
+        api_key_val = get_api_key_for_provider(provider_name, session_data)
         if not api_key_val:
             raise ValueError(f"API Key for {provider_name} not found in session or environment.")
         
