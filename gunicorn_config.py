@@ -40,11 +40,13 @@ limit_request_line = 8192
 limit_request_fields = 100
 limit_request_field_size = 8190
 
-# Environment variables
+# Environment variables - All Redis configurations use consistent databases
 raw_env = [
     "CELERY_BROKER_URL=redis://localhost:6379/1",
-    "CELERY_RESULT_BACKEND=redis://localhost:6379/2",
-    "REDIS_URL=redis://localhost:6379/0",
+    "CELERY_RESULT_BACKEND=redis://localhost:6379/2", 
+    "REDIS_URL=redis://localhost:6379/1",  # Fixed: Use same database as CELERY_BROKER_URL
+    "FLASK_ENV=production",
+    "FLASK_APP=app.py",
 ]
 
 # Hooks
