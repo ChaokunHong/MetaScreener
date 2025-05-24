@@ -17,3 +17,6 @@ ENV/
 
 # Environment variables
 .env 
+
+quality_assessment/data/assessments.pickle
+quality_assessment/data/quality_assessment_pdfs/
