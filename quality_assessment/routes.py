@@ -179,6 +179,15 @@ def async_upload_documents():
                 )
                 numerical_item_ids.append(num_id)
                 current_app.logger.info(f"ASYNC_QA_UPLOAD: Registered item '{original_fname}' with numerical ID {num_id} for Celery batch {frontend_batch_uuid} (Celery proc. UUID: {celery_processing_uuid})")
+                
+                # Immediately save to Redis for multi-process access
+                from quality_assessment.services import _assessments_db, _save_assessment_to_redis
+                if num_id in _assessments_db:
+                    _save_assessment_to_redis(num_id, _assessments_db[num_id])
+                    current_app.logger.info(f"ASYNC_QA_UPLOAD: Saved {num_id} to Redis for immediate cross-process access")
+                else:
+                    current_app.logger.warning(f"ASYNC_QA_UPLOAD: {num_id} not found in _assessments_db after registration")
+                    
             except Exception as e_reg:
                 current_app.logger.error(f"ASYNC_QA_UPLOAD: Failed to register item '{original_fname}' for Celery: {e_reg}")
         
@@ -283,7 +292,38 @@ def view_assessment_result(assessment_id):
 # --- NEW API ENDPOINT FOR ASSESSMENT STATUS --- #
 @quality_bp.route('/assessment_status/<assessment_id>')
 def assessment_status(assessment_id):
+    current_app.logger.info(f"ASSESSMENT_STATUS: Requested ID={assessment_id}, Type={type(assessment_id)}")
+    
+    # 尝试多种方式获取数据
+    assessment_data = None
+    
+    # 1. 首先尝试原始ID
     assessment_data = get_assessment_result(assessment_id)
+    current_app.logger.info(f"ASSESSMENT_STATUS: Direct lookup result for {assessment_id}: {assessment_data is not None}")
+    
+    # 2. 如果没找到，尝试string类型
+    if not assessment_data:
+        str_id = str(assessment_id)
+        assessment_data = get_assessment_result(str_id)
+        current_app.logger.info(f"ASSESSMENT_STATUS: String lookup result for {str_id}: {assessment_data is not None}")
+    
+    # 3. 如果还没找到，记录详细调试信息
+    if not assessment_data:
+        # 记录当前所有assessment数据的keys
+        from quality_assessment.services import _assessments_db
+        current_keys = list(_assessments_db.keys())
+        current_app.logger.warning(f"ASSESSMENT_STATUS: No data found for {assessment_id}. Available keys: {current_keys}")
+        
+        # 尝试从Redis直接查询
+        try:
+            from quality_assessment.services import get_assessment_redis_client
+            redis_client = get_assessment_redis_client()
+            redis_keys = [k.decode('utf-8') if isinstance(k, bytes) else k for k in redis_client.keys("qa_assessment:*")]
+            current_app.logger.warning(f"ASSESSMENT_STATUS: Redis keys found: {redis_keys}")
+        except Exception as e:
+            current_app.logger.error(f"ASSESSMENT_STATUS: Redis check failed: {e}")
+    
+    # 返回结果
     if assessment_data:
         response_data = {
             "status": assessment_data.get("status"),
@@ -292,13 +332,14 @@ def assessment_status(assessment_id):
             "document_type": assessment_data.get("document_type")
         }
         if assessment_data.get("status") == "completed":
-            # Optionally, if needed by JS immediately on completion before reload (currently not used this way)
-            # response_data["assessment_details_count"] = len(assessment_data.get("assessment_details", [])) if isinstance(assessment_data.get("assessment_details"), list) else 0
             pass # Reload handles showing details
         elif assessment_data.get("status") == "error":
              response_data["message"] = assessment_data.get("message", "An unknown error occurred.")
 
+        current_app.logger.info(f"ASSESSMENT_STATUS: Returning data for {assessment_id}: status={response_data.get('status')}")
         return jsonify(response_data)
+    
+    current_app.logger.error(f"ASSESSMENT_STATUS: 404 - Assessment {assessment_id} not found")
     return jsonify({"status": "error", "message": "Assessment not found"}), 404
 # --- END NEW API ENDPOINT --- #
 
