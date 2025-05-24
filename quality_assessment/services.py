@@ -54,7 +54,8 @@ _celery_redis_client = None
 def get_celery_redis_client():
     global _celery_redis_client
     if _celery_redis_client is None:
-        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+        # Use the same Redis database as Celery broker (db=1)
+        redis_url = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/1')
         # IMPORTANT: Celery task uses pickle, so we should not decode responses automatically here.
         _celery_redis_client = redis.Redis.from_url(redis_url)
     return _celery_redis_client
@@ -65,8 +66,10 @@ _assessment_redis_client = None
 def get_assessment_redis_client():
     global _assessment_redis_client
     if _assessment_redis_client is None:
-        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+        # Use the same Redis database as Celery broker (db=1) for consistency
+        redis_url = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/1')
         _assessment_redis_client = redis.Redis.from_url(redis_url, decode_responses=False)
+        print(f"REDIS_CONFIG: Assessment Redis client using {redis_url}")
     return _assessment_redis_client
 
 def _save_assessment_to_redis(assessment_id: str, assessment_data: dict):

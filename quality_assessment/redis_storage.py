@@ -16,8 +16,10 @@ def get_redis_client():
     """Get Redis client for batch storage"""
     global _redis_client
     if _redis_client is None:
-        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+        # Use the same Redis database as Celery broker (db=1) for consistency
+        redis_url = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/1')
         _redis_client = redis.from_url(redis_url, decode_responses=True)
+        print(f"REDIS_BATCH_STORAGE: Using Redis URL {redis_url}")
     return _redis_client
 
 def save_batch_status(batch_id: str, batch_data: Dict[str, Any]) -> bool:
