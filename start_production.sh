@@ -11,6 +11,18 @@ VENV_DIR="$PROJECT_DIR/.venv"
 REDIS_CONF="/etc/redis/redis.conf"
 LOG_DIR="$PROJECT_DIR/logs"
 
+# Set environment variables for Redis/Celery consistency
+export CELERY_BROKER_URL="redis://localhost:6379/1"
+export CELERY_RESULT_BACKEND="redis://localhost:6379/2"
+export REDIS_URL="redis://localhost:6379/1"
+export FLASK_ENV="production"
+export FLASK_APP="app.py"
+export PYTHONPATH="$PROJECT_DIR"
+
+echo "ENVIRONMENT: Set CELERY_BROKER_URL=$CELERY_BROKER_URL"
+echo "ENVIRONMENT: Set CELERY_RESULT_BACKEND=$CELERY_RESULT_BACKEND" 
+echo "ENVIRONMENT: Set REDIS_URL=$REDIS_URL"
+
 # Create log directory
 mkdir -p "$LOG_DIR"
 
