@@ -1,4 +1,0 @@
-[2025-05-24 11:33:41,204: INFO/MainProcess] Connected to redis://localhost:6379/1
-[2025-05-24 11:33:41,209: INFO/MainProcess] mingle: searching for neighbors
-[2025-05-24 11:33:42,216: INFO/MainProcess] mingle: all alone
-[2025-05-24 11:33:42,225: INFO/MainProcess] quality_worker@192.168.0.113 ready.
