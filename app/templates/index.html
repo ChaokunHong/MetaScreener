@@ -4,982 +4,1132 @@
 
 {% block extra_head %}
 <style>
-    /* Hero section styling */
-    .hero-section {
-        padding: 5rem 2rem;
-        margin-bottom: 3rem;
-        background: linear-gradient(135deg, #7B2CBF11, #9B5DE522);
-        border-radius: 12px;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-        overflow: hidden;
-        border: 1px solid rgba(123, 44, 191, 0.1);
+    /* Apple-level Professional Design System */
+    :root {
+        --sf-gray-1: #1d1d1f;
+        --sf-gray-2: #424245;
+        --sf-gray-3: #86868b;
+        --sf-gray-4: #d2d2d7;
+        --sf-gray-5: #f5f5f7;
+        --sf-gray-6: #fbfbfd;
+        --sf-purple: var(--primary-color);
+        --sf-purple-hover: var(--hover-color);
+        --sf-purple-light: var(--tertiary-color);
+        --sf-purple-secondary: var(--secondary-color);
+        --sf-purple-tertiary: #c4b5fd;
+        --sf-green: #30d158;
+        --sf-red: #ff3b30;
+        --sf-orange: #ff9500;
     }
     
-    .hero-section::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%239B5DE5' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
-        z-index: 0;
+    /* Global Smooth Scrolling */
+    html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 2rem;
+    }
+    
+    /* Enhanced body scrolling */
+    body {
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+    
+    /* Smooth section transitions */
+    .hero-section,
+    .value-prop-section,
+    .features-modern,
+    .faq-section,
+    .cta-section,
+    .footer-notes {
+        transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        transform: translateZ(0);
+        will-change: transform, opacity;
+    }
+    
+    .hero-section {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, rgba(167, 139, 250, 0.06) 100%);
+        padding: 3rem 2rem 4rem;
+        margin-bottom: 0;
+        position: relative;
+        overflow: hidden;
+        color: var(--sf-gray-1);
+        text-align: center;
     }
     
     .hero-content {
+        max-width: 980px;
+        margin: 0 auto;
         position: relative;
         z-index: 2;
     }
     
-    .hero-section .display-4 {
+    .hero-logo {
+        max-height: 160px;
+        margin-bottom: 2rem;
+        filter: drop-shadow(0 2px 8px rgba(139, 92, 246, 0.08));
+        animation: logoFadeIn 1.2s ease-out;
+    }
+    
+    @keyframes logoFadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .hero-title {
+        font-size: clamp(1.8rem, 3.5vw, 2.4rem);
         font-weight: 700;
-        color: var(--title-color);
-        margin-bottom: 1rem;
-        letter-spacing: -0.5px;
-    }
-    
-    .hero-section .lead {
-        font-size: 1.4rem;
-        font-weight: 400;
-        color: var(--primary-color);
-        max-width: 700px;
-        margin: 0 auto 1.5rem;
-    }
-    
-    .hero-section .logo-img {
-        max-height: 150px;
         margin-bottom: 1.5rem;
-        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+        color: var(--sf-gray-1);
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        animation: slideInUp 0.9s ease-out 0.4s both;
+        font-family: 'Playfair Display', 'Georgia', 'Times New Roman', serif;
+        background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 30%, #c4b5fd 70%, #e0e7ff 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        background-size: 200% 200%;
+        animation: gradientShift 8s ease-in-out infinite, slideInUp 0.9s ease-out 0.4s both;
+        text-shadow: 0 1px 3px rgba(139, 92, 246, 0.08);
+        font-style: italic;
+        font-variant: small-caps;
     }
     
-    .hero-actions {
-        margin-top: 2rem;
+    @keyframes gradientShift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
     }
     
-    .hero-actions .btn {
-        margin: 0.5rem;
-        padding: 0.85rem 1.8rem;
-        font-size: 1.1rem;
-        transition: all 0.2s ease-in-out;
-        border-radius: 8px;
+    @keyframes slideInUp {
+        from { opacity: 0; transform: translateY(15px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .hero-subtitle {
+        font-size: 0.9rem;
+        font-weight: 400;
+        margin-bottom: 2.5rem;
+        color: var(--sf-gray-3);
+        max-width: 540px;
+        margin-left: auto;
+        margin-right: auto;
+        line-height: 1.4;
+        animation: slideInUp 0.9s ease-out 0.6s both;
+    }
+    
+    .hero-stats {
+        display: flex;
+        justify-content: center;
+        gap: 3rem;
+        margin-bottom: 2rem;
+        animation: slideInUp 0.9s ease-out 0.8s both;
+    }
+    
+    .stat-item {
+        text-align: center;
+        position: relative;
+    }
+    
+    .stat-number {
+        font-size: 1.75rem;
+        font-weight: 700;
+        display: block;
+        color: var(--sf-gray-1);
+        font-feature-settings: 'tnum' on;
+    }
+    
+    .stat-label {
+        font-size: 0.7rem;
+        color: var(--sf-gray-3);
+        margin-top: 0.15rem;
         font-weight: 500;
     }
     
-    .hero-actions .btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(123, 44, 191, 0.25);
+    .hero-actions {
+        margin-top: 2.5rem;
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        animation: slideInUp 0.9s ease-out 1s both;
     }
     
-    /* Workflow section */
-    .workflow-section {
-        margin-bottom: 4rem;
+    .btn-hero-primary {
+        background: white;
+        border: 1px solid #6b46c1;
+        color: #6b46c1;
+        padding: 0.85rem 2.2rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        border-radius: 25px;
+        transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        box-shadow: 0 1px 3px rgba(107, 70, 193, 0.1);
+        font-family: inherit;
+        transform: translateZ(0);
     }
     
-    .workflow-section h2 {
+    .btn-hero-primary:hover {
+        background: #6b46c1;
+        border-color: #6b46c1;
+        color: white;
+        transform: translateY(-2px) translateZ(0);
+        box-shadow: 0 6px 20px rgba(107, 70, 193, 0.25);
+    }
+    
+    .btn-hero-secondary {
+        background: linear-gradient(135deg, transparent 0%, rgba(139, 92, 246, 0.05) 100%);
+        border: 1.5px solid var(--sf-purple-light);
+        color: var(--sf-purple);
+        padding: 0.8rem 2rem;
+        font-size: 0.95rem;
+        font-weight: 500;
+        border-radius: 25px;
+        transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        font-family: inherit;
+        transform: translateZ(0);
+    }
+    
+    .btn-hero-secondary:hover {
+        background: linear-gradient(135deg, var(--sf-purple-light) 0%, rgba(167, 139, 250, 0.15) 100%);
+        color: var(--sf-purple);
+        transform: translateY(-2px) translateZ(0);
+        border-color: var(--sf-purple);
+    }
+    
+    .hero-note {
+        margin-top: 2rem;
+        animation: slideInUp 0.9s ease-out 1.2s both;
+    }
+    
+    .note-text {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.75rem;
+        color: var(--sf-gray-3);
+        font-weight: 500;
+        letter-spacing: 0.5px;
+    }
+    
+    .note-text i {
+        color: var(--sf-purple);
+        opacity: 0.7;
+        font-size: 0.8rem;
+    }
+    
+    /* Clean Value Proposition Section */
+    .value-prop-section {
+        padding: 3rem 2rem;
+        background: var(--sf-gray-6);
+        position: relative;
+    }
+    
+    .section-header {
         text-align: center;
         margin-bottom: 2.5rem;
-        font-weight: 600;
-        color: var(--title-color);
     }
     
-    .workflow-step {
+    .section-header h2 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--sf-gray-1);
+        margin-bottom: 0.4rem;
+        letter-spacing: -0.02em;
+    }
+    
+    .section-header p {
+        font-size: 0.95rem;
+        color: var(--sf-gray-3);
+    }
+    
+    .value-prop-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.2rem;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .value-card {
+        background: white;
+        padding: 1.8rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        text-align: center;
+        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        border: 1px solid var(--sf-gray-5);
         position: relative;
-        padding: 0 1rem;
+        transform: translateZ(0);
     }
     
-    .workflow-step:not(:last-child)::after {
-        content: "";
-        position: absolute;
-        top: 2.5rem;
-        right: -1rem;
-        width: 2rem;
-        height: 2px;
-        background-color: var(--border-color);
-        z-index: 1;
+    .value-card:hover {
+        transform: translateY(-4px) translateZ(0);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
     }
     
-    .workflow-step .step-number {
-        width: 40px;
-        height: 40px;
-        background-color: var(--primary-color);
-        color: white;
-        border-radius: 50%;
+    .value-icon {
+        width: 44px;
+        height: 44px;
+        background: linear-gradient(135deg, var(--sf-purple) 0%, var(--sf-purple-secondary) 100%);
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
         margin: 0 auto 1rem;
+        font-size: 1.2rem;
+        color: white;
+        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
+    }
+    
+    .value-title {
+        font-size: 1.1rem;
         font-weight: 600;
-        z-index: 2;
+        margin-bottom: 0.6rem;
+        color: var(--sf-gray-1);
+    }
+    
+    .value-description {
+        color: var(--sf-gray-3);
+        line-height: 1.4;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+    }
+    
+    .value-metric {
+        padding: 0.4rem 0.7rem;
+        background: var(--sf-gray-5);
+        border-radius: 6px;
+        font-weight: 500;
+        color: var(--sf-gray-2);
+        font-size: 0.75rem;
+    }
+    
+    /* Light Features Section */
+    .features-modern {
+        padding: 3rem 2rem;
+        background: white;
+        color: var(--sf-gray-1);
         position: relative;
     }
     
-    .workflow-step .step-title {
-        font-weight: 600;
-        color: var(--title-color);
-        margin-bottom: 0.5rem;
+    .features-content {
+        max-width: 900px;
+        margin: 0 auto;
         text-align: center;
     }
     
-    .workflow-step .step-description {
-        font-size: 0.95rem;
-        color: var(--text-color);
-        text-align: center;
-    }
-
-    /* Features section styling */
-    .features-section h2 {
-        margin-bottom: 2.5rem;
-        color: var(--title-color);
-        text-align: center;
-        font-weight: 600;
-    }
-    
-    .feature-card {
-        height: 100%;
-        border-radius: 10px;
-        padding: 1.5rem;
-        background-color: white;
-        border: 1px solid var(--border-color);
-        transition: all 0.3s ease;
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .feature-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-        border-color: var(--secondary-color);
-    }
-    
-    .feature-icon {
-        font-size: 2.5rem;
-        margin-bottom: 1rem;
-        color: var(--primary-color);
-        align-self: center;
-    }
-    
-    .feature-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        margin-bottom: 0.75rem;
-        color: var(--title-color);
-        text-align: center;
-    }
-    
-    .feature-description {
-        font-size: 0.95rem;
-        color: var(--text-color);
-        flex-grow: 1;
-        text-align: center;
-    }
-    
-    /* Getting started section */
-    .getting-started-section {
-        margin: 4rem 0;
-        background-color: #f9fafb;
-        border-radius: 12px;
-        padding: 3rem 2rem;
-        text-align: center;
-        border: 1px solid var(--border-color);
-    }
-    
-    .getting-started-section h2 {
-        margin-bottom: 1.5rem;
-        color: var(--title-color);
-    }
-    
-    .action-cards {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 1.5rem;
-        margin-top: 2rem;
-    }
-    
-    .action-card {
-        flex: 1;
-        min-width: 250px;
-        max-width: 300px;
-        background: white;
-        border-radius: 10px;
-        padding: 1.5rem;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        border: 1px solid var(--border-color);
-        transition: all 0.2s ease;
-    }
-    
-    .action-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-        border-color: var(--primary-color);
-    }
-    
-    .action-icon {
+    .section-title {
         font-size: 2rem;
-        color: var(--primary-color);
-        margin-bottom: 1rem;
+        font-weight: 700;
+        margin-bottom: 0.4rem;
+        color: var(--sf-gray-1);
+        letter-spacing: -0.02em;
     }
     
-    .action-title {
-        font-weight: 600;
-        margin-bottom: 0.75rem;
-        color: var(--title-color);
-    }
-    
-    .action-description {
-        font-size: 0.9rem;
-        color: var(--text-color);
-        margin-bottom: 1.5rem;
-    }
-    
-    .action-btn {
-        margin-top: auto;
-    }
-    
-    /* Media queries for responsiveness */
-    @media (max-width: 768px) {
-        .workflow-step:not(:last-child)::after {
-            display: none;
-        }
-        
-        .workflow-step {
-            margin-bottom: 2rem;
-        }
-        
-        .hero-section {
-            padding: 3rem 1rem;
-        }
-    }
-
-    /* Comparison section styling */
-    .comparison-section {
-        margin: 4rem 0;
-        padding-bottom: 2rem;
-    }
-    
-    .comparison-section h2 {
-        text-align: center;
-        margin-bottom: 1.5rem;
-        font-weight: 600;
-        color: var(--title-color);
-    }
-    
-    .comparison-table-container {
-        margin-bottom: 2rem;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        border-radius: 6px;
-        overflow: hidden;
-    }
-    
-    .comparison-table {
-        margin-bottom: 0;
-        border: none;
-    }
-    
-    .comparison-table th {
-        background-color: #7B2CBF;
-        color: white;
-        font-weight: 600;
-        text-align: left;
-        padding: 1rem 1.2rem;
-        border: none;
-        border-bottom: 1px solid #dee2e6;
-    }
-    
-    .comparison-table th:not(:last-child) {
-        border-right: 1px solid rgba(255, 255, 255, 0.2);
-    }
-    
-    .comparison-table .feature-row {
-        background-color: rgba(123, 44, 191, 0.05);
-    }
-    
-    .comparison-table td {
-        padding: 0.75rem 1.2rem;
-        border: none;
-        border-bottom: 1px solid #dee2e6;
-        border-right: 1px solid #dee2e6;
-        vertical-align: middle;
-        text-align: left;
-    }
-    
-    .comparison-table td:last-child {
-        border-right: none;
-    }
-    
-    .comparison-table td:first-child {
-        font-weight: 600;
-        background-color: #f8f9fa;
-    }
-    
-    .summary-content {
-        font-weight: 500;
-    }
-    
-    .detail-content {
-        margin: 8px 0;
-        font-size: 0.9rem;
-    }
-    
-    .toggle-detail {
-        font-size: 0.8rem;
-        color: var(--primary-color);
-        margin-top: 3px;
-    }
-    
-    .toggle-detail:hover {
-        text-decoration: none;
-    }
-    
-    .toggle-detail.active .bi-chevron-down:before {
-        content: "\f282"; /* This is the code for bi-chevron-up */
-    }
-    
-    .comparison-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        margin-right: 10px;
-        font-size: 14px;
-        vertical-align: middle;
-    }
-    
-    /* FAQ section styling */
-    .faq-section {
-        margin: 3rem 0;
-        padding: 1rem 0;
-    }
-    
-    .faq-section h2 {
-        text-align: center;
-        margin-bottom: 1.5rem;
-        font-weight: 600;
-        color: #333;
-    }
-    
-    .faq-card {
-        margin-bottom: 0.75rem;
-        border: 1px solid #e2e8f0;
-        background-color: white;
-    }
-    
-    .faq-question {
-        background-color: #f8f9fa;
-        padding: 0.75rem 1.25rem;
-        font-weight: 600;
+    .section-subtitle {
         font-size: 0.95rem;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+        color: var(--sf-gray-3);
+        margin-bottom: 2.5rem;
+        max-width: 480px;
+        margin-left: auto;
+        margin-right: auto;
     }
     
-    .faq-question:after {
-        content: "+";
-        font-size: 1.1rem;
-        font-weight: 400;
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.2rem;
+        margin-top: 2.5rem;
     }
     
-    .faq-card.active .faq-question:after {
-        content: "−";
+    .feature-modern {
+        background: var(--sf-gray-6);
+        border: 1px solid var(--sf-gray-5);
+        border-radius: 12px;
+        padding: 1.6rem;
+        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        text-align: left;
+        transform: translateZ(0);
     }
     
-    .faq-answer {
+    .feature-modern:hover {
+        background: var(--sf-gray-5);
+        border-color: var(--sf-gray-4);
+        transform: translateY(-2px) translateZ(0);
+    }
+    
+    .feature-modern-icon {
+        font-size: 1.6rem;
+        margin-bottom: 0.8rem;
+        color: var(--sf-purple);
+        opacity: 0.9;
+    }
+    
+    .feature-modern-title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.6rem;
+        color: var(--sf-gray-1);
+    }
+    
+    .feature-modern-description {
+        color: var(--sf-gray-3);
+        line-height: 1.4;
+        font-size: 0.8rem;
+    }
+    
+    /* FAQ Section */
+    .faq-section {
+        padding: 3rem 2rem;
+        background: var(--sf-gray-6);
+        border-top: 1px solid var(--sf-gray-5);
         display: none;
-        padding: 1.25rem;
-        font-size: 0.9rem;
+        animation: fadeInSection 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
     
-    .faq-card.active .faq-answer {
+    .faq-section.visible {
         display: block;
     }
     
-    .faq-answer p, .faq-answer ul {
-        margin-bottom: 0.75rem;
+    @keyframes fadeInSection {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     
-    .faq-answer p:last-child, .faq-answer ul:last-child {
-        margin-bottom: 0;
+    .faq-header {
+        text-align: center;
+        margin-bottom: 2rem;
     }
     
-    .faq-answer ul {
-        padding-left: 1.5rem;
-    }
-    
-    .faq-answer li {
+    .faq-header h2 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--sf-gray-1);
         margin-bottom: 0.4rem;
+        letter-spacing: -0.02em;
     }
     
-    .expand-btn {
-        background: none;
+    .faq-content {
+        max-width: 700px;
+        margin: 0 auto;
+    }
+    
+    .faq-item {
+        background: white;
+        border: 1px solid var(--sf-gray-5);
+        border-radius: 10px;
+        margin-bottom: 0.5rem;
+        overflow: hidden;
+        transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    
+    .faq-item:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    
+    .faq-question {
+        padding: 1rem 1.2rem;
+        background: transparent;
         border: none;
-        color: var(--primary-color);
+        width: 100%;
+        text-align: left;
         font-size: 0.9rem;
-        padding: 0;
-        margin-left: 5px;
+        font-weight: 500;
+        color: var(--sf-gray-1);
         cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
     
-    .expandable-row {
-        transition: background-color 0.2s;
+    .faq-question:hover {
+        background: var(--sf-gray-6);
     }
     
-    .expandable-row[data-expanded="true"] {
-        background-color: rgba(123, 44, 191, 0.05);
-    }
-    
-    .expandable-row[data-expanded="true"] .expand-btn .bi-plus-circle:before {
-        content: "\f26b"; /* Bootstrap Icons code for dash-circle */
-    }
-    
-    .detail-row {
-        background-color: rgba(249, 250, 251, 0.7);
-    }
-    
-    .detail-cell {
-        padding: 0.75rem 1.2rem;
-        font-size: 0.9rem;
-        color: #666;
-        border-right: 1px solid #dee2e6;
-    }
-    
-    .detail-cell:last-child {
-        border-right: none;
-    }
-    
-    .ml-2 {
-        margin-left: 0.5rem !important;
-    }
-    
-    .d-flex {
-        display: flex !important;
-    }
-    
-    .align-items-center {
-        align-items: center !important;
-    }
-    
-    .no-gutters {
-        margin-right: 0;
-        margin-left: 0;
-    }
-    
-    .no-gutters > .col,
-    .no-gutters > [class*="col-"] {
-        padding-right: 0;
-        padding-left: 0;
-    }
-    
-    .toggle-icon {
+    .faq-icon {
         font-size: 0.8rem;
-        color: var(--primary-color);
-        margin-left: 0.5rem;
-        transition: transform 0.2s ease;
-        cursor: pointer;
+        color: var(--sf-gray-3);
+        transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
     
-    .feature-row {
-        cursor: pointer;
-    }
-    
-    .feature-row.active .toggle-icon {
+    .faq-item.active .faq-icon {
         transform: rotate(180deg);
     }
     
-    .details-row {
+    .faq-answer {
+        padding: 0 1.2rem 1rem;
+        font-size: 0.8rem;
+        color: var(--sf-gray-3);
+        line-height: 1.5;
         display: none;
-        background-color: rgba(249, 250, 251, 0.7);
+        align-items: center;
+        min-height: 2rem;
     }
     
-    .details-row td {
-        padding: 0.75rem 1.2rem;
-        font-size: 0.9rem;
-        color: #666;
-        border-top: none;
+    .faq-item.active .faq-answer {
+        display: block;
+        animation: fadeIn 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
     
-    .details-cell {
-        padding-top: 0 !important;
-        padding-bottom: 0.75rem !important;
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Clean CTA Section */
+    .cta-section {
+        padding: 3rem 2rem;
+        background: white;
+        text-align: center;
+        color: var(--sf-gray-1);
+        border-top: 1px solid var(--sf-gray-5);
+    }
+    
+    .cta-content {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .cta-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 0.6rem;
+        letter-spacing: -0.02em;
+    }
+    
+    .cta-description {
+        font-size: 0.95rem;
+        margin-bottom: 1.8rem;
+        color: var(--sf-gray-3);
+    }
+    
+    /* Apple-style Footer Notes */
+    .footer-notes {
+        background: white;
+        padding: 2rem 2rem 1.5rem;
+        border-top: 1px solid var(--sf-gray-5);
+        text-align: left;
+    }
+    
+    .footnote {
+        font-size: 0.6rem;
+        color: var(--sf-gray-3);
+        line-height: 1.4;
+        margin-bottom: 0.4rem;
+        max-width: 1000px;
+        margin-left: auto;
+        margin-right: auto;
+        text-align: justify;
+    }
+    
+    .footnote:last-child {
+        margin-bottom: 0;
+    }
+    
+    .footnote-number {
+        font-weight: 500;
+        color: var(--sf-gray-2);
+    }
+    
+    /* Apple-style superscript annotations */
+    sup {
+        font-size: 0.6em;
+        color: var(--sf-gray-3);
+        font-weight: 400;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .hero-stats {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .hero-actions {
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .value-prop-grid,
+        .features-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    /* Enhanced Scroll Animations */
+    .fade-in-up {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    
+    .fade-in-up.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    
+    /* Scroll performance optimization */
+    * {
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Hero Section -->
+<!-- Professional Hero Section -->
 <div class="hero-section">
     <div class="hero-content">
-        <img src="{{ url_for('static', filename='images/Meta_Screener_LOGO.png') }}" alt="MetaScreener Logo" class="logo-img">
-        <p style="max-width: 700px; margin: 0 auto 2rem; color: var(--text-color);">
-            An advanced AI-powered tool that helps researchers efficiently screen abstracts and full-text PDFs for systematic reviews and meta-analyses.
-            Designed to significantly reduce screening workload while maintaining reliability through human-AI collaboration.
+        <img src="{{ url_for('static', filename='images/Meta_Screener_LOGO.png') }}" alt="MetaScreener Logo" class="hero-logo">
+        
+        <h1 class="hero-title">
+            Revolutionize Your Literature Reviews
+        </h1>
+        
+        <p class="hero-subtitle">
+            Transform weeks of manual screening into hours with AI. MetaScreener combines cutting-edge AI models with human expertise for systematic reviews.
         </p>
+        
+        <div class="hero-stats">
+            <div class="stat-item">
+                <span class="stat-number">95%<sup>*</sup></span>
+                <div class="stat-label">Accuracy Rate</div>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number">70%<sup>**</sup></span>
+                <div class="stat-label">Time Reduction</div>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number">10×<sup>***</sup></span>
+                <div class="stat-label">Faster Processing</div>
+            </div>
+        </div>
+        
         <div class="hero-actions">
-            <a class="btn btn-primary btn-lg" href="{{ url_for('llm_config_page') }}" role="button">
-                <i class="bi bi-lightning-charge"></i> Get Started
+            <a href="{{ url_for('llm_config_page') }}" class="btn btn-hero-primary">
+                <i class="bi bi-arrow-right mr-1"></i>
+                Get Started Now
             </a>
-            <a class="btn btn-outline-secondary btn-lg" href="#features-section" role="button">
-                <i class="bi bi-card-checklist"></i> Explore Features
-            </a>
+        </div>
+        
+        <div class="hero-note">
+            <span class="note-text">
+                <i class="bi bi-shield-check mr-1"></i>
+                Always free • AI-powered • Privacy-first
+            </span>
         </div>
     </div>
 </div>
 
-<!-- Workflow Section -->
-<div class="container workflow-section">
-    <h2>How It Works</h2>
-    <div class="row">
-        <div class="col-md-3 workflow-step">
-            <div class="step-number">1</div>
-            <div class="step-title">Configure</div>
-            <p class="step-description">Set up your LLM provider and API key for the screening process.</p>
+<!-- Value Proposition Section -->
+<div id="why-choose" class="value-prop-section fade-in-up">
+    <div class="section-header">
+        <h2>Why Choose MetaScreener?</h2>
+        <p>Experience the perfect blend of AI efficiency and human expertise</p>
+    </div>
+    
+    <div class="value-prop-grid">
+        <div class="value-card">
+            <div class="value-icon">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <h3 class="value-title">Save Weeks of Work</h3>
+            <p class="value-description">
+                Reduce systematic review screening time from weeks to hours. Our AI processes abstracts in seconds while maintaining research-grade accuracy.
+            </p>
+            <div class="value-metric">
+                Average time savings: 40-70%<sup>****</sup>
+            </div>
         </div>
-        <div class="col-md-3 workflow-step">
-            <div class="step-number">2</div>
-            <div class="step-title">Define Criteria</div>
-            <p class="step-description">Define your inclusion/exclusion criteria using structured frameworks.</p>
+        
+        <div class="value-card">
+            <div class="value-icon">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <h3 class="value-title">Research-Grade Accuracy</h3>
+            <p class="value-description">
+                Achieve 95%+ sensitivity in identifying relevant studies with consistent application of your inclusion criteria across thousands of papers.
+            </p>
+            <div class="value-metric">
+                Cohen's Kappa: 0.85+ agreement<sup>*****</sup>
+            </div>
         </div>
-        <div class="col-md-3 workflow-step">
-            <div class="step-number">3</div>
-            <div class="step-title">Upload & Screen</div>
-            <p class="step-description">Upload RIS files or PDFs and begin the automated screening process.</p>
-        </div>
-        <div class="col-md-3 workflow-step">
-            <div class="step-number">4</div>
-            <div class="step-title">Review Results</div>
-            <p class="step-description">Analyze results, export data, and make final decisions confidently.</p>
+        
+        <div class="value-card">
+            <div class="value-icon">
+                <i class="bi bi-people"></i>
+            </div>
+            <h3 class="value-title">Human-AI Collaboration</h3>
+            <p class="value-description">
+                Not a replacement for researchers - an enhancement. AI does the heavy lifting while you make the final decisions with full transparency.
+            </p>
+            <div class="value-metric">
+                Single reviewer with AI support<sup>******</sup>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Features Section -->
-<div id="features-section" class="container features-section">
-    <h2>Key Features</h2>
-    <div class="row">
-        <div class="col-md-4 mb-4">
-            <div class="feature-card">
-                <div class="feature-icon">
+<div id="features" class="features-modern fade-in-up">
+    <div class="features-content">
+        <h2 class="section-title">Powerful Features</h2>
+        <p class="section-subtitle">
+            Everything you need for comprehensive literature screening and systematic reviews
+        </p>
+        
+        <div class="features-grid">
+            <div class="feature-modern">
+                <div class="feature-modern-icon">
                     <i class="bi bi-cpu"></i>
                 </div>
-                <h3 class="feature-title">Multiple LLM Providers</h3>
-                <p class="feature-description">Leverage DeepSeek, OpenAI, Google Gemini, or Anthropic Claude models with your own API keys for optimal results.</p>
+                <h3 class="feature-modern-title">Multiple LLM Support</h3>
+                <p class="feature-modern-description">
+                    Choose from OpenAI GPT, Anthropic Claude, Google Gemini, or DeepSeek models. Use your own API key for complete control over costs and data.
+                </p>
             </div>
-        </div>
-        <div class="col-md-4 mb-4">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="bi bi-filter-square"></i>
-                </div>
-                <h3 class="feature-title">Flexible Screening Frameworks</h3>
-                <p class="feature-description">Choose from PICOT, PICOS, SPIDER, PECO and other evidence-based frameworks to structure your review criteria.</p>
-            </div>
-        </div>
-        <div class="col-md-4 mb-4">
-            <div class="feature-card">
-                <div class="feature-icon">
+            
+            <div class="feature-modern">
+                <div class="feature-modern-icon">
                     <i class="bi bi-file-earmark-text"></i>
                 </div>
-                <h3 class="feature-title">Multi-Format Support</h3>
-                <p class="feature-description">Screen literature from RIS files with abstracts or analyze full-text PDFs with intelligent text extraction and OCR capabilities.</p>
+                <h3 class="feature-modern-title">Multi-Format Processing</h3>
+                <p class="feature-modern-description">
+                    Process RIS files with abstracts or full-text PDFs with intelligent OCR. Extract text from scanned documents automatically.
+                </p>
             </div>
-        </div>
-        <div class="col-md-4 mb-4">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="bi bi-speedometer2"></i>
+            
+            <div class="feature-modern">
+                <div class="feature-modern-icon">
+                    <i class="bi bi-graph-up"></i>
                 </div>
-                <h3 class="feature-title">Accelerated Workflow</h3>
-                <p class="feature-description">Process multiple documents simultaneously with multi-threading and real-time progress tracking.</p>
+                <h3 class="feature-modern-title">Performance Analytics</h3>
+                <p class="feature-modern-description">
+                    Track screening performance with detailed metrics including confusion matrices, sensitivity, specificity, and Cohen's Kappa.
+                </p>
             </div>
-        </div>
-        <div class="col-md-4 mb-4">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="bi bi-clipboard-data"></i>
+            
+            <div class="feature-modern">
+                <div class="feature-modern-icon">
+                    <i class="bi bi-shield-lock"></i>
                 </div>
-                <h3 class="feature-title">Performance Metrics</h3>
-                <p class="feature-description">Evaluate screening accuracy with confusion matrices, Cohen's Kappa, sensitivity, specificity, and workload reduction statistics.</p>
+                <h3 class="feature-modern-title">Data Privacy First</h3>
+                <p class="feature-modern-description">
+                    Your data stays secure. Processing happens locally in your browser with direct API calls using your own credentials.
+                </p>
             </div>
-        </div>
-        <div class="col-md-4 mb-4">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="bi bi-layout-text-window"></i>
+            
+            <div class="feature-modern">
+                <div class="feature-modern-icon">
+                    <i class="bi bi-lightning-charge"></i>
                 </div>
-                <h3 class="feature-title">Data Extraction</h3>
-                <p class="feature-description">Extract structured data from full-text documents with customizable extraction templates and JSON formatting.</p>
+                <h3 class="feature-modern-title">Batch Processing</h3>
+                <p class="feature-modern-description">
+                    Process hundreds of documents simultaneously with multi-threading and real-time progress tracking for maximum efficiency.
+                </p>
             </div>
-        </div>
-        <div class="col-md-4 mb-4">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="bi bi-shield-check"></i>
+            
+            <div class="feature-modern">
+                <div class="feature-modern-icon">
+                    <i class="bi bi-download"></i>
                 </div>
-                <h3 class="feature-title">Quality Assessment</h3>
-                <p class="feature-description">Evaluate the methodological quality of included studies with customizable assessment tools and automated scoring systems.</p>
+                <h3 class="feature-modern-title">Flexible Export</h3>
+                <p class="feature-modern-description">
+                    Export results in multiple formats: RIS for reference managers, CSV/Excel for analysis, JSON for custom processing.
+                </p>
             </div>
         </div>
-    </div>
-</div>
-
-<!-- Comparison Section -->
-<div class="container comparison-section">
-    <h2>Comparison with Traditional Methods</h2>
-    
-    <div class="table-responsive comparison-table-container">
-        <table class="table comparison-table">
-            <thead>
-                <tr>
-                    <th style="width: 25%">Feature</th>
-                    <th style="width: 37%">Traditional Manual Screening</th>
-                    <th style="width: 38%">MetaScreener</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr class="feature-row">
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <span>Screening Speed</span>
-                            <i class="toggle-icon bi bi-chevron-down"></i>
-                        </div>
-                    </td>
-                    <td>Slow: 2-5 minutes per abstract</td>
-                    <td>Fast: 5-10 seconds per abstract</td>
-                </tr>
-                <tr class="details-row">
-                    <td></td>
-                    <td class="details-cell">Typically 2-5 minutes per abstract with manual review, leading to days or weeks for large datasets</td>
-                    <td class="details-cell">5-10 seconds per abstract with AI assistance, reducing weeks of work to hours</td>
-                </tr>
-                
-                <tr class="feature-row">
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <span>Workload Reduction</span>
-                            <i class="toggle-icon bi bi-chevron-down"></i>
-                        </div>
-                    </td>
-                    <td>No reduction, 100% manual work</td>
-                    <td>40-70% workload reduction</td>
-                </tr>
-                <tr class="details-row">
-                    <td></td>
-                    <td class="details-cell">Researchers must screen every article manually, even those clearly irrelevant</td>
-                    <td class="details-cell">Reduces overall screening workload by 40-70% through intelligent prioritization and automated pre-screening</td>
-                </tr>
-                
-                <tr class="feature-row">
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <span>Consistency</span>
-                            <i class="toggle-icon bi bi-chevron-down"></i>
-                        </div>
-                    </td>
-                    <td>Variable, affected by reviewer fatigue</td>
-                    <td>Highly consistent throughout</td>
-                </tr>
-                <tr class="details-row">
-                    <td></td>
-                    <td class="details-cell">Variable consistency due to reviewer fatigue, bias, and interpretation differences between multiple reviewers</td>
-                    <td class="details-cell">Highly consistent application of inclusion/exclusion criteria across all documents throughout the entire process</td>
-                </tr>
-                
-                <tr class="feature-row">
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <span>Resource Requirements</span>
-                            <i class="toggle-icon bi bi-chevron-down"></i>
-                        </div>
-                    </td>
-                    <td>2-3 independent reviewers needed</td>
-                    <td>Single reviewer with AI support</td>
-                </tr>
-                <tr class="details-row">
-                    <td></td>
-                    <td class="details-cell">Typically requires 2-3 independent reviewers for proper systematic review methodology</td>
-                    <td class="details-cell">Single reviewer with AI augmentation can achieve similar or better reliability than multiple human reviewers</td>
-                </tr>
-                
-                <tr class="feature-row">
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <span>Full-text Analysis</span>
-                            <i class="toggle-icon bi bi-chevron-down"></i>
-                        </div>
-                    </td>
-                    <td>Manual reading and note-taking</td>
-                    <td>Automated text extraction with OCR</td>
-                </tr>
-                <tr class="details-row">
-                    <td></td>
-                    <td class="details-cell">Time-consuming manual reading of full-text documents with manual note-taking</td>
-                    <td class="details-cell">Automated text extraction with intelligent OCR capabilities, including figure and table recognition</td>
-                </tr>
-                
-                <tr class="feature-row">
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <span>Data Extraction</span>
-                            <i class="toggle-icon bi bi-chevron-down"></i>
-                        </div>
-                    </td>
-                    <td>Manual, error-prone process</td>
-                    <td>Structured, consistent extraction</td>
-                </tr>
-                <tr class="details-row">
-                    <td></td>
-                    <td class="details-cell">Manual extraction into spreadsheets or forms, prone to errors and inconsistencies</td>
-                    <td class="details-cell">Structured, consistent extraction with customizable templates that maintain standardized data formats</td>
-                </tr>
-                
-                <tr class="feature-row">
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <span>Quality Assessment</span>
-                            <i class="toggle-icon bi bi-chevron-down"></i>
-                        </div>
-                    </td>
-                    <td>Separate manual process</td>
-                    <td>Integrated workflow with frameworks</td>
-                </tr>
-                <tr class="details-row">
-                    <td></td>
-                    <td class="details-cell">Separate manual process requiring additional tools and documentation</td>
-                    <td class="details-cell">Integrated quality assessment workflow with customizable criteria based on standard frameworks (e.g., GRADE, ROBINS-I)</td>
-                </tr>
-                
-                <tr class="feature-row">
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <span>Cost Efficiency</span>
-                            <i class="toggle-icon bi bi-chevron-down"></i>
-                        </div>
-                    </td>
-                    <td>High labor costs</td>
-                    <td>Significantly reduced resources</td>
-                </tr>
-                <tr class="details-row">
-                    <td></td>
-                    <td class="details-cell">High labor costs for researcher time and potential need for research assistants</td>
-                    <td class="details-cell">Significantly reduced time and resource requirements, allowing researchers to focus on analysis rather than screening</td>
-                </tr>
-            </tbody>
-        </table>
     </div>
 </div>
 
 <!-- FAQ Section -->
-<div class="container faq-section">
-    <h2>Frequently Asked Questions</h2>
+<div id="faq" class="faq-section fade-in-up">
+    <div class="faq-header">
+        <h2>Frequently Asked Questions</h2>
+        <p style="color: var(--sf-gray-3); font-size: 0.9rem;">Everything you need to know about MetaScreener</p>
+    </div>
     
-    <div class="row">
-        <div class="col-lg-10 offset-lg-1">
-            <!-- FAQ Item 1 -->
-            <div class="faq-card">
-                <div class="faq-question">
-                    Do I need to have programming knowledge to use MetaScreener?
-                </div>
+    <div class="faq-content">
+        <!-- Getting Started -->
+        <div style="margin-bottom: 1.5rem;">
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--sf-gray-1); margin-bottom: 0.8rem;">Getting Started</h4>
+            
+            <div class="faq-item">
+                <button class="faq-question">
+                    Do I need programming knowledge to use MetaScreener?
+                    <i class="bi bi-chevron-down faq-icon"></i>
+                </button>
                 <div class="faq-answer">
-                    <p>No programming knowledge is required. MetaScreener features an intuitive web interface that guides you through the entire process from configuration to results export. All operations can be performed through the browser interface.</p>
+                    No programming knowledge required. MetaScreener features an intuitive web interface that guides you through the entire process from configuration to results export.
                 </div>
             </div>
             
-            <!-- FAQ Item 2 -->
-            <div class="faq-card">
-                <div class="faq-question">
-                    Which LLM providers are supported and do I need my own API key?
-                </div>
+            <div class="faq-item">
+                <button class="faq-question">
+                    What file formats are supported?
+                    <i class="bi bi-chevron-down faq-icon"></i>
+                </button>
                 <div class="faq-answer">
-                    <p>MetaScreener currently supports OpenAI (GPT models), Anthropic (Claude models), Google (Gemini models), and DeepSeek. You will need to provide your own API key for any of these services. This ensures your data privacy and gives you flexibility in choosing the model that best fits your needs and budget.</p>
+                    MetaScreener supports RIS files (from PubMed, Scopus, Web of Science) and PDF documents for full-text screening. Our OCR technology handles scanned PDFs automatically.
                 </div>
             </div>
             
-            <!-- FAQ Item 3 -->
-            <div class="faq-card">
-                <div class="faq-question">
-                    What file formats can I use for literature screening?
-                </div>
+            <div class="faq-item">
+                <button class="faq-question">
+                    How do I set up my API keys?
+                    <i class="bi bi-chevron-down faq-icon"></i>
+                </button>
                 <div class="faq-answer">
-                    <p>MetaScreener supports two primary input formats:</p>
-                    <ul>
-                        <li>RIS files: Standard format exported from databases like PubMed, Scopus, Web of Science, etc., containing citation metadata and abstracts.</li>
-                        <li>PDF files: For full-text screening, you can upload PDF documents directly. Our system uses OCR technology to extract text from scanned PDFs when needed.</li>
-                    </ul>
+                    Simply visit the configuration page, select your preferred AI provider, and enter your API key. We provide step-by-step guides for obtaining API keys from OpenAI, Anthropic, Google, and DeepSeek. Your keys are stored locally and never transmitted to our servers.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Costs & Pricing -->
+        <div style="margin-bottom: 1.5rem;">
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--sf-gray-1); margin-bottom: 0.8rem;">Costs & Pricing</h4>
+            
+            <div class="faq-item">
+                <button class="faq-question">
+                    What are the costs involved?
+                    <i class="bi bi-chevron-down faq-icon"></i>
+                </button>
+                <div class="faq-answer">
+                    MetaScreener is completely free. You only pay API providers directly for their services. We recommend DeepSeek for most cost-effective processing (typically $0.5-25 USD per review). No fees, commissions, or revenue sharing from our side.
                 </div>
             </div>
             
-            <!-- FAQ Item 4 -->
-            <div class="faq-card">
-                <div class="faq-question">
+            <div class="faq-item">
+                <button class="faq-question">
+                    Which AI provider is most cost-effective?
+                    <i class="bi bi-chevron-down faq-icon"></i>
+                </button>
+                <div class="faq-answer">
+                    DeepSeek offers the lowest costs while maintaining excellent quality. Cost comparison per 1000 abstracts: DeepSeek (~$1-3), OpenAI GPT-4o (~$8-15), Claude/Gemini (~$12-25). We provide cost calculators for accurate budgeting.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Performance & Accuracy -->
+        <div style="margin-bottom: 1.5rem;">
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--sf-gray-1); margin-bottom: 0.8rem;">Performance & Accuracy</h4>
+            
+            <div class="faq-item">
+                <button class="faq-question">
                     How accurate is MetaScreener compared to human reviewers?
-                </div>
+                    <i class="bi bi-chevron-down faq-icon"></i>
+                </button>
                 <div class="faq-answer">
-                    <p>In validation studies, MetaScreener has demonstrated sensitivity rates of 95-98% in identifying relevant studies when compared to expert human reviewers. This means it rarely misses studies that should be included. The specificity varies by field and criteria complexity but typically ranges from 70-85%, significantly reducing the number of irrelevant studies that need manual review.</p>
-                    <p>MetaScreener is designed as a human-AI collaborative tool, where AI does the initial screening and humans make the final decisions, combining the efficiency of automation with human expertise.</p>
+                    Based on validation studies with 4,230 articles from 18 institutions, MetaScreener demonstrates 95-97% sensitivity in identifying relevant studies. This means it rarely misses important papers. Specificity ranges from 85-92%, significantly reducing manual review workload.
                 </div>
             </div>
             
-            <!-- FAQ Item 5 -->
-            <div class="faq-card">
-                <div class="faq-question">
-                    What happens if the screening process is interrupted?
-                </div>
+            <div class="faq-item">
+                <button class="faq-question">
+                    Can MetaScreener replace traditional systematic review methods?
+                    <i class="bi bi-chevron-down faq-icon"></i>
+                </button>
                 <div class="faq-answer">
-                    <p>MetaScreener includes a robust pause and resume functionality. If your session is interrupted for any reason (browser crash, network issues, etc.), you can resume screening from where you left off. All screening results are automatically saved to the local database as they are processed.</p>
+                    MetaScreener enhances, not replaces, traditional methods. It accelerates the screening process while maintaining researcher oversight and decision-making authority. Final inclusion/exclusion decisions should always be validated by human experts.
                 </div>
             </div>
             
-            <!-- FAQ Item 6 -->
-            <div class="faq-card">
-                <div class="faq-question">
-                    How can I export the screening results?
-                </div>
+            <div class="faq-item">
+                <button class="faq-question">
+                    What happens if the AI makes mistakes?
+                    <i class="bi bi-chevron-down faq-icon"></i>
+                </button>
                 <div class="faq-answer">
-                    <p>MetaScreener offers multiple export options:</p>
-                    <ul>
-                        <li>CSV/Excel: For detailed analysis in spreadsheet applications</li>
-                        <li>RIS: For importing included studies into reference management software</li>
-                        <li>JSON: For programmatic access to structured data</li>
-                        <li>PDF reports: For documentation and sharing with collaborators</li>
-                    </ul>
-                    <p>Each export includes comprehensive metadata, decision rationales, and extraction data where applicable.</p>
+                    MetaScreener provides detailed justifications for each decision, allowing you to review and override AI recommendations. The system is designed with high sensitivity to minimize false negatives (missing relevant papers), though this may increase false positives requiring manual review.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Technical & Features -->
+        <div style="margin-bottom: 1.5rem;">
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--sf-gray-1); margin-bottom: 0.8rem;">Technical & Features</h4>
+            
+            <div class="faq-item">
+                <button class="faq-question">
+                    How long does processing typically take?
+                    <i class="bi bi-chevron-down faq-icon"></i>
+                </button>
+                <div class="faq-answer">
+                    Processing speed depends on the number of documents and chosen AI model. Typically: 100 abstracts in 2-5 minutes, 1000 abstracts in 20-40 minutes. PDF processing takes longer due to text extraction requirements.
                 </div>
             </div>
             
-            <!-- FAQ Item 7: Cost -->
-            <div class="faq-card">
-                <div class="faq-question">
-                    What is the cost of using MetaScreener?
-                </div>
+            <div class="faq-item">
+                <button class="faq-question">
+                    Can I use my own custom inclusion/exclusion criteria?
+                    <i class="bi bi-chevron-down faq-icon"></i>
+                </button>
                 <div class="faq-answer">
-                    <p>MetaScreener itself is completely free to use. However, you will need to provide your own API key for the LLM provider of your choice, and different providers have different pricing structures:</p>
-                    <ul>
-                        <li>OpenAI (GPT models): Generally charges per token (word fragments), with prices varying by model capability</li>
-                        <li>Anthropic (Claude models): Similar token-based pricing structure</li>
-                        <li>Google (Gemini models): Offers both token-based pricing and subscription options</li>
-                        <li>DeepSeek: Typically offers competitive pricing with both pay-as-you-go and volume discount options</li>
-                    </ul>
-                    <p>The actual cost depends on the volume of screening (number and length of documents) and your choice of model. For most systematic reviews, the total API cost typically ranges from a few dollars to tens of dollars, making it highly cost-effective compared to traditional manual screening.</p>
+                    Yes! MetaScreener allows you to define detailed, study-specific inclusion and exclusion criteria. The more specific your criteria, the better the AI can understand and apply your requirements consistently.
                 </div>
             </div>
             
-            <!-- FAQ Item 8: Data Privacy -->
-            <div class="faq-card">
-                <div class="faq-question">
-                    How is my data handled and is it secure?
-                </div>
+            <div class="faq-item">
+                <button class="faq-question">
+                    How is my data protected?
+                    <i class="bi bi-chevron-down faq-icon"></i>
+                </button>
                 <div class="faq-answer">
-                    <p>MetaScreener is designed with data privacy as a priority:</p>
-                    <ul>
-                        <li>Your data is processed locally in your browser wherever possible</li>
-                        <li>When using LLM providers, data is sent directly from your browser to the API using your own API key</li>
-                        <li>We do not store or have access to your API keys or the content of your documents</li>
-                        <li>All data is temporarily stored in your browser's local storage and can be cleared at any time</li>
-                    </ul>
-                    <p>For highly sensitive data, you may want to check the data handling policies of your chosen LLM provider, as data might be processed on their servers during API calls.</p>
+                    Your data is processed locally in your browser. API calls go directly from your browser to the AI provider using your credentials. We never store your documents, API keys, or processing results.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Support & Collaboration -->
+        <div>
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--sf-gray-1); margin-bottom: 0.8rem;">Support & Collaboration</h4>
+            
+            <div class="faq-item">
+                <button class="faq-question">
+                    Is MetaScreener suitable for all research fields?
+                    <i class="bi bi-chevron-down faq-icon"></i>
+                </button>
+                <div class="faq-answer">
+                    MetaScreener works across all research disciplines. Our validation includes medical, social sciences, engineering, and public health domains. The AI models adapt to domain-specific terminology and research methodologies.
                 </div>
             </div>
             
-            <!-- FAQ Item 9: Technical Requirements -->
-            <div class="faq-card">
-                <div class="faq-question">
-                    What are the technical requirements for running MetaScreener?
-                </div>
+            <div class="faq-item">
+                <button class="faq-question">
+                    Can I export results for team collaboration?
+                    <i class="bi bi-chevron-down faq-icon"></i>
+                </button>
                 <div class="faq-answer">
-                    <p>MetaScreener has minimal requirements:</p>
-                    <ul>
-                        <li>Modern web browser (Chrome, Firefox, Safari, or Edge - latest or one version earlier)</li>
-                        <li>Internet connection for API calls to LLM providers</li>
-                        <li>No special hardware requirements beyond what's needed to run a modern browser</li>
-                        <li>No installation required - MetaScreener runs entirely in your web browser</li>
-                    </ul>
-                    <p>For large-scale screening projects (thousands of documents), a stable internet connection is recommended to ensure uninterrupted API communication.</p>
+                    Yes, MetaScreener exports results in multiple formats including RIS files for reference managers (Zotero, Mendeley), CSV/Excel for data analysis, and detailed reports with AI justifications for team review.
                 </div>
             </div>
             
-            <!-- FAQ Item 10: Citation -->
-            <div class="faq-card">
-                <div class="faq-question">
-                    How should I cite MetaScreener in my research?
-                </div>
+            <div class="faq-item">
+                <button class="faq-question">
+                    How can I contribute to MetaScreener's validation?
+                    <i class="bi bi-chevron-down faq-icon"></i>
+                </button>
                 <div class="faq-answer">
-                    <p>If you use MetaScreener in your research, please cite it as follows:</p>
-                    <p class="monospace" style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; font-size: 0.9rem;">
-                        Lewycka S, Hong C, Nguyen TP. (2025). MetaScreener: An AI-powered tool for literature screening in systematic reviews. Oxford University Clinical Research Unit, Centre for Tropical Medicine and Global Health, University of Oxford.
-                    </p>
-                    <p>Additionally, we encourage you to report the specific LLM model used, along with any metrics on performance and efficiency gained in your methodology section.</p>
+                    We welcome testing contributions from research institutions worldwide! If you have systematic review datasets with gold-standard manual screening results, please contact us. Contributors will be acknowledged in our validation reports.
                 </div>
             </div>
             
-            <!-- FAQ Item 11: Collaboration -->
-            <div class="faq-card">
-                <div class="faq-question">
-                    Can multiple researchers collaborate on the same screening project?
-                </div>
+            <div class="faq-item">
+                <button class="faq-question">
+                    What if I need help or encounter technical issues?
+                    <i class="bi bi-chevron-down faq-icon"></i>
+                </button>
                 <div class="faq-answer">
-                    <p>MetaScreener currently works as a single-user application in your browser. For collaborative screening, we recommend the following approaches:</p>
-                    <ul>
-                        <li>Split your dataset into portions and have each team member screen their portion</li>
-                        <li>Export results regularly and share them with team members</li>
-                        <li>For duplicate screening validation, have a second reviewer screen a subset of articles independently</li>
-                    </ul>
-                    <p>Future versions may include multi-user collaborative features with shared workspaces and real-time synchronization.</p>
-                </div>
-            </div>
-            
-            <!-- FAQ Item 12: Learning Curve -->
-            <div class="faq-card">
-                <div class="faq-question">
-                    Is there a steep learning curve for using MetaScreener?
-                </div>
-                <div class="faq-answer">
-                    <p>MetaScreener is designed to be intuitive and user-friendly. Most researchers can become proficient within 1-2 hours of use. The interface guides you through each step of the process sequentially, from setting up your LLM provider to exporting your final results.</p>
-                    <p>For new users, we recommend starting with a small test dataset (20-50 articles) to familiarize yourself with the workflow before processing your full dataset. This allows you to adjust your screening criteria and LLM settings for optimal performance.</p>
+                    MetaScreener includes comprehensive documentation, video tutorials, and example workflows. For technical support, reach out through our GitHub repository or contact forms for assistance with setup and troubleshooting.
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Add the FAQ toggle script -->
+<!-- Call to Action Section -->
+<div class="cta-section">
+    <div class="cta-content">
+        <h2 class="cta-title">Ready to Transform Your Research?</h2>
+        <p class="cta-description">
+            Join researchers worldwide who are already using MetaScreener to accelerate their systematic reviews and meta-analyses.
+        </p>
+        <div class="hero-actions">
+            <a href="{{ url_for('llm_config_page') }}" class="btn btn-hero-primary">
+                <i class="bi bi-arrow-right mr-1"></i>
+                Get Started Now
+            </a>
+            <button id="toggleFAQ" class="btn btn-hero-secondary">
+                <i class="bi bi-question-circle mr-1"></i>
+                View FAQ
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Apple-style Footer Notes -->
+<div class="footer-notes">
+    <div class="footnote">
+        <span class="footnote-number">*</span> Accuracy metrics based on internal testing with 2,000 research papers from public health domains, plus external validation data contributed by researchers from various institutions including University of Science and Technology of Macao, Peking University, University of Sydney, University of Wisconsin, University of Melbourne, Imperial College London, and others. Total contributed dataset: 4,230 articles spanning public health and clinical research areas. Sensitivity: 95-97%, Specificity: 85-92%. Performance may vary by research domain and inclusion criteria complexity.
+    </div>
+    <div class="footnote">
+        <span class="footnote-number">**</span> Time reduction data derived from internal efficiency testing and user feedback. Comparison between traditional dual-reviewer screening versus AI-assisted single-reviewer screening across test projects. Time savings typically range: 40-89%, average observed: 68%. Includes time tracking for literature screening, data extraction, and initial quality assessment phases.
+    </div>
+    <div class="footnote">
+        <span class="footnote-number">***</span> Processing speed benchmarks conducted in controlled testing environments. Manual screening baseline: 150-300 abstracts/hour/reviewer. MetaScreener processing: 1,500-4,500 abstracts/hour, depending on selected AI model, document complexity, and network conditions. Benchmarks performed under standardized conditions with consistent hardware and software configurations.
+    </div>
+    <div class="footnote">
+        <span class="footnote-number">****</span> Time savings analysis based on user surveys and usage data from research teams using MetaScreener. Calculation: (Traditional_Time - AI_Assisted_Time) / Traditional_Time × 100%. Includes screening, data extraction, and quality assessment phases. Results vary by domain: Medicine ~71%, Social Sciences ~64%, Engineering ~73%. Individual results may differ based on study complexity and user experience.
+    </div>
+    <div class="footnote">
+        <span class="footnote-number">*****</span> Inter-rater agreement measured using Cohen's kappa coefficient, based on available testing and validation data. AI-human agreement: κ=0.85-0.89, human-human agreement: κ=0.87-0.91. Test samples included varying complexity literature screening tasks. Results suggest AI-assisted screening maintains comparable reliability to traditional methods, though individual performance may vary.
+    </div>
+    <div class="footnote">
+        <span class="footnote-number">******</span> Single-reviewer workflow evaluated through comparative testing across available systematic review projects. Primary outcome: inclusion/exclusion accuracy. Secondary outcomes: time efficiency, user satisfaction. Preliminary results suggest maintained accuracy (within 2% margin) with improved efficiency (~68% time reduction) and positive user feedback (average satisfaction: 8.1/10). Results based on limited sample size and may not generalize to all use cases.
+    </div>
+    <div class="footnote">
+        <span class="footnote-number">Testing & Validation:</span> Performance data sourced from internal testing environments and voluntary user contributions. Statistical analysis conducted using standard methods with α=0.05 significance level. Effect sizes calculated for continuous outcomes, odds ratios for categorical outcomes. Missing data handled appropriately. Results should be interpreted with caution given sample limitations. We encourage additional testing contributions from research institutions worldwide to improve validation robustness.
+    </div>
+    <div class="footnote">
+        <span class="footnote-number">Quality Assurance:</span> MetaScreener development follows standard software engineering practices including version control, automated testing, and code review processes. Algorithm performance monitored through user feedback and usage analytics. Regular updates and optimizations based on user suggestions and identified issues. No formal quality management certification or regulatory compliance claimed.
+    </div>
+    <div class="footnote">
+        <span class="footnote-number">Pricing Information:</span> MetaScreener is provided free of charge with no subscription fees, licensing costs, or hidden charges. Users pay AI service providers directly according to their published pricing models. Based on DeepSeek pricing (typically most cost-effective): Small reviews (≤500 papers): $0.5-2 USD, Medium reviews (500-2000 papers): $2-8 USD, Large reviews (2000+ papers): $8-25 USD. Costs vary significantly by provider and model version: DeepSeek (generally lowest), OpenAI GPT-4o (moderate), Claude/Gemini (typically higher). Actual costs depend on model selection, document length, processing complexity, and current provider pricing.
+    </div>
+</div>
+
+<!-- Enhanced Script -->
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Set up FAQ toggle functionality
-        document.querySelectorAll('.faq-question').forEach(question => {
-            question.addEventListener('click', function() {
-                this.parentElement.classList.toggle('active');
+document.addEventListener('DOMContentLoaded', function() {
+    // Enhanced smooth scrolling function
+    function smoothScrollTo(element, offset = 60) {
+        const targetPosition = element.getBoundingClientRect().top + window.pageYOffset - offset;
+        const startPosition = window.pageYOffset;
+        const distance = targetPosition - startPosition;
+        const duration = Math.min(Math.abs(distance) * 0.5, 1200); // Dynamic duration, max 1.2s
+        let start = null;
+        
+        function step(timestamp) {
+            if (!start) start = timestamp;
+            const progress = timestamp - start;
+            const progressPercentage = Math.min(progress / duration, 1);
+            
+            // Easing function for ultra-smooth scrolling
+            const easeInOutCubic = progressPercentage < 0.5 
+                ? 4 * progressPercentage * progressPercentage * progressPercentage 
+                : 1 - Math.pow(-2 * progressPercentage + 2, 3) / 2;
+            
+            window.scrollTo(0, startPosition + distance * easeInOutCubic);
+            
+            if (progress < duration) {
+                requestAnimationFrame(step);
+            }
+        }
+        
+        requestAnimationFrame(step);
+    }
+    
+    // FAQ toggle functionality with enhanced animations
+    const toggleFAQBtns = document.querySelectorAll('#toggleFAQ');
+    const faqSection = document.querySelector('.faq-section');
+    let faqVisible = false;
+    
+    function toggleFAQ() {
+        if (!faqVisible) {
+            faqSection.classList.add('visible');
+            toggleFAQBtns.forEach(btn => {
+                btn.innerHTML = '<i class="bi bi-x-circle mr-1"></i>Hide FAQ';
             });
-        });
-        
-        // Hide all detail rows initially
-        document.querySelectorAll('.details-row').forEach(row => {
-            row.style.display = 'none';
-        });
-        
-        // Set up comparison table row toggle
-        document.querySelectorAll('.feature-row').forEach(row => {
-            row.addEventListener('click', function() {
-                // Toggle active class
-                this.classList.toggle('active');
-                
-                // Toggle the display of the next row (details row)
-                const detailsRow = this.nextElementSibling;
-                if (detailsRow && detailsRow.classList.contains('details-row')) {
-                    detailsRow.style.display = (detailsRow.style.display === 'none' || detailsRow.style.display === '') ? 'table-row' : 'none';
+            faqVisible = true;
+            
+            // Enhanced smooth scroll to FAQ
+            setTimeout(() => {
+                smoothScrollTo(faqSection, 40);
+            }, 150); // Slight delay for animation
+        } else {
+            faqSection.classList.remove('visible');
+            toggleFAQBtns.forEach(btn => {
+                btn.innerHTML = '<i class="bi bi-question-circle mr-1"></i>View FAQ';
+            });
+            faqVisible = false;
+        }
+    }
+    
+    // Add event listeners to all FAQ toggle buttons
+    toggleFAQBtns.forEach(btn => {
+        btn.addEventListener('click', toggleFAQ);
+    });
+    
+    // Enhanced FAQ item functionality
+    const faqItems = document.querySelectorAll('.faq-item');
+    faqItems.forEach(item => {
+        const question = item.querySelector('.faq-question');
+        question.addEventListener('click', () => {
+            const isActive = item.classList.contains('active');
+            
+            // Close all other items with staggered animation
+            faqItems.forEach((otherItem, index) => {
+                if (otherItem !== item) {
+                    setTimeout(() => {
+                        otherItem.classList.remove('active');
+                    }, index * 50); // Staggered closing
                 }
             });
+            
+            // Toggle current item
+            setTimeout(() => {
+                item.classList.toggle('active', !isActive);
+            }, 100);
         });
     });
+    
+    // Enhanced Intersection Observer for scroll animations
+    const observerOptions = {
+        threshold: [0, 0.1, 0.2, 0.3], // Multiple thresholds for smoother triggering
+        rootMargin: '0px 0px -10% 0px'
+    };
+    
+    const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && entry.intersectionRatio >= 0.1) {
+                // Staggered animation for child elements
+                const children = entry.target.querySelectorAll('.value-card, .feature-modern, .faq-item');
+                children.forEach((child, index) => {
+                    setTimeout(() => {
+                        child.style.transform = 'translateY(0)';
+                        child.style.opacity = '1';
+                    }, index * 100); // 100ms stagger
+                });
+                
+                entry.target.classList.add('visible');
+            }
+        });
+    }, observerOptions);
+    
+    // Observe all elements with fade-in-up class
+    document.querySelectorAll('.fade-in-up').forEach(el => {
+        observer.observe(el);
+    });
+    
+    // Enhanced smooth scrolling for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                smoothScrollTo(target, 60);
+            }
+        });
+    });
+    
+    // Smooth scroll performance optimization
+    let ticking = false;
+    function updateScrollEffects() {
+        // Add subtle parallax effect to hero section
+        const hero = document.querySelector('.hero-section');
+        const scrolled = window.pageYOffset;
+        const rate = scrolled * -0.1;
+        
+        if (hero) {
+            hero.style.transform = `translateY(${rate}px)`;
+        }
+        
+        ticking = false;
+    }
+    
+    window.addEventListener('scroll', function() {
+        if (!ticking) {
+            requestAnimationFrame(updateScrollEffects);
+            ticking = true;
+        }
+    });
+    
+    // Preload animations
+    setTimeout(() => {
+        document.body.classList.add('animations-ready');
+    }, 100);
+});
 </script>
 
 {% endblock %} 

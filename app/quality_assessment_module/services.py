@@ -690,7 +690,8 @@ def process_uploaded_document(pdf_file_stream, original_filename: str, selected_
             "status": "error", 
             "message": f"Text extraction failed: {e}", 
             "filename": original_filename,
-            "progress": {}
+            "progress": {},
+            "created_at": time.time()  # Add timestamp for history tracking
         }
         _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
         return assessment_id
@@ -700,7 +701,8 @@ def process_uploaded_document(pdf_file_stream, original_filename: str, selected_
             "status": "error", 
             "message": "PDF text empty.", 
             "filename": original_filename,
-            "progress": {}
+            "progress": {},
+            "created_at": time.time()  # Add timestamp for history tracking
         }
         _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
         return assessment_id
@@ -756,7 +758,8 @@ def process_uploaded_document(pdf_file_stream, original_filename: str, selected_
             "filename": original_filename,
             "document_type": document_type_to_store,
             "message": f"Failed to prepare LLM config: {e_conf_fetch}",
-            "progress": {"message": "LLM config fetch error"}
+            "progress": {"message": "LLM config fetch error"},
+            "created_at": time.time()  # Add timestamp for history tracking
         }
         _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
         return assessment_id
@@ -774,7 +777,8 @@ def process_uploaded_document(pdf_file_stream, original_filename: str, selected_
         "user_review": None,
         "classification_evidence": classification_evidence,  # Store classification evidence if available
         "saved_pdf_filename": saved_pdf_filename, # Store the filename (not full path for security in client)
-        "progress": {"current": 0, "total": 0, "message": "Assessment queued"} # Initial progress
+        "progress": {"current": 0, "total": 0, "message": "Assessment queued"}, # Initial progress
+        "created_at": time.time()  # Add timestamp for history tracking
     }
     print(f"Document {original_filename} processed. Assessment ID: {assessment_id}. Type: {document_type_to_store}. Queuing AI assessment.")
     
@@ -817,7 +821,8 @@ def register_celery_item(filename: str, document_type: str, celery_processing_uu
         "text_preview": "N/A",
         "user_review": None,
         "classification_evidence": None,
-        "saved_pdf_filename": None # Celery path handles files differently for preview
+        "saved_pdf_filename": None, # Celery path handles files differently for preview
+        "created_at": time.time()  # Add timestamp for history tracking
     }
     _save_assessment_to_redis(numerical_id, _assessments_db[numerical_id])
     _save_assessments_to_file(assessment_id_to_log=numerical_id) # Save this new entry
@@ -1335,7 +1340,8 @@ def quick_upload_document(pdf_file_stream, original_filename: str, selected_docu
             "status": "error", 
             "message": f"File save failed: {e_save}", 
             "filename": original_filename,
-            "progress": {"current": 0, "total": 100, "message": "File save error"}
+            "progress": {"current": 0, "total": 100, "message": "File save error"},
+            "created_at": time.time()  # Add timestamp for history tracking
         }
         _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
         return assessment_id
@@ -1354,7 +1360,8 @@ def quick_upload_document(pdf_file_stream, original_filename: str, selected_docu
         "classification_evidence": None,
         "saved_pdf_filename": saved_pdf_filename,
         "saved_pdf_full_path": saved_pdf_full_path,  # Needed for background processing
-        "progress": {"current": 10, "total": 100, "message": "File uploaded, preparing text extraction..."}
+        "progress": {"current": 10, "total": 100, "message": "File uploaded, preparing text extraction..."},
+        "created_at": time.time()  # Add timestamp for history tracking
     }
     
     # 3. Immediately save to Redis and file (use async approach)

@@ -40,25 +40,30 @@
     
     /* Gradient button styles */
     .gradient-btn {
-        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-        color: white !important;
-        border: none;
+        background: white;
+        border: 1px solid #6b46c1;
+        color: #6b46c1 !important;
         padding: 0.3rem 0.7rem;
         border-radius: 4px;
         font-weight: 500;
-        box-shadow: 0 2px 4px rgba(123, 44, 191, 0.2);
+        box-shadow: 0 1px 3px rgba(107, 70, 193, 0.1);
         transition: all 0.2s ease;
     }
     
     .gradient-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 3px 6px rgba(123, 44, 191, 0.3);
+        background: #6b46c1;
+        border-color: #6b46c1;
         color: white !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(107, 70, 193, 0.25);
     }
     
     .gradient-btn:active {
+        background: #553c9a;
+        border-color: #553c9a;
+        color: white !important;
         transform: translateY(0);
-        box-shadow: 0 1px 3px rgba(123, 44, 191, 0.2);
+        box-shadow: 0 2px 4px rgba(107, 70, 193, 0.4);
     }
     
     /* Title styles */

@@ -2,6 +2,12 @@
 
 {% block title %}Batch Quality Assessment Results - AI Literature Screening Assistant{% endblock %}
 
+<!-- Set breadcrumb for navigation -->
+{% set breadcrumb = [
+    {'text': 'Quality Assessment', 'url': url_for('quality_assessment.upload_document_for_assessment')},
+    {'text': 'Batch Results', 'url': ''}
+] %}
+
 {% block extra_head %}
 <style>
     .quality-score {

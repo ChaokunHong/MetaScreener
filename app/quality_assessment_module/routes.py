@@ -700,6 +700,91 @@ def get_batch_summary(batch_id):
 # We need to access _assessments_db for the flash message, either pass it or check status differently
 # For simplicity, let's import it here. In a real app, this would be a proper database call.
 
+# --- NEW: Quality Assessment History Route --- #
+@quality_bp.route('/history')
+def quality_assessment_history():
+    """View history of all quality assessments from the last 24 hours"""
+    current_app.logger.info("QA_HISTORY: Accessing quality assessment history page")
+    
+    # Get all assessments from the last 24 hours
+    from app.quality_assessment_module.services import _assessments_db, get_assessment_redis_client
+    import time
+    
+    history_records = []
+    current_time = time.time()
+    twenty_four_hours_ago = current_time - (24 * 60 * 60)  # 24 hours in seconds
+    
+    # Get from memory storage first
+    for assessment_id, assessment_data in _assessments_db.items():
+        created_time = assessment_data.get('created_at', 0)
+        if created_time >= twenty_four_hours_ago:
+            history_records.append({
+                'assessment_id': assessment_id,
+                'filename': assessment_data.get('filename', 'Unknown'),
+                'document_type': assessment_data.get('document_type', 'Unknown'),
+                'status': assessment_data.get('status', 'Unknown'),
+                'created_at': created_time,
+                'total_criteria': assessment_data.get('summary_total_criteria_evaluated', 0),
+                'negative_findings': assessment_data.get('summary_negative_findings', 0),
+                'source': 'memory'
+            })
+    
+    # Also check Redis for any additional records
+    try:
+        redis_client = get_assessment_redis_client()
+        redis_keys = redis_client.keys("qa_assessment:*")
+        
+        for key in redis_keys:
+            if isinstance(key, bytes):
+                key = key.decode('utf-8')
+            assessment_id = key.replace("qa_assessment:", "")
+            
+            # Skip if already found in memory
+            if assessment_id in _assessments_db:
+                continue
+                
+            try:
+                import pickle
+                serialized_data = redis_client.get(key)
+                if serialized_data:
+                    assessment_data = pickle.loads(serialized_data)
+                    created_time = assessment_data.get('created_at', 0)
+                    
+                    if created_time >= twenty_four_hours_ago:
+                        history_records.append({
+                            'assessment_id': assessment_id,
+                            'filename': assessment_data.get('filename', 'Unknown'),
+                            'document_type': assessment_data.get('document_type', 'Unknown'),
+                            'status': assessment_data.get('status', 'Unknown'),
+                            'created_at': created_time,
+                            'total_criteria': assessment_data.get('summary_total_criteria_evaluated', 0),
+                            'negative_findings': assessment_data.get('summary_negative_findings', 0),
+                            'source': 'redis'
+                        })
+            except Exception as e:
+                current_app.logger.warning(f"QA_HISTORY: Error processing Redis key {key}: {e}")
+                continue
+                
+    except Exception as e:
+        current_app.logger.error(f"QA_HISTORY: Error accessing Redis: {e}")
+    
+    # Sort by creation time (newest first)
+    history_records.sort(key=lambda x: x['created_at'], reverse=True)
+    
+    # Add formatted time and quality score
+    for record in history_records:
+        record['created_at_formatted'] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(record['created_at']))
+        if record['status'] == 'completed' and record['total_criteria'] > 0:
+            record['quality_score'] = round((record['total_criteria'] - record['negative_findings']) / record['total_criteria'] * 100, 1)
+        else:
+            record['quality_score'] = None
+    
+    current_app.logger.info(f"QA_HISTORY: Found {len(history_records)} records from last 24 hours")
+    
+    return render_template('quality_assessment_history.html', 
+                         history_records=history_records,
+                         QUALITY_ASSESSMENT_TOOLS=QUALITY_ASSESSMENT_TOOLS)
+
 # We will need more routes:
 # - Route for batch upload status / results table
 # - API endpoint for AI to classify document type (if we go that route)

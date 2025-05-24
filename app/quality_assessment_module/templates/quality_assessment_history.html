@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+
+{% block title %}Quality Assessment History - MetaScreener{% endblock %}
+
+<!-- Set breadcrumb for navigation -->
+{% set breadcrumb = [
+    {'text': 'Quality Assessment', 'url': url_for('quality_assessment.upload_document_for_assessment')},
+    {'text': 'History', 'url': ''}
+] %}
+
+{% block extra_head %}
+    <style>
+        .history-container {
+            margin: 20px auto;
+            max-width: 1200px;
+        }
+        .status-badge {
+            font-size: 0.85em;
+            padding: 0.25rem 0.5rem;
+        }
+        .status-completed { background-color: #28a745; color: white; }
+        .status-processing { background-color: #007bff; color: white; }
+        .status-error { background-color: #dc3545; color: white; }
+        .status-pending { background-color: #ffc107; color: black; }
+        
+        .quality-score {
+            font-weight: bold;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+        }
+        .score-excellent { background-color: #d4edda; color: #155724; }
+        .score-good { background-color: #d1ecf1; color: #0c5460; }
+        .score-fair { background-color: #fff3cd; color: #856404; }
+        .score-poor { background-color: #f8d7da; color: #721c24; }
+        
+        .table-responsive {
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #6c757d;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .refresh-btn {
+            margin-bottom: 1rem;
+        }
+        
+        .filename-cell {
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .actions-cell {
+            min-width: 120px;
+        }
+        
+        .history-stats {
+            background: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #6b46c1;
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+        
+        /* Light purple button styles with higher specificity */
+        .btn-light-purple, .btn-light-purple:not(:disabled):not(.disabled) {
+            color: #6b46c1 !important;
+            background-color: #e0e7ff !important;
+            border-color: #c7d2fe !important;
+        }
+        
+        .btn-light-purple:hover, .btn-light-purple:focus, .btn-light-purple:active,
+        .btn-light-purple:not(:disabled):not(.disabled):hover,
+        .btn-light-purple:not(:disabled):not(.disabled):focus,
+        .btn-light-purple:not(:disabled):not(.disabled):active {
+            color: #553c9a !important;
+            background-color: #c7d2fe !important;
+            border-color: #a5b4fc !important;
+        }
+        
+        .btn-outline-light-purple, .btn-outline-light-purple:not(:disabled):not(.disabled) {
+            color: #6b46c1 !important;
+            border-color: #c7d2fe !important;
+            background-color: transparent !important;
+        }
+        
+        .btn-outline-light-purple:hover, .btn-outline-light-purple:focus, .btn-outline-light-purple:active,
+        .btn-outline-light-purple:not(:disabled):not(.disabled):hover,
+        .btn-outline-light-purple:not(:disabled):not(.disabled):focus,
+        .btn-outline-light-purple:not(:disabled):not(.disabled):active {
+            color: #ffffff !important;
+            background-color: #8b5cf6 !important;
+            border-color: #8b5cf6 !important;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="history-container">
+        <!-- Page Header -->
+        <div class="row">
+            <div class="col-12">
+                <h2 class="mb-4">
+                    <i class="fas fa-history text-primary"></i> 
+                    Quality Assessment History
+                    <small class="text-muted">(Last 24 Hours)</small>
+                </h2>
+            </div>
+        </div>
+
+        <!-- History Statistics -->
+        {% if history_records %}
+        <div class="history-stats">
+            <div class="row">
+                <div class="col-md-3 col-6">
+                    <div class="stat-item">
+                        <div class="stat-number">{{ history_records|length }}</div>
+                        <div class="stat-label">Total Assessments</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="stat-item">
+                        <div class="stat-number">{{ history_records|selectattr('status', 'equalto', 'completed')|list|length }}</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="stat-item">
+                        <div class="stat-number">{{ history_records|selectattr('status', 'in', ['processing_assessment', 'pending_assessment', 'pending_text_extraction', 'pending_celery'])|list|length }}</div>
+                        <div class="stat-label">Processing</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="stat-item">
+                        <div class="stat-number">{{ history_records|selectattr('status', 'equalto', 'error')|list|length }}</div>
+                        <div class="stat-label">Failed</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Refresh Button -->
+        <div class="row">
+            <div class="col-12">
+                <button class="btn btn-outline-light-purple refresh-btn" onclick="window.location.reload()">
+                    <i class="fas fa-sync-alt"></i> Refresh Records
+                </button>
+            </div>
+        </div>
+
+        <!-- History Table -->
+        {% if history_records %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Filename</th>
+                        <th>Document Type</th>
+                        <th>Assessment Tool</th>
+                        <th>Status</th>
+                        <th>Quality Score</th>
+                        <th>Created Time</th>
+                        <th>Data Source</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in history_records %}
+                    <tr>
+                        <!-- Filename -->
+                        <td class="filename-cell" title="{{ record.filename }}">
+                            <i class="fas fa-file-pdf text-danger"></i>
+                            {{ record.filename }}
+                        </td>
+                        
+                        <!-- Document Type -->
+                        <td>
+                            {% if record.document_type == 'Unknown' %}
+                                <span class="text-muted">Unknown</span>
+                            {% else %}
+                                <span class="badge badge-secondary">{{ record.document_type }}</span>
+                            {% endif %}
+                        </td>
+                        
+                        <!-- Assessment Tool -->
+                        <td>
+                            {% if record.document_type in QUALITY_ASSESSMENT_TOOLS %}
+                                <small class="text-info">{{ QUALITY_ASSESSMENT_TOOLS[record.document_type].tool_name.split(' - ')[0] }}</small>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        
+                        <!-- Status -->
+                        <td>
+                            {% if record.status == 'completed' %}
+                                <span class="badge status-badge status-completed">
+                                    <i class="fas fa-check"></i> Completed
+                                </span>
+                            {% elif record.status in ['processing_assessment', 'pending_assessment', 'pending_text_extraction', 'pending_celery'] %}
+                                <span class="badge status-badge status-processing">
+                                    <i class="fas fa-spinner fa-spin"></i> Processing
+                                </span>
+                            {% elif record.status == 'error' %}
+                                <span class="badge status-badge status-error">
+                                    <i class="fas fa-exclamation-triangle"></i> Failed
+                                </span>
+                            {% else %}
+                                <span class="badge status-badge status-pending">
+                                    <i class="fas fa-clock"></i> {{ record.status }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        
+                        <!-- Quality Score -->
+                        <td>
+                            {% if record.quality_score is not none %}
+                                <span class="quality-score 
+                                    {% if record.quality_score >= 80 %}score-excellent
+                                    {% elif record.quality_score >= 70 %}score-good
+                                    {% elif record.quality_score >= 60 %}score-fair
+                                    {% else %}score-poor{% endif %}">
+                                    {{ record.quality_score }}%
+                                </span>
+                                <br><small class="text-muted">
+                                    {{ record.total_criteria - record.negative_findings }}/{{ record.total_criteria }} passed
+                                </small>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        
+                        <!-- Created Time -->
+                        <td>
+                            <small>{{ record.created_at_formatted }}</small>
+                        </td>
+                        
+                        <!-- Data Source -->
+                        <td>
+                            <small class="text-muted">
+                                {% if record.source == 'memory' %}
+                                    <i class="fas fa-memory" title="Memory"></i>
+                                {% else %}
+                                    <i class="fas fa-database" title="Redis"></i>
+                                {% endif %}
+                            </small>
+                        </td>
+                        
+                        <!-- Actions -->
+                        <td class="actions-cell">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('quality_assessment.view_assessment_result', assessment_id=record.assessment_id) }}" 
+                                   class="btn btn-outline-light-purple btn-sm"
+                                   title="View detailed results">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if record.status in ['processing_assessment', 'pending_assessment', 'pending_text_extraction', 'pending_celery'] %}
+                                <button class="btn btn-outline-light-purple btn-sm" 
+                                        onclick="checkStatus('{{ record.assessment_id }}')"
+                                        title="Check status">
+                                    <i class="fas fa-sync"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <!-- Empty State -->
+        <div class="empty-state">
+            <i class="fas fa-history"></i>
+            <h4>No History Records</h4>
+            <p class="text-muted">No quality assessment records found in the last 24 hours.</p>
+            <a href="{{ url_for('quality_assessment.upload_document_for_assessment') }}" class="btn btn-light-purple">
+                <i class="fas fa-upload"></i> Start New Assessment
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- Help Information -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle"></i> Usage Instructions</h6>
+                    <ul class="mb-0">
+                        <li>History shows all quality assessments from the last 24 hours</li>
+                        <li>Click <i class="fas fa-eye"></i> to view detailed assessment results</li>
+                        <li>Quality scores are calculated based on passed criteria: Green(≥80%), Blue(70-79%), Yellow(60-69%), Red(<60%)</li>
+                        <li>Processing assessments will auto-update status, or click <i class="fas fa-sync"></i> to manually check</li>
+                        <li>Data will be automatically cleaned up after 24 hours</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        function checkStatus(assessmentId) {
+            // Show loading state
+            const button = event.target.closest('button');
+            const originalContent = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            button.disabled = true;
+            
+            // Make API call to check status
+            fetch(`/quality/assessment_status/${assessmentId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'completed' || data.status === 'error') {
+                        // Reload page to show updated status
+                        window.location.reload();
+                    } else {
+                        // Reset button
+                        button.innerHTML = originalContent;
+                        button.disabled = false;
+                        
+                        // Show toast notification
+                        showToast(`Status: ${data.status}`, 'info');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking status:', error);
+                    button.innerHTML = originalContent;
+                    button.disabled = false;
+                    showToast('Failed to check status', 'error');
+                });
+        }
+        
+        function showToast(message, type = 'info') {
+            // Simple toast notification
+            const toast = $(`
+                <div class="alert alert-${type === 'error' ? 'danger' : 'info'} alert-dismissible fade show" 
+                     style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+                    ${message}
+                    <button type="button" class="close" data-dismiss="alert">
+                        <span>&times;</span>
+                    </button>
+                </div>
+            `);
+            
+            $('body').append(toast);
+            
+            // Auto-dismiss after 3 seconds
+            setTimeout(() => {
+                toast.alert('close');
+            }, 3000);
+        }
+        
+        // Auto-refresh for processing items every 30 seconds
+        $(document).ready(function() {
+            const hasProcessingItems = $('tbody tr').find('.status-processing').length > 0;
+            if (hasProcessingItems) {
+                setTimeout(() => {
+                    window.location.reload();
+                }, 30000); // 30 seconds
+            }
+        });
+    </script>
+{% endblock %} 

@@ -1,150 +1,393 @@
 {% extends "base.html" %}
 
-{% block title %}Batch PDF Screening Results - {{ batch_info.filename if batch_info else 'Batch' }} {% endblock %}
+{% block title %}Batch PDF Processing Results - AI Literature Screening Assistant{% endblock %}
 
 {% block extra_head %}
 <style>
-    .table th, .table td {
-        vertical-align: middle; 
-        font-size: 0.9rem;
+    /* Balanced elegant table styles with soft colors */
+    .results-table {
+        background: white;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        font-size: 0.85rem;
     }
-    /* Styling for the Filename column (2nd child in the table row) */
-    .table td:nth-child(2),
-    .table th:nth-child(2) {
-        max-width: 300px; /* Adjust as needed */
-        word-wrap: break-word; /* Allows breaking long words */
-        white-space: normal; /* Ensures text wraps normally */
-        overflow-wrap: break-word; /* More robust word breaking */
+    
+    .results-table thead th {
+        background: linear-gradient(135deg, #f8fafc 0%, #e7e3ff 100%);
+        color: #5b21b6;
+        font-weight: 600;
+        font-size: 0.8rem;
+        padding: 0.75rem 0.5rem;
+        border-bottom: 2px solid #e2e8f0;
+        text-align: left;
+        position: sticky;
+        top: 0;
+        z-index: 10;
     }
-
-    .reasoning-text { 
-        font-size: 0.85rem; 
-        color: #555; 
-        max-width: 350px; /* Adjust as needed */
-        white-space: pre-wrap; /* Keep for reasoning to preserve formatting from LLM */
-        word-break: break-word;
-        overflow-wrap: break-word;
+    
+    .results-table tbody tr {
+        border-bottom: 1px solid #f1f5f9;
     }
-    .decision-INCLUDE { color: green; font-weight: bold; }
-    .decision-EXCLUDE { color: red; font-weight: bold; }
-    .decision-MAYBE { color: orange; font-weight: bold; }
-    .decision-ERROR, .decision-TEXT_EXTRACT_ERROR, .decision-PROMPT_ERROR, .decision-PROCESSING_ERROR, .decision-WORKER_ERROR, .decision-API_ERROR, .decision-WORKER_THREAD_ERROR, .decision-FILE_PROCESSING_ERROR {
-        color: purple; font-weight: bold;
+    
+    .results-table tbody tr:hover {
+        background-color: #faf9ff;
     }
-    .table-responsive {max-height: 70vh; overflow-y: auto;}
-    .table thead th { position: sticky; top: 0; background-color: #343a40; color: white; z-index: 1;}
+    
+    .results-table tbody tr:last-child {
+        border-bottom: none;
+    }
+    
+    .results-table td {
+        padding: 0.5rem;
+        vertical-align: top;
+        border: none;
+        font-size: 0.8rem;
+        line-height: 1.3;
+    }
+    
+    /* PDF content text styling */
+    .pdf-content {
+        font-size: 0.75rem;
+        max-height: 120px;
+        overflow-y: auto;
+        background: #fafafa;
+        padding: 0.5rem;
+        border-radius: 4px;
+        border: 1px solid #e5e7eb;
+        margin-top: 0.5rem;
+    }
+    
+    /* Simple summary toggle */
+    summary {
+        cursor: pointer;
+        font-weight: 500;
+        color: #6b46c1;
+        font-size: 0.75rem;
+        padding: 0.25rem;
+        border-radius: 3px;
+    }
+    
+    summary:hover {
+        background: #f3f0ff;
+    }
+    
+    /* AI reasoning text */
+    .ai-reasoning {
+        font-size: 0.7rem;
+        color: #64748b;
+        line-height: 1.4;
+        margin-top: 0.25rem;
+        padding: 0.4rem;
+        background: #f8fafc;
+        border-radius: 3px;
+        border-left: 2px solid #c4b5fd;
+    }
+    
+    /* Balanced soft decision badges */
+    .badge-include {
+        background: #059669;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        font-weight: 500;
+        font-size: 0.7rem;
+    }
+    
+    .badge-exclude {
+        background: #dc2626;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        font-weight: 500;
+        font-size: 0.7rem;
+    }
+    
+    .badge-maybe {
+        background: #d97706;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        font-weight: 500;
+        font-size: 0.7rem;
+    }
+    
+    .badge-error {
+        background: #9ca3af;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        font-weight: 500;
+        font-size: 0.7rem;
+    }
+    
+    /* Processing status badges */
+    .badge-success {
+        background: #059669;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        font-weight: 500;
+        font-size: 0.7rem;
+    }
+    
+    .badge-warning {
+        background: #d97706;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        font-weight: 500;
+        font-size: 0.7rem;
+    }
+    
+    .badge-danger {
+        background: #dc2626;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        font-weight: 500;
+        font-size: 0.7rem;
+    }
+    
+    /* Table responsive container */
+    .table-responsive {
+        max-height: calc(100vh - 320px);
+        overflow-y: auto;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+    }
+    
+    /* Balanced header styling */
+    .page-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #f3f0ff 100%);
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .page-header h1 {
+        font-size: 1.25rem;
+        color: #1e293b;
+        margin: 0;
+        font-weight: 600;
+    }
+    
+    /* Balanced info text styling */
+    .info-text {
+        background: #f0f9ff;
+        padding: 0.75rem;
+        border-radius: 4px;
+        border-left: 3px solid #6b46c1;
+        margin-bottom: 1rem;
+        font-size: 0.8rem;
+        color: #374151;
+    }
+    
+    /* Status info */
+    .status-info {
+        font-size: 0.7rem;
+        color: #64748b;
+        font-style: italic;
+        margin-bottom: 0.75rem;
+        padding: 0.4rem;
+        background: #fafafa;
+        border-radius: 3px;
+    }
+    
+    /* Export button group */
+    .export-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .export-btn {
+        background: #6b46c1;
+        color: white;
+        border: none;
+        padding: 0.5rem 0.75rem;
+        border-radius: 4px;
+        font-weight: 500;
+        font-size: 0.8rem;
+        text-decoration: none;
+        transition: background-color 0.2s;
+    }
+    
+    .export-btn:hover {
+        background: #553c9a;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .export-btn i {
+        margin-right: 0.3rem;
+    }
+    
+    /* File info styling */
+    .file-info {
+        font-size: 0.7rem;
+        color: #64748b;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .results-table {
+            font-size: 0.75rem;
+        }
+        
+        .results-table thead th,
+        .results-table td {
+            padding: 0.4rem 0.3rem;
+        }
+        
+        .page-header {
+            padding: 0.75rem;
+            text-align: center;
+        }
+        
+        .export-buttons {
+            justify-content: center;
+        }
+        
+        .export-btn {
+            font-size: 0.75rem;
+            padding: 0.4rem 0.6rem;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>{{ batch_info.filename if batch_info else 'Batch PDF Screening Results' }}</h1>
-        <a href="{{ url_for('full_text_screening_page') }}" class="btn btn-secondary btn-sm">Back to Full-Text Screening</a>
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><i class="fas fa-file-pdf mr-2"></i>Batch PDF Processing Results</h1>
+            <a href="{{ url_for('screening_actions_page') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left mr-1"></i>Back to Screening Actions
+            </a>
+        </div>
     </div>
 
-    {% if batch_info and batch_info.results %}
-        <div class="row mb-3">
-            <div class="col-md-8">
-                <p class="mb-1">
-                    Screened {{ batch_info.results|length }} PDF file(s).
-                    {% if batch_info.filter_applied and batch_info.filter_applied != 'all uploaded files' %}
-                        <br><small class="text-muted">Filter applied: {{ batch_info.filter_applied }}</small>
-                    {% endif %}
-                </p>
-            </div>
-            <div class="col-md-4">
-                {# --- NEW: Decision Statistics Summary --- #}
-                {% if decision_counts %}
-                <h6>Summary:</h6>
-                <ul class="list-unstyled list-inline" style="font-size: 0.9em;">
-                    {% for decision, count in decision_counts.items() %}
-                        {% if count > 0 %}
-                            <li class="list-inline-item">
-                                <span class="decision-{{ decision }}">{{ decision.replace('_',' ') }}:</span> {{ count }}
-                            </li>
-                        {% endif %}
-                    {% endfor %}
-                </ul>
-                {% endif %}
-                {# --- END NEW: Decision Statistics Summary --- #}
-            </div>
+    {% if results %}
+        <div class="status-info">
+            <i class="fas fa-clock mr-1"></i>Processing completed at {{ processing_time if processing_time else 'unknown time' }}
         </div>
         
-        <!-- NEW: Download Section for Batch PDF Results -->
-        <div class="mt-3 mb-3 d-flex align-items-center">
-            <label for="batchDownloadFormat" class="mr-2 mb-0">Download format:</label>
-            <select id="batchDownloadFormat" class="form-control form-control-sm mr-2" style="width: 150px;">
-                <option value="csv">CSV</option>
-                <option value="xlsx">Excel (.xlsx)</option>
-                <option value="json">JSON</option>
-            </select>
-            <button id="batchDownloadButton" class="btn btn-primary btn-sm">Download Batch Results</button>
-            <!-- Hidden input to store batch_id passed from backend -->
-            <input type="hidden" id="batch-id-holder" value="{{ batch_id if batch_id else '' }}">
-       </div>
-        <!-- END NEW Download Section -->
-
-        <div class="table-responsive mt-3">
-            <table class="table table-striped table-bordered table-hover">
-                <thead class="thead-dark">
+        <div class="info-text">
+            <strong><i class="fas fa-info-circle mr-2"></i>Summary:</strong>
+            Total PDFs processed: <strong>{{ results|length }}</strong> | 
+            Include: <span class="badge-include">{{ results|selectattr('ai_decision', 'equalto', 'INCLUDE')|list|length }}</span> | 
+            Exclude: <span class="badge-exclude">{{ results|selectattr('ai_decision', 'equalto', 'EXCLUDE')|list|length }}</span> | 
+            Maybe: <span class="badge-maybe">{{ results|selectattr('ai_decision', 'equalto', 'MAYBE')|list|length }}</span> | 
+            Errors: <span class="badge-error">{{ results|selectattr('status', 'equalto', 'error')|list|length }}</span>
+        </div>
+        
+        <div class="export-buttons">
+            <a href="{{ url_for('export_pdf_results', decision='INCLUDE') }}" class="export-btn">
+                <i class="fas fa-download"></i>Export INCLUDE Results
+            </a>
+            <a href="{{ url_for('export_pdf_results', decision='EXCLUDE') }}" class="export-btn">
+                <i class="fas fa-download"></i>Export EXCLUDE Results
+            </a>
+            <a href="{{ url_for('export_pdf_results', decision='MAYBE') }}" class="export-btn">
+                <i class="fas fa-download"></i>Export MAYBE Results
+            </a>
+            <a href="{{ url_for('export_pdf_results', decision='ALL') }}" class="export-btn">
+                <i class="fas fa-download"></i>Export ALL Results
+            </a>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table results-table">
+                <thead>
                     <tr>
-                        <th>#</th>
-                        <th>Filename</th>
-                        <th>Decision</th>
-                        <th>Reasoning</th>
+                        <th style="width: 4%;">#</th>
+                        <th style="width: 20%;">File Name</th>
+                        <th style="width: 30%;">Content Preview</th>
+                        <th style="width: 24%;">AI Decision & Reasoning</th>
+                        <th style="width: 12%;">Processing Status</th>
+                        <th style="width: 10%;">File Info</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for result in batch_info.results %}
+                    {% for item in results %}
                     <tr>
-                        <td>{{ result.original_index + 1 if result.original_index is not none else loop.index }}</td>
-                        <td>{{ result.title_for_display if result.title_for_display else result.filename }}</td>
-                        <td><span class="decision-{{ result.decision }}">{{ result.decision }}</span></td>
-                        <td><span class="reasoning-text">{{ result.reasoning }}</span></td>
+                        <td class="text-center">
+                            <span class="badge bg-light text-secondary border">{{ loop.index }}</span>
+                        </td>
+                        <td>
+                            <div class="fw-bold mb-1" style="font-size: 0.8rem; color: #1e293b;">
+                                <i class="fas fa-file-pdf mr-1 text-danger"></i>{{ item.filename }}
+                            </div>
+                            {% if item.title %}
+                                <small class="text-muted" style="font-size: 0.7rem;">{{ item.title }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.content and item.content|length > 0 %}
+                                <details>
+                                    <summary><i class="fas fa-eye mr-1"></i>Show Content</summary>
+                                    <div class="pdf-content">{{ item.content[:500] }}{% if item.content|length > 500 %}...{% endif %}</div>
+                                </details>
+                            {% else %}
+                                <em class="text-muted" style="font-size: 0.7rem;">
+                                    <i class="fas fa-exclamation-circle mr-1"></i>No content extracted
+                                </em>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="mb-1">
+                                {% if item.ai_decision == 'INCLUDE' %}
+                                    <span class="badge-include">INCLUDE</span>
+                                {% elif item.ai_decision == 'EXCLUDE' %}
+                                    <span class="badge-exclude">EXCLUDE</span>
+                                {% elif item.ai_decision == 'MAYBE' %}
+                                    <span class="badge-maybe">MAYBE</span>
+                                {% else %}
+                                    <span class="badge-error">{{ item.ai_decision | upper if item.ai_decision else 'ERROR' }}</span>
+                                {% endif %}
+                            </div>
+                            {% if item.ai_reasoning %}
+                                <div class="ai-reasoning">{{ item.ai_reasoning }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.status == 'success' %}
+                                <span class="badge-success">SUCCESS</span>
+                            {% elif item.status == 'warning' %}
+                                <span class="badge-warning">WARNING</span>
+                            {% elif item.status == 'error' %}
+                                <span class="badge-danger">ERROR</span>
+                            {% else %}
+                                <span class="badge bg-secondary text-white">{{ item.status | upper if item.status else 'UNKNOWN' }}</span>
+                            {% endif %}
+                            {% if item.error_message %}
+                                <div class="text-muted" style="font-size: 0.65rem; margin-top: 0.25rem;">{{ item.error_message }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="file-info">
+                                {% if item.file_size %}
+                                    <div><i class="fas fa-weight-hanging mr-1"></i>{{ item.file_size }}</div>
+                                {% endif %}
+                                {% if item.pages %}
+                                    <div><i class="fas fa-file-alt mr-1"></i>{{ item.pages }} pages</div>
+                                {% endif %}
+                                {% if item.processing_time %}
+                                    <div><i class="fas fa-clock mr-1"></i>{{ item.processing_time }}s</div>
+                                {% endif %}
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     {% else %}
-        <div class="alert alert-warning mt-3">
-            No results found for this batch (ID: {{ batch_id }}), or the results have expired.
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <strong>No results to display.</strong> Please process PDF files first.
         </div>
     {% endif %}
-</div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const batchDownloadButton = document.getElementById('batchDownloadButton');
-    const batchDownloadFormatSelect = document.getElementById('batchDownloadFormat');
-    const batchIdHolder = document.getElementById('batch-id-holder');
-
-    if (batchDownloadButton && batchDownloadFormatSelect && batchIdHolder) {
-        batchDownloadButton.addEventListener('click', function() {
-            const format = batchDownloadFormatSelect.value;
-            const batchId = batchIdHolder.value;
-
-            if (!batchId) {
-                alert('Error: Cannot generate download link (missing batch screening ID).');
-                return;
-            }
-            if (!format) {
-                 alert('Please select a download format.');
-                 return;
-            }
-
-            // Construct the download URL
-            // Ensure a unique endpoint name for this new download route
-            let baseUrl = "{{ url_for('download_batch_pdf_results_placeholder', batch_session_id='__BATCH_ID__', format='__FORMAT__') }}";
-            let downloadUrl = baseUrl.replace('__BATCH_ID__', batchId).replace('__FORMAT__', format);
-
-            // Initiate download by navigating to the URL
-            window.location.href = downloadUrl;
-        });
-    }
-});
-</script>
 {% endblock %} 
