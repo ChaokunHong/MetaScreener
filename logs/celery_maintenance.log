@@ -1,5 +1,0 @@
-[2025-05-24 11:33:41,804: INFO/MainProcess] Connected to redis://localhost:6379/1
-[2025-05-24 11:33:41,806: INFO/MainProcess] mingle: searching for neighbors
-[2025-05-24 11:33:42,822: INFO/MainProcess] mingle: sync with 1 nodes
-[2025-05-24 11:33:42,824: INFO/MainProcess] mingle: sync complete
-[2025-05-24 11:33:42,851: INFO/MainProcess] maintenance_worker@192.168.0.113 ready.

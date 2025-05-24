@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block title %}Screening Actions - MetaScreener{% endblock %}
+
+{% block extra_head %}
+<!-- Add Bootstrap Icons for history cards -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+<style>
+    /* Add smooth transitions for card animations */
+    .card {
+        transition: all 0.3s ease;
+    }
+    
+            /* Adjust font size and style to maintain consistency with other pages */
+    h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    h4 {
+        font-size: 1.1rem;
+        margin-bottom: 0.6rem;
+    }
+    
+    h5 {
+        font-size: 0.95rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    p {
+        font-size: 0.85rem;
+    }
+    
+    .lead {
+        font-size: 0.9rem;
+    }
+    
+    .section-card {
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        border-radius: 6px;
+    }
+    
+    .btn {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .card-body {
+        padding: 0.75rem;
+    }
+    
+    .card-footer {
+        padding: 0.5rem;
+    }
+    
+    .text-muted.small {
+        font-size: 0.75rem;
+    }
+    
+    .badge {
+        font-size: 0.7rem;
+    }
+    
+    .card-title {
+        font-size: 0.9rem;
+    }
+    
+    .card-text.small {
+        font-size: 0.75rem;
+    }
+    
+            /* Submit button style */
+    .submit-btn {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        font-weight: 500;
+        box-shadow: 0 2px 4px rgba(123, 44, 191, 0.2);
+        transition: all 0.2s ease;
+    }
+    
+    .submit-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 6px rgba(123, 44, 191, 0.3);
+    }
+    
+    .submit-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 3px rgba(123, 44, 191, 0.2);
+    }
+    
+            /* Gradient button style, matching submit-btn */
+    .gradient-btn {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white !important;
+        border: none;
+        padding: 0.3rem 0.7rem;
+        border-radius: 4px;
+        font-weight: 500;
+        box-shadow: 0 2px 4px rgba(123, 44, 191, 0.2);
+        transition: all 0.2s ease;
+    }
+    
+    .gradient-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 6px rgba(123, 44, 191, 0.3);
+        color: white !important;
+    }
+    
+    .gradient-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 3px rgba(123, 44, 191, 0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="container mt-3"> {# Reduce top margin #}
+    <div class="row mb-3"> {# Reduce bottom margin #}
+        <div class="col-12">
+            <h1>Screening Actions Dashboard</h1>
+            <p class="lead" style="color: #475569; font-weight: 500;">Choose a screening task to begin your literature review process.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3"> {# Reduce bottom margin #}
+            <div class="section-card h-100 d-flex flex-column">
+                <h4><i class="bi bi-file-earmark-text-fill"></i> Abstract Screening</h4>
+                <p class="flex-grow-1">Upload a RIS file to screen abstracts based on your defined criteria. Supports filtering by title and line numbers for large datasets.</p>
+                <a href="{{ url_for('abstract_screening_page') }}" class="btn submit-btn mt-auto align-self-start">Go to Abstract Screening</a>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-3"> {# Reduce bottom margin #}
+            <div class="section-card h-100 d-flex flex-column">
+                <h4><i class="bi bi-file-earmark-pdf-fill"></i> Full-Text PDF Screening</h4>
+                <p class="flex-grow-1">Upload one or more PDF documents for full-text analysis against your criteria. Easily process single or multiple files with progress tracking and detailed results.</p>
+                <a href="{{ url_for('full_text_screening_page') }}" class="btn submit-btn mt-auto align-self-start">Go to Full-Text Screening</a>
+            </div>
+        </div>
+    </div>
+
+    <hr class="my-3"> {# Reduce margins #}
+
+    <!-- Screening Results History Section -->
+    <div class="row mb-4"> {# Reduce bottom margin #}
+        <div class="col-12">
+            <div class="section-card">
+                <h5><i class="bi bi-clock-history"></i> Recent Screening Results History</h5>
+                <p class="text-muted small">Quickly access the results of your recent screening tasks. <span class="text-warning"><i class="bi bi-info-circle"></i> Note: Results are only stored on the server for 24 hours due to storage limitations.</span></p>
+                <div id="screeningResultsHistoryList" class="list-group">
+                    <!-- History items will be populated here by JavaScript -->
+                    <p class="text-muted" id="noResultsHistoryMessage">No recent screening results history found.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End Screening Results History Section -->
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const RESULTS_HISTORY_KEY = 'metaScreenerResultsHistory'; // Key for screening results history
+    const historyList = document.getElementById('screeningResultsHistoryList');
+    const noHistoryMessage = document.getElementById('noResultsHistoryMessage');
+
+    function loadScreeningResultsHistory() {
+        if (!historyList || !noHistoryMessage) {
+            console.error("History list or message element not found for results history.");
+            return;
+        }
+
+        // Results history is stored as an array of objects
+        const resultsHistory = JSON.parse(localStorage.getItem(RESULTS_HISTORY_KEY) || '[]'); 
+        
+        historyList.innerHTML = ''; // Clear previous items
+
+        if (resultsHistory.length > 0) {
+            if(noHistoryMessage) noHistoryMessage.style.display = 'none';
+            
+            // Create a better-looking card-based layout
+            const container = document.createElement('div');
+            container.className = 'row row-cols-1 row-cols-md-2 g-3 mt-2';
+            
+            resultsHistory.forEach(item => {
+                // Create card for each history item
+                const col = document.createElement('div');
+                col.className = 'col';
+                
+                // Add timestamp check to determine if data might be expired
+                const timestamp = new Date(item.timestamp || new Date());
+                const now = new Date();
+                const hoursSinceCreation = (now - timestamp) / (1000 * 60 * 60);
+                const isLikelyExpired = hoursSinceCreation > 24; // Data expires after 24 hours
+                
+                const card = document.createElement('div');
+                card.className = 'card h-100 border-light';
+                if (isLikelyExpired) {
+                    card.classList.add('border-warning');
+                }
+                card.style.transition = 'all 0.2s ease';
+                card.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                card.dataset.id = item.id;
+                
+                // Card header with delete button
+                const cardHeader = document.createElement('div');
+                cardHeader.className = 'd-flex justify-content-between align-items-center p-2 bg-light';
+                
+                // Add info about screening type with icon
+                const typeSpan = document.createElement('span');
+                typeSpan.className = 'badge bg-secondary';
+                
+                // Different badge colors and icons based on type
+                if (item.type === 'Test Abstract Screening') {
+                    typeSpan.className = 'badge bg-info';
+                    typeSpan.innerHTML = '<i class="bi bi-clipboard-check"></i> Test';
+                } else if (item.type === 'Full Abstract Screening') {
+                    typeSpan.className = 'badge bg-success';
+                    typeSpan.innerHTML = '<i class="bi bi-journal-text"></i> Full';
+                } else if (item.type === 'Full-Text PDF Screening') {
+                    typeSpan.className = 'badge bg-warning text-dark';
+                    typeSpan.innerHTML = '<i class="bi bi-file-earmark-pdf"></i> PDF';
+                }
+                
+                // Delete button
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn btn-sm btn-outline-danger';
+                deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+                deleteBtn.title = 'Delete from history';
+                deleteBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    deleteHistoryItem(item.id);
+                });
+                
+                cardHeader.appendChild(typeSpan);
+                cardHeader.appendChild(deleteBtn);
+                
+                // Card body with content
+                const cardBody = document.createElement('div');
+                cardBody.className = 'card-body p-3';
+                
+                // File name with icon
+                const fileName = document.createElement('h6');
+                fileName.className = 'card-title text-truncate mb-1';
+                fileName.innerHTML = `<i class="bi bi-file-earmark-text"></i> ${item.fileName}`;
+                fileName.title = item.fileName;
+                
+                // Total items with icon
+                const itemCount = document.createElement('p');
+                itemCount.className = 'card-text small mb-1';
+                itemCount.innerHTML = `<i class="bi bi-list-ol"></i> ${item.totalItems} items`;
+                
+                // Date with icon
+                const date = document.createElement('p');
+                date.className = 'card-text small text-muted';
+                const formattedDate = new Date(item.timestamp).toLocaleString();
+                date.innerHTML = `<i class="bi bi-calendar"></i> ${formattedDate}`;
+                
+                cardBody.appendChild(fileName);
+                cardBody.appendChild(itemCount);
+                cardBody.appendChild(date);
+                
+                // Add expiration warning if needed
+                if (isLikelyExpired) {
+                    const warning = document.createElement('div');
+                    warning.className = 'alert alert-warning py-1 px-2 mt-2 mb-0';
+                    warning.style.fontSize = '0.75rem';
+                    warning.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Data may have expired (older than 24 hours)';
+                    cardBody.appendChild(warning);
+                }
+                
+                // Card footer with view button
+                const cardFooter = document.createElement('div');
+                cardFooter.className = 'card-footer bg-transparent border-top-0 text-end p-2';
+                
+                const viewButton = document.createElement('a');
+                viewButton.className = 'btn btn-sm gradient-btn';
+                viewButton.innerHTML = '<i class="bi bi-eye"></i> View Results';
+                
+                if (isLikelyExpired) {
+                    // Display warning that this record might not be available
+                    viewButton.title = 'Data may have expired (stored for 24 hours only)';
+                    viewButton.addEventListener('click', function(e) {
+                        // Add confirmation
+                        if (!confirm('This record may have expired as it was created more than 24 hours ago. The server only keeps data for 24 hours. Do you still want to try viewing it?')) {
+                            e.preventDefault();
+                            return false;
+                        }
+                    });
+                }
+                
+                // Determine the correct URL based on item.type
+                if (item.type === 'Test Abstract Screening') {
+                    viewButton.href = `{{ url_for('show_test_results', session_id='__SESSION_ID__') }}`.replace('__SESSION_ID__', encodeURIComponent(item.id));
+                } else if (item.type === 'Full Abstract Screening') {
+                    viewButton.href = `{{ url_for('show_screening_results', screening_id='__SCREENING_ID__') }}`.replace('__SCREENING_ID__', encodeURIComponent(item.id));
+                } else if (item.type === 'Full-Text PDF Screening') {
+                    viewButton.href = `{{ url_for('show_batch_pdf_results_placeholder', batch_session_id='__BATCH_ID__') }}`.replace('__BATCH_ID__', encodeURIComponent(item.id));
+                } else {
+                    viewButton.href = '#';
+                    viewButton.className = 'btn btn-sm btn-secondary disabled';
+                    viewButton.textContent = 'Unknown Type';
+                }
+                
+                cardFooter.appendChild(viewButton);
+                
+                // Assemble the card
+                card.appendChild(cardHeader);
+                card.appendChild(cardBody);
+                card.appendChild(cardFooter);
+                col.appendChild(card);
+                
+                // Add hover effect
+                card.addEventListener('mouseenter', () => {
+                    card.style.transform = 'translateY(-3px)';
+                    card.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+                });
+                
+                card.addEventListener('mouseleave', () => {
+                    card.style.transform = 'translateY(0)';
+                    card.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                });
+                
+                container.appendChild(col);
+            });
+            
+            historyList.appendChild(container);
+            
+            // Add clear all button if there are items
+            if (resultsHistory.length > 0) {
+                const clearAllContainer = document.createElement('div');
+                clearAllContainer.className = 'text-end mt-3';
+                
+                const clearAllBtn = document.createElement('button');
+                clearAllBtn.className = 'btn btn-outline-danger btn-sm';
+                clearAllBtn.innerHTML = '<i class="bi bi-trash"></i> Clear All History';
+                clearAllBtn.addEventListener('click', clearAllHistory);
+                
+                clearAllContainer.appendChild(clearAllBtn);
+                historyList.appendChild(clearAllContainer);
+            }
+        } else {
+            if(noHistoryMessage) {
+                noHistoryMessage.style.display = 'block';
+                noHistoryMessage.textContent = 'No recent screening results history found.';
+                historyList.appendChild(noHistoryMessage);
+            }
+        }
+    }
+
+    // Function to delete a single history item
+    function deleteHistoryItem(id) {
+        if (!id) return;
+        
+        const confirmation = confirm('Are you sure you want to delete this item from history?');
+        if (!confirmation) return;
+        
+        let history = JSON.parse(localStorage.getItem(RESULTS_HISTORY_KEY) || '[]');
+        history = history.filter(item => item.id !== id);
+        localStorage.setItem(RESULTS_HISTORY_KEY, JSON.stringify(history));
+        
+        // Animate removal of the card
+        const card = document.querySelector(`.card[data-id="${id}"]`);
+        if (card) {
+            const col = card.parentElement;
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.8)';
+            
+            setTimeout(() => {
+                if (col.parentElement) {
+                    col.parentElement.removeChild(col);
+                    
+                    // If no items left, reload to show the "no history" message
+                    if (history.length === 0) {
+                        loadScreeningResultsHistory();
+                    }
+                }
+            }, 300);
+        } else {
+            // Fallback if animation doesn't work
+            loadScreeningResultsHistory();
+        }
+    }
+    
+    // Function to clear all history
+    function clearAllHistory() {
+        const confirmation = confirm('Are you sure you want to clear all screening history?');
+        if (!confirmation) return;
+        
+        localStorage.setItem(RESULTS_HISTORY_KEY, '[]');
+        loadScreeningResultsHistory();
+    }
+
+    loadScreeningResultsHistory();
+
+    // Optional: Listen for custom event if other pages might update this history
+    window.addEventListener('metaScreenerHistoryUpdated', function() {
+        loadScreeningResultsHistory();
+    });
+});
+</script>
+{% endblock %} 
