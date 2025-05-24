@@ -465,9 +465,23 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn submit-btn mt-3">
+            <button type="submit" class="btn submit-btn mt-3" id="upload-submit-btn">
                 <i class="fas fa-check-circle mr-1"></i>Upload and Start Assessment
             </button>
+            
+            <!-- 上传处理状态显示 -->
+            <div id="upload-processing" class="mt-3" style="display: none;">
+                <div class="alert alert-info">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></div>
+                        <div>
+                            <strong id="upload-status-text">正在上传文件...</strong>
+                            <br>
+                            <small id="upload-status-detail">快速模式：文件上传后将立即跳转到进度页面</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </form>
 </div>
@@ -552,6 +566,64 @@ document.addEventListener('DOMContentLoaded', function() {
             fileInput.files = files;
             updateSelectedFilesList(files);
         }
+    }
+    
+    // 表单提交处理
+    const form = document.getElementById('qaUploadForm');
+    const submitBtn = document.getElementById('upload-submit-btn');
+    const uploadProcessing = document.getElementById('upload-processing');
+    const uploadStatusText = document.getElementById('upload-status-text');
+    const uploadStatusDetail = document.getElementById('upload-status-detail');
+    const uploadModeSelect = document.getElementById('upload_mode');
+    
+    if (form && submitBtn) {
+        form.addEventListener('submit', function(e) {
+            // 检查是否选择了文件
+            const fileInput = document.getElementById('pdf_files');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('请选择至少一个PDF文件');
+                e.preventDefault();
+                return;
+            }
+            
+            // 立即显示处理状态
+            const selectedMode = uploadModeSelect.value;
+            const fileCount = fileInput.files.length;
+            
+            // 禁用提交按钮
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Processing...';
+            
+            // 显示处理状态
+            uploadProcessing.style.display = 'block';
+            
+            if (selectedMode === 'quick') {
+                uploadStatusText.textContent = `正在快速上传 ${fileCount} 个文件...`;
+                uploadStatusDetail.textContent = '快速模式：文件保存后将立即跳转，文本提取在后台进行';
+            } else {
+                uploadStatusText.textContent = `正在同步处理 ${fileCount} 个文件...`;
+                uploadStatusDetail.textContent = '传统模式：等待文本提取完成后跳转，可能需要1-3分钟';
+            }
+            
+            // 定时更新状态文本
+            let processingSteps = [
+                '正在保存文件到服务器...',
+                '正在初始化处理任务...',
+                '正在准备跳转...'
+            ];
+            
+            if (selectedMode === 'quick') {
+                let stepIndex = 0;
+                const stepInterval = setInterval(() => {
+                    if (stepIndex < processingSteps.length) {
+                        uploadStatusText.textContent = processingSteps[stepIndex];
+                        stepIndex++;
+                    } else {
+                        clearInterval(stepInterval);
+                    }
+                }, 1000);
+            }
+        });
     }
 });
 </script>
