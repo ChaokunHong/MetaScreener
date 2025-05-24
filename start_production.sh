@@ -63,7 +63,7 @@ start_celery() {
             --hostname=main_worker@%h \
             --loglevel=info \
             --queues=default,literature_screening,pdf_screening \
-            --concurrency=4 \
+            --concurrency=6 \
             --max-tasks-per-child=1000 \
             --logfile="$LOG_DIR/celery_main.log" \
             --pidfile="$LOG_DIR/celery_main.pid" \
@@ -77,7 +77,7 @@ start_celery() {
             --hostname=quality_worker@%h \
             --loglevel=info \
             --queues=quality_assessment \
-            --concurrency=2 \
+            --concurrency=4 \
             --max-tasks-per-child=500 \
             --logfile="$LOG_DIR/celery_quality.log" \
             --pidfile="$LOG_DIR/celery_quality.pid" \

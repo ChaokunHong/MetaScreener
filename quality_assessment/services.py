@@ -932,7 +932,7 @@ def get_quality_criteria_for_type(document_type: str):
         return None 
     return QUALITY_ASSESSMENT_TOOLS.get(document_type)
 
-MAX_TEXT_SEGMENT_FOR_LLM = 30000 # Max characters to send to LLM per criterion (adjust as needed)
+MAX_TEXT_SEGMENT_FOR_LLM = 20000 # Reduced for faster processing - 20k chars should be enough
 
 def _construct_quality_assessment_prompt(criterion_text: str, criterion_guidance: Optional[str], document_text_segment: str, document_type: str = "Cohort Study") -> Dict:
     """
@@ -1197,7 +1197,7 @@ def _execute_assessment_logic(assessment_id: str, llm_config: Dict):
             )
             try:
                 raw_response = call_llm_api_raw_content(
-                    prompt_struct, p_name, m_id, key, url, max_tokens_override=600
+                    prompt_struct, p_name, m_id, key, url, max_tokens_override=300
                 )
                 parsed_resp = _parse_llm_json_response(raw_response)
                 if parsed_resp and isinstance(parsed_resp, dict):
