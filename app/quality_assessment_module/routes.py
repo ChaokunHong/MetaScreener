@@ -169,57 +169,61 @@ def handle_ultra_quick_upload(uploaded_files, selected_document_type, successful
         _batch_assessments_status[batch_id] = batch_data
     
     # Step 4: Spawn async task for heavy I/O operations (non-blocking)
-    spawn(process_files_async, temp_file_mapping, selected_document_type, batch_id, dict(session))
+    # Pass the current app to the async function for context
+    spawn(process_files_async, current_app._get_current_object(), temp_file_mapping, selected_document_type, batch_id, dict(session))
     
     # Step 5: Immediate redirect (no waiting for file I/O)
     flash(f'{len(successful_uploads)} document(s) queued for ultra-fast processing. {len(failed_uploads)} failed.', 'success')
     current_app.logger.info(f"ULTRA_QUICK: Immediate redirect to batch {batch_id}")
     return redirect(url_for('.view_batch_status', batch_id=batch_id))
 
-def process_files_async(temp_file_mapping, selected_document_type, batch_id, session_data):
+def process_files_async(app, temp_file_mapping, selected_document_type, batch_id, session_data):
     """Async processing of file I/O operations"""
     from gevent import sleep
+    from flask import current_app
     
-    current_app.logger.info(f"ASYNC_PROCESSOR: Starting background processing for batch {batch_id}")
-    
-    # Update batch status to processing
-    try:
-        update_batch_status(batch_id, {"status": "processing"})
-    except Exception as e:
-        current_app.logger.error(f"ASYNC_PROCESSOR: Failed to update batch status: {e}")
-    
-    # Process each file
-    for assessment_id, file_info in temp_file_mapping.items():
+    # Create application context for background processing
+    with app.app_context():
+        current_app.logger.info(f"ASYNC_PROCESSOR: Starting background processing for batch {batch_id}")
+        
+        # Update batch status to processing
         try:
-            # Create file stream from content
-            import io
-            file_stream = io.BytesIO(file_info['content'])
-            
-            # Now do the actual file processing
-            assessment_id_result = quick_upload_document(
-                file_stream, 
-                file_info['filename'], 
-                selected_document_type, 
-                session_data
-            )
-            
-            current_app.logger.info(f"ASYNC_PROCESSOR: Completed processing {file_info['filename']} (ID: {assessment_id_result})")
-            
-            # Small delay to prevent overwhelming the system
-            sleep(0.1)
-            
+            update_batch_status(batch_id, {"status": "processing"})
         except Exception as e:
-            current_app.logger.error(f"ASYNC_PROCESSOR: Error processing {file_info['filename']}: {e}")
-            # Update assessment record with error status
-            _assessments_db[assessment_id] = {
-                "status": "error",
-                "filename": file_info['filename'],
-                "message": f"Async processing failed: {str(e)}",
-                "progress": {"current": 0, "total": 100, "message": "Processing failed"}
-            }
-            _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
-    
-    current_app.logger.info(f"ASYNC_PROCESSOR: Completed background processing for batch {batch_id}")
+            current_app.logger.error(f"ASYNC_PROCESSOR: Failed to update batch status: {e}")
+        
+        # Process each file
+        for assessment_id, file_info in temp_file_mapping.items():
+            try:
+                # Create file stream from content
+                import io
+                file_stream = io.BytesIO(file_info['content'])
+                
+                # Now do the actual file processing
+                assessment_id_result = quick_upload_document(
+                    file_stream, 
+                    file_info['filename'], 
+                    selected_document_type, 
+                    session_data
+                )
+                
+                current_app.logger.info(f"ASYNC_PROCESSOR: Completed processing {file_info['filename']} (ID: {assessment_id_result})")
+                
+                # Small delay to prevent overwhelming the system
+                sleep(0.1)
+                
+            except Exception as e:
+                current_app.logger.error(f"ASYNC_PROCESSOR: Error processing {file_info['filename']}: {e}")
+                # Update assessment record with error status
+                _assessments_db[assessment_id] = {
+                    "status": "error",
+                    "filename": file_info['filename'],
+                    "message": f"Async processing failed: {str(e)}",
+                    "progress": {"current": 0, "total": 100, "message": "Processing failed"}
+                }
+                _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
+        
+        current_app.logger.info(f"ASYNC_PROCESSOR: Completed background processing for batch {batch_id}")
 
 def handle_upload_results(successful_uploads, failed_uploads, assessment_ids_in_batch, uploaded_files):
     """Handle upload results and determine redirect behavior"""
@@ -593,6 +597,16 @@ def serve_saved_pdf(assessment_id):
     except Exception as e:
         current_app.logger.error(f"Error serving PDF {saved_filename} for assessment {assessment_id}: {e}")
         return "Error serving PDF.", 500
+
+# --- NEW API for Batch Status --- #
+@quality_bp.route('/batch_info_api/<batch_id>')
+def get_batch_info_api(batch_id):
+    """API endpoint for batch status information"""
+    batch_info = get_batch_info(batch_id)
+    if not batch_info:
+        return jsonify({"error": "Batch not found"}), 404
+    
+    return jsonify(batch_info)
 
 # --- NEW API for Batch Summary --- #
 @quality_bp.route('/batch_summary/<batch_id>')
