@@ -1357,9 +1357,13 @@ def quick_upload_document(pdf_file_stream, original_filename: str, selected_docu
         "progress": {"current": 10, "total": 100, "message": "File uploaded, preparing text extraction..."}
     }
     
-    # 3. Immediately save to Redis and file
-    _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
-    _save_assessments_to_file(assessment_id_to_log=assessment_id)
+    # 3. Immediately save to Redis and file (use async approach)
+    try:
+        _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
+        _save_assessments_to_file(assessment_id_to_log=assessment_id)
+    except Exception as e_save:
+        print(f"QUICK_UPLOAD: Warning - could not save to Redis/file immediately: {e_save}")
+        # Continue anyway, will be saved during background processing
     
     print(f"QUICK_UPLOAD: Assessment {assessment_id} created successfully. Status: pending_text_extraction")
     
@@ -1381,9 +1385,10 @@ def quick_upload_document(pdf_file_stream, original_filename: str, selected_docu
             "api_key": api_key_val
         }
         
-        # Start background processing
-        spawn(run_background_processing, assessment_id, current_app._get_current_object(), llm_config_for_task)
-        print(f"QUICK_UPLOAD: Background processing task for {assessment_id} started")
+        # Start background processing (use spawn_later to avoid blocking)
+        from gevent import spawn_later
+        spawn_later(0.1, run_background_processing, assessment_id, None, llm_config_for_task)  # Remove app context to avoid blocking
+        print(f"QUICK_UPLOAD: Background processing task for {assessment_id} scheduled")
         
     except Exception as e_bg:
         print(f"QUICK_UPLOAD_ERROR: Failed to start background processing for {assessment_id}: {e_bg}")
@@ -1427,8 +1432,11 @@ def _execute_background_processing(assessment_id: str, llm_config: Dict):
         if not saved_pdf_full_path or not os.path.exists(saved_pdf_full_path):
             raise Exception("PDF file not found, cannot perform text extraction")
         
-        # Read PDF file and extract text
+        # Read PDF file and extract text (use gevent-friendly approach)
+        from gevent import sleep
         with open(saved_pdf_full_path, 'rb') as pdf_file:
+            # Add small delay to allow gevent to yield control
+            sleep(0.001)
             text_content = extract_text_from_pdf(pdf_file, ocr_language='eng')
         
         if not text_content:
