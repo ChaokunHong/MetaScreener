@@ -409,6 +409,9 @@
             case 'pending_assessment':
                 statusBadge.classList.add('badge-warning');
                 break;
+            case 'pending_text_extraction':
+                statusBadge.classList.add('badge-info');
+                break;
             case 'error':
                 statusBadge.classList.add('badge-danger');
                 break;
@@ -444,6 +447,27 @@
         }
 
         switch (currentStatus) {
+            case 'pending_text_extraction':
+                if (progressContainer) {
+                    progressContainer.classList.remove('d-none');
+                    progressContainer.classList.add('d-block');
+                }
+                if (data.progress) {
+                    const percent = data.progress.total > 0 ? 
+                        (data.progress.current / data.progress.total * 100) : 10;
+                    if (progressBarInner) progressBarInner.style.width = percent + '%';
+                    if (progressBarText) progressBarText.textContent = 
+                        data.progress.total > 0 ? 
+                        `${percent.toFixed(0)}%` : 'Extracting...';
+                    if (progressMessage) progressMessage.textContent = 
+                        data.progress.message || 'Extracting text from PDF...';
+                } else {
+                    if (progressMessage) progressMessage.textContent = 'Extracting text from PDF...';
+                    if (progressBarInner) progressBarInner.style.width = '10%';
+                    if (progressBarText) progressBarText.textContent = 'Processing...';
+                }
+                break;
+                
             case 'pending_assessment':
                 if (progressContainer) {
                     progressContainer.classList.remove('d-none');
@@ -547,6 +571,8 @@
         // Only continue polling if we're in a processing state
         if (currentStatus === 'pending_assessment') {
             pollTimeoutId = setTimeout(pollStatus, 5000);
+        } else if (currentStatus === 'pending_text_extraction') {
+            pollTimeoutId = setTimeout(pollStatus, 2000); // More frequent for text extraction
         } else if (currentStatus === 'processing_assessment') {
             pollTimeoutId = setTimeout(pollStatus, 3000);
         }
@@ -659,7 +685,7 @@
         }
         
         // Set initial visibility based on status
-        if (initialStatus === 'processing_assessment' || initialStatus === 'pending_assessment') {
+        if (initialStatus === 'processing_assessment' || initialStatus === 'pending_assessment' || initialStatus === 'pending_text_extraction') {
             if (progressContainer) {
                 progressContainer.classList.remove('d-none');
                 progressContainer.classList.add('d-block');
@@ -679,7 +705,7 @@
     updateUI(initialStatus);
     
     // Only start polling if we're in a processing state
-    if (initialStatus === 'pending_assessment' || initialStatus === 'processing_assessment') {
+    if (initialStatus === 'pending_assessment' || initialStatus === 'pending_text_extraction' || initialStatus === 'processing_assessment') {
         scheduleNextPoll();
     }
 

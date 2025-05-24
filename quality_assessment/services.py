@@ -1303,6 +1303,195 @@ def _execute_assessment_logic(assessment_id: str, llm_config: Dict):
             _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
             _save_assessments_to_file(assessment_id_to_log=assessment_id)
 
+def quick_upload_document(pdf_file_stream, original_filename: str, selected_document_type: str = None):
+    """
+    快速上传模式：只保存PDF文件，创建assessment记录，立即返回ID
+    文本提取和AI评估在后台异步进行，实现秒级响应
+    """
+    # Use safe ID generation to prevent concurrent access issues
+    assessment_id = _generate_safe_assessment_id()
+    
+    saved_pdf_filename = None
+    saved_pdf_full_path = None
+    
+    # 1. 快速保存PDF文件
+    try:
+        pdf_file_stream.seek(0)
+        secure_original_filename = secure_filename(original_filename)
+        saved_pdf_filename = f"{assessment_id}_{secure_original_filename}"
+        saved_pdf_full_path = os.path.join(QA_PDF_UPLOAD_DIR, saved_pdf_filename)
+        
+        with open(saved_pdf_full_path, 'wb') as f_out:
+            pdf_file_stream.seek(0)
+            f_out.write(pdf_file_stream.read())
+        
+        print(f"QUICK_UPLOAD: PDF for assessment {assessment_id} saved to: {saved_pdf_full_path}")
+        
+    except Exception as e_save:
+        print(f"QUICK_UPLOAD_ERROR: Error saving PDF for assessment {assessment_id}: {e_save}")
+        _assessments_db[assessment_id] = {
+            "status": "error", 
+            "message": f"File save failed: {e_save}", 
+            "filename": original_filename,
+            "progress": {"current": 0, "total": 100, "message": "File save error"}
+        }
+        _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
+        return assessment_id
+
+    # 2. 创建初始assessment记录（不做文本提取）
+    document_type_to_store = selected_document_type or "Unknown"
+    
+    _assessments_db[assessment_id] = {
+        "status": "pending_text_extraction", 
+        "filename": original_filename,
+        "document_type": document_type_to_store,
+        "text_preview": "文件上传成功，正在进行文本提取...",
+        "raw_text": None,  # 将在后台处理中填充
+        "assessment_details": None,
+        "user_review": None,
+        "classification_evidence": None,
+        "saved_pdf_filename": saved_pdf_filename,
+        "saved_pdf_full_path": saved_pdf_full_path,  # 后台处理需要
+        "progress": {"current": 10, "total": 100, "message": "文件已上传，准备提取文本..."}
+    }
+    
+    # 3. 立即保存到Redis和文件
+    _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
+    _save_assessments_to_file(assessment_id_to_log=assessment_id)
+    
+    print(f"QUICK_UPLOAD: Assessment {assessment_id} created successfully. Status: pending_text_extraction")
+    
+    # 4. 启动后台处理（异步文本提取和AI评估）
+    try:
+        # 获取LLM配置
+        from flask import session
+        current_llm_main_config = get_current_llm_config(session)
+        provider_name = current_llm_main_config['provider_name']
+        api_key_val = get_api_key_for_provider(provider_name, session)
+        if not api_key_val:
+            raise ValueError(f"API Key for {provider_name} not found in session or environment.")
+        
+        llm_config_for_task = {
+            "provider_name": provider_name,
+            "model_id": current_llm_main_config['model_id'],
+            "base_url": get_base_url_for_provider(provider_name),
+            "api_key": api_key_val
+        }
+        
+        # 启动后台处理
+        spawn(run_background_processing, assessment_id, current_app._get_current_object(), llm_config_for_task)
+        print(f"QUICK_UPLOAD: Background processing task for {assessment_id} started")
+        
+    except Exception as e_bg:
+        print(f"QUICK_UPLOAD_ERROR: Failed to start background processing for {assessment_id}: {e_bg}")
+        _assessments_db[assessment_id]["status"] = "error"
+        _assessments_db[assessment_id]["message"] = f"Failed to start background processing: {e_bg}"
+        _assessments_db[assessment_id]["progress"]["message"] = "启动后台处理失败"
+        _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
+    
+    return assessment_id
+
+def run_background_processing(assessment_id: str, app_context=None, llm_config=None):
+    """
+    后台处理：文本提取 + 文档分类 + AI质量评估
+    分阶段进行，每个阶段都更新进度
+    """
+    if app_context:
+        with app_context.app_context():
+            _execute_background_processing(assessment_id, llm_config)
+    else:
+        print(f"Warning for {assessment_id}: Running background processing without explicit app context.")
+        _execute_background_processing(assessment_id, llm_config)
+
+def _execute_background_processing(assessment_id: str, llm_config: Dict):
+    """执行后台处理的具体逻辑"""
+    try:
+        assessment_data = _assessments_db.get(assessment_id)
+        if not assessment_data:
+            print(f"BACKGROUND_PROC: Assessment data for {assessment_id} not found.")
+            return
+        
+        if assessment_data.get('status') not in ['pending_text_extraction']:
+            print(f"BACKGROUND_PROC: Assessment {assessment_id} status is {assessment_data.get('status')}, skipping background processing.")
+            return
+        
+        # 阶段1: 文本提取 (20-40%)
+        print(f"BACKGROUND_PROC: Starting text extraction for {assessment_id}")
+        assessment_data['progress'] = {"current": 20, "total": 100, "message": "正在提取PDF文本..."}
+        _save_assessment_to_redis(assessment_id, assessment_data)
+        
+        saved_pdf_full_path = assessment_data.get('saved_pdf_full_path')
+        if not saved_pdf_full_path or not os.path.exists(saved_pdf_full_path):
+            raise Exception("PDF文件未找到，无法进行文本提取")
+        
+        # 从文件读取PDF并提取文本
+        with open(saved_pdf_full_path, 'rb') as pdf_file:
+            text_content = extract_text_from_pdf(pdf_file, ocr_language='eng')
+        
+        if not text_content:
+            raise Exception("PDF文本提取结果为空")
+        
+        assessment_data['raw_text'] = text_content
+        assessment_data['text_preview'] = text_content[:500] + ("..." if len(text_content) > 500 else "")
+        assessment_data['progress'] = {"current": 40, "total": 100, "message": "文本提取完成，开始文档分类..."}
+        _save_assessment_to_redis(assessment_id, assessment_data)
+        
+        print(f"BACKGROUND_PROC: Text extraction completed for {assessment_id}, length: {len(text_content)}")
+        
+        # 阶段2: 文档分类 (40-60%)
+        document_type_to_store = assessment_data.get('document_type')
+        classification_evidence = None
+        
+        if not document_type_to_store or document_type_to_store == "Unknown":
+            try:
+                assessment_data['progress'] = {"current": 50, "total": 100, "message": "正在进行文档类型分类..."}
+                _save_assessment_to_redis(assessment_id, assessment_data)
+                
+                detected_type, type_scores = classify_document_type(text_content)
+                if detected_type and detected_type != "Unknown" and detected_type != "Uncertain":
+                    document_type_to_store = detected_type
+                    classification_evidence = get_document_evidence(text_content, detected_type)
+                    print(f"BACKGROUND_PROC: Document {assessment_id} classified as: {document_type_to_store}")
+                else:
+                    document_type_to_store = "Unknown"
+                    print(f"BACKGROUND_PROC: Document {assessment_id} could not be classified. Scores: {type_scores}")
+            except Exception as classify_error:
+                print(f"BACKGROUND_PROC: Error during document classification for {assessment_id}: {classify_error}")
+                document_type_to_store = "Unknown"
+        
+        assessment_data['document_type'] = document_type_to_store
+        assessment_data['classification_evidence'] = classification_evidence
+        assessment_data['progress'] = {"current": 60, "total": 100, "message": f"分类完成: {document_type_to_store}，开始质量评估..."}
+        _save_assessment_to_redis(assessment_id, assessment_data)
+        
+        # 阶段3: 质量评估 (60-100%)
+        if document_type_to_store in QUALITY_ASSESSMENT_TOOLS:
+            assessment_data['status'] = 'processing_assessment'
+            assessment_data['progress'] = {"current": 70, "total": 100, "message": "正在进行AI质量评估..."}
+            _save_assessment_to_redis(assessment_id, assessment_data)
+            
+            # 调用现有的AI评估逻辑
+            _execute_assessment_logic(assessment_id, llm_config)
+        else:
+            # 不支持的文档类型，标记为完成但无评估
+            assessment_data['status'] = 'completed'
+            assessment_data['message'] = f"文档类型 '{document_type_to_store}' 暂不支持质量评估"
+            assessment_data['progress'] = {"current": 100, "total": 100, "message": "处理完成（文档类型不支持评估）"}
+            assessment_data['assessment_details'] = []
+            _save_assessment_to_redis(assessment_id, assessment_data)
+            _save_assessments_to_file(assessment_id_to_log=assessment_id)
+        
+        print(f"BACKGROUND_PROC: Background processing completed for {assessment_id}")
+        
+    except Exception as e_bg:
+        print(f"BACKGROUND_PROC_ERROR: Critical error in background processing for {assessment_id}: {e_bg}")
+        traceback.print_exc()
+        if assessment_id in _assessments_db:
+            _assessments_db[assessment_id]['status'] = 'error'
+            _assessments_db[assessment_id]['message'] = f"后台处理错误: {str(e_bg)[:100]}"
+            _assessments_db[assessment_id]['progress'] = {"current": 100, "total": 100, "message": "处理失败"}
+            _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
+            _save_assessments_to_file(assessment_id_to_log=assessment_id)
 
 # Example of how you might call the assessment after processing:
 # if assessment_id and _assessments_db[assessment_id]['status'] == 'pending':

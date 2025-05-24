@@ -419,6 +419,28 @@
                 <i class="fas fa-tasks"></i>Assessment Configuration
             </div>
 
+            <!-- 上传模式选择 -->
+            <div class="form-group mb-3">
+                <div class="custom-select-container">
+                    <label for="upload_mode" class="custom-select-label">
+                        <i class="fas fa-rocket mr-1"></i>Upload Mode:
+                    </label>
+                    <div class="select-hint">
+                        <i class="fas fa-info-circle"></i>选择上传处理模式
+                    </div>
+                    <div class="select-wrapper">
+                        <select class="custom-select" id="upload_mode" name="upload_mode">
+                            <option value="quick" selected>⚡ 快速模式 - 秒级响应 (推荐)</option>
+                            <option value="traditional">🔄 传统模式 - 同步处理</option>
+                        </select>
+                    </div>
+                    <small class="form-text text-muted mt-2">
+                        <strong>快速模式</strong>：文件上传后立即跳转到进度页面，文本提取和AI评估在后台异步进行。<br>
+                        <strong>传统模式</strong>：上传时同步进行文本提取，可能需要等待较长时间。
+                    </small>
+                </div>
+            </div>
+
             <div class="form-group mb-2">
                 <div class="custom-select-container">
                     <label for="document_type" class="custom-select-label">
