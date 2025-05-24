@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-PROJECT_DIR="/path/to/screen_webapp"  # Update this path
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"  # Script directory
 VENV_DIR="$PROJECT_DIR/.venv"
 REDIS_CONF="/etc/redis/redis.conf"
 LOG_DIR="$PROJECT_DIR/logs"
