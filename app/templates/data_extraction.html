@@ -2,6 +2,14 @@
 
 {% block title %}Data Extraction - AI Literature Screening Assistant{% endblock %}
 
+<!-- Set breadcrumb for navigation -->
+{% set breadcrumb = [
+    {'text': 'LLM Configuration', 'url': url_for('llm_config_page')},
+    {'text': 'Screening Criteria', 'url': url_for('screening_criteria_page')},
+    {'text': 'Screening Actions', 'url': url_for('screening_actions_page')},
+    {'text': 'Data Extraction', 'url': ''}
+] %}
+
 {% block extra_head %}
 <style>
     /* Adjust overall font style to maintain consistency with other pages */
@@ -168,24 +176,30 @@
     
     /* Submit button styles */
     .submit-btn {
-        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-        color: white;
-        border: none;
+        background: white;
+        border: 1px solid #6b46c1;
+        color: #6b46c1;
         padding: 0.5rem 1rem;
         border-radius: 4px;
         font-weight: 500;
-        box-shadow: 0 2px 4px rgba(123, 44, 191, 0.2);
+        box-shadow: 0 1px 3px rgba(107, 70, 193, 0.1);
         transition: all 0.2s ease;
     }
     
     .submit-btn:hover {
+        background: #6b46c1;
+        border-color: #6b46c1;
+        color: white;
         transform: translateY(-1px);
-        box-shadow: 0 3px 6px rgba(123, 44, 191, 0.3);
+        box-shadow: 0 4px 12px rgba(107, 70, 193, 0.25);
     }
     
     .submit-btn:active {
+        background: #553c9a;
+        border-color: #553c9a;
+        color: white;
         transform: translateY(0);
-        box-shadow: 0 1px 3px rgba(123, 44, 191, 0.2);
+        box-shadow: 0 2px 4px rgba(107, 70, 193, 0.4);
     }
     
     /* Increase card spacing */

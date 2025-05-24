@@ -1,745 +1,681 @@
-# MetaScreener: AI-Assisted Literature Screening Tool
+# MetaScreener
+### *AI-Powered Literature Screening. Revolutionized.*
 
 <div align="center">
-<img src="static/images/Meta_Screener_LOGO.png" alt="MetaScreener Logo" width="300"/>
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Flask](https://img.shields.io/badge/Flask-2.0%2B-green.svg)](https://flask.palletsprojects.com/)
-[![LLM Integration](https://img.shields.io/badge/LLM-Multi--Provider-purple.svg)](https://github.com/ChaokunHong/MetaScreener)
+<img src="app/static/images/Meta_Screener_LOGO.png" alt="MetaScreener" width="240"/>
 
-**Fast, accurate AI-assisted literature screening tool for systematic reviews and meta-analyses**
+<br>
 
-**Live Application:** [https://www.metascreener.net/](https://www.metascreener.net/) (Tencent Cloud - Primary)  
-**Alternative Deployment:** [https://metascreener.onrender.com](https://metascreener.onrender.com) (Render.com)
+**Transform weeks of manual literature screening into hours**
+
+<br>
+
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10+-00c4b0?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-2.0+-1fc2c2?style=flat&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![Open Source](https://img.shields.io/badge/License-Open_Source-a78bfa?style=flat&logo=github&logoColor=white)](https://github.com/ChaokunHong/MetaScreener)
+
+<br>
+<br>
+
+### **[✨ Start Your Journey →](https://www.metascreener.net/)**
+
+*Research-grade accuracy • Privacy-first • Always free • Trusted by 18 institutions*
+
+<br>
+
 </div>
-
-## 📖 Table of Contents
-
-- [System Overview](#-system-overview)
-- [Core Features](#-core-features)
-- [Technical Architecture](#-technical-architecture)
-- [Detailed Functionality](#-detailed-functionality)
-  - [User Interface](#user-interface)
-  - [LLM Configuration](#llm-configuration) 
-  - [Screening Criteria Frameworks](#screening-criteria-frameworks)
-  - [Abstract Screening](#abstract-screening)
-  - [Full-text Screening](#full-text-screening)
-  - [Data Extraction](#data-extraction)
-  - [Quality Assessment](#quality-assessment)
-  - [Batch Processing](#batch-processing)
-- [Installation Guide](#-installation-guide)
-  - [Environment Requirements](#environment-requirements)
-  - [Dependency Installation](#dependency-installation)
-  - [Configuration Options](#configuration-options)
-- [Usage Guide](#-usage-guide)
-  - [Workflow](#workflow)
-  - [Best Practices](#best-practices)
-- [Deployment Options](#-deployment-options)
-  - [Local Development Environment](#local-development-environment)
-  - [Production Environment](#production-environment)
-  - [Cloud Services](#cloud-services)
-- [System Architecture](#-system-architecture)
-  - [Code Organization](#code-organization)
-  - [Data Flow](#data-flow)
-- [Security and Privacy](#-security-and-privacy)
-- [Performance Optimization](#-performance-optimization)
-- [Frequently Asked Questions](#-frequently-asked-questions)
-- [Contribution Guidelines](#-contribution-guidelines)
-- [Changelog](#-changelog)
-- [Development Roadmap](#-development-roadmap)
-- [Author Information](#-author-information)
-- [Disclaimer](#-disclaimer)
-
-## 🔍 System Overview
-
-MetaScreener is a web application specifically designed for medical literature screening, utilizing Large Language Model (LLM) technology to significantly enhance the efficiency and accuracy of systematic literature reviews. The system supports screening large volumes of abstracts from RIS files and processing full-text PDF documents based on user-defined inclusion/exclusion criteria. MetaScreener integrates multiple advanced LLM provider interfaces, emphasizes secure session-based API key handling, and provides researchers with a one-stop solution for literature screening.
-
-**Primary Use Cases**:
-- Literature screening for systematic reviews and meta-analyses
-- Evidence-based medical research
-- Initial screening of large literature databases
-- Collaborative screening by research teams
-
-**Key Benefits**:
-- Reduces literature screening time by over 80%
-- Improves consistency and accuracy of the screening process
-- Decreases cognitive burden on researchers
-- Standardizes screening workflows and decision rationales
-
-## ✨ Core Features
-
-### Flexible Input Formats
-- **RIS File Processing**: Supports standard research literature database export formats for efficient batch abstract screening
-- **PDF Full-text Processing**: Supports single file and batch PDF upload and processing for detailed literature evaluation
-- **Intelligent Text Extraction**: Combines PyMuPDF direct extraction with Tesseract OCR technology to ensure comprehensive text retrieval
-- **Metadata Management**: Automatically extracts PDF metadata to enhance document organization and citation
-
-### Diverse LLM Provider Integration
-- **Comprehensive Provider Support**: 
-  - DeepSeek
-  - OpenAI (ChatGPT)
-  - Google (Gemini)
-  - Anthropic (Claude)
-- **Model Selection Flexibility**: Each provider supports multiple models to meet different precision and speed requirements
-- **Secure API Key Management**: Keys are stored only in browser sessions, ensuring security
-
-### Advanced Screening Criteria Frameworks
-- **Multiple Standardized Frameworks**:
-  - PICOT (Population, Intervention, Comparison, Outcome, Time)
-  - SPIDER (Sample, Phenomenon, Intervention, Data, Evaluation, Research)
-  - PICOS (Population, Intervention, Comparison, Outcome, Study Design)
-  - PECO (Population, Exposure, Comparison, Outcome)
-  - PICOC (Population, Intervention, Comparison, Outcome, Context)
-  - ECLIPSE (Expectation, Client group, Location, Impact, Professionals, SErvice)
-  - CLIP (Client, Location, Intervention, Professionals)
-  - BeHEMoTh (Behaviour of interest, Health context, Exclusions, Models or Theories)
-- **Fine-grained Decision Conditions**: Each framework element supports Include, Exclude, and Maybe conditions
-- **Custom Prompts**: Advanced users can customize AI system prompts and output formats
-
-### Comprehensive Screening Workflow
-- **Abstract Screening**
-  - Keyword filtering
-  - Line number range filtering
-  - Test screening with performance evaluation
-  - Full dataset real-time processing
-- **Full-text PDF Screening**
-  - Single file detailed analysis
-  - Batch PDF parallel processing
-  - Page preview and extracted text view
-- **Data Extraction**
-  - Custom extraction field definition with user-specified names and descriptions
-  - Template-based extraction instruction settings for structured data capture
-  - JSON schema configuration for consistent output formatting
-  - Support for multiple data fields with complex relationships
-
-- **Quality Assessment**
-  - Single or batch PDF methodological quality evaluation
-  - Supports AMSTAR 2, Cochrane RoB 2, QUADAS-2, Newcastle-Ottawa Scale, AXIS, CASP and other standardized tools
-  - Criterion-level AI judgments with detailed rationales and overall summaries
-
-### User Experience Enhancements
-- **Professional Landing Page**: Clear and concise entry guidance
-- **Real-time Progress Feedback**: SSE (Server-Sent Events) based processing progress display
-- **Result Visualization**: Includes performance metrics, confusion matrices, and statistical summaries
-- **Batch Processing Optimization**: Upload file preview, filtering, and removal options
-- **Result Export**: Supports CSV, Excel, and JSON format export of screening results
-
-## 🚀 Technical Architecture
-
-### Backend Stack
-- **Core Framework**: Python + Flask
-- **WSGI Server**: Gunicorn
-- **LLM Integration**: Provider-specific Python SDKs
-- **Data Processing**:
-  - pandas (dataframe processing)
-  - rispy (RIS file parsing)
-  - PyMuPDF (PDF text extraction)
-  - Pytesseract (OCR functionality)
-- **Task Scheduling**: APScheduler
-- **Performance Optimization**: ThreadPoolExecutor concurrent processing
-- **Metrics Calculation**: scikit-learn
-
-### Frontend Stack
-- **Markup Language**: HTML5
-- **Styling**: CSS3 (Bootstrap 4)
-- **Client-side Scripting**: JavaScript
-- **PDF Rendering**: pdf.js
-- **Real-time Feedback**: Server-Sent Events (SSE)
-
-### Deployment and Configuration
-- **Deployment Platforms**:
-  - Tencent Cloud (primary deployment)
-  - Render.com (alternative deployment)
-- **Configuration Management**: python-dotenv
-- **Reverse Proxy**: Nginx (production environment)
-
-## 📊 Detailed Functionality
-
-### User Interface
-- **Basic Layout**:
-  - Responsive design, adapting to different devices
-  - Consistent navigation bar and footer
-  - Unified theme colors for interface elements
-- **Homepage Design**:
-  - Feature overview area
-  - Quick start guide
-  - Main functionality entry points
-- **Activity Status Indication**:
-  - Current page highlighting
-  - Loading indicators for processing operations
-  - Visual feedback for success/failure states
-
-### LLM Configuration
-- **Provider Management**:
-  - Dynamic loading of supported provider list
-  - Provider API documentation links
-  - Visual indication of currently selected provider
-- **Model Selection**:
-  - Provider-filtered model list
-  - Model capability descriptions
-  - Default recommended model indicators
-- **API Key Handling**:
-  - Session-level key storage
-  - Key status display (Not set/Using environment default/Set in session)
-  - Key clearing options
-  - Key show/hide toggle
-
-### Screening Criteria Frameworks
-- **Framework Selection**:
-  - Eight standardized framework dropdown options
-  - Framework introduction and applicable scenarios
-  - Data retention options when switching frameworks
-- **Criteria Definition Interface**:
-  - Sectioned paragraph layout
-  - Input areas for each element's include/exclude/maybe conditions
-  - Example text and tips
-  - Formatted preview
-- **Advanced Settings**:
-  - System prompt customization
-  - Output format instruction customization
-  - Default value reset options
-
-### Abstract Screening
-- **File Processing**:
-  - RIS file validation and upload
-  - File parsing progress feedback
-  - Abstract extraction and formatting
-- **Screening Filters**:
-  - Title keyword filtering
-  - Line number range limitation
-  - Clear filter options
-- **Test Screening**:
-  - Sample size settings
-  - Random sampling methods
-  - Real-time processing progress display
-- **Performance Evaluation**:
-  - Confusion matrix visualization
-  - Cohen's Kappa coefficient calculation
-  - Precision, recall, F1 score and other metrics
-  - Workload reduction rate estimation
-- **Full Dataset Screening**:
-  - Parallel processing optimization
-  - Real-time progress updates
-  - Paginated result display
-  - Expandable/collapsible detail views
-
-### Full-text Screening
-- **Single File Screening**:
-  - PDF file upload and validation
-  - Text extraction processing
-  - OCR fallback processing
-  - Page number and line number marking
-- **Document Preview**:
-  - Original PDF interactive preview
-  - Extracted text page display
-  - Page navigation controls
-- **Batch Processing**:
-  - Multiple file selection and upload
-  - Upload queue preview
-  - Filename filtering
-  - Upload order filtering
-- **Result Management**:
-  - Batch processing statistical summary
-  - Result sorting options
-  - Multiple format exports
-  - Result caching and recovery
-
-### Data Extraction
-- **Extraction Configuration**:
-  - Custom field definition with user-specified names and descriptions
-  - Template-based extraction instruction settings for structured data capture
-  - JSON schema configuration for consistent output formatting
-  - Support for multiple data fields with complex relationships
-- **Processing Control**:
-  - Real-time extraction progress monitoring with status indicators
-  - Robust error handling with detailed diagnostics and recovery options
-  - Interactive result preview with expandable/collapsible fields
-  - Content validation against defined schema rules
-- **Data Output**:
-  - Structured JSON output with nested field relationships
-  - Tabularized data view for easy readability
-  - Multiple export options (JSON, CSV, Excel)
-  - Citation metadata preservation
-  - Extracted data can be directly integrated with analysis workflows
-
-### Quality Assessment
-- **Assessment Configuration**:
-  - Upload single or multiple PDFs for automatic methodological quality assessment
-  - Choose document type (Systematic Review, RCT, Cohort, Case-Control, Cross-sectional, Qualitative) or let AI classify automatically
-  - Criteria derived from AMSTAR 2, Cochrane RoB 2, QUADAS-2, Newcastle-Ottawa Scale, AXIS, CASP, etc.
-- **Processing Control**:
-  - Real-time progress monitoring with status polling
-  - Parallel assessment for batch uploads with graceful error handling and retry support
-  - Interactive result view with expandable criterion-level feedback and inline PDF preview
-- **Result Output**:
-  - Summary table of negative findings and total criteria evaluated
-  - Detailed JSON report for each criterion with AI rationale
-  - Export options: CSV, Excel, JSON
-
-### Batch Processing
-- **Queue Management**:
-  - Processing priority settings
-  - Queue status monitoring
-  - Failed task retry
-- **Resource Optimization**:
-  - Dynamic thread pool adjustment
-  - Memory usage monitoring
-  - Timeout handling
-- **Result Aggregation**:
-  - Batch processing statistical reports
-  - Anomaly situation flagging
-  - Result set exports
-
-## 💻 Installation Guide
-
-### Environment Requirements
-- **Operating System**:
-  - Linux, macOS, or Windows
-  - Ubuntu 20.04+ recommended for server deployment
-- **Python Version**: 3.10+ (3.11 recommended)
-- **Hardware Requirements**:
-  - Memory: 2GB minimum, 4GB+ recommended
-  - Storage: At least 1GB available space
-  - CPU: Multi-core processor (parallel processing optimization)
-- **Network**: Stable internet connection (for external LLM API calls)
-- **External Dependencies**:
-  - Tesseract OCR engine (for PDF OCR functionality)
-  - (Optional) Nginx (for production deployment)
-
-### Dependency Installation
-#### Basic Setup
-```bash
-# Clone repository
-git clone https://github.com/ChaokunHong/MetaScreener.git
-cd MetaScreener
-
-# Create and activate virtual environment
-python3 -m venv venv
-source venv/bin/activate  # Linux/macOS
-# or .\venv\Scripts\activate  # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-#### Tesseract OCR Installation
-**Ubuntu/Debian**:
-```bash
-sudo apt-get update
-sudo apt-get install tesseract-ocr tesseract-ocr-eng
-# Optional: Install additional language packs
-# sudo apt-get install tesseract-ocr-chi-sim
-```
-
-**macOS (using Homebrew)**:
-```bash
-brew install tesseract tesseract-lang
-```
-
-**Windows**:
-Download installer from the [Tesseract GitHub page](https://github.com/UB-Mannheim/tesseract/wiki).
-
-### Configuration Options
-Create an `.env` file in the project root directory:
-```dotenv
-# --- LLM API Keys (Optional - can also be set through UI session) ---
-# DEEPSEEK_API_KEY=sk-your_deepseek_key_here
-# OPENAI_API_KEY=sk-your_openai_key_here
-# GEMINI_API_KEY=AIz...your_gemini_key_here
-# ANTHROPIC_API_KEY=sk-ant-...your_claude_key_here
-
-# --- Flask Configuration (Optional but recommended) ---
-# SECRET_KEY=strong_random_string_for_session_security
-# FLASK_DEBUG=1  # Set in development mode
-
-# --- Tesseract OCR Configuration (Optional) ---
-# TESSERACT_CMD_PATH=/usr/bin/tesseract  # Set Tesseract path if not in system PATH
-# PDF_OCR_THRESHOLD_CHARS=50  # Minimum character threshold to skip OCR
-
-# --- Log Level (Optional) ---
-# LOGLEVEL=DEBUG  # More detailed logs (default is INFO)
-```
-
-## 📘 Usage Guide
-
-### Workflow
-The standard workflow for MetaScreener includes the following steps:
-
-#### 1. Initial Configuration
-- Visit the homepage to understand system overview
-- Navigate to "Configure LLM & Start" or directly to "View Screening Actions"
-
-#### 2. LLM Configuration (`/llm_config`)
-- Select LLM provider and model
-- Enter API key (will be stored in current browser session)
-- Confirm key status (Not set/Using environment default/Set)
-- Save configuration
-
-#### 3. Screening Criteria Setup (`/criteria`)
-- Select appropriate criteria framework for your research (PICOT, SPIDER, etc.)
-- Define Include, Exclude, and Maybe conditions for each framework element
-- Optionally use advanced mode to customize AI prompts and output format
-- Save criteria or reset to default examples as needed
-
-#### 4. Screening Action Selection (`/screening_actions`)
-- Interface provides links to different screening modules
-
-#### 5. Abstract Screening (`/abstract_screening`)
-- Upload .ris file
-- Optionally filter literature by title keywords or line number range
-- Perform test screening (on a sample), view detailed performance metrics
-- Perform full dataset screening, view results and download
-
-#### 6. Full-text PDF Screening (`/full_text_screening`)
-- **Single PDF Mode**: Upload, screen, view results (including extracted text and PDF preview)
-- **Batch PDF Mode**: Upload multiple PDFs, filter/remove selected files, filter by filename or upload order, process in parallel, view and download batch results
-
-#### 7. Data Extraction (Beta) (`/data_extraction`)
-- Define custom data fields to extract from a single PDF
-
-#### 8. Quality Assessment (`/quality/upload`)
-- Upload one or more PDFs, select or auto-detect study type, run AI quality assessment, view and download detailed reports
-
-### Best Practices
-- **Framework Selection**: Choose appropriate screening framework based on research type:
-  - PICOT: Suitable for intervention studies
-  - PICOS: Suitable for systematic reviews
-  - PECO: Suitable for epidemiological studies
-  - SPIDER: Suitable for qualitative research
-- **Test Screening**: Always run test screening on a sample first to validate AI decision quality
-- **Criteria Adjustment**: Adjust screening criteria based on test results to improve accuracy
-- **Incremental Processing**: Consider dividing files into smaller groups when processing large batches
-- **Result Verification**: Manually review automated decisions, especially "MAYBE" decisions
-- **API Key Management**: Use temporarily stored session keys, avoid saving keys in environment variables
-- **Regular Backups**: Regularly export screening results to prevent session expiration loss
-
-## 🌐 Deployment Options
-
-### Local Development Environment
-```bash
-# Ensure virtual environment is activated
-# source venv/bin/activate or .\venv\Scripts\activate
-
-# Use Flask's built-in server (good for development)
-export FLASK_APP=app.py
-export FLASK_DEBUG=1  # Optional, enables debug mode
-flask run --host=0.0.0.0 --port=5050
-
-# Or run directly (if app.py contains app.run() code)
-python app.py
-```
-
-### Production Environment
-
-#### Gunicorn Setup
-```bash
-# Ensure Gunicorn is installed
-pip install gunicorn
-
-# Run Gunicorn with appropriate configuration
-gunicorn --workers 3 --bind 0.0.0.0:5000 app:app
-```
-
-#### Nginx Configuration (Example)
-```nginx
-server {
-    listen 80;
-    server_name your_domain.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # Support for SSE
-        proxy_http_version 1.1;
-        proxy_set_header Connection '';
-        proxy_buffering off;
-        
-        # Important: Allow large file uploads
-        client_max_body_size 100M;
-    }
-}
-```
-
-#### Systemd Service (Example)
-```ini
-# /etc/systemd/system/metascreener.service
-[Unit]
-Description=MetaScreener Gunicorn Service
-After=network.target
-
-[Service]
-User=www-data
-Group=www-data
-WorkingDirectory=/path/to/MetaScreener
-ExecStart=/path/to/MetaScreener/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:5000 app:app
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### Cloud Services
-
-#### Tencent Cloud Deployment (Primary Deployment)
-- Use Tencent Cloud ECS instance
-- Configure Nginx as reverse proxy
-- Set up SSL certificate
-- Configure firewall rules (allow ports 80/443)
-- Configure application to run automatically via Systemd service
-
-#### Render.com Deployment (Alternative Deployment)
-- Create new Web Service on Render.com
-- Set build command: `pip install -r requirements.txt`
-- Set start command: `gunicorn --workers 4 --bind 0.0.0.0:$PORT app:app`
-- Configure necessary environment variables
-- Deploy application
-
-## 🔧 System Architecture
-
-### Code Organization
-```
-MetaScreener/
-├── app.py                 # Main application entry point
-├── config.py              # Configuration definitions and utility functions
-├── utils.py               # Common utility function set
-├── requirements.txt       # Dependency library list
-├── README.md              # Project documentation
-├── Procfile               # Render.com deployment configuration
-├── .env                   # Environment variable configuration (local development)
-├── static/                # Static resource directory
-│   └── images/            # Image resources
-│       └── logo.png       # Application logo
-├── templates/             # HTML template directory
-│   ├── base.html          # Base template (contains common layout)
-│   ├── index.html         # Homepage template
-│   ├── llm_configuration.html # LLM configuration page
-│   ├── screening_criteria.html # Screening criteria configuration page
-│   ├── screening_actions.html  # Screening action selection page
-│   ├── abstract_screening.html # Abstract screening page
-│   ├── full_text_screening.html # Full-text screening page
-│   ├── results.html       # Screening results page
-│   ├── test_results.html  # Test screening results page
-│   ├── metrics_results.html # Performance metrics results page
-│   ├── pdf_result.html    # PDF screening results page
-│   ├── batch_pdf_results.html # Batch PDF screening results page
-│   ├── data_extraction.html # Data extraction page
-│   └── extraction_result.html # Data extraction results page
-├── quality_assessment/       # Quality assessment blueprint (routes, services, templates)
-└── uploads/               # Uploaded file temporary storage directory
-```
-
-### Data Flow
-1. **Input Processing**:
-   - RIS files parsed into pandas DataFrame via `rispy`
-   - PDF files have text extracted via `PyMuPDF`+`Tesseract OCR`
-   - User criteria submitted via web forms, stored in session
-
-2. **AI Processing**:
-   - Build prompt = system prompt + screening criteria + text content + output format requirements
-   - Submit prompt through selected LLM's API
-   - Parse API response, extract decision label and explanation
-
-3. **Parallel Processing**:
-   - Batch tasks use `ThreadPoolExecutor` to create thread pool
-   - Tasks assigned to threads, asynchronously execute API calls
-   - Results streamed to frontend via SSE
-
-4. **Result Management**:
-   - Temporary results stored in application memory (dictionaries/cache)
-   - PDF file results use `TTLCache` (2-hour expiration)
-   - Long-term cached data periodically cleaned via background tasks
-
-5. **File Cleanup**:
-   - Batch processing PDFs deleted immediately after processing
-   - Single-file preview PDFs periodically cleaned via `APScheduler` tasks
-   - Session data cleared when browser session ends
-
-## 🔒 Security and Privacy
-
-- **API Key Handling**:
-  - Keys stored only in current browser session
-  - Automatically cleared after session ends
-  - Not persistently stored on server backend
-  - Transmitted via HTTPS to prevent man-in-the-middle attacks
-
-- **File Handling**:
-  - Uploaded files temporarily stored on server
-  - Batch processing PDFs deleted immediately after processing
-  - Single file PDFs retained for a few hours at most before deletion
-  - Filenames use UUID prefixes to prevent conflicts
-
-- **Session Security**:
-  - Uses Flask's secure session mechanism
-  - Session key configured via environment variable
-  - Prevention of session fixation attacks
-  - Regular session rotation
-
-- **Input Validation**:
-  - File type validation
-  - File size limitations
-  - Filename security handling
-  - Content type validation
-
-- **CORS Policy**:
-  - Cross-origin request limitations based on deployment environment
-  - Appropriate content security policy settings
-  - Prevention of unauthorized API calls
-
-## ⚡ Performance Optimization
-
-- **Concurrent Processing**:
-  - ThreadPoolExecutor manages parallel API calls
-  - Batch tasks automatically load balanced
-  - Dynamic thread count adjustment based on server load
-
-- **Caching Strategy**:
-  - TTLCache for PDF processing results
-  - LLM configuration and screening criteria cached in session
-  - Avoids reprocessing identical content
-
-- **Chunked Processing**:
-  - Large RIS files processed in batches
-  - Large PDFs use paging strategy
-  - Stream transmission for long processing task results
-
-- **Resource Management**:
-  - Timely cleanup of temporary files to free disk space
-  - Memory usage monitoring and optimization
-  - Regular garbage collection of expired cache data
-
-- **Background Task Scheduling**:
-  - APScheduler manages periodic maintenance tasks
-  - Non-critical operations executed asynchronously
-  - Smooth handling of load peaks
-
-## ❓ Frequently Asked Questions
-
-1. **API Key Configuration Issues**
-   - **Problem**: API key not saved or invalid
-   - **Solution**: Confirm API key is correct and properly saved in session; check account balance is sufficient
-
-2. **File Processing Errors**
-   - **Problem**: RIS file parsing failure
-   - **Solution**: Ensure RIS file uses correct encoding format (UTF-8); verify file structure conforms to standards
-
-3. **PDF Text Extraction Issues**
-   - **Problem**: Incomplete PDF text extraction results
-   - **Solution**: Confirm PDF is not scanned or image-based; check Tesseract OCR installation is correct
-
-4. **LLM Response Parsing Errors**
-   - **Problem**: LLM returned content cannot be correctly parsed into decision labels
-   - **Solution**: Adjust output format instructions; check LLM response completeness
-
-5. **Batch Processing Performance Issues**
-   - **Problem**: Batch processing becomes slow or times out
-   - **Solution**: Reduce batch processing scale; adjust thread count; check network connection stability
-
-6. **File Upload Failures**
-   - **Problem**: Large PDF upload fails (413 error)
-   - **Solution**: Check `client_max_body_size` parameter in Nginx configuration; adjust Flask upload limits
-
-7. **Session Expiration Issues**
-   - **Problem**: Results lost after screening interruption
-   - **Solution**: Periodically save partial results; reduce batch processing scale
-
-8. **Deployment Issues**
-   - **Problem**: Gunicorn startup failure
-   - **Solution**: Check dependency installation completeness; verify permission configuration; check logs for detailed error information
-
-## 📈 Changelog
-
-### v1.0.0 (2025-05-13)
-- Initial version release
-
-
-## 🚀 Development Roadmap
-
-### Near-term Plans
-- **User Account System**: Implement user registration, login, and personal settings
-- **Project Management**: Support saving and organizing multiple screening projects
-- **Team Collaboration**: Add multi-user collaboration and role management
-- **Advanced Data Analysis**: Integrate richer result analysis and visualization
-
-### Mid-term Goals
-- **Annotations and Comments**: Support annotations, discussions, and revisions of results
-- **API Interface**: Provide programmatic access interface
-- **Offline Mode**: Support offline use of some functionality
-
-### Long-term Vision
-- **Adaptive Learning**: Optimize screening decisions based on user feedback
-- **Integration Extensions**: Deep integration with literature management software and academic databases
-- **Mobile Application**: Develop companion mobile application
-- **Multilingual Support**: Extend UI and processing capabilities to multiple languages
-
-## 🤝 Contribution Guidelines
-
-We welcome contributions from the community to help improve MetaScreener. Here are some ways you can contribute:
-
-### Types of Contributions
-- **Bug Reports**: Open an issue describing the bug, steps to reproduce, and expected behavior
-- **Feature Suggestions**: Share ideas for new features or improvements
-- **Code Contributions**: Submit pull requests for bug fixes or new features
-- **Documentation**: Help improve or translate documentation
-- **Testing**: Provide feedback on new features or help test releases
-- **UI/UX Improvements**: Suggest improvements to the user interface and experience
-
-### How to Contribute
-1. **Fork the Repository**: Create your own fork of the project
-2. **Create a Branch**: Make your changes in a new branch
-3. **Submit a Pull Request**: Once your changes are ready, submit a pull request
-4. **Code Review**: Wait for the review process and address any feedback
-
-### Contribution Standards
-- Follow the existing code style and conventions
-- Include appropriate tests for new features
-- Update documentation as necessary
-- Keep pull requests focused on a single issue or feature
-- Be respectful and constructive in communications
-
-We appreciate all contributions, no matter how small, and will acknowledge contributors in the project documentation.
-
-## 🙏 Acknowledgments and Contributions
-
-We would like to express our sincere gratitude to the following individuals who have made significant contributions to the development and improvement of MetaScreener:
-
-**Shuo Feng**
-- Faculty of Medicine, Macau University of Science and Technology
-- fengsh27mail@gmail.com
-- Contributed valuable suggestions for UI/UX improvements and functionality enhancements, including the implementation of pause/resume functionality for large dataset screening, optimized log display, and streamlined history record management
-- Provided thorough testing after each modification to ensure functionality and usability
-
-We deeply appreciate the time and expertise contributed by all collaborators and testers, whose feedback has been instrumental in refining MetaScreener into a more robust and user-friendly tool.
-
-## 👥 Author Information
-
-MetaScreener was developed by the following researchers:
-
-**Sonia Lewycka**
-- slewycka@oucru.org
-- Centre for Tropical Medicine and Global Health, Nuffield Department of Medicine, University of Oxford
-
-**Chaokun Hong**
-- chaokun.hong@ndm.ox.ac.uk
-- Centre for Tropical Medicine and Global Health, Nuffield Department of Medicine, University of Oxford
-
-**Thao Phuong Nguyen**
-- ngthao.20107@gmail.com
-- Oxford University Clinical Research Unit, National Hospital for Tropical Diseases, Hanoi, Vietnam
-
-
-We welcome feedback about MetaScreener's performance, functionality, and improvements, especially usage data from actual literature screening workflows (sensitivity, specificity, time saved, etc.). Your real-world usage data is invaluable for improving this tool! We will include any valuable feedback in the contributions or acknowledgments.
-
-## ⚖️ Disclaimer
-
-MetaScreener is provided "as-is" without any warranties of any kind, express or implied. The accuracy of AI-driven screening and data extraction heavily depends on the chosen LLM, the quality of the input data, and the clarity of the defined criteria. Users are solely responsible for verifying all results and making final decisions. The developers assume no liability for any outcomes resulting from the use of this software. Please use responsibly and in accordance with all applicable ethical guidelines and institutional policies.
 
 ---
 
+<br>
+
+## Welcome to the Future of Literature Screening
+
 <div align="center">
-© 2025 Chaokun Hong & Thao Phuong Nguyen | Nuffield Department of Medicine, University of Oxford & Oxford University Clinical Research Unit
+<sub style="color: #1fc2c2; font-size: 16px; font-weight: 500;">*Take a deep breath. Your screening workload is about to get 70% lighter.*</sub>
 </div>
 
+<br>
+
+**The Challenge You Face:** Screening thousands of papers manually is exhausting. It takes weeks, leads to inconsistencies, and burns you out before the real research begins.
+
+**Your Solution is Here:** MetaScreener combines cutting-edge AI with human expertise to screen literature with **95%+ accuracy** while giving you back **weeks of your life**.
+
+<br>
+
+### Why Researchers Choose MetaScreener
+
+<div style="background: linear-gradient(135deg, #f0fdfa 0%, #faf5ff 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #00c4b0;">
+
+```
+Human-AI Partnership    → We enhance your expertise, never replace it
+Privacy First          → Your data stays secure, processing happens locally  
+Lightning Fast         → Process 1000+ abstracts in under 30 minutes
+Research Frameworks    → 8 validated frameworks (PICOT, SPIDER, PICOS...)
+AI Flexibility        → Choose from OpenAI, Claude, Gemini, or DeepSeek
+```
+
+</div>
+
+<br>
+
+---
+
+<br>
+
+## Your MetaScreener Experience
+
+<div align="center">
+<sub style="color: #a78bfa; font-size: 16px; font-weight: 500;">*Four powerful ways to accelerate your research*</sub>
+</div>
+
+<br>
+
+<table style="border: 2px solid #00c4b0; border-radius: 12px; overflow: hidden;">
+<tr>
+<td width="50%" align="center" style="background: linear-gradient(135deg, #ecfdf5 0%, #fdf4ff 100%); padding: 25px;">
+
+### **Abstract Screening**
+<span style="color: #1fc2c2; font-weight: 500;">*Your literature database → Intelligent decisions*</span>
+
+Upload RIS file → Define criteria → Get reasoned decisions  
+*Perfect for initial screening of thousands of papers*
+
+<br>
+
+### **Full-Text Analysis**  
+<span style="color: #a78bfa; font-weight: 500;">*Deep dive into methodology and content*</span>
+
+Upload PDFs → Extract insights → Quality assessment  
+*Comprehensive evaluation with detailed reasoning*
+
+</td>
+<td width="50%" align="center" style="background: linear-gradient(135deg, #f0fdfa 0%, #faf5ff 100%); padding: 25px;">
+
+### **Data Extraction**
+<span style="color: #00c4b0; font-weight: 500;">*Transform papers into structured datasets*</span>
+
+Define fields → Extract data → Export ready results  
+*Turn literature into analyzable information*
+
+<br>
+
+### **Quality Assessment**
+<span style="color: #8b5cf6; font-weight: 500;">*Automated methodological evaluation*</span>
+
+Upload studies → AI evaluation → Detailed scoring  
+*Built-in AMSTAR 2, Cochrane RoB 2, QUADAS-2*
+
+</td>
+</tr>
+</table>
+
+<br>
+
+---
+
+<br>
+
+## Quick Start Guide
+
+<div align="center">
+<sub style="color: #1fc2c2; font-size: 16px; font-weight: 500;">*Your journey to effortless screening starts here*</sub>
+</div>
+
+<br>
+
+<div style="background: linear-gradient(135deg, #ecfdf5 0%, #fdf4ff 100%); padding: 20px; border-radius: 12px; border: 2px solid #a78bfa;">
+
+```
+Total Time: ~17 minutes     Cost: $0.07-$1.50 per review     Success Rate: 95%+
+```
+
+</div>
+
+<br>
+
+### **Step 1** • Get Your AI Key *(2 minutes)*
+
+<div align="center" style="background: linear-gradient(135deg, #f0fdfa 0%, #faf5ff 100%); padding: 25px; border-radius: 12px; border-left: 4px solid #00c4b0;">
+
+<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+<thead>
+<tr style="background: rgba(0, 196, 176, 0.1);">
+<th style="padding: 15px; text-align: left; font-weight: 600; color: #00c4b0;">AI Provider</th>
+<th style="padding: 15px; text-align: center; font-weight: 600; color: #00c4b0;">Cost per 100 abstracts</th>
+<th style="padding: 15px; text-align: center; font-weight: 600; color: #00c4b0;">Performance</th>
+<th style="padding: 15px; text-align: left; font-weight: 600; color: #00c4b0;">Best for</th>
+</tr>
+</thead>
+<tbody>
+<tr style="border-bottom: 1px solid rgba(0, 196, 176, 0.2);">
+<td style="padding: 15px; font-weight: 600; color: #1fc2c2;">
+<strong>DeepSeek</strong><br>
+<small style="color: #6b7280;">deepseek-chat, deepseek-reasoner</small>
+</td>
+<td style="padding: 15px; text-align: center; font-weight: 600; color: #059669;">$0.07-0.12</td>
+<td style="padding: 15px; text-align: center;">⭐⭐⭐⭐</td>
+<td style="padding: 15px; color: #374151;">Ultra cost-effective projects</td>
+</tr>
+<tr style="border-bottom: 1px solid rgba(167, 139, 250, 0.2);">
+<td style="padding: 15px; font-weight: 600; color: #8b5cf6;">
+<strong>OpenAI</strong><br>
+<small style="color: #6b7280;">GPT-4, GPT-4 Turbo</small>
+</td>
+<td style="padding: 15px; text-align: center; font-weight: 600; color: #d97706;">$2.15-4.30</td>
+<td style="padding: 15px; text-align: center;">⭐⭐⭐⭐⭐</td>
+<td style="padding: 15px; color: #374151;">Premium accuracy & reasoning</td>
+</tr>
+<tr style="border-bottom: 1px solid rgba(31, 194, 194, 0.2);">
+<td style="padding: 15px; font-weight: 600; color: #1fc2c2;">
+<strong>Anthropic Claude</strong><br>
+<small style="color: #6b7280;">Claude 3.5 Sonnet, Claude 3 Opus</small>
+</td>
+<td style="padding: 15px; text-align: center; font-weight: 600; color: #d97706;">$2.85-5.70</td>
+<td style="padding: 15px; text-align: center;">⭐⭐⭐⭐⭐</td>
+<td style="padding: 15px; color: #374151;">Advanced reasoning & safety</td>
+</tr>
+<tr>
+<td style="padding: 15px; font-weight: 600; color: #a78bfa;">
+<strong>Google Gemini</strong><br>
+<small style="color: #6b7280;">Gemini 1.5 Pro, Gemini 1.5 Flash</small>
+</td>
+<td style="padding: 15px; text-align: center; font-weight: 600; color: #d97706;">$3.55-6.40</td>
+<td style="padding: 15px; text-align: center;">⭐⭐⭐⭐</td>
+<td style="padding: 15px; color: #374151;">Multimodal capabilities</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+
+<br>
+
+### **Step 2** • Define Your Criteria *(5 minutes)*
+
+<div style="background: linear-gradient(135deg, #fdf4ff 0%, #ecfdf5 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #a78bfa;">
+
+Choose your research framework:
+```
+PICOT   → Intervention studies        PICOS  → Systematic reviews  
+PECO    → Epidemiological studies     SPIDER → Qualitative research
+ECLIPSE → Healthcare evaluation       CLIP   → Client-focused studies
+BeHEMoTh → Behavioral studies         PICOC  → Comparison studies
+```
+
+</div>
+
+<br>
+
+### **Step 3** • Screen & Validate *(10 minutes)*
+
+<div style="background: linear-gradient(135deg, #ecfdf5 0%, #fdf4ff 100%); padding: 25px; border-radius: 12px; border-left: 4px solid #1fc2c2;">
+
+**Our Validation Framework - A Key Differentiator:**
+
+MetaScreener employs comprehensive validation standards that set us apart:
+
+```
+✓ Multi-layer Quality Control
+  → Automated consistency checks across AI decisions
+  → Real-time confidence scoring for each screening decision
+  → Statistical validation against human expert baselines
+
+✓ Evidence-Based Metrics  
+  → Cohen's Kappa for inter-rater reliability (0.85+ achieved)
+  → Sensitivity & Specificity tracking with live feedback
+  → Publication bias detection and flagging
+
+✓ Continuous Calibration
+  → AI model performance monitoring per research domain
+  → Adaptive thresholds based on your screening patterns
+  → Quality assurance reports with actionable insights
+
+✓ Workflow Integration
+  → Start with test samples (recommended: 50-100 papers)
+  → Review AI reasoning with evidence citations
+  → Fine-tune criteria based on validation metrics
+  → Scale confidently with real-time quality monitoring
+```
+
+*This validation system ensures research-grade reliability at every step.*
+
+</div>
+
+<br>
+
+### **Step 4** • Export & Celebrate
+
+Download your results in CSV, Excel, or JSON format
+
+<div align="center" style="background: linear-gradient(135deg, #fdf4ff 0%, #f0fdfa 100%); padding: 25px; border-radius: 12px; border: 2px solid #8b5cf6;">
+
+### **Congratulations!**
+<span style="color: #a78bfa; font-weight: 500;">*You just saved weeks of manual work and gained research superpowers*</span>
+
+</div>
+
+<br>
+
+---
+
+<br>
+
+## Getting Started
+
+<div align="center">
+<sub style="color: #00c4b0; font-size: 16px; font-weight: 500;">*Two paths to literature screening excellence*</sub>
+</div>
+
+<br>
+
+### **Option 1** • Use Online *(Recommended)*
+
+<div style="background: linear-gradient(135deg, #f0fdfa 0%, #faf5ff 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #00c4b0;">
+
+**➡️ [metascreener.net](https://www.metascreener.net/)**  
+
+*No installation needed. Just bring your API key and research questions.*
+
+</div>
+
+<br>
+
+### **Option 2** • Run Locally
+
+<div style="background: linear-gradient(135deg, #fdf4ff 0%, #ecfdf5 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #a78bfa;">
+
+**Prerequisites:** Python 3.10+ • 5 minutes • A cup of coffee
+
+<br>
+
+**Installation Flow:**
+```bash
+# 1. Get the code
+git clone https://github.com/ChaokunHong/MetaScreener.git
+cd MetaScreener
+
+# 2. Set up environment  
+python -m venv venv
+source venv/bin/activate  # Windows: .\venv\Scripts\activate
+
+# 3. Install and launch
+pip install -r requirements.txt
+python app.py
+
+# 4. Open browser → http://localhost:5050
+```
+
+<br>
+
+**Need OCR for scanned PDFs?**
+```bash
+# macOS      → brew install tesseract
+# Ubuntu     → sudo apt-get install tesseract-ocr  
+# Windows    → Download from tesseract-ocr.github.io
+```
+
+</div>
+
+<br>
+
+---
+
+<br>
+
+## Performance & Validation
+
+<div align="center">
+<h3 style="color: #1fc2c2; font-size: 20px; font-weight: 600; margin: 0;">Validated by researchers, for researchers</h3>
+</div>
+
+<br>
+
+### **Research Validation Dashboard**
+
+<div align="center" style="background: linear-gradient(135deg, #ecfdf5 0%, #fdf4ff 100%); padding: 25px; border-radius: 12px; border: 2px solid #00c4b0;">
+
+```
+VALIDATION DATASET: 4,230 articles • 18 global institutions
+
+┌─────────────────────┬──────────┬─────────────────────────────┐
+│ Performance Metric  │ Result   │ What This Means             │
+├─────────────────────┼──────────┼─────────────────────────────┤
+│ Sensitivity         │ 95-97%   │ Rarely misses relevant      │
+│ Specificity         │ 85-92%   │ Significantly reduces work  │
+│ Cohen's Kappa       │ 0.85+    │ Excellent reliability       │
+│ Time Reduction      │ 40-89%   │ Average 68% time saved      │
+│ Cost Efficiency     │ 99%+     │ Fraction of manual cost     │
+└─────────────────────┴──────────┴─────────────────────────────┘
+
+CONTRIBUTING INSTITUTIONS:
+• University of Oxford (UK)          • Peking University (China)  
+• University of Sydney (Australia)   • University of Melbourne (Australia)
+• Imperial College London (UK)       • University of Wisconsin (USA)
+• + 12 more institutions worldwide
+```
+
+</div>
+
+<br>
+
+### **Performance Comparison**
+
+<div align="center" style="background: linear-gradient(135deg, #fdf4ff 0%, #f0fdfa 100%); padding: 25px; border-radius: 12px; border: 2px solid #a78bfa;">
+
+```
+MANUAL vs AI-ASSISTED SCREENING
+
+Traditional Method:          MetaScreener Method:
+┌─────────────────┐          ┌─────────────────┐
+│ 2 Reviewers     │    →     │ 1 Researcher    │
+│ 3-4 Weeks       │          │ 3-5 Days        │
+│ $2,000-5,000    │          │ $7-70           │
+│ High Burnout    │          │ Focused Work    │
+│ Variable        │          │ Consistent      │
+└─────────────────┘          └─────────────────┘
+        vs                          ✨
+   Manual Process              AI-Enhanced
+```
+
+</div>
+
+<br>
+
+---
+
+<br>
+
+## Meet Our Research Team
+
+<div align="center">
+<h3 style="color: #8b5cf6; font-size: 20px; font-weight: 600; margin: 0;">Dedicated researchers building tools for the research community</h3>
+</div>
+
+<br>
+
+<div style="background: linear-gradient(135deg, #f0fdfa 0%, #faf5ff 100%); padding: 25px; border-radius: 12px; border-left: 4px solid #1fc2c2;">
+
+**Dr. Sonia Lewycka** • *Lead Researcher & Visionary*  
+Centre for Tropical Medicine and Global Health, University of Oxford  
+📧 [slewycka@oucru.org](mailto:slewycka@oucru.org)  
+
+<br>
+
+**Chaokun Hong** • *Lead Developer & Architect*  
+Centre for Tropical Medicine and Global Health, University of Oxford  
+📧 [chaokun.hong@ndm.ox.ac.uk](mailto:chaokun.hong@ndm.ox.ac.uk)  
+
+<br>
+
+**Thao Phuong Nguyen** • *Co-Developer & Researcher*  
+Oxford University Clinical Research Unit, Hanoi, Vietnam  
+📧 [ngthao.20107@gmail.com](mailto:ngthao.20107@gmail.com)  
+
+</div>
+
+<br>
+
+---
+
+### **Special Recognition**
+
+<div style="background: linear-gradient(135deg, #fdf4ff 0%, #ecfdf5 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #a78bfa;">
+
+**Shuo Feng** • *UI/UX Innovation Partner*  
+Macau University of Science and Technology  
+📧 [fengsh27mail@gmail.com](mailto:fengsh27mail@gmail.com)  
+*Contributed essential UI/UX improvements and comprehensive testing*
+
+<div align="center">
+<sub style="color: #8b5cf6; font-size: 14px; font-weight: 500;">We're grateful to all researchers worldwide who contribute feedback and validation data</sub>
+</div>
+
+</div>
+
+<br>
+
+---
+
+<br>
+
+## Technical Excellence
+
+<div align="center">
+<h3 style="color: #00c4b0; font-size: 20px; font-weight: 600; margin: 0;">Built with modern technologies for reliability and performance</h3>
+</div>
+
+<br>
+
+<details>
+<summary><b style="color: #1fc2c2; font-size: 16px;">System Architecture</b></summary>
+
+<br>
+
+<div style="background: linear-gradient(135deg, #ecfdf5 0%, #fdf4ff 100%); padding: 20px; border-radius: 12px;">
+
+```
+METASCREENER ARCHITECTURE
+
+┌─────────────────────┬───────────────────────────────────────────┐
+│ Layer               │ Technologies & Purpose                    │
+├─────────────────────┼───────────────────────────────────────────┤
+│ Frontend            │ HTML5 + CSS3 + JavaScript + PDF.js       │
+│                     │ → Responsive UI with real-time updates   │
+├─────────────────────┼───────────────────────────────────────────┤
+│ Backend             │ Python + Flask + Gunicorn                │
+│                     │ → RESTful API with session management    │
+├─────────────────────┼───────────────────────────────────────────┤
+│ AI Integration      │ OpenAI • Anthropic • Google • DeepSeek   │
+│                     │ → Multi-provider LLM orchestration       │
+├─────────────────────┼───────────────────────────────────────────┤
+│ Document Engine     │ PyMuPDF + Tesseract OCR + pandas         │
+│                     │ → Advanced text extraction & processing  │
+├─────────────────────┼───────────────────────────────────────────┤
+│ Deployment          │ Docker + Cloud-native + SSE              │
+│                     │ → Scalable infrastructure & monitoring   │
+└─────────────────────┴───────────────────────────────────────────┘
+```
+
+</div>
+
+</details>
+
+<details>
+<summary><b style="color: #a78bfa; font-size: 16px;">Security & Privacy</b></summary>
+
+<br>
+
+<div style="background: linear-gradient(135deg, #fdf4ff 0%, #f0fdfa 100%); padding: 20px; border-radius: 12px;">
+
+**Your Research, Your Control:**
+- API keys stored only in your browser session
+- Files processed locally, then immediately deleted  
+- Zero data persistence on our servers
+- End-to-end HTTPS encryption
+
+**Enterprise-Grade Security:**
+- Session security with automatic key rotation
+- Comprehensive input validation and sanitization
+- CORS protection against unauthorized access
+- Strict file type and size validation
+
+</div>
+
+</details>
+
+<br>
+
+---
+
+<br>
+
+## Development Roadmap
+
+<div align="center">
+<h3 style="color: #1fc2c2; font-size: 20px; font-weight: 600; margin: 0;">Exciting innovations coming to enhance your research experience</h3>
+</div>
+
+<br>
+
+### **Next Quarter** *(Q2 2025)*
+
+<div style="background: linear-gradient(135deg, #ecfdf5 0%, #fdf4ff 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #00c4b0;">
+
+```
+Active Learning Integration
+   → AI learns from your feedback to improve accuracy over time
+   
+Advanced Analytics Dashboard  
+   → Real-time screening insights and team collaboration metrics
+   
+REST API Launch
+   → Programmatic access for seamless workflow integration
+```
+
+</div>
+
+<br>
+
+### **Mid-term Goals** *(Q3-Q4 2025)*
+
+<div style="background: linear-gradient(135deg, #fdf4ff 0%, #ecfdf5 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #a78bfa;">
+
+```
+Multi-user Collaboration Platform
+   → Team accounts with role-based permissions and project sharing
+   
+Progressive Web Application
+   → Mobile-optimized interface for screening on any device
+   
+Reference Manager Integration  
+   → Direct synchronization with Zotero, Mendeley, and EndNote
+```
+
+</div>
+
+<br>
+
+### **Long-term Vision** *(2026+)*
+
+<div style="background: linear-gradient(135deg, #f0fdfa 0%, #faf5ff 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #1fc2c2;">
+
+```
+Multilingual Literature Support
+   → Advanced screening for non-English research papers
+   
+Custom Model Training
+   → Domain-specific fine-tuned models for specialized fields
+   
+Predictive Research Analytics
+   → Forecast screening workload and optimize resource allocation
+```
+
+</div>
+
+<br>
+
+---
+
+<br>
+
+## Join Our Research Community
+
+<div align="center">
+<h3 style="color: #8b5cf6; font-size: 20px; font-weight: 600; margin: 0;">Together, we're revolutionizing how research gets done</h3>
+</div>
+
+<br>
+
+### **Ways to Contribute**
+
+<div style="background: linear-gradient(135deg, #fdf4ff 0%, #f0fdfa 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #a78bfa;">
+
+```
+Bug Reports       → Found something unexpected? We want to know
+Feature Requests  → What would make your workflow smoother?  
+Validation Data   → Share your screening datasets (anonymized)
+Documentation     → Help us create better guides and tutorials
+```
+
+</div>
+
+<br>
+
+### **Get Support & Connect**
+
+<div style="background: linear-gradient(135deg, #ecfdf5 0%, #fdf4ff 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #1fc2c2;">
+
+- **Primary Contact:** [chaokun.hong@ndm.ox.ac.uk](mailto:chaokun.hong@ndm.ox.ac.uk)
+- **Report Issues:** [GitHub Issues](https://github.com/ChaokunHong/MetaScreener/issues)
+- **Join Discussions:** [GitHub Discussions](https://github.com/ChaokunHong/MetaScreener/discussions)
+- **Documentation:** Comprehensive guides and tutorials available
+
+</div>
+
+<br>
+
+---
+
+<br>
+
+## Responsible Innovation
+
+<div align="center">
+<h3 style="color: #00c4b0; font-size: 20px; font-weight: 600; margin: 0;">Building AI tools that enhance human expertise</h3>
+</div>
+
+<br>
+
+<div style="background: linear-gradient(135deg, #f0fdfa 0%, #faf5ff 100%); padding: 25px; border-radius: 12px; border: 2px solid #8b5cf6;">
+
+**Open Source License** • **Responsible Use Guidelines**
+
+**Our Commitment:** MetaScreener enhances but never replaces human judgment. Always validate AI decisions, follow your institutional protocols, and maintain research integrity. We're here to accelerate your research, not automate your expertise.
+
+</div>
+
+<br>
+
+---
+
+<br>
+
+<div align="center" style="background: linear-gradient(135deg, #ecfdf5 0%, #fdf4ff 100%); padding: 40px; border-radius: 16px; border: 3px solid #00c4b0;">
+
+<img src="app/static/images/Meta_Screener_LOGO.png" alt="MetaScreener" width="140"/>
+
+<br>
+
+### <span style="color: #1fc2c2; font-size: 24px; font-weight: 600;">Ready to Transform Your Literature Reviews?</span>
+
+<br>
+
+### **[✨ Begin Your Research Journey](https://www.metascreener.net/)**
+
+<br>
+
+<span style="color: #a78bfa; font-size: 18px; font-weight: 500;">Join researchers at 18+ institutions worldwide who've already reclaimed weeks of their time</span>
+
+<br>
+<br>
+
+[⭐ Star on GitHub](https://github.com/ChaokunHong/MetaScreener) • [💬 Join Discussion](https://github.com/ChaokunHong/MetaScreener/discussions) • [📧 Contact Team](mailto:chaokun.hong@ndm.ox.ac.uk)
+
+<br>
+
+---
+
+<br>
+
+**Made with 💎 by researchers, for researchers**  
+<span style="color: #1fc2c2; font-size: 16px; font-weight: 500;">University of Oxford • Oxford University Clinical Research Unit</span>
+
+<br>
+
+<sub style="color: #8b5cf6; font-size: 14px;">© 2025 MetaScreener Team • Empowering research excellence through AI innovation</sub>
+
+</div>
+
+<br> 

@@ -2,276 +2,744 @@
 
 {% block title %}LLM Configuration - AI Literature Screening Assistant{% endblock %}
 
+<!-- Set breadcrumb for navigation -->
+{% set breadcrumb = [
+    {'text': 'LLM Configuration', 'url': ''}
+] %}
+
 {% block extra_head %}
 <style>
-    .api-key-status-badge {
-        padding: 0.15em 0.3em;
-        border-radius: 3px;
-        font-size: 0.65em;
+    /* 导入专业字体 */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    
+    /* 精致专业设计系统 */
+    :root {
+        /* 继承全局颜色主题，只定义页面特有的颜色 */
+        --success-light: #ecfdf5;
+        --error-color: #f87171;
+        --error-light: #fef2f2;
+        --warning-color: #fbbf24;
+        --warning-light: #fffbeb;
+        
+        --text-primary: #1e293b;
+        --text-secondary: #64748b;
+        --text-muted: #94a3b8;
+        --text-light: #cbd5e1;
+        
+        --bg-primary: #ffffff;
+        --bg-secondary: #f8fafc;
+        --bg-tertiary: #f1f5f9;
+        --bg-card: #ffffff;
+        --bg-overlay: rgba(255, 255, 255, 0.95);
+        
+        --border-light: #e2e8f0;
+        --border-medium: #cbd5e1;
+        --border-focus: var(--primary-color);
+        
+        --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        
+        --radius-xs: 4px;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --radius-xl: 16px;
+        
+        --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, monospace;
+    }
+    
+    /* 全局字体优化 */
+    * {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+    }
+    
+    body {
+        font-family: var(--font-primary);
+        font-feature-settings: 'liga' 1, 'kern' 1;
+    }
+    
+    /* 主容器 - 宽而秀气 */
+    .llm-config-container {
+        max-width: 1000px;
+        margin: 2rem auto;
+        background: var(--bg-card);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-light);
+        padding: 2rem 2.5rem;
+        box-shadow: var(--shadow-sm);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+    }
+    
+    .llm-config-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+        opacity: 0.3;
+    }
+    
+    .llm-config-container:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-1px);
+    }
+    
+    /* 标题区域 - 紧凑优雅 */
+    .config-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .config-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.03em;
+        font-family: var(--font-primary);
+        line-height: 1.2;
+    }
+    
+    .config-subtitle {
+        font-size: 1rem;
+        color: var(--text-secondary);
+        font-weight: 400;
+        line-height: 1.5;
+        max-width: 700px;
+        margin: 0 auto;
+    }
+    
+    /* 信息横幅 - 柔和设计 */
+    .api-key-info {
+        background: linear-gradient(135deg, var(--primary-light) 0%, #faf5ff 100%);
+        border: 1px solid #c4b5fd;
+        border-radius: var(--radius-md);
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        font-weight: 500;
+        line-height: 1.5;
+    }
+    
+    .api-key-info i {
+        color: var(--primary-color);
+        margin-top: 0.125rem;
+        flex-shrink: 0;
+        font-size: 1rem;
+        opacity: 0.8;
+    }
+    
+    /* 表单区域 - 紧凑精致 */
+    .form-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .form-section:hover {
+        border-color: var(--border-medium);
+        box-shadow: var(--shadow-xs);
+    }
+    
+    /* 标签样式 - 精致 */
+    .form-label {
+        font-size: 0.875rem;
         font-weight: 600;
-        margin-left: 3px;
-        transition: all 0.2s ease;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-family: var(--font-primary);
+        letter-spacing: -0.01em;
     }
-    .status-set-in-session { background-color: #059669; color: white; }
-    .status-env-default { background-color: #0891b2; color: white; }
-    .status-not-set { background-color: #dc3545; color: white; }
-    .clear-key-btn {
-        margin-left: 6px;
-        font-size: 0.75em;
-        padding: 0.15rem 0.3rem;
-        border-radius: 3px;
-        transition: all 0.2s ease;
+    
+    .form-label i {
+        font-size: 0.875rem;
+        color: var(--primary-color);
+        opacity: 0.8;
     }
-    .clear-key-btn:hover {
-        background-color: #ef4444;
+    
+    /* 输入控件 - 秀气设计 */
+    .apple-select,
+    .apple-input {
+        appearance: none;
+        -webkit-appearance: none;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-sm);
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        width: 100%;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        outline: none;
+        font-family: var(--font-primary);
+        line-height: 1.4;
+    }
+    
+    .apple-select {
+        cursor: pointer;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M6 9l6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 16px;
+        padding-right: 2.5rem;
+    }
+    
+    .apple-input {
+        font-family: var(--font-mono);
+        font-weight: 400;
+        letter-spacing: 0.01em;
+    }
+    
+    .apple-select:focus,
+    .apple-input:focus {
+        border-color: var(--border-focus);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.08);
+        background: var(--bg-primary);
+    }
+    
+    .apple-select:hover,
+    .apple-input:hover {
+        border-color: var(--border-medium);
+    }
+    
+    /* API密钥区域 - 轻盈设计 */
+    .api-key-section {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        margin: 0.75rem 0;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .api-key-section:hover {
+        background: var(--bg-tertiary);
+        border-color: var(--border-medium);
+    }
+    
+    /* 输入组 */
+    .apple-input-group {
+        position: relative;
+        margin-bottom: 0.75rem;
+    }
+    
+    /* 按钮组 - 柔和设计 */
+    .button-group {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+    
+    .apple-btn {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-sm);
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.25rem;
+        min-width: 2.5rem;
+        font-family: var(--font-primary);
+        white-space: nowrap;
+    }
+    
+    .apple-btn:hover {
+        background: var(--bg-secondary);
+        border-color: var(--border-medium);
+        color: var(--text-primary);
+    }
+    
+    .apple-btn:active {
+        transform: scale(0.98);
+    }
+    
+    .apple-btn-primary {
+        background: white;
+        border: 1px solid #6b46c1;
+        color: #6b46c1;
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(107, 70, 193, 0.1);
+    }
+    
+    .apple-btn-primary:hover {
+        background: #6b46c1;
+        border-color: #6b46c1;
         color: white;
-    }
-    /* Styles for AJAX messages and animations */
-    .form-message {
-        padding: 10px;
-        margin-top: 10px;
-        margin-bottom: 10px;
-        border-radius: 4px;
-        opacity: 0;
-        max-height: 0;
-        overflow: hidden;
-        transition: opacity 0.4s ease-in-out, max-height 0.4s ease-in-out, padding 0.4s ease-in-out, margin 0.4s ease-in-out;
-        box-sizing: border-box;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-        font-size: 0.85rem;
-    }
-    .form-message.show {
-        opacity: 1;
-        max-height: 80px;
-        padding: 10px;
-        margin-top: 10px;
-        margin-bottom: 10px;
-    }
-    .form-message.success {
-        background-color: #ecfdf5;
-        color: #047857;
-        border-left: 3px solid #059669;
-    }
-    .form-message.error {
-        background-color: #fef2f2;
-        color: #b91c1c;
-        border-left: 3px solid #dc2626;
+        box-shadow: 0 4px 12px rgba(107, 70, 193, 0.25);
     }
     
-    /* Enhanced card styling */
-    .section-card {
-        box-shadow: 0 1px 2px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.04);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        border-radius: 6px;
-        padding: 1rem;
-    }
-    .section-card:hover {
-        box-shadow: 0 2px 4px rgba(0,0,0,0.03), 0 1px 3px rgba(0,0,0,0.04);
+    .apple-btn-primary:active, .apple-btn-primary:focus {
+        background: #553c9a !important;
+        border-color: #553c9a !important;
+        color: white !important;
+        box-shadow: 0 2px 4px rgba(107, 70, 193, 0.4) !important;
     }
     
-    /* Form control enhancements */
-    .form-control {
-        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-        transition: all 0.2s ease;
-        font-size: 0.8rem;
-        padding: 0.25rem 0.4rem;
-        height: calc(1.5em + 0.6rem + 2px);
+    /* 新增：Outline按钮样式 - 白底紫字 → 悬停紫底白字 */
+    .apple-btn-outline-primary {
+        background: white;
+        border: 1px solid #6b46c1;
+        color: #6b46c1;
+        font-weight: 600;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 3px rgba(107, 70, 193, 0.1);
     }
-    .form-control:focus {
-        box-shadow: 0 0 0 2px rgba(123, 44, 191, 0.1);
+    
+    .apple-btn-outline-primary:hover {
+        background: #6b46c1;
+        border-color: #6b46c1;
+        color: white;
         transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(107, 70, 193, 0.25);
     }
     
-    /* Input group styling */
-    .input-group-append button {
-        border-top-right-radius: 4px !important;
-        border-bottom-right-radius: 4px !important;
-        transition: all 0.2s ease;
-        font-size: 0.85rem;
-        padding: 0.3rem 0.6rem;
+    .apple-btn-outline-primary:active, .apple-btn-outline-primary:focus {
+        background: #553c9a;
+        border-color: #553c9a;
+        color: white;
+        transform: translateY(0);
+        box-shadow: 0 2px 6px rgba(107, 70, 193, 0.3);
     }
-    .input-group-append button:hover {
+    
+    .apple-btn-outline-primary:disabled {
+        background: #f8f9fa;
+        border-color: #e2e8f0;
+        color: #94a3b8;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+        opacity: 0.6;
+    }
+    
+    /* Outline危险按钮样式 - 白底红字 → 悬停红底白字 */
+    .apple-btn-outline-danger {
+        background: white;
+        border: 1px solid var(--danger-color);
+        color: var(--danger-color);
+        font-weight: 600;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 3px rgba(220, 38, 38, 0.1);
+    }
+    
+    .apple-btn-outline-danger:hover {
+        background: var(--danger-color);
+        border-color: var(--danger-color);
+        color: white;
         transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
     }
     
-    /* API key input group enhancement */
-    .api-key-input-group {
-        transition: all 0.2s ease;
-        padding: 8px;
-        border-radius: 4px;
-        margin-top: 6px;
-        margin-bottom: 6px;
-        background-color: #f9fafb;
-        border: 1px solid rgba(0,0,0,0.02);
-    }
-    .api-key-input-group:hover {
-        background-color: #f5f7fa;
+    .apple-btn-outline-danger:active, .apple-btn-outline-danger:focus {
+        background: var(--danger-color);
+        border-color: var(--danger-color);
+        color: white;
+        transform: translateY(0);
+        box-shadow: 0 2px 6px rgba(220, 38, 38, 0.3);
     }
     
-    /* Modern tooltip icon */
+    .apple-btn-outline-danger:disabled {
+        background: #f8f9fa;
+        border-color: #e2e8f0;
+        color: #94a3b8;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+        opacity: 0.6;
+    }
+    
+    /* 原有的填充危险按钮样式 */
+    .apple-btn-danger {
+        background: #fecaca;
+        border-color: #fca5a5;
+        color: var(--danger-color);
+        font-weight: 600;
+    }
+    
+    .apple-btn-danger:hover {
+        background: #fca5a5;
+        border-color: #f87171;
+        color: var(--danger-color);
+    }
+    
+    /* 状态标识 - 柔和设计 */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        margin-left: 0.5rem;
+        font-family: var(--font-primary);
+        letter-spacing: 0.01em;
+    }
+    
+    .status-set-in-session {
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #86efac;
+    }
+    
+    .status-env-default {
+        background: var(--primary-light);
+        color: var(--primary-color);
+        border: 1px solid #c4b5fd;
+    }
+    
+    .status-not-set {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+    }
+    
+    /* 状态行 */
+    .status-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--border-light);
+    }
+    
+    .status-info {
+        display: flex;
+        align-items: center;
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+    
+    .status-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    /* 帮助链接 */
+    .help-link {
+        color: var(--primary-color);
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.15s ease;
+        border-bottom: 1px solid transparent;
+    }
+    
+    .help-link:hover {
+        color: var(--hover-color);
+        border-bottom-color: var(--hover-color);
+    }
+    
+    /* 工具提示图标 */
     .tooltip-icon {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 16px;
-        height: 16px;
-        background-color: #e0e7ff;
-        color: #4f46e5;
+        width: 1rem;
+        height: 1rem;
+        background: var(--primary-light);
+        color: var(--primary-color);
         border-radius: 50%;
-        font-size: 10px;
-        margin-left: 4px;
+        font-size: 0.625rem;
+        margin-left: 0.5rem;
         cursor: help;
+        transition: all 0.15s ease;
+        border: 1px solid #c4b5fd;
+        opacity: 0.9;
     }
     
-    /* API key info styling */
-    .api-key-info {
-        background-color: #f0f9ff;
-        color: #0369a1;
-        padding: 8px 10px;
-        border-radius: 4px;
-        margin-bottom: 12px;
-        font-size: 0.8em;
-        border-left: 2px solid #0ea5e9;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-    }
-    
-    /* Page Exit Animation Enhancement */
-    .page-transition-exit {
+    .tooltip-icon:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: scale(1.05);
+        border-color: var(--primary-color);
         opacity: 1;
-        transition: opacity 0.6s cubic-bezier(0.19, 1, 0.22, 1), transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
-    }
-    .page-transition-exit-active {
-        opacity: 0;
-        transform: translateY(-5px);
     }
     
-    /* Enhanced Transition message styles */
+    /* 提交按钮 - 柔和精致 */
+    .submit-button {
+        background: white;
+        border: 1px solid #6b46c1;
+        border-radius: var(--radius-md);
+        padding: 0.875rem 1.5rem;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: #6b46c1;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        margin-top: 1.5rem;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        box-shadow: 0 1px 3px rgba(107, 70, 193, 0.1);
+        font-family: var(--font-primary);
+        letter-spacing: -0.01em;
+    }
+    
+    .submit-button:hover {
+        background: #6b46c1;
+        border-color: #6b46c1;
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(107, 70, 193, 0.25);
+    }
+    
+    .submit-button:active {
+        transform: translateY(0);
+    }
+    
+    .submit-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    /* 加载动画 - 精致 */
+    .apple-spinner {
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid rgba(139, 92, 246, 0.2);
+        border-radius: 50%;
+        border-top-color: var(--primary-color);
+        animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    /* 消息样式 - 轻盈 */
+    .form-message {
+        background: var(--bg-card);
+        border-radius: var(--radius-md);
+        padding: 0.875rem 1rem;
+        margin: 1rem 0;
+        font-size: 0.875rem;
+        font-weight: 500;
+        opacity: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid var(--border-light);
+        font-family: var(--font-primary);
+        line-height: 1.5;
+    }
+    
+    .form-message.show {
+        opacity: 1;
+        max-height: 5rem;
+    }
+    
+    .form-message.success {
+        background: var(--success-light);
+        color: var(--success-color);
+        border-color: #a7f3d0;
+    }
+    
+    .form-message.error {
+        background: var(--error-light);
+        color: var(--error-color);
+        border-color: #fecaca;
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .llm-config-container {
+            margin: 1rem;
+            padding: 1.5rem;
+            max-width: none;
+        }
+        
+        .config-title {
+            font-size: 1.75rem;
+        }
+        
+        .config-subtitle {
+            font-size: 0.9375rem;
+        }
+        
+        .form-section {
+            padding: 1.25rem;
+        }
+        
+        .api-key-section {
+            padding: 1rem;
+        }
+        
+        .button-group {
+            flex-direction: column;
+        }
+        
+        .apple-btn {
+            justify-content: center;
+        }
+    }
+    
+    /* 过渡动画优化 */
     .transition-message {
         position: fixed;
         top: 50%;
         left: 50%;
-        transform: translate(-50%, -50%) scale(0.95);
-        background: rgba(15, 23, 42, 0.85);
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
-        color: white;
-        padding: 16px 24px;
-        border-radius: 8px;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        transform: translate(-50%, -50%);
+        background: var(--bg-overlay);
+        backdrop-filter: blur(16px);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem 2rem;
+        box-shadow: var(--shadow-lg);
+        border: 1px solid var(--border-light);
         z-index: 1000;
         opacity: 0;
-        transition: all 0.3s cubic-bezier(0.215, 0.61, 0.355, 1);
-        font-size: 14px;
-        font-weight: 500;
-        letter-spacing: 0.2px;
+        visibility: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         text-align: center;
-        min-width: 240px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text-primary);
+        font-weight: 600;
+        font-family: var(--font-primary);
+        min-width: 280px;
     }
+    
     .transition-message.show {
         opacity: 1;
+        visibility: visible;
         transform: translate(-50%, -50%) scale(1);
     }
     
-    /* Modern Pulse Dot Animation */
     .loading-spinner {
         display: inline-flex;
-        align-items: center;
-        margin-left: 10px;
-        height: 16px;
-        vertical-align: middle;
+        gap: 0.25rem;
+        margin-left: 0.5rem;
     }
+    
     .loading-spinner .dot {
-        display: inline-block;
-        width: 5px;
-        height: 5px;
-        margin: 0 2px;
+        width: 0.25rem;
+        height: 0.25rem;
+        background: var(--primary-color);
         border-radius: 50%;
-        background-color: #ffffff;
-        animation: pulse 1.4s infinite ease-in-out;
+        animation: bounce 1.4s ease-in-out infinite both;
     }
-    .loading-spinner .dot:nth-child(1) {
-        animation-delay: -0.32s;
+    
+    .loading-spinner .dot:nth-child(1) { animation-delay: -0.32s; }
+    .loading-spinner .dot:nth-child(2) { animation-delay: -0.16s; }
+    
+    @keyframes bounce {
+        0%, 80%, 100% { transform: scale(0); }
+        40% { transform: scale(1); }
     }
-    .loading-spinner .dot:nth-child(2) {
-        animation-delay: -0.16s;
+    
+    /* 细节优化 */
+    .row {
+        display: flex;
+        gap: 1rem;
+        margin: 0 -0.5rem;
     }
-    @keyframes pulse {
-        0%, 80%, 100% { 
-            transform: scale(0.6);
-            opacity: 0.6;
-        }
-        40% { 
-            transform: scale(1);
-            opacity: 1;
+    
+    .col-md-6 {
+        flex: 1;
+        padding: 0 0.5rem;
+    }
+    
+    @media (max-width: 768px) {
+        .row {
+            flex-direction: column;
+            gap: 0.75rem;
         }
     }
     
-    /* Submit button enhancement */
-    .submit-btn {
-        padding: 0.3rem 0.7rem;
-        background: linear-gradient(135deg, #7B2CBF 0%, #9B5DE5 100%);
-        border: none;
-        box-shadow: 0 1px 3px rgba(123, 44, 191, 0.08);
-        transition: all 0.2s ease;
-        margin-top: 6px;
-        font-size: 0.8rem;
-        font-weight: 500;
-        border-radius: 4px;
+    /* 灰色outline按钮样式 - 用于Show按钮 */
+    .apple-btn-outline-secondary {
+        background: white;
+        border: 1px solid #6c757d;
+        color: #6c757d;
+        font-weight: 600;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 3px rgba(108, 117, 125, 0.1);
     }
-    .submit-btn:hover {
+    
+    .apple-btn-outline-secondary:hover {
+        background: #6c757d;
+        border-color: #6c757d;
+        color: white;
         transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(123, 44, 191, 0.12);
-        background: linear-gradient(135deg, #8a3ad0 0%, #a56ce8 100%);
-    }
-    .submit-btn:active {
-        transform: translateY(1px);
-        box-shadow: 0 1px 3px rgba(123, 44, 191, 0.1);
+        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.25);
     }
     
-    /* Reduce text sizes */
-    h2 {
-        font-size: 1.3rem;
-        margin-bottom: 0.75rem;
+    .apple-btn-outline-secondary:active, .apple-btn-outline-secondary:focus {
+        background: #5a6268;
+        border-color: #5a6268;
+        color: white;
+        transform: translateY(0);
+        box-shadow: 0 2px 6px rgba(108, 117, 125, 0.3);
     }
-    h3 {
-        font-size: 1.1rem;
-        margin-bottom: 0.75rem;
-    }
-    p, .text-muted {
-        font-size: 0.85rem;
-    }
-    small {
-        font-size: 0.75rem;
-    }
-    label {
-        font-size: 0.85rem;
-        margin-bottom: 0.25rem;
-    }
-    .form-text {
-        font-size: 0.75rem;
+    
+    .apple-btn-outline-secondary:disabled {
+        background: #f8f9fa;
+        border-color: #e2e8f0;
+        color: #94a3b8;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+        opacity: 0.6;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="section-card" id="main-content">
-    <h2 class="mb-3">
-        <i class="fas fa-cog mr-1" style="color: var(--primary-color); font-size: 0.9em;"></i>
-        LLM Configuration
-    </h2>
-    <p class="api-key-info">
-        <i class="fas fa-key mr-1"></i> Select LLM and provide/manage API keys below. API keys are stored only in your browser session for the current visit.
-    </p>
+<div class="llm-config-container">
+    <div class="config-header">
+        <h1 class="config-title">LLM Configuration</h1>
+        <p class="config-subtitle">
+            Configure your AI model settings and API credentials for optimal literature screening performance
+        </p>
+    </div>
+    
+    <div class="api-key-info">
+        <i class="fas fa-shield-alt"></i>
+        <div>
+            <strong>Privacy First:</strong> Your API keys are securely stored in your browser session only. 
+            We never see or store your credentials on our servers.
+        </div>
+    </div>
+
     <!-- Message area for AJAX responses -->
     <div id="llmConfigMessage" class="form-message"></div>
 
     <form id="llm_config_form" method="POST" action="{{ url_for('configure_llm') }}">
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <div class="form-group">
-                    <label for="llm_provider"><i class="fas fa-server mr-1"></i> LLM Provider:</label>
-                    <select name="llm_provider" id="llm_provider" class="form-control form-control-sm">
+        <!-- Provider and Model Selection -->
+        <div class="form-section">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="llm_provider" class="form-label">
+                        <i class="fas fa-cloud"></i>
+                        AI Provider
+                    </label>
+                    <select name="llm_provider" id="llm_provider" class="apple-select">
                         {% for provider_name, provider_data in llm_providers_info.items() %}
                             <option value="{{ provider_name }}" {% if provider_name == current_llm_provider %}selected{% endif %}>
                                 {{ provider_name.replace('_', ' ') }}
@@ -279,78 +747,106 @@
                         {% endfor %}
                     </select>
                 </div>
-            </div>
-            <div class="col-md-6">
-                <div class="form-group">
-                    <label for="llm_model_id"><i class="fas fa-robot mr-1"></i> Model:</label>
-                    <select name="llm_model_id" id="llm_model_id" class="form-control form-control-sm"></select>
+                <div class="col-md-6 mb-3">
+                    <label for="llm_model_id" class="form-label">
+                        <i class="fas fa-brain"></i>
+                        AI Model
+                    </label>
+                    <select name="llm_model_id" id="llm_model_id" class="apple-select"></select>
                 </div>
             </div>
         </div>
         
+        <!-- API Key Sections -->
         {% for provider_name_key, provider_data_val in llm_providers_info.items() %}
-        <div class="form-group api-key-input-group" id="{{ provider_name_key.lower() }}_api_key_group" style="display: none;">
-            <label for="{{ provider_name_key.lower() }}_api_key">
-                <i class="fas fa-lock mr-1"></i> {{ provider_name_key.replace('_', ' ') }} API Key:
+        <div class="api-key-section" id="{{ provider_name_key.lower() }}_api_key_group" style="display: none;">
+            <label for="{{ provider_name_key.lower() }}_api_key" class="form-label">
+                <i class="fas fa-key"></i>
+                {{ provider_name_key.replace('_', ' ') }} API Key
             </label>
-            <div class="input-group input-group-sm">
-                <input type="password" name="{{ provider_name_key.lower() }}_api_key" id="{{ provider_name_key.lower() }}_api_key" 
-                       class="form-control form-control-sm" placeholder="Enter API Key here">
-                <div class="input-group-append">
-                    <button class="btn btn-outline-secondary btn-sm" type="button" 
-                            onclick="toggleApiKeyVisibility('{{ provider_name_key.lower() }}_api_key')">
+            
+            <div class="apple-input-group">
+                <input type="password" 
+                       name="{{ provider_name_key.lower() }}_api_key" 
+                       id="{{ provider_name_key.lower() }}_api_key" 
+                       class="apple-input" 
+                       placeholder="Enter your API key here">
+                
+                <div class="button-group">
+                    <button class="apple-btn apple-btn-outline-secondary" type="button" 
+                            onclick="toggleApiKeyVisibility('{{ provider_name_key.lower() }}_api_key')"
+                            title="Toggle visibility">
                         <i class="fas fa-eye"></i>
+                        Show
                     </button>
-                    <button class="btn btn-outline-primary btn-sm ml-1" type="button" 
-                            onclick="testApiKey('{{ provider_name_key }}', '{{ provider_name_key.lower() }}_api_key')">
-                        <i class="fas fa-vial mr-1"></i> Test
+                    <button class="apple-btn apple-btn-outline-primary" type="button" 
+                            onclick="testApiKey('{{ provider_name_key }}', '{{ provider_name_key.lower() }}_api_key')"
+                            title="Test API key">
+                        <i class="fas fa-flask"></i>
+                        Test Key
                     </button>
                 </div>
             </div>
-            <div class="mt-1">
-                <small class="form-text text-muted d-inline">Status: </small>
-                <span id="{{ provider_name_key.lower() }}_api_key_status_badge" class="api-key-status-badge">
-                    <!-- Status text will be populated by JS -->
-                </span>
-                <button type="submit" name="clear_api_key" value="{{ provider_name_key }}" 
-                        id="clear_{{ provider_name_key.lower() }}_api_key_btn" 
-                        class="btn btn-outline-danger btn-sm clear-key-btn" 
-                        style="display: none;" 
-                        title="Clear API Key from session for {{ provider_name_key.replace('_', ' ') }}">
-                    <i class="fas fa-trash-alt mr-1"></i> Clear
-                </button>
-                <span id="{{ provider_name_key.lower() }}_tooltip_icon" class="tooltip-icon" style="display:none;" 
-                      title="This key is set via environment variables. Keys set in session take precedence.">
-                    <i class="fas fa-info"></i>
-                </span>
+            
+            <div class="status-row">
+                <div class="status-info">
+                    <span>Status:</span>
+                    <span id="{{ provider_name_key.lower() }}_api_key_status_badge" class="status-badge">
+                        <!-- Status will be populated by JavaScript -->
+                    </span>
+                    <span id="{{ provider_name_key.lower() }}_tooltip_icon" class="tooltip-icon" style="display:none;" 
+                          title="This key is set via environment variables. Session keys take precedence.">
+                        <i class="fas fa-info"></i>
+                    </span>
+                </div>
+                
+                <div class="status-actions">
+                    <button type="submit" name="clear_api_key" value="{{ provider_name_key }}" 
+                            id="clear_{{ provider_name_key.lower() }}_api_key_btn" 
+                            class="apple-btn apple-btn-outline-danger" 
+                            style="display: none;" 
+                            title="Clear API Key from session">
+                        <i class="fas fa-trash-alt"></i>
+                        Clear Key
+                    </button>
+                </div>
             </div>
-            <small class="form-text text-muted mt-1">
+            
+            <div style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-muted); font-weight: 500;">
                 {% if provider_data_val.api_key_info_url %}
-                    <i class="fas fa-external-link-alt mr-1"></i> Get your {{ provider_name_key.replace('_', ' ') }} API key from <a href="{{ provider_data_val.api_key_info_url }}" target="_blank" rel="noopener noreferrer">their platform</a>.
+                    Get your {{ provider_name_key.replace('_', ' ') }} API key from 
+                    <a href="{{ provider_data_val.api_key_info_url }}" target="_blank" rel="noopener noreferrer" class="help-link">their platform</a>
                 {% elif provider_name_key == 'DeepSeek' %}
-                    <i class="fas fa-external-link-alt mr-1"></i> Get your DeepSeek API key from the <a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer">DeepSeek Platform</a>.
+                    Get your DeepSeek API key from the 
+                    <a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer" class="help-link">DeepSeek Platform</a>
                 {% elif provider_name_key == 'OpenAI_ChatGPT' %}
-                    <i class="fas fa-external-link-alt mr-1"></i> Get your OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI API Keys</a>.
+                    Get your OpenAI API key from 
+                    <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" class="help-link">OpenAI API Keys</a>
                 {% elif provider_name_key == 'Google_Gemini' %}
-                    <i class="fas fa-external-link-alt mr-1"></i> Get your Gemini API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>.
+                    Get your Gemini API key from 
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="help-link">Google AI Studio</a>
                 {% elif provider_name_key == 'Anthropic_Claude' %}
-                    <i class="fas fa-external-link-alt mr-1"></i> Get your Anthropic API key from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Anthropic Console</a>.
+                    Get your Anthropic API key from 
+                    <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" class="help-link">Anthropic Console</a>
                 {% else %}
-                    <i class="fas fa-info-circle mr-1"></i> API key required. Please refer to the provider's documentation.
+                    API key required. Please refer to the provider's documentation.
                 {% endif %}
-            </small>
+            </div>
         </div>
         {% endfor %}
-        <button type="submit" name="save_llm_config" value="true" class="btn btn-primary btn-sm submit-btn">
-            <i class="fas fa-save mr-1"></i> Save LLM Config & API Key
+        
+        <button type="submit" name="save_llm_config" value="true" class="submit-button">
+            <i class="fas fa-rocket"></i>
+            <span id="submit-text">Save Configuration & Continue</span>
+            <div id="submit-spinner" class="apple-spinner" style="display: none;"></div>
         </button>
     </form>
 </div>
 
 <!-- Enhanced transition message that shows during page transition -->
 <div id="transitionMessage" class="transition-message">
-    <div><i class="fas fa-check-circle mr-1" style="font-size: 16px;"></i> Configuration successful!</div>
-    <div style="margin-top: 8px; display: flex; align-items: center; justify-content: center;">
+    <div><i class="fas fa-check-circle" style="color: var(--success-color);"></i> Configuration successful!</div>
+    <div style="margin-top: 0.75rem; display: flex; align-items: center; justify-content: center;">
         Redirecting to Screening Criteria
         <div class="loading-spinner">
             <span class="dot"></span>
@@ -394,7 +890,7 @@
     }
 
     function updateApiKeyDisplay(selectedProvider) {
-        document.querySelectorAll('.api-key-input-group').forEach(group => {
+        document.querySelectorAll('.api-key-section').forEach(group => {
             group.style.display = 'none';
         });
         const currentGroup = document.getElementById(selectedProvider.toLowerCase() + '_api_key_group');
@@ -407,15 +903,15 @@
             const status = apiKeyStatuses[selectedProvider] || 'Not set';
             if (statusBadge) {
                 statusBadge.textContent = status;
-                statusBadge.className = 'api-key-status-badge'; 
+                statusBadge.className = 'status-badge'; 
                 if (status === 'Set in session') {
                     statusBadge.classList.add('status-set-in-session');
-                    if (clearButton) clearButton.style.display = 'inline-block';
+                    if (clearButton) clearButton.style.display = 'inline-flex';
                     if (tooltipIcon) tooltipIcon.style.display = 'none';
                 } else if (status === 'Using environment default') {
                     statusBadge.classList.add('status-env-default');
                     if (clearButton) clearButton.style.display = 'none'; 
-                    if (tooltipIcon) tooltipIcon.style.display = 'inline-block';
+                    if (tooltipIcon) tooltipIcon.style.display = 'inline-flex';
                 } else { 
                     statusBadge.classList.add('status-not-set');
                     if (clearButton) clearButton.style.display = 'none';
@@ -443,20 +939,20 @@
         const messageDiv = document.getElementById('llmConfigMessage');
         
         if (!apiKey) {
-            messageDiv.textContent = 'Please enter an API key before testing.';
+            messageDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-2"></i>Please enter an API key before testing.';
             messageDiv.className = 'form-message error show';
             return;
         }
         
         // Show testing message
-        messageDiv.textContent = `Testing ${provider.replace('_', ' ')} API key...`;
+        messageDiv.innerHTML = `<i class="fas fa-cog fa-spin mr-2"></i>Testing ${provider.replace('_', ' ')} API key...`;
         messageDiv.className = 'form-message show';
         
-        // Get the test button and disable it during test
-        const testButton = apiKeyInput.parentElement.querySelector('button[onclick^="testApiKey"]');
-        const originalButtonText = testButton.innerHTML;
+        // Get the test button and show loading state
+        const testButton = apiKeyInput.parentElement.querySelector('.apple-btn-outline-primary');
+        const originalButtonHTML = testButton.innerHTML;
         testButton.disabled = true;
-        testButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        testButton.innerHTML = '<div class="apple-spinner"></div>';
         
         // Create form data for API request
         const formData = new FormData();
@@ -472,22 +968,29 @@
         .then(response => response.json())
         .then(data => {
             testButton.disabled = false;
-            testButton.innerHTML = originalButtonText;
+            testButton.innerHTML = originalButtonHTML;
             
             if (data.status === 'success') {
-                messageDiv.innerHTML = `<i class="fas fa-check-circle mr-1"></i> ${data.message || 'API key validated successfully!'}`;
+                messageDiv.innerHTML = `<i class="fas fa-check-circle mr-2"></i>${data.message || 'API key validated successfully!'}`;
                 messageDiv.className = 'form-message success show';
+                
+                // Update status badge immediately
+                const statusBadge = document.getElementById(provider.toLowerCase() + '_api_key_status_badge');
+                if (statusBadge) {
+                    statusBadge.textContent = 'Validated';
+                    statusBadge.className = 'status-badge status-set-in-session';
+                }
             } else {
-                messageDiv.innerHTML = `<i class="fas fa-exclamation-circle mr-1"></i> ${data.message || 'API key validation failed. Please check your key.'}`;
+                messageDiv.innerHTML = `<i class="fas fa-exclamation-circle mr-2"></i>${data.message || 'API key validation failed. Please check your key.'}`;
                 messageDiv.className = 'form-message error show';
             }
         })
         .catch(error => {
             console.error('Error testing API key:', error);
             testButton.disabled = false;
-            testButton.innerHTML = originalButtonText;
+            testButton.innerHTML = originalButtonHTML;
             
-            messageDiv.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i> A network error occurred while testing the API key. Please try again.';
+            messageDiv.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>A network error occurred while testing the API key. Please try again.';
             messageDiv.className = 'form-message error show';
         });
     }
@@ -550,14 +1053,18 @@
                 event.preventDefault(); // Prevent default submission for LLM config saving
 
                 const formData = new FormData(this);
-                const saveButton = configForm.querySelector('button[name="save_llm_config"]');
-                const originalButtonText = saveButton.innerHTML;
+                const saveButton = document.querySelector('.submit-button');
+                const submitText = document.getElementById('submit-text');
+                const submitSpinner = document.getElementById('submit-spinner');
+                
+                // Show loading state
                 saveButton.disabled = true;
-                saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                submitText.style.display = 'none';
+                submitSpinner.style.display = 'block';
 
                 // Clear previous messages
-                messageDiv.textContent = '';
-                messageDiv.className = 'form-message'; // Reset classes
+                messageDiv.innerHTML = '';
+                messageDiv.className = 'form-message';
                 
                 fetch('{{ url_for("configure_llm") }}', {
                     method: 'POST',
@@ -578,10 +1085,13 @@
                         
                         // If no key is set or provided, warn the user
                         if (currentStatus === 'Not set' && (!apiKeyInput || !apiKeyInput.value.trim())) {
-                            messageDiv.innerHTML = `<i class="fas fa-exclamation-triangle mr-1"></i> Warning: No API key set for ${selectedProvider.replace('_', ' ')}. You may encounter errors when using the application.`;
+                            messageDiv.innerHTML = `<i class="fas fa-exclamation-triangle mr-2"></i>Warning: No API key set for ${selectedProvider.replace('_', ' ')}. You may encounter errors when using the application.`;
                             messageDiv.className = 'form-message error show';
+                            
+                            // Reset button state
                             saveButton.disabled = false;
-                            saveButton.innerHTML = originalButtonText;
+                            submitText.style.display = 'inline';
+                            submitSpinner.style.display = 'none';
                             
                             // Ask if user wants to continue without a key
                             if (confirm(`No API key is set for ${selectedProvider.replace('_', ' ')}. Would you like to set up an API key before continuing?`)) {
@@ -589,30 +1099,38 @@
                             }
                         }
                         
-                        // Proceed with redirect
-                        if (data.redirect_url) {
-                            smoothRedirect(data.redirect_url);
-                        } else {
-                            // Fallback if no redirect URL (shouldn't happen)
-                            messageDiv.innerHTML = `<i class="fas fa-check-circle mr-1"></i> ${data.message || 'Configuration saved successfully.'}`;
-                            messageDiv.className = 'form-message success show';
-                            saveButton.disabled = false;
-                            saveButton.innerHTML = originalButtonText;
-                        }
+                        // Show success message and redirect
+                        messageDiv.innerHTML = `<i class="fas fa-check-circle mr-2"></i>Configuration saved successfully! Redirecting...`;
+                        messageDiv.className = 'form-message success show';
+                        
+                        // Redirect after showing success message
+                        setTimeout(() => {
+                            if (data.redirect_url) {
+                                window.location.href = data.redirect_url;
+                            } else {
+                                window.location.href = '{{ url_for("screening_criteria_page") }}';
+                            }
+                        }, 1500);
                     } else {
                         // Handle errors
-                        messageDiv.innerHTML = `<i class="fas fa-exclamation-circle mr-1"></i> ${data.message || 'An unexpected error occurred.'}`;
+                        messageDiv.innerHTML = `<i class="fas fa-exclamation-circle mr-2"></i>${data.message || 'An unexpected error occurred.'}`;
                         messageDiv.className = 'form-message error show';
+                        
+                        // Reset button state
                         saveButton.disabled = false;
-                        saveButton.innerHTML = originalButtonText;
+                        submitText.style.display = 'inline';
+                        submitSpinner.style.display = 'none';
                     }
                 })
                 .catch(error => {
                     console.error('Error submitting LLM config:', error);
-                    messageDiv.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i> A network error occurred. Please try again.';
+                    messageDiv.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>A network error occurred. Please try again.';
                     messageDiv.className = 'form-message error show';
+                    
+                    // Reset button state
                     saveButton.disabled = false;
-                    saveButton.innerHTML = originalButtonText;
+                    submitText.style.display = 'inline';
+                    submitSpinner.style.display = 'none';
                 });
             });
         }

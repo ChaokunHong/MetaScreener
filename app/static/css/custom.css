@@ -37,7 +37,7 @@
 
 /* Improve focus styles for accessibility */
 :focus {
-  outline: 2px solid rgba(123, 44, 191, 0.25) !important;
+  outline: 2px solid rgba(107, 70, 193, 0.25) !important;
   outline-offset: 1px;
 }
 
@@ -47,28 +47,28 @@ html {
 }
 
 :root {
-  /* Color palette */
-  --primary-color: #7B2CBF;       /* Main purple */
-  --secondary-color: #9B5DE5;     /* Lighter purple */
-  --tertiary-color: #D6D6D6;      /* Light grey */
-  --background-color: #FFFFFF;    /* Pure white */
-  --title-color: #1A1A1A;         /* Almost black */
-  --text-color: #333333;          /* Dark grey */
-  --light-bg: #F9FAFB;            /* Very light grey */
-  --border-color: #E5E7EB;        /* Light grey for borders */
-  --hover-color: #a873e6;         /* Lighter purple for hover states */
-  --focus-color: #6a1ca0;         /* Darker purple for focus/active states */
-  --success-color: #059669;       /* Green for success */
-  --warning-color: #D97706;       /* Orange for warnings/maybe */
-  --danger-color: #DC2626;        /* Red for errors/exclusions */
-  --info-color: #3B82F6;          /* Blue for info/neutral */
+  /* Color palette - Beautiful Purple Theme - 统一浅紫色主题 */
+  --primary-color: #8b5cf6;       /* 主紫色 - 统一为较浅紫色 */
+  --secondary-color: #a78bfa;     /* 次级紫色 */
+  --tertiary-color: #e0e7ff;      /* 极浅紫色 */
+  --hover-color: #7c3aed;         /* 悬停紫色 */
+  --focus-color: #6b46c1;         /* 焦点/激活紫色 */
+  --background-color: #FFFFFF;    /* 纯白背景 */
+  --title-color: #1A1A1A;         /* 标题颜色 */
+  --text-color: #333333;          /* 文本颜色 */
+  --light-bg: #f8fafc;            /* 浅背景 */
+  --border-color: #c7d2fe;        /* 边框颜色 */
+  --success-color: #059669;       /* 成功绿色 */
+  --warning-color: #D97706;       /* 警告橙色 */
+  --danger-color: #DC2626;        /* 错误红色 */
+  --info-color: #6366f1;          /* 信息蓝色 */
 }
 
 /* Base styles */
 body {
   font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   color: var(--text-color);
-  background-color: var(--light-bg);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   padding-top: 56px; /* Reduced from 70px */
   padding-bottom: 40px; /* Reduced from 60px */
   font-size: 0.85rem;
@@ -96,8 +96,8 @@ h2 {
 
 /* Navigation bar */
 .navbar-custom {
-  background-color: var(--primary-color) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #6b46c1 0%, #8b5cf6 100%) !important;
+  box-shadow: 0 2px 8px rgba(107, 70, 193, 0.2);
   padding: 0.3rem 1rem;
   min-height: 56px;
 }
@@ -148,7 +148,7 @@ h2 {
 
 .criteria-section {
   margin-bottom: 15px;
-  background-color: #f9f9f9;
+  background: linear-gradient(135deg, #faf7ff 0%, #f3f0ff 100%);
   padding: 12px;
   border-radius: 6px;
   border: 1px solid var(--border-color);
@@ -165,36 +165,44 @@ h2 {
 }
 
 .btn:focus {
-  box-shadow: 0 0 0 0.15rem rgba(123, 44, 191, 0.2);
+  box-shadow: 0 0 0 0.15rem rgba(107, 70, 193, 0.2);
 }
 
 .btn-primary {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
+  background: white;
+  border: 1px solid var(--primary-color);
+  color: var(--primary-color);
+  box-shadow: 0 1px 3px rgba(139, 92, 246, 0.1);
 }
 
 .btn-primary:hover {
-  background-color: var(--hover-color);
-  border-color: var(--hover-color);
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
 }
 
 .btn-primary:active, .btn-primary:focus {
-  background-color: var(--focus-color) !important;
-  border-color: var(--focus-color) !important;
+  background: var(--hover-color) !important;
+  border-color: var(--hover-color) !important;
+  color: white !important;
+  box-shadow: 0 2px 4px rgba(139, 92, 246, 0.4) !important;
 }
 
 .btn-secondary {
   background-color: var(--tertiary-color);
-  border-color: var(--tertiary-color);
-  color: var(--title-color);
+  border-color: var(--border-color);
+  color: var(--primary-color);
+  box-shadow: 0 1px 3px rgba(107, 70, 193, 0.1);
 }
 
 .btn-secondary:hover {
-  background-color: #c0c0c0;
-  border-color: #c0c0c0;
-  color: var(--title-color);
+  background-color: #c7d2fe;
+  border-color: var(--primary-color);
+  color: var(--focus-color);
   transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(107, 70, 193, 0.2);
 }
 
 .btn-success {
@@ -203,8 +211,8 @@ h2 {
 }
 
 .btn-success:hover {
-  background-color: #057857;
-  border-color: #057857;
+  background-color: var(--success-color);
+  border-color: var(--success-color);
   transform: translateY(-1px);
 }
 
@@ -226,6 +234,59 @@ h2 {
   border-radius: 3px;
 }
 
+/* Outline button styles for consistency */
+.btn-outline-success {
+  color: var(--success-color);
+  border-color: var(--success-color);
+  background: white;
+}
+
+.btn-outline-success:hover {
+  background: var(--success-color);
+  border-color: var(--success-color);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.btn-outline-danger {
+  color: var(--danger-color);
+  border-color: var(--danger-color);
+  background: white;
+}
+
+.btn-outline-danger:hover {
+  background: var(--danger-color);
+  border-color: var(--danger-color);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.btn-outline-info {
+  color: var(--info-color);
+  border-color: var(--info-color);
+  background: white;
+}
+
+.btn-outline-info:hover {
+  background: var(--info-color);
+  border-color: var(--info-color);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.btn-outline-secondary {
+  color: #6c757d;
+  border-color: #6c757d;
+  background: white;
+}
+
+.btn-outline-secondary:hover {
+  background: #6c757d;
+  border-color: #6c757d;
+  color: white;
+  transform: translateY(-1px);
+}
+
 /* Form elements */
 .form-control {
   border-radius: 4px;
@@ -238,7 +299,7 @@ h2 {
 
 .form-control:focus {
   border-color: var(--secondary-color);
-  box-shadow: 0 0 0 0.15rem rgba(155, 93, 229, 0.2);
+  box-shadow: 0 0 0 0.15rem rgba(107, 70, 193, 0.2);
 }
 
 textarea {
@@ -382,8 +443,8 @@ textarea {
 }
 
 .table thead th {
-  background-color: var(--light-bg);
-  color: var(--title-color);
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  color: var(--primary-color);
   font-weight: 600;
   border-bottom: 1px solid var(--border-color);
   padding: 0.5rem;
@@ -400,7 +461,7 @@ textarea {
 }
 
 .table-hover tbody tr:hover {
-  background-color: rgba(155, 93, 229, 0.05);
+  background-color: rgba(107, 70, 193, 0.05);
 }
 
 /* Custom switch */

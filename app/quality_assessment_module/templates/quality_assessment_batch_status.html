@@ -2,6 +2,12 @@
 
 {% block title %}Batch Assessment Status - {{ batch_id }}{% endblock %}
 
+<!-- Set breadcrumb for navigation -->
+{% set breadcrumb = [
+    {'text': 'Quality Assessment', 'url': url_for('quality_assessment.upload_document_for_assessment')},
+    {'text': 'Batch Status', 'url': ''}
+] %}
+
 {% block extra_head %}
 <style>
     /* Adjust overall font style to maintain consistency with other pages */
@@ -158,13 +164,51 @@
     small .bi {
         font-size: 0.85em;
     }
+    
+    /* Light purple button styles with higher specificity */
+    .btn-light-purple, .btn-light-purple:not(:disabled):not(.disabled) {
+        color: #6b46c1 !important;
+        background-color: #e0e7ff !important;
+        border-color: #c7d2fe !important;
+    }
+    
+    .btn-light-purple:hover, .btn-light-purple:focus, .btn-light-purple:active,
+    .btn-light-purple:not(:disabled):not(.disabled):hover,
+    .btn-light-purple:not(:disabled):not(.disabled):focus,
+    .btn-light-purple:not(:disabled):not(.disabled):active {
+        color: #553c9a !important;
+        background-color: #c7d2fe !important;
+        border-color: #a5b4fc !important;
+    }
+    
+    .btn-outline-light-purple, .btn-outline-light-purple:not(:disabled):not(.disabled) {
+        color: #6b46c1 !important;
+        border-color: #c7d2fe !important;
+        background-color: transparent !important;
+    }
+    
+    .btn-outline-light-purple:hover, .btn-outline-light-purple:focus, .btn-outline-light-purple:active,
+    .btn-outline-light-purple:not(:disabled):not(.disabled):hover,
+    .btn-outline-light-purple:not(:disabled):not(.disabled):focus,
+    .btn-outline-light-purple:not(:disabled):not(.disabled):active {
+        color: #ffffff !important;
+        background-color: #8b5cf6 !important;
+        border-color: #8b5cf6 !important;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="section-card">
-    <h2>Batch Assessment Status</h2>
-    <p class="lead">Batch ID: <strong>{{ batch_id }}</strong></p>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="mb-1">Batch Assessment Status</h2>
+            <p class="lead mb-0">Batch ID: <strong>{{ batch_id }}</strong></p>
+        </div>
+        <a href="{{ url_for('quality_assessment.quality_assessment_history') }}" class="btn btn-outline-light-purple btn-sm">
+            <i class="fas fa-history mr-1"></i>History (24h)
+        </a>
+    </div>
 
     {% if batch_info %}
         <div class="card mb-3" id="batch-summary-card">

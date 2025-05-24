@@ -2,6 +2,12 @@
 
 {% block title %}Screening Criteria - AI Literature Screening Assistant{% endblock %}
 
+<!-- Set breadcrumb for navigation -->
+{% set breadcrumb = [
+    {'text': 'LLM Configuration', 'url': url_for('llm_config_page')},
+    {'text': 'Screening Criteria', 'url': ''}
+] %}
+
 {% block extra_head %}
 <style>
     /* Basic/Advanced Toggle Styles */
@@ -210,26 +216,32 @@
         font-size: 0.8rem;
     }
     .btn-primary {
-        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-        border: none;
-        box-shadow: 0 1px 3px rgba(123, 44, 191, 0.1);
+        background: white;
+        border: 1px solid #6b46c1;
+        color: #6b46c1;
+        box-shadow: 0 1px 3px rgba(107, 70, 193, 0.1);
     }
     .btn-primary:hover {
-        background: linear-gradient(135deg, #8a3ad0 0%, #a56ce8 100%);
+        background: #6b46c1;
+        border-color: #6b46c1;
+        color: white;
         transform: translateY(-1px);
-        box-shadow: 0 2px 5px rgba(123, 44, 191, 0.15);
+        box-shadow: 0 4px 12px rgba(107, 70, 193, 0.25);
     }
     .btn-primary:active, .btn-primary:focus {
-        background: linear-gradient(135deg, #7026a9 0%, #9b5de5 100%);
-        box-shadow: 0 1px 2px rgba(123, 44, 191, 0.2);
+        background: #553c9a !important;
+        border-color: #553c9a !important;
+        color: white !important;
+        box-shadow: 0 2px 4px rgba(107, 70, 193, 0.4) !important;
     }
     .btn-success {
-        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        background: var(--success-color);
         border: none;
         box-shadow: 0 1px 3px rgba(5, 150, 105, 0.1);
     }
     .btn-success:hover {
-        background: linear-gradient(135deg, #047857 0%, #059669 100%);
+        background: var(--success-color);
+        border-color: var(--success-color);
         transform: translateY(-1px);
         box-shadow: 0 2px 5px rgba(5, 150, 105, 0.15);
     }
@@ -258,24 +270,25 @@
         color: white;
     }
     .btn-danger {
-        background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+        background: var(--danger-color);
         border: none;
         box-shadow: 0 1px 3px rgba(220, 38, 38, 0.1);
     }
     .btn-danger:hover {
-        background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
+        background: var(--danger-color);
+        border-color: var(--danger-color);
         transform: translateY(-1px);
         box-shadow: 0 2px 5px rgba(220, 38, 38, 0.15);
     }
     .btn-outline-danger {
-        color: #dc2626;
-        border-color: #dc2626;
+        color: var(--danger-color);
+        border-color: var(--danger-color);
         transition: all 0.2s ease;
     }
     .btn-outline-danger:hover {
-        background-color: rgba(220, 38, 38, 0.05);
-        color: #b91c1c;
-        border-color: #b91c1c;
+        background: var(--danger-color);
+        color: white;
+        border-color: var(--danger-color);
     }
     .btn-sm {
         padding: 0.15rem 0.4rem;
@@ -475,10 +488,44 @@
         box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
     
-    .btn-action-secondary:hover {
-        background-color: rgba(220,53,69,0.05);
+    /* Ensure consistent styling for Save as New Set and Update buttons */
+    #save_criteria_as_button,
+    #update_loaded_local_set_button {
+        background: white !important;
+        border: 1px solid var(--success-color) !important;
+        color: var(--success-color) !important;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(5, 150, 105, 0.1);
+    }
+    
+    #save_criteria_as_button:hover,
+    #update_loaded_local_set_button:hover {
+        background: var(--success-color) !important;
+        border-color: var(--success-color) !important;
+        color: white !important;
         transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+        box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+    }
+    
+    #save_criteria_as_button:active,
+    #save_criteria_as_button:focus,
+    #update_loaded_local_set_button:active,
+    #update_loaded_local_set_button:focus {
+        background: var(--success-color) !important;
+        border-color: var(--success-color) !important;
+        color: white !important;
+        box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
+    }
+    
+    #update_loaded_local_set_button:disabled {
+        background: #f8f9fa !important;
+        border-color: #e2e8f0 !important;
+        color: #94a3b8 !important;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+        opacity: 0.6;
     }
     
     @media (max-width: 767.98px) {
@@ -718,13 +765,13 @@
                                 <option value="">-- Select a saved criteria set --</option>
                             </select>
                             <div class="input-group-append">
-                                <button type="button" id="load_criteria_button" class="btn btn-info">
+                                <button type="button" id="load_criteria_button" class="btn btn-outline-info">
                                     <i class="fas fa-download mr-1"></i> Load
                                 </button>
-                                <button type="button" id="update_loaded_local_set_button" class="btn btn-success" style="display:none;">
+                                <button type="button" id="update_loaded_local_set_button" class="btn btn-outline-success" style="display:none;">
                                     <i class="fas fa-sync-alt mr-1"></i> Update
                                 </button>
-                                <button type="button" id="delete_criteria_button" class="btn btn-danger" style="display:none;">
+                                <button type="button" id="delete_criteria_button" class="btn btn-outline-danger" style="display:none;">
                                     <i class="fas fa-trash-alt mr-1"></i> Delete
                                 </button>
                             </div>
@@ -735,7 +782,7 @@
                     </div>
                 </div>
                 <div class="col-md-4 text-md-right mt-3 mt-md-0">
-                     <button type="button" id="save_criteria_as_button" class="btn btn-success">
+                     <button type="button" id="save_criteria_as_button" class="btn btn-outline-success">
                          <i class="fas fa-save mr-1"></i> Save as New Set
                      </button>
                 </div>
@@ -908,7 +955,7 @@
                         <button type="submit" class="btn btn-primary btn-action" name="submit_action" value="save_and_apply">
                             <i class="fas fa-check-circle mr-2"></i>Apply Criteria for Screening
                         </button>
-                        <a href="{{ url_for('reset_criteria') }}" class="btn btn-outline-danger btn-action-secondary mt-3 mt-md-0 ml-md-3">
+                        <a href="{{ url_for('reset_criteria') }}" class="btn btn-outline-secondary btn-action-secondary mt-3 mt-md-0 ml-md-3">
                             <i class="fas fa-undo mr-1"></i>Reset to Defaults
                         </a>
                     </div>
@@ -1223,10 +1270,10 @@ document.addEventListener('DOMContentLoaded', function() {
             color: #059669;
         }
         .toast-error {
-            border-left-color: #DC2626;
+            border-left-color: var(--danger-color);
         }
         .toast-error i {
-            color: #DC2626;
+            color: var(--danger-color);
         }
         .toast-warning {
             border-left-color: #D97706;

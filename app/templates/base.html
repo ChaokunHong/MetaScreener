@@ -100,7 +100,7 @@
 
     <nav class="navbar navbar-expand-md navbar-dark fixed-top navbar-custom">
         <a class="navbar-brand" href="{{ url_for('index') }}">
-            <img src="{{ url_for('static', filename='images/white.png') }}" alt="MetaScreener Logo" style="height: 35px;" class="d-inline-block align-top mr-1">
+            <img src="{{ url_for('static', filename='images/white.png') }}" alt="MetaScreener Logo" style="height: 35px;" class="d-inline-block align-top">
         </a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
@@ -129,6 +129,30 @@
         </div>
     </nav>
 
+    <!-- Breadcrumb Navigation -->
+    {% if breadcrumb %}
+    <nav aria-label="breadcrumb" class="bg-light border-bottom">
+        <div class="container">
+            <ol class="breadcrumb mb-0 py-2" style="background-color: transparent;">
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('index') }}" class="text-decoration-none" style="color: var(--primary-color);">
+                        <i class="fas fa-home"></i> Home
+                    </a>
+                </li>
+                {% for item in breadcrumb %}
+                    {% if loop.last %}
+                        <li class="breadcrumb-item active" aria-current="page">{{ item.text }}</li>
+                    {% else %}
+                        <li class="breadcrumb-item">
+                            <a href="{{ item.url }}" class="text-decoration-none" style="color: var(--primary-color);">{{ item.text }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ol>
+        </div>
+    </nav>
+    {% endif %}
+
     <div class="container mt-4 mb-5">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -150,7 +174,7 @@
         <div class="container">
             <div class="row">
                 <div class="col-md-6 text-center text-md-left mb-2 mb-md-0">
-                    <span>© {{ current_year if current_year else namespace(current_year=2024).current_year }} MetaScreener. Use responsibly.</span>
+                    <span>© {{ current_year if current_year else namespace(current_year=2025).current_year }} MetaScreener. Use responsibly.</span>
                 </div>
                 <div class="col-md-6 text-center text-md-right">
                     <a href="#" class="mr-3" data-toggle="modal" data-target="#disclaimerModal">Disclaimer</a>

@@ -2,6 +2,12 @@
 
 {% block title %}Quality Assessment Result - {{ result.filename if result else 'Error' }}{% endblock %}
 
+<!-- Set breadcrumb for navigation -->
+{% set breadcrumb = [
+    {'text': 'Quality Assessment', 'url': url_for('quality_assessment.upload_document_for_assessment')},
+    {'text': result.filename if result and result.filename else 'Result', 'url': ''}
+] %}
+
 {% block extra_head %}
 <style>
     .result-header {
@@ -39,39 +45,125 @@
         transition: width 0.3s ease;
     }
     
-    /* Judgment Styles */
-    .judgment-badge {
-        padding: 0.4rem 0.8rem;
-        border-radius: 4px;
-        font-weight: 500;
+    /* Clean Assessment Table Styles */
+    .assessment-table {
+        background: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .assessment-table thead th {
+        background: linear-gradient(135deg, #6b46c1 0%, #8b5cf6 100%);
+        color: white;
+        font-weight: 600;
         font-size: 0.85rem;
+        padding: 1rem 0.75rem;
+        border: none;
+        text-align: left;
+    }
+    
+    .assessment-table tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+        transition: background-color 0.2s ease;
+    }
+    
+    .assessment-table tbody tr:hover {
+        background-color: rgba(107, 70, 193, 0.02);
+    }
+    
+    .assessment-table tbody tr:last-child {
+        border-bottom: none;
+    }
+    
+    .assessment-table td {
+        padding: 1rem 0.75rem;
+        vertical-align: top;
+        border: none;
+    }
+    
+    /* Criterion Column */
+    .criterion-text {
+        font-weight: 500;
+        color: #1e293b;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        margin-bottom: 0.25rem;
+    }
+    
+    .criterion-id {
+        font-size: 0.75rem;
+        color: #64748b;
+        font-family: monospace;
+    }
+    
+    /* Analysis Column */
+    .analysis-content {
+        font-size: 0.85rem;
+        color: #475569;
+        line-height: 1.5;
+    }
+    
+    /* Judgment Styles - Clean badges */
+    .judgment-badge {
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        font-weight: 500;
+        font-size: 0.8rem;
         text-align: center;
         display: inline-block;
-        min-width: 80px;
+        min-width: 70px;
+        border: none;
     }
     
-    .judgment-yes { background-color: #d1f0d5; color: #0f5132; border: 1px solid #a3cfbb; }
-    .judgment-no { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-    .judgment-maybe { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-    .judgment-unclear { background-color: #e9ecef; color: #495057; border: 1px solid #ced4da; }
+    .judgment-yes { 
+        background: var(--success-color);
+        color: white;
+    }
+    .judgment-no { 
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+    }
+    .judgment-maybe { 
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+    }
+    .judgment-unclear { 
+        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+        color: white;
+    }
     
-    /* Evidence Styles */
-    .evidence-section {
-        background: var(--light-bg);
+    /* Status Icons - Clean minimal style */
+    .status-icon {
+        font-size: 1.1rem;
+    }
+    
+    /* Evidence toggle - subtle button */
+    .evidence-toggle {
+        background: transparent;
         border: 1px solid var(--border-color);
+        color: var(--primary-color);
+        padding: 0.25rem 0.5rem;
         border-radius: 4px;
-        padding: 0.75rem;
+        font-size: 0.75rem;
+        transition: all 0.2s ease;
         margin-top: 0.5rem;
-        font-size: 0.85rem;
     }
     
-    .evidence-quote {
-        background: white;
-        border-left: 3px solid var(--primary-color);
-        padding: 0.5rem;
-        margin: 0.25rem 0;
-        font-style: italic;
-        border-radius: 0 3px 3px 0;
+    .evidence-toggle:hover {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+    
+    /* Evidence section - clean card style */
+    .evidence-section {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 0.75rem;
+        margin-top: 0.75rem;
+        font-size: 0.85rem;
     }
     
     /* PDF Viewer Styles */
@@ -89,32 +181,6 @@
         height: auto;
     }
     
-    /* Responsive table */
-    .assessment-table th {
-        background: var(--light-bg);
-        font-weight: 600;
-        font-size: 0.85rem;
-        padding: 0.75rem 0.5rem;
-        border-bottom: 2px solid var(--border-color);
-    }
-    
-    .assessment-table td {
-        padding: 0.75rem 0.5rem;
-        vertical-align: top;
-        border-bottom: 1px solid var(--border-color);
-    }
-    
-    .criterion-text {
-        font-weight: 500;
-        margin-bottom: 0.25rem;
-    }
-    
-    .criterion-id {
-        font-size: 0.75rem;
-        color: var(--text-color);
-        opacity: 0.7;
-    }
-    
     @media (max-width: 768px) {
         .result-header {
             text-align: center;
@@ -127,6 +193,37 @@
         .quality-score-display {
             font-size: 1.5rem;
         }
+    }
+    
+    /* Light purple button styles with higher specificity */
+    .btn-light-purple, .btn-light-purple:not(:disabled):not(.disabled) {
+        color: #6b46c1 !important;
+        background-color: #e0e7ff !important;
+        border-color: #c7d2fe !important;
+    }
+    
+    .btn-light-purple:hover, .btn-light-purple:focus, .btn-light-purple:active,
+    .btn-light-purple:not(:disabled):not(.disabled):hover,
+    .btn-light-purple:not(:disabled):not(.disabled):focus,
+    .btn-light-purple:not(:disabled):not(.disabled):active {
+        color: #553c9a !important;
+        background-color: #c7d2fe !important;
+        border-color: #a5b4fc !important;
+    }
+    
+    .btn-outline-light-purple, .btn-outline-light-purple:not(:disabled):not(.disabled) {
+        color: #6b46c1 !important;
+        border-color: #c7d2fe !important;
+        background-color: transparent !important;
+    }
+    
+    .btn-outline-light-purple:hover, .btn-outline-light-purple:focus, .btn-outline-light-purple:active,
+    .btn-outline-light-purple:not(:disabled):not(.disabled):hover,
+    .btn-outline-light-purple:not(:disabled):not(.disabled):focus,
+    .btn-outline-light-purple:not(:disabled):not(.disabled):active {
+        color: #ffffff !important;
+        background-color: #8b5cf6 !important;
+        border-color: #8b5cf6 !important;
     }
 </style>
 <script src="{{ url_for('static', filename='js/pdfjs/pdf.mjs') }}" type="module"></script>
@@ -143,6 +240,9 @@
                     <p class="text-muted mb-0">{{ result.filename }}</p>
                 </div>
                 <div class="flex-shrink-0">
+                    <a href="{{ url_for('quality_assessment.quality_assessment_history') }}" class="btn btn-outline-light-purple btn-sm mr-2">
+                        <i class="fas fa-history"></i> History
+                    </a>
                     <a href="{{ url_for('.upload_document_for_assessment') }}" class="btn btn-secondary btn-sm">
                         <i class="fas fa-upload"></i> Upload Another
                     </a>
@@ -260,10 +360,10 @@
                                 <div class="criterion-id">{{ item.criterion_id }}</div>
                             </td>
                             <td>
-                                <div class="mb-2">{{ item.reason | default("No reasoning provided.") }}</div>
+                                <div class="analysis-content">{{ item.reason | default("No reasoning provided.") }}</div>
                                 {% if item.evidence_quotes and item.evidence_quotes|length > 0 and item.evidence_quotes[0] %}
-                                <button class="btn btn-sm btn-outline-secondary toggle-evidence-btn" onclick="toggleEvidence(this)">
-                                    <i class="fas fa-quote-left"></i> Show Evidence
+                                <button class="evidence-toggle" onclick="toggleEvidence(this)">
+                                    <i class="fas fa-quote-left"></i> Evidence
                                 </button>
                                 <div class="evidence-section" style="display: none;">
                                     <strong class="d-block mb-2">Supporting Evidence:</strong>
@@ -288,11 +388,11 @@
                             <td class="text-center">
                                 {% set judgment_lower = item.judgment.lower() %}
                                 {% if 'no' in judgment_lower or 'error' in judgment_lower %}
-                                    <i class="fas fa-exclamation-triangle text-warning" title="Potential quality issue"></i>
+                                    <i class="fas fa-exclamation-triangle status-icon text-warning" title="Potential quality issue"></i>
                                 {% elif 'unclear' in judgment_lower or 'information' in judgment_lower %}
-                                    <i class="fas fa-question-circle text-info" title="Unclear or missing information"></i>
+                                    <i class="fas fa-question-circle status-icon text-info" title="Unclear or missing information"></i>
                                 {% else %}
-                                    <i class="fas fa-check-circle text-success" title="Criterion met"></i>
+                                    <i class="fas fa-check-circle status-icon text-success" title="Criterion met"></i>
                                 {% endif %}
                             </td>
                         </tr>
