@@ -7,7 +7,7 @@ import uuid # For generating batch IDs
 from typing import Optional # Added for type hint
 
 # We will also need to import services and forms later
-from .services import process_uploaded_document, quick_upload_document, get_assessment_result, QUALITY_ASSESSMENT_TOOLS, _assessments_db, QA_PDF_UPLOAD_DIR, register_celery_item, _generate_safe_assessment_id, _save_assessment_to_redis
+from .services import process_uploaded_document, quick_upload_document, get_assessment_result, QUALITY_ASSESSMENT_TOOLS, _assessments_db, QA_PDF_UPLOAD_DIR, register_celery_item, _generate_safe_assessment_id, _save_assessment_to_redis, _save_assessments_to_file
 # from .forms import DocumentUploadForm, AssessmentReviewForm 
 
 # Import Redis storage utilities
@@ -135,14 +135,40 @@ def handle_ultra_quick_upload(uploaded_files, selected_document_type, successful
                 'size': len(file_content)
             }
             
+            # Create basic assessment record immediately for frontend status queries
+            _assessments_db[assessment_id] = {
+                "status": "uploading",
+                "filename": original_filename,
+                "document_type": selected_document_type,
+                "progress": {"current": 0, "total": 100, "message": "File uploaded, preparing for processing"},
+                "saved_pdf_filename": None,
+                "raw_text": None,
+                "assessment_details": [],
+                "upload_mode": "ultra_quick"
+            }
+            
+            # Save to Redis for cross-process access
+            try:
+                _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
+            except Exception as e:
+                current_app.logger.error(f"ULTRA_QUICK: Failed to save assessment {assessment_id} to Redis: {e}")
+            
             successful_uploads.append(original_filename)
             assessment_ids_in_batch.append(assessment_id)
             current_app.logger.info(f"ULTRA_QUICK: Pre-processed {original_filename} (ID: {assessment_id})")
+        
         elif file_storage and file_storage.filename:
             failed_uploads.append(secure_filename(file_storage.filename) + " (invalid type)")
     
     if not successful_uploads:
         return handle_upload_results(successful_uploads, failed_uploads, assessment_ids_in_batch, uploaded_files)
+    
+    # Save all assessment records to file after processing all files
+    try:
+        _save_assessments_to_file()
+        current_app.logger.info("ULTRA_QUICK: Saved all assessment records to file")
+    except Exception as e:
+        current_app.logger.error(f"ULTRA_QUICK: Failed to save assessments to file: {e}")
     
     # Step 2: Create batch info immediately (lightweight operation)
     batch_data = {
@@ -199,15 +225,44 @@ def process_files_async(app, temp_file_mapping, selected_document_type, batch_id
                 import io
                 file_stream = io.BytesIO(file_info['content'])
                 
-                # Now do the actual file processing
-                assessment_id_result = quick_upload_document(
-                    file_stream, 
-                    file_info['filename'], 
-                    selected_document_type, 
-                    session_data
-                )
+                # Update status to processing
+                if assessment_id in _assessments_db:
+                    _assessments_db[assessment_id]["status"] = "processing_upload"
+                    _assessments_db[assessment_id]["progress"]["message"] = "Processing file upload..."
+                    _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
                 
-                current_app.logger.info(f"ASYNC_PROCESSOR: Completed processing {file_info['filename']} (ID: {assessment_id_result})")
+                # Use existing assessment ID for processing
+                import os
+                from werkzeug.utils import secure_filename
+                
+                # Save PDF file
+                secure_filename_for_save = secure_filename(file_info['filename'])
+                saved_pdf_filename = f"{assessment_id}_{secure_filename_for_save}"
+                saved_pdf_full_path = os.path.join(QA_PDF_UPLOAD_DIR, saved_pdf_filename)
+                
+                with open(saved_pdf_full_path, 'wb') as f_out:
+                    f_out.write(file_info['content'])
+                
+                # Update assessment record with file info
+                if assessment_id in _assessments_db:
+                    _assessments_db[assessment_id]["saved_pdf_filename"] = saved_pdf_filename
+                    _assessments_db[assessment_id]["status"] = "pending_text_extraction"
+                    _assessments_db[assessment_id]["progress"]["message"] = "File saved, preparing for assessment"
+                    _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
+                    # Save to file for persistence
+                    try:
+                        from app.quality_assessment_module.services import _save_assessments_to_file
+                        _save_assessments_to_file()
+                    except Exception as save_e:
+                        current_app.logger.error(f"ASYNC_PROCESSOR: Failed to save to file: {save_e}")
+                
+                # Schedule background processing with existing ID
+                from app.quality_assessment_module.services import run_background_processing
+                from config.config import get_current_llm_config
+                
+                spawn(run_background_processing, assessment_id, current_app.app_context(), get_current_llm_config(session_data))
+                
+                current_app.logger.info(f"ASYNC_PROCESSOR: Completed processing {file_info['filename']} (ID: {assessment_id})")
                 
                 # Small delay to prevent overwhelming the system
                 sleep(0.1)
@@ -215,13 +270,11 @@ def process_files_async(app, temp_file_mapping, selected_document_type, batch_id
             except Exception as e:
                 current_app.logger.error(f"ASYNC_PROCESSOR: Error processing {file_info['filename']}: {e}")
                 # Update assessment record with error status
-                _assessments_db[assessment_id] = {
-                    "status": "error",
-                    "filename": file_info['filename'],
-                    "message": f"Async processing failed: {str(e)}",
-                    "progress": {"current": 0, "total": 100, "message": "Processing failed"}
-                }
-                _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
+                if assessment_id in _assessments_db:
+                    _assessments_db[assessment_id]["status"] = "error"
+                    _assessments_db[assessment_id]["message"] = f"Async processing failed: {str(e)}"
+                    _assessments_db[assessment_id]["progress"]["message"] = "Processing failed"
+                    _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
         
         current_app.logger.info(f"ASYNC_PROCESSOR: Completed background processing for batch {batch_id}")
 
