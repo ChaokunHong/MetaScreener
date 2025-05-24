@@ -306,27 +306,27 @@ def view_assessment_result(assessment_id):
 def assessment_status(assessment_id):
     current_app.logger.info(f"ASSESSMENT_STATUS: Requested ID={assessment_id}, Type={type(assessment_id)}")
     
-    # 尝试多种方式获取数据
+    # Try multiple ways to get data
     assessment_data = None
     
-    # 1. 首先尝试原始ID
+    # 1. First try original ID
     assessment_data = get_assessment_result(assessment_id)
     current_app.logger.info(f"ASSESSMENT_STATUS: Direct lookup result for {assessment_id}: {assessment_data is not None}")
     
-    # 2. 如果没找到，尝试string类型
+    # 2. If not found, try string type
     if not assessment_data:
         str_id = str(assessment_id)
         assessment_data = get_assessment_result(str_id)
         current_app.logger.info(f"ASSESSMENT_STATUS: String lookup result for {str_id}: {assessment_data is not None}")
     
-    # 3. 如果还没找到，记录详细调试信息
+    # 3. If still not found, log detailed debug information
     if not assessment_data:
-        # 记录当前所有assessment数据的keys
+        # Log current assessment data keys
         from quality_assessment.services import _assessments_db
         current_keys = list(_assessments_db.keys())
         current_app.logger.warning(f"ASSESSMENT_STATUS: No data found for {assessment_id}. Available keys: {current_keys}")
         
-        # 尝试从Redis直接查询
+        # Try querying Redis directly
         try:
             from quality_assessment.services import get_assessment_redis_client
             redis_client = get_assessment_redis_client()
@@ -335,7 +335,7 @@ def assessment_status(assessment_id):
         except Exception as e:
             current_app.logger.error(f"ASSESSMENT_STATUS: Redis check failed: {e}")
     
-    # 返回结果
+    # Return result
     if assessment_data:
         response_data = {
             "status": assessment_data.get("status"),

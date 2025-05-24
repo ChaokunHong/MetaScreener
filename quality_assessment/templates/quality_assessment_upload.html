@@ -4,7 +4,7 @@
 
 {% block extra_head %}
 <style>
-    /* 调整整体字体风格，与其他页面保持一致 */
+    /* Adjust overall font style for consistency with other pages */
     h2 {
         font-size: 1.3rem;
         margin-bottom: 0.75rem;
@@ -61,7 +61,7 @@
         padding: 0.75rem;
     }
     
-    /* 文件列表样式 */
+    /* File list styles */
     #selected-files-list {
         margin-bottom: 1rem;
     }
@@ -76,7 +76,7 @@
         font-size: 0.8rem;
     }
     
-    /* 框架信息卡片样式 */
+    /* Framework information card styles */
     .card.bg-light {
         background-color: #f8f9ff !important;
         border: 1px solid rgba(123, 44, 191, 0.1);
@@ -87,12 +87,12 @@
         border-bottom: 1px solid rgba(123, 44, 191, 0.08);
     }
     
-    /* 上传表单样式 */
+    /* Upload form styles */
     .form-group {
         margin-bottom: 1rem;
     }
     
-    /* 可折叠提示框样式 */
+    /* Collapsible hint box styles */
     .frameworks-container {
         margin: 2rem 0 2.5rem 0;
         border-radius: 4px;
@@ -169,7 +169,7 @@
         margin-top: 0.5rem;
     }
     
-    /* 美化文件上传控件 */
+    /* Beautify file upload control */
     .file-upload-container {
         position: relative;
         overflow: hidden;
@@ -214,7 +214,7 @@
         font-size: 0.75rem;
     }
     
-    /* 美化选择框 */
+    /* Beautify select box */
     .custom-select-container {
         background-color: #f8f9ff;
         border: 2px solid rgba(123, 44, 191, 0.3);
@@ -307,7 +307,7 @@
         font-size: 0.7rem;
     }
     
-    /* 表单分组标题 */
+    /* Form group title */
     .form-section-title {
         font-size: 0.9rem;
         font-weight: 500;
@@ -322,7 +322,7 @@
         margin-right: 0.5rem;
     }
     
-    /* 提交按钮样式 */
+    /* Submit button styles */
     .submit-btn {
         background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
         color: white;
@@ -344,7 +344,7 @@
         box-shadow: 0 1px 3px rgba(123, 44, 191, 0.2);
     }
     
-    /* 功能区紫色填充白色输入样式 */
+    /* Purple-filled white input styles for feature area */
     .framework-selection-container {
         background: linear-gradient(to right, #f0f4ff, #f2f6fc);
         padding: 1rem;
@@ -419,24 +419,24 @@
                 <i class="fas fa-tasks"></i>Assessment Configuration
             </div>
 
-            <!-- 上传模式选择 -->
+                            <!-- Upload mode selection -->
             <div class="form-group mb-3">
                 <div class="custom-select-container">
                     <label for="upload_mode" class="custom-select-label">
                         <i class="fas fa-rocket mr-1"></i>Upload Mode:
                     </label>
                     <div class="select-hint">
-                        <i class="fas fa-info-circle"></i>选择上传处理模式
+                        <i class="fas fa-info-circle"></i>Choose upload processing mode
                     </div>
                     <div class="select-wrapper">
                         <select class="custom-select" id="upload_mode" name="upload_mode">
-                            <option value="quick" selected>⚡ 快速模式 - 秒级响应 (推荐)</option>
-                            <option value="traditional">🔄 传统模式 - 同步处理</option>
+                            <option value="quick" selected>⚡ Quick Mode - Instant Response (Recommended)</option>
+                            <option value="traditional">🔄 Traditional Mode - Synchronous Processing</option>
                         </select>
                     </div>
                     <small class="form-text text-muted mt-2">
-                        <strong>快速模式</strong>：文件上传后立即跳转到进度页面，文本提取和AI评估在后台异步进行。<br>
-                        <strong>传统模式</strong>：上传时同步进行文本提取，可能需要等待较长时间。
+                        <strong>Quick Mode</strong>: Files are uploaded instantly and you're redirected to the progress page immediately. Text extraction and AI assessment happen in the background.<br>
+                        <strong>Traditional Mode</strong>: Text extraction occurs during upload, which may require waiting 1-3 minutes.
                     </small>
                 </div>
             </div>
@@ -469,16 +469,16 @@
                 <i class="fas fa-check-circle mr-1"></i>Upload and Start Assessment
             </button>
             
-            <!-- 上传处理状态显示 -->
+            <!-- Upload processing status display -->
             <div id="upload-processing" class="mt-3" style="display: none;">
                 <div class="alert alert-info">
                     <div class="d-flex align-items-center">
                         <div class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></div>
-                        <div>
-                            <strong id="upload-status-text">正在上传文件...</strong>
-                            <br>
-                            <small id="upload-status-detail">快速模式：文件上传后将立即跳转到进度页面</small>
-                        </div>
+                                                 <div>
+                             <strong id="upload-status-text">Uploading files...</strong>
+                             <br>
+                             <small id="upload-status-detail">Quick mode: Files will be redirected to progress page immediately after upload</small>
+                         </div>
                     </div>
                 </div>
             </div>
@@ -504,7 +504,7 @@ function updateSelectedFilesList(files) {
             const li = document.createElement('li');
             li.className = 'list-group-item';
             
-            // 文件大小格式化
+                         // File size formatting
             let fileSize = '';
             if (files[i].size < 1024) {
                 fileSize = files[i].size + ' B';
@@ -578,39 +578,39 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (form && submitBtn) {
         form.addEventListener('submit', function(e) {
-            // 检查是否选择了文件
-            const fileInput = document.getElementById('pdf_files');
-            if (!fileInput.files || fileInput.files.length === 0) {
-                alert('请选择至少一个PDF文件');
-                e.preventDefault();
-                return;
-            }
+                         // Check if files are selected
+             const fileInput = document.getElementById('pdf_files');
+             if (!fileInput.files || fileInput.files.length === 0) {
+                 alert('Please select at least one PDF file');
+                 e.preventDefault();
+                 return;
+             }
             
-            // 立即显示处理状态
-            const selectedMode = uploadModeSelect.value;
-            const fileCount = fileInput.files.length;
-            
-            // 禁用提交按钮
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Processing...';
-            
-            // 显示处理状态
-            uploadProcessing.style.display = 'block';
-            
-            if (selectedMode === 'quick') {
-                uploadStatusText.textContent = `正在快速上传 ${fileCount} 个文件...`;
-                uploadStatusDetail.textContent = '快速模式：文件保存后将立即跳转，文本提取在后台进行';
-            } else {
-                uploadStatusText.textContent = `正在同步处理 ${fileCount} 个文件...`;
-                uploadStatusDetail.textContent = '传统模式：等待文本提取完成后跳转，可能需要1-3分钟';
-            }
-            
-            // 定时更新状态文本
-            let processingSteps = [
-                '正在保存文件到服务器...',
-                '正在初始化处理任务...',
-                '正在准备跳转...'
-            ];
+                         // Show processing status immediately
+             const selectedMode = uploadModeSelect.value;
+             const fileCount = fileInput.files.length;
+             
+             // Disable submit button
+             submitBtn.disabled = true;
+             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Processing...';
+             
+             // Show processing status
+             uploadProcessing.style.display = 'block';
+             
+             if (selectedMode === 'quick') {
+                 uploadStatusText.textContent = `Quickly uploading ${fileCount} file(s)...`;
+                 uploadStatusDetail.textContent = 'Quick mode: Files will be redirected immediately after saving, text extraction happens in background';
+             } else {
+                 uploadStatusText.textContent = `Synchronously processing ${fileCount} file(s)...`;
+                 uploadStatusDetail.textContent = 'Traditional mode: Waiting for text extraction to complete, may take 1-3 minutes';
+             }
+             
+             // Update status text periodically
+             let processingSteps = [
+                 'Saving files to server...',
+                 'Initializing processing tasks...',
+                 'Preparing redirect...'
+             ];
             
             if (selectedMode === 'quick') {
                 let stepIndex = 0;
