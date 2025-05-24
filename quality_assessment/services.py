@@ -59,6 +59,39 @@ def get_celery_redis_client():
         _celery_redis_client = redis.Redis.from_url(redis_url)
     return _celery_redis_client
 
+# Redis client for assessment data storage
+_assessment_redis_client = None
+
+def get_assessment_redis_client():
+    global _assessment_redis_client
+    if _assessment_redis_client is None:
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+        _assessment_redis_client = redis.Redis.from_url(redis_url, decode_responses=False)
+    return _assessment_redis_client
+
+def _save_assessment_to_redis(assessment_id: str, assessment_data: dict):
+    """Save assessment data to Redis for multi-process sharing"""
+    try:
+        redis_client = get_assessment_redis_client()
+        serialized_data = pickle.dumps(assessment_data)
+        redis_client.setex(f"qa_assessment:{assessment_id}", 86400, serialized_data)  # 24 hours TTL
+        print(f"REDIS_SAVE: Saved assessment {assessment_id} to Redis")
+    except Exception as e:
+        print(f"REDIS_SAVE_ERROR: Failed to save assessment {assessment_id} to Redis: {e}")
+
+def _get_assessment_from_redis(assessment_id: str) -> dict:
+    """Get assessment data from Redis"""
+    try:
+        redis_client = get_assessment_redis_client()
+        serialized_data = redis_client.get(f"qa_assessment:{assessment_id}")
+        if serialized_data:
+            assessment_data = pickle.loads(serialized_data)
+            print(f"REDIS_GET: Retrieved assessment {assessment_id} from Redis")
+            return assessment_data
+    except Exception as e:
+        print(f"REDIS_GET_ERROR: Failed to get assessment {assessment_id} from Redis: {e}")
+    return None
+
 def cleanup_old_qa_pdfs():
     """Cleans up PDF files older than QA_PDF_CLEANUP_INTERVAL_SECONDS in QA_PDF_UPLOAD_DIR."""
     now = time.time()
@@ -656,6 +689,7 @@ def process_uploaded_document(pdf_file_stream, original_filename: str, selected_
             "filename": original_filename,
             "progress": {}
         }
+        _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
         return assessment_id
 
     if not text_content:
@@ -665,6 +699,7 @@ def process_uploaded_document(pdf_file_stream, original_filename: str, selected_
             "filename": original_filename,
             "progress": {}
         }
+        _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
         return assessment_id
     # text_content = "Dummy text content for now." # Remove dummy content
 
@@ -718,6 +753,7 @@ def process_uploaded_document(pdf_file_stream, original_filename: str, selected_
             "message": f"Failed to prepare LLM config: {e_conf_fetch}",
             "progress": {"message": "LLM config fetch error"}
         }
+        _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
         return assessment_id
     # --- End Fetch LLM Config ---
 
@@ -737,7 +773,8 @@ def process_uploaded_document(pdf_file_stream, original_filename: str, selected_
     }
     print(f"Document {original_filename} processed. Assessment ID: {assessment_id}. Type: {document_type_to_store}. Queuing AI assessment.")
     
-    # Save assessments to file after adding new one
+    # Save assessments to Redis and file after adding new one
+    _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
     _save_assessments_to_file(assessment_id_to_log=assessment_id)
     
     # Submit run_ai_quality_assessment to the executor
@@ -751,6 +788,7 @@ def process_uploaded_document(pdf_file_stream, original_filename: str, selected_
         _assessments_db[assessment_id]["status"] = "error"
         _assessments_db[assessment_id]["message"] = f"Failed to start task: {e_submit}"
         _assessments_db[assessment_id]["progress"]["message"] = "Error starting task"
+        _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
 
     return assessment_id
 
@@ -776,6 +814,7 @@ def register_celery_item(filename: str, document_type: str, celery_processing_uu
         "classification_evidence": None,
         "saved_pdf_filename": None # Celery path handles files differently for preview
     }
+    _save_assessment_to_redis(numerical_id, _assessments_db[numerical_id])
     _save_assessments_to_file(assessment_id_to_log=numerical_id) # Save this new entry
     print(f"SERVICE_LOGIC: Registered celery item. Numerical ID: {numerical_id}, Filename: {filename}, Celery UUID: {celery_processing_uuid}")
     return numerical_id
@@ -785,13 +824,23 @@ def get_assessment_result(assessment_id: str):
     Retrieves the assessment result for a given numerical ID.
     If the item is pending Celery processing, it attempts to fetch and update 
     its status from the main Celery batch result in Redis.
+    Now with Redis support for multi-process environments.
     """
     # Ensure assessment_id is treated as a string key for the dictionary
     str_assessment_id = str(assessment_id)
-    item_data = _assessments_db.get(str_assessment_id)
+    
+    # First, try to get from Redis (for multi-process environments)
+    item_data = _get_assessment_from_redis(str_assessment_id)
+    
+    # If not in Redis, check legacy in-memory storage
+    if item_data is None:
+        item_data = _assessments_db.get(str_assessment_id)
+        # If found in memory, also save to Redis for future access
+        if item_data is not None:
+            _save_assessment_to_redis(str_assessment_id, item_data)
 
     if item_data is None:
-        print(f"GET_RESULT_LOGIC: No data found in _assessments_db for numerical ID {str_assessment_id}")
+        print(f"GET_RESULT_LOGIC: No data found in Redis or _assessments_db for numerical ID {str_assessment_id}")
         return None
 
     if item_data.get("status") == "pending_celery":
@@ -845,6 +894,7 @@ def get_assessment_result(assessment_id: str):
                          item_data['summary_quality_score'] = file_specific_result['quality_score']
 
                     _assessments_db[str_assessment_id] = item_data
+                    _save_assessment_to_redis(str_assessment_id, item_data)
                     _save_assessments_to_file(assessment_id_to_log=str_assessment_id)
                     print(f"GET_RESULT_LOGIC: Updated item {str_assessment_id} from Celery batch. New status: {item_data['status']}")
                 else:
@@ -1070,6 +1120,7 @@ def run_ai_quality_assessment(assessment_id: str, app_context=None, llm_config=N
             _assessments_db[assessment_id]["status"] = "error"
             _assessments_db[assessment_id]["message"] = "LLM config not provided to worker."
             if "progress" in _assessments_db[assessment_id]: _assessments_db[assessment_id]["progress"]["message"] = "Internal config error."
+            _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
         return
 
     if app_context:
@@ -1234,6 +1285,7 @@ def _execute_assessment_logic(assessment_id: str, llm_config: Dict):
         if assessment_id in _assessments_db:
             _assessments_db[assessment_id] = assessment_data
 
+        _save_assessment_to_redis(assessment_id, assessment_data)
         _save_assessments_to_file(assessment_id_to_log=assessment_id)
         # print(f"Background task for {assessment_id} finished. Results: {len(detailed_results)}")
 
@@ -1245,6 +1297,7 @@ def _execute_assessment_logic(assessment_id: str, llm_config: Dict):
             _assessments_db[assessment_id]['message'] = f"Critical background task error: {str(e_outer)[:100]}"
             if 'progress' in _assessments_db[assessment_id] and _assessments_db[assessment_id]['progress'] is not None:
                  _assessments_db[assessment_id]['progress']['message'] = "Critical error during processing"
+            _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
             _save_assessments_to_file(assessment_id_to_log=assessment_id)
 
 
