@@ -1888,22 +1888,22 @@ DEEPSEEK_MODEL_CONFIGS = {
         "top_p": None,  # Not supported
         "frequency_penalty": None,  # Not supported
         "presence_penalty": None,  # Not supported
-        "timeout": 90,  # Reduced to 90 seconds to avoid network layer conflicts
-        "max_retries": 2,  # Reduced retries for faster failure
-        "retry_delay": 3.0,  # Shorter delay between retries
-        "max_delay": 30.0,  # Maximum delay between retries
+        "timeout": 60,  # Conservative 60 seconds to avoid network conflicts
+        "max_retries": 1,  # Minimal retries for faster failure
+        "retry_delay": 2.0,  # Short delay between retries
+        "max_delay": 10.0,  # Maximum delay between retries
         "rate_limit": {
-            "requests_per_minute": 120,  # Increased RPM for better performance
-            "tokens_per_minute": 15000,
-            "batch_size": 3  # Increased to 3 for better throughput
+            "requests_per_minute": 30,  # Very conservative RPM
+            "tokens_per_minute": 10000,
+            "batch_size": 1  # Single request processing for maximum stability
         },
         "cost_per_1k_tokens": {"input": 0.00055, "output": 0.0022},
         "reasoning_effort": "medium",  # Future parameter
         "max_reasoning_tokens": 32000,  # CoT can be up to 32K tokens
         "enhanced_timeout_handling": False,  # Disabled complex timeout handling
         "adaptive_timeout": False,  # Disabled adaptive timeout
-        "connection_timeout": 15,  # Reduced connection timeout
-        "read_timeout": 90  # Aligned with main timeout
+        "connection_timeout": 10,  # Very short connection timeout
+        "read_timeout": 60  # Aligned with main timeout
     }
 }
 

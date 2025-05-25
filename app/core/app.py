@@ -707,43 +707,49 @@ def _perform_screening_on_abstract(abstract_text, criteria_prompt_text, provider
     func_start_time = time.time()
     app_logger.info(f"PERF: _perform_screening_on_abstract started for abstract: {abstract_text[:50]}...") # Log first 50 chars
 
-    # Check if essential config is provided (already checked before calling usually, but good safeguard)
-    if not api_key:
-        # This case should ideally be caught before calling this helper
-        return {"decision": "CONFIG_ERROR", "reasoning": f"API Key for {provider_name} missing in call."}
+    try:
+        # Check if essential config is provided (already checked before calling usually, but good safeguard)
+        if not api_key:
+            # This case should ideally be caught before calling this helper
+            return {"decision": "CONFIG_ERROR", "reasoning": f"API Key for {provider_name} missing in call."}
 
-    ai_decision = "ERROR"
-    ai_reasoning = "An unexpected error occurred during AI screening."
+        ai_decision = "ERROR"
+        ai_reasoning = "An unexpected error occurred during AI screening."
 
-    if pd.isna(abstract_text) or not abstract_text or not isinstance(abstract_text, str) or abstract_text.strip() == "":
-        ai_decision = "NO_ABSTRACT"
-        ai_reasoning = "Abstract is missing or empty."
-    else:
-        prompt_construct_start_time = time.time()
-        prompt = construct_llm_prompt(abstract_text, criteria_prompt_text)
-        prompt_construct_end_time = time.time()
-        app_logger.info(f"PERF: construct_llm_prompt took {prompt_construct_end_time - prompt_construct_start_time:.4f} seconds.")
-
-        if prompt:
-            llm_call_start_time = time.time()
-            # Use passed-in parameters for the API call
-            api_result = call_llm_api(prompt, provider_name, model_id, api_key, base_url)
-            llm_call_end_time = time.time()
-            app_logger.info(f"PERF: call_llm_api for provider {provider_name} model {model_id} took {llm_call_end_time - llm_call_start_time:.4f} seconds.")
-
-            if api_result and isinstance(api_result, dict):
-                ai_decision = api_result.get('label', 'API_ERROR')
-                ai_reasoning = api_result.get('justification', 'API call failed or returned invalid data.')
-            else:
-                ai_decision = "API_ERROR"
-                ai_reasoning = "API call function returned None or malformed data structure."
+        if pd.isna(abstract_text) or not abstract_text or not isinstance(abstract_text, str) or abstract_text.strip() == "":
+            ai_decision = "NO_ABSTRACT"
+            ai_reasoning = "Abstract is missing or empty."
         else:
-            ai_decision = "PROMPT_ERROR"
-            ai_reasoning = "Failed to construct LLM prompt."
+            prompt_construct_start_time = time.time()
+            prompt = construct_llm_prompt(abstract_text, criteria_prompt_text)
+            prompt_construct_end_time = time.time()
+            app_logger.info(f"PERF: construct_llm_prompt took {prompt_construct_end_time - prompt_construct_start_time:.4f} seconds.")
+
+            if prompt:
+                llm_call_start_time = time.time()
+                # Use passed-in parameters for the API call
+                api_result = call_llm_api(prompt, provider_name, model_id, api_key, base_url)
+                llm_call_end_time = time.time()
+                app_logger.info(f"PERF: call_llm_api for provider {provider_name} model {model_id} took {llm_call_end_time - llm_call_start_time:.4f} seconds.")
+
+                if api_result and isinstance(api_result, dict):
+                    ai_decision = api_result.get('label', 'API_ERROR')
+                    ai_reasoning = api_result.get('justification', 'API call failed or returned invalid data.')
+                else:
+                    ai_decision = "API_ERROR"
+                    ai_reasoning = "API call function returned None or malformed data structure."
+            else:
+                ai_decision = "PROMPT_ERROR"
+                ai_reasoning = "Failed to construct LLM prompt."
+        
+        func_end_time = time.time()
+        app_logger.info(f"PERF: _perform_screening_on_abstract finished in {func_end_time - func_start_time:.4f} seconds. Decision: {ai_decision}")
+        return {"decision": ai_decision, "reasoning": ai_reasoning}
     
-    func_end_time = time.time()
-    app_logger.info(f"PERF: _perform_screening_on_abstract finished in {func_end_time - func_start_time:.4f} seconds. Decision: {ai_decision}")
-    return {"decision": ai_decision, "reasoning": ai_reasoning}
+    except Exception as e:
+        app_logger.error(f"CRITICAL: Exception in _perform_screening_on_abstract: {str(e)}")
+        app_logger.exception("Full exception details:")
+        return {"decision": "FUNCTION_ERROR", "reasoning": f"Function error: {str(e)}"}
 
 
 # --- Screening Routes ---
@@ -1379,9 +1385,9 @@ def stream_screen_file():
                                     llm_api_key_from_outer_scope, llm_base_url)
                     batch_greenlets.append((index, row, greenlet))
                 
-                # Optimize: Use smaller check intervals for better UI responsiveness
-                max_wait_time = 15 # 15 seconds total timeout
-                check_interval = 0.2 # Check every 0.2 seconds
+                # Optimize: Use longer timeout for DeepSeek R1 reasoning model
+                max_wait_time = 120 # 120 seconds total timeout for reasoning models
+                check_interval = 0.5 # Check every 0.5 seconds
                 checks_completed = 0
                 max_checks = int(max_wait_time / check_interval)
                 
@@ -1822,9 +1828,9 @@ def stream_test_screen_file():
                                    llm_api_key_from_outer_scope, llm_base_url_param)
                     batch_greenlets.append((index, row, greenlet))
                 
-                # Optimize: Check results frequently to update UI more responsively
-                max_wait_time = 15  # 15 seconds total timeout
-                check_interval = 0.1  # Check every 100ms for more responsive UI
+                # Optimize: Use longer timeout for DeepSeek R1 reasoning model
+                max_wait_time = 120  # 120 seconds total timeout for reasoning models
+                check_interval = 0.5  # Check every 500ms for stability
                 checks_completed = 0
                 max_checks = int(max_wait_time / check_interval)
                 
