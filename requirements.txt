@@ -21,8 +21,8 @@ googleapis-common-protos==1.70.0
 grpcio==1.71.0
 grpcio-status==1.71.0
 gunicorn>=20.0
-gevent>=21.0.0
-greenlet>=1.0.0
+gevent==25.5.1
+greenlet>=3.2.2
 h11==0.16.0
 httpcore==1.0.9
 httplib2==0.22.0
@@ -34,6 +34,7 @@ jiter==0.9.0
 joblib==1.5.0
 MarkupSafe==3.0.2
 numpy==2.2.5
+openai==1.82.0
 openpyxl==3.1.5
 packaging==25.0
 pandas>=1.0
@@ -48,7 +49,7 @@ pyparsing==3.2.3
 python-dateutil==2.9.0.post0
 python-dotenv>=0.15
 pytz==2025.2
-redis==4.5.1
+redis==6.1.0
 requests==2.32.3
 rispy==0.9.0
 rsa==4.9.1
@@ -67,8 +68,18 @@ Werkzeug>=2.0
 Pillow>=9.0.0
 pytesseract>=0.3.8
 APScheduler>=3.6.0
-celery>=5.2.0
-kombu>=5.2.0
-billiard>=3.6.0
+celery==5.4.0
+kombu==5.4.2
+billiard>=4.2.1
 flower>=1.0.0
 eventlet>=0.33.0
+# Additional dependencies for enhanced API optimization
+vine>=5.1.0
+click-didyoumean>=0.3.0
+click-repl>=0.2.0
+click-plugins>=1.1.1
+prompt-toolkit>=3.0.36
+wcwidth>=0.2.13
+amqp>=5.3.1
+zope.event>=5.0
+zope.interface>=7.2

@@ -246,23 +246,20 @@
         <div class="info-text">
             <strong><i class="fas fa-info-circle mr-2"></i>Summary:</strong>
             Total items screened: <strong>{{ results|length }}</strong> | 
-            Include: <span class="badge-include">{{ results|selectattr('ai_decision', 'equalto', 'INCLUDE')|list|length }}</span> | 
-            Exclude: <span class="badge-exclude">{{ results|selectattr('ai_decision', 'equalto', 'EXCLUDE')|list|length }}</span> | 
-            Maybe: <span class="badge-maybe">{{ results|selectattr('ai_decision', 'equalto', 'MAYBE')|list|length }}</span>
+            Include: <span class="badge-include">{{ results|selectattr("decision", "equalto", "INCLUDE")|list|length }}</span> | 
+            Exclude: <span class="badge-exclude">{{ results|selectattr("decision", "equalto", "EXCLUDE")|list|length }}</span> | 
+            Maybe: <span class="badge-maybe">{{ results|selectattr("decision", "equalto", "MAYBE")|list|length }}</span>
         </div>
         
         <div class="export-buttons">
-            <a href="{{ url_for('export_ris', decision='INCLUDE') }}" class="export-btn">
-                <i class="fas fa-download"></i>Export INCLUDE as RIS
+            <a href="{{ url_for('download_results', screening_id=screening_id, format='csv') }}" class="export-btn">
+                <i class="fas fa-download"></i>Export as CSV
             </a>
-            <a href="{{ url_for('export_ris', decision='EXCLUDE') }}" class="export-btn">
-                <i class="fas fa-download"></i>Export EXCLUDE as RIS
+            <a href="{{ url_for('download_results', screening_id=screening_id, format='xlsx') }}" class="export-btn">
+                <i class="fas fa-download"></i>Export as Excel
             </a>
-            <a href="{{ url_for('export_ris', decision='MAYBE') }}" class="export-btn">
-                <i class="fas fa-download"></i>Export MAYBE as RIS
-            </a>
-            <a href="{{ url_for('export_ris', decision='ALL') }}" class="export-btn">
-                <i class="fas fa-download"></i>Export ALL as RIS
+            <a href="{{ url_for('download_results', screening_id=screening_id, format='json') }}" class="export-btn">
+                <i class="fas fa-download"></i>Export as JSON
             </a>
         </div>
         
@@ -270,11 +267,10 @@
             <table class="table results-table">
                 <thead>
                     <tr>
-                        <th style="width: 4%;">#</th>
-                        <th style="width: 28%;">Title & Authors</th>
-                        <th style="width: 32%;">Abstract</th>
-                        <th style="width: 24%;">AI Decision & Reasoning</th>
-                        <th style="width: 12%;">Journal & Year</th>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 35%;">Title & Authors</th>
+                        <th style="width: 35%;">Abstract</th>
+                        <th style="width: 25%;">AI Decision & Reasoning</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -288,7 +284,7 @@
                             <small class="text-muted" style="font-size: 0.7rem;">{{ item.authors if item.authors else 'Authors not available' }}</small>
                         </td>
                         <td>
-                            {% if item.abstract and item.abstract != "Abstract is missing or empty." and item.ai_decision != "NO_ABSTRACT" %}
+                            {% if item.abstract and item.abstract != "Abstract is missing or empty." and item.decision != "NO_ABSTRACT" %}
                                 <details>
                                     <summary><i class="fas fa-eye mr-1"></i>Show Abstract</summary>
                                     <div class="abstract-text">{{ item.abstract }}</div>
@@ -301,29 +297,17 @@
                         </td>
                         <td>
                             <div class="mb-1">
-                                {% if item.ai_decision == 'INCLUDE' %}
+                                {% if item.decision == 'INCLUDE' %}
                                     <span class="badge-include">INCLUDE</span>
-                                {% elif item.ai_decision == 'EXCLUDE' %}
+                                {% elif item.decision == 'EXCLUDE' %}
                                     <span class="badge-exclude">EXCLUDE</span>
-                                {% elif item.ai_decision == 'MAYBE' %}
+                                {% elif item.decision == 'MAYBE' %}
                                     <span class="badge-maybe">MAYBE</span>
                                 {% else %}
-                                    <span class="badge-error">{{ item.ai_decision | upper if item.ai_decision else 'ERROR' }}</span>
+                                    <span class="badge-error">{{ item.decision | upper if item.decision else 'ERROR' }}</span>
                                 {% endif %}
                             </div>
-                            <div class="ai-reasoning">{{ item.ai_reasoning }}</div>
-                        </td>
-                        <td>
-                            <small class="text-muted" style="font-size: 0.7rem;">
-                                {% if item.journal_name %}
-                                    <strong>{{ item.journal_name }}</strong><br>
-                                {% endif %}
-                                {% if item.year %}
-                                    <i class="fas fa-calendar mr-1"></i>{{ item.year }}
-                                {% else %}
-                                    Year not available
-                                {% endif %}
-                            </small>
+                            <div class="ai-reasoning">{{ item.reasoning or item.justification or item.ai_reasoning or item.ai_justification or "No reasoning provided" }}</div>
                         </td>
                     </tr>
                     {% endfor %}
