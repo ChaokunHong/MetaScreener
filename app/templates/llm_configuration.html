@@ -707,6 +707,1155 @@
         box-shadow: none;
         opacity: 0.6;
     }
+
+    /* Model Guide Button */
+    .model-guide-btn {
+        background: none;
+        border: none;
+        color: var(--primary-color);
+        cursor: pointer;
+        padding: 0.25rem;
+        margin-left: 0.5rem;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.5rem;
+        height: 1.5rem;
+        font-size: 0.875rem;
+    }
+
+    .model-guide-btn:hover {
+        background: var(--primary-light);
+        color: var(--primary-color);
+        transform: scale(1.1);
+    }
+
+    /* Model Select Wrapper */
+    .model-select-wrapper {
+        position: relative;
+    }
+
+    /* Custom Dropdown Styles */
+    .custom-dropdown {
+        position: relative;
+        width: 100%;
+    }
+
+    .dropdown-trigger {
+        appearance: none;
+        -webkit-appearance: none;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-sm);
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        width: 100%;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        outline: none;
+        font-family: var(--font-primary);
+        line-height: 1.4;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 44px;
+    }
+
+    .dropdown-trigger:hover {
+        border-color: var(--border-medium);
+    }
+
+    .dropdown-trigger.active {
+        border-color: var(--border-focus);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.08);
+    }
+
+    .dropdown-arrow {
+        transition: transform 0.2s ease;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        margin-left: 0.5rem;
+    }
+
+    .dropdown-trigger.active .dropdown-arrow {
+        transform: rotate(180deg);
+    }
+
+    .dropdown-options {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-lg);
+        z-index: 1000;
+        max-height: 300px;
+        overflow-y: auto;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        margin-top: 4px;
+    }
+
+    .dropdown-options.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+
+    .dropdown-option {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border-bottom: 1px solid var(--border-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .dropdown-option:last-child {
+        border-bottom: none;
+    }
+
+    .dropdown-option:hover {
+        background: var(--bg-secondary);
+        color: var(--primary-color);
+    }
+
+    .dropdown-option.selected {
+        background: var(--primary-light);
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+
+    .dropdown-option.selected::after {
+        content: '✓';
+        color: var(--primary-color);
+        font-weight: bold;
+    }
+
+    .option-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .option-type-badge {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: var(--bg-tertiary);
+        padding: 0.125rem 0.375rem;
+        border-radius: 9999px;
+    }
+
+    .dropdown-option:hover .option-type-badge {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    /* Custom Select Styles */
+    .custom-select {
+        position: relative;
+        width: 100%;
+        font-family: var(--font-primary);
+    }
+
+    .select-trigger {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-sm);
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 44px;
+    }
+
+    .select-trigger:hover {
+        border-color: var(--border-medium);
+    }
+
+    .select-trigger.active {
+        border-color: var(--border-focus);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.08);
+    }
+
+    .select-arrow {
+        transition: transform 0.2s ease;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+    }
+
+    .select-trigger.active .select-arrow {
+        transform: rotate(180deg);
+    }
+
+    .select-options {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-lg);
+        z-index: 1000;
+        max-height: 300px;
+        overflow-y: auto;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        margin-top: 4px;
+    }
+
+    .select-options.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+
+    .select-option {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border-bottom: 1px solid var(--border-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .select-option:last-child {
+        border-bottom: none;
+    }
+
+    .select-option:hover {
+        background: var(--bg-secondary);
+        color: var(--primary-color);
+    }
+
+    .select-option.selected {
+        background: var(--primary-light);
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+
+    .select-option.selected::after {
+        content: '✓';
+        color: var(--primary-color);
+        font-weight: bold;
+    }
+
+    .option-type {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: var(--bg-tertiary);
+        padding: 0.125rem 0.375rem;
+        border-radius: 9999px;
+        margin-left: 0.5rem;
+    }
+
+    .select-option:hover .option-type {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    /* Model Info Popup - Positioned above the dropdown */
+    .model-info-popup {
+        position: absolute;
+        bottom: 100%;
+        right: 0;
+        background: white;
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-xl);
+        z-index: 2000;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(10px);
+        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(12px);
+        background: rgba(255, 255, 255, 0.98);
+        width: 420px;
+        max-height: 400px;
+        overflow-y: auto;
+        pointer-events: none;
+        margin-bottom: 8px;
+    }
+
+    .model-info-popup.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+
+    .popup-content {
+        padding: 1.25rem;
+    }
+
+    .popup-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .model-name {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 1rem;
+        line-height: 1.3;
+    }
+
+    .model-type {
+        background: var(--primary-light);
+        color: var(--primary-color);
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+    }
+
+    .model-description {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        line-height: 1.5;
+        margin-bottom: 1rem;
+    }
+
+    .popup-specs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        background: var(--bg-secondary);
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border-light);
+    }
+
+    .spec-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .spec-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .spec-value {
+        font-size: 0.8125rem;
+        color: var(--text-primary);
+        font-weight: 500;
+        font-family: var(--font-mono);
+    }
+
+    .model-strengths {
+        margin-bottom: 1rem;
+    }
+
+    .model-strengths h4 {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #059669;
+        margin-bottom: 0.5rem;
+    }
+
+    .model-strengths ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.375rem;
+    }
+
+    .model-strengths li {
+        background: #ecfdf5;
+        color: #059669;
+        padding: 0.25rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        border: 1px solid #86efac;
+        white-space: nowrap;
+    }
+
+    .model-recommendation {
+        background: #f0f9ff;
+        border: 1px solid #7dd3fc;
+        border-left: 3px solid #0ea5e9;
+        border-radius: var(--radius-sm);
+        padding: 0.75rem;
+    }
+
+    .model-recommendation .rec-icon {
+        color: #0369a1;
+        margin-right: 0.375rem;
+        font-size: 1rem;
+    }
+
+    .model-recommendation .rec-text {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #0369a1;
+        line-height: 1.4;
+    }
+
+    /* Popup is now always positioned above */
+
+    /* Model Guide Modal - Enhanced Design */
+    .model-guide-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(12px);
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .model-guide-modal.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .guide-modal-content {
+        background: white;
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-xl);
+        max-width: 1000px;
+        width: 95vw;
+        max-height: 90vh;
+        overflow-y: auto;
+        transform: scale(0.9) translateY(20px);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid var(--border-light);
+    }
+
+    .model-guide-modal.show .guide-modal-content {
+        transform: scale(1) translateY(0);
+    }
+
+    .guide-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 2rem 2.5rem 1.5rem 2.5rem;
+        border-bottom: 1px solid var(--border-light);
+        background: linear-gradient(135deg, #fef7ff 0%, #f8fafc 100%);
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        position: relative;
+    }
+
+    .guide-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+        opacity: 0.3;
+    }
+
+    .guide-header h3 {
+        margin: 0;
+        color: var(--text-primary);
+        font-size: 1.625rem;
+        font-weight: 700;
+        font-family: var(--font-primary);
+        letter-spacing: -0.02em;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .guide-close {
+        background: none;
+        border: 1px solid transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        font-size: 0.875rem;
+    }
+
+    .guide-close:hover {
+        background: var(--bg-secondary);
+        border-color: var(--border-medium);
+        color: var(--text-primary);
+        transform: scale(1.05);
+    }
+
+    .guide-body {
+        padding: 2rem 2.5rem 2.5rem 2.5rem;
+    }
+
+    .guide-section {
+        margin-bottom: 2.5rem;
+    }
+
+    .guide-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .guide-section h4 {
+        color: var(--text-primary);
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-family: var(--font-primary);
+        letter-spacing: -0.01em;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--border-light);
+    }
+
+    .guide-section h4 i {
+        color: var(--primary-color);
+        opacity: 0.8;
+        font-size: 1.125rem;
+    }
+
+    .provider-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .provider-card {
+        background: white;
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-xs);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .provider-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary-color), #8b5cf6, #3b82f6);
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .provider-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--primary-color);
+    }
+
+    .provider-card:hover::before {
+        opacity: 1;
+    }
+
+    .provider-card h5 {
+        margin: 0 0 0.75rem 0;
+        color: var(--text-primary);
+        font-size: 1.125rem;
+        font-weight: 700;
+        font-family: var(--font-primary);
+        letter-spacing: -0.01em;
+    }
+
+    .provider-card p {
+        margin: 0.5rem 0;
+        font-size: 0.875rem;
+        line-height: 1.6;
+        color: var(--text-secondary);
+    }
+
+    .provider-card p strong {
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+
+    .type-comparison {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .type-card {
+        border: 2px solid var(--border-light);
+        border-radius: var(--radius-xl);
+        padding: 2rem;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--shadow-xs);
+    }
+
+    .type-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        opacity: 0.6;
+        transition: opacity 0.2s ease;
+    }
+
+    .type-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .type-card:hover::before {
+        opacity: 1;
+    }
+
+    .type-card.chat {
+        border-color: #3b82f6;
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    }
+
+    .type-card.chat::before {
+        background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+    }
+
+    .type-card.reasoning {
+        border-color: #8b5cf6;
+        background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+    }
+
+    .type-card.reasoning::before {
+        background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+    }
+
+    .type-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .type-header i {
+        font-size: 1.5rem;
+        opacity: 0.9;
+    }
+
+    .type-card.chat .type-header i {
+        color: #3b82f6;
+    }
+
+    .type-card.reasoning .type-header i {
+        color: #8b5cf6;
+    }
+
+    .type-card h5 {
+        margin: 0;
+        color: var(--text-primary);
+        font-size: 1.25rem;
+        font-weight: 700;
+        font-family: var(--font-primary);
+        letter-spacing: -0.01em;
+    }
+
+    .type-card p {
+        margin: 0.75rem 0;
+        font-size: 0.875rem;
+        line-height: 1.6;
+        color: var(--text-secondary);
+    }
+
+    .type-card p strong {
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+
+    .type-card ul {
+        margin: 0.75rem 0;
+        padding-left: 1.5rem;
+    }
+
+    .type-card li {
+        font-size: 0.875rem;
+        line-height: 1.5;
+        margin: 0.375rem 0;
+        color: var(--text-secondary);
+    }
+
+    .recommendation-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+
+    .rec-card {
+        background: white;
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        border-left: 4px solid var(--primary-color);
+        box-shadow: var(--shadow-xs);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .rec-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, transparent 50%, rgba(107, 70, 193, 0.1) 50%);
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .rec-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .rec-card:hover::after {
+        opacity: 1;
+    }
+
+    .rec-card.budget {
+        border-left-color: #10b981;
+    }
+
+    .rec-card.budget::after {
+        background: linear-gradient(135deg, transparent 50%, rgba(16, 185, 129, 0.1) 50%);
+    }
+
+    .rec-card.quality {
+        border-left-color: #8b5cf6;
+    }
+
+    .rec-card.quality::after {
+        background: linear-gradient(135deg, transparent 50%, rgba(139, 92, 246, 0.1) 50%);
+    }
+
+    .rec-card.speed {
+        border-left-color: #f59e0b;
+    }
+
+    .rec-card.speed::after {
+        background: linear-gradient(135deg, transparent 50%, rgba(245, 158, 11, 0.1) 50%);
+    }
+
+    .rec-card.reasoning {
+        border-left-color: #ef4444;
+    }
+
+    .rec-card.reasoning::after {
+        background: linear-gradient(135deg, transparent 50%, rgba(239, 68, 68, 0.1) 50%);
+    }
+
+    .rec-card h5 {
+        margin: 0 0 1rem 0;
+        color: var(--text-primary);
+        font-size: 1.125rem;
+        font-weight: 700;
+        font-family: var(--font-primary);
+        letter-spacing: -0.01em;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .rec-card h5::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--primary-color);
+    }
+
+    .rec-card.budget h5::before {
+        background: #10b981;
+    }
+
+    .rec-card.quality h5::before {
+        background: #8b5cf6;
+    }
+
+    .rec-card.speed h5::before {
+        background: #f59e0b;
+    }
+
+    .rec-card.reasoning h5::before {
+        background: #ef4444;
+    }
+
+    .rec-card p {
+        margin: 0.5rem 0;
+        font-size: 0.875rem;
+        line-height: 1.6;
+        color: var(--text-secondary);
+    }
+
+    .rec-card p strong {
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+
+    /* Smart positioning for different screen sizes */
+    @media (max-width: 1200px) {
+        .model-info-popup {
+            right: auto;
+            left: 0;
+            width: 380px;
+        }
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .model-info-popup {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            right: auto;
+            bottom: auto;
+            transform: translate(-50%, -100%);
+            width: 90vw;
+            max-width: 350px;
+            z-index: 2000;
+            margin-bottom: 0;
+        }
+
+        .model-info-popup.show {
+            transform: translate(-50%, -100%) scale(1);
+        }
+        
+        .popup-specs {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+        }
+        
+        .popup-content {
+            padding: 1rem;
+        }
+
+        .guide-modal-content {
+            width: 95vw;
+        }
+
+        .guide-header {
+            padding: 1rem 1.5rem;
+        }
+
+        .guide-body {
+            padding: 1.5rem;
+        }
+
+        .type-comparison {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        .provider-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .recommendation-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    /* API Test Failed Modal */
+    .api-test-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(12px);
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .api-test-modal.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .api-test-modal-content {
+        background: white;
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-xl);
+        max-width: 550px;
+        width: 90vw;
+        max-height: 90vh;
+        overflow-y: auto;
+        transform: scale(0.9) translateY(20px);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid var(--border-light);
+    }
+
+    .api-test-modal.show .api-test-modal-content {
+        transform: scale(1) translateY(0);
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 2rem 2.5rem 1.5rem 2.5rem;
+        border-bottom: 1px solid var(--border-light);
+        background: linear-gradient(135deg, #fef7ff 0%, #f8fafc 100%);
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        position: relative;
+    }
+
+    .modal-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+        opacity: 0.3;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        color: var(--text-primary);
+        font-size: 1.375rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-family: var(--font-primary);
+        letter-spacing: -0.02em;
+    }
+
+    .modal-header .warning-icon {
+        color: #f59e0b;
+        font-size: 1.75rem;
+        opacity: 0.9;
+    }
+
+    .modal-header .info-icon {
+        color: #3b82f6;
+        font-size: 1.75rem;
+        opacity: 0.9;
+    }
+
+    .modal-close {
+        background: none;
+        border: 1px solid transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        font-size: 0.875rem;
+    }
+
+    .modal-close:hover {
+        background: var(--bg-secondary);
+        border-color: var(--border-medium);
+        color: var(--text-primary);
+        transform: scale(1.05);
+    }
+
+    .modal-body {
+        padding: 2rem 2.5rem 2.5rem 2.5rem;
+    }
+
+    .modal-message {
+        font-size: 1rem;
+        line-height: 1.7;
+        color: var(--text-secondary);
+        margin-bottom: 1.25rem;
+        font-family: var(--font-primary);
+    }
+
+    .modal-description {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        margin-bottom: 2rem;
+        font-size: 0.875rem;
+        line-height: 1.6;
+        color: var(--text-muted);
+    }
+
+    .modal-description ul {
+        margin: 0.75rem 0 0 0;
+        padding-left: 1.25rem;
+    }
+
+    .modal-description li {
+        margin: 0.5rem 0;
+        color: var(--text-secondary);
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    /* Modal buttons following the page's apple-btn style */
+    .modal-btn {
+        background: white;
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-sm);
+        padding: 0.875rem 1.5rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        min-width: 140px;
+        font-family: var(--font-primary);
+        text-decoration: none;
+        letter-spacing: -0.01em;
+    }
+
+    .modal-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .modal-btn:active {
+        transform: translateY(0);
+    }
+
+    /* Primary button - matches apple-btn-outline-primary */
+    .modal-btn-primary {
+        background: white;
+        border: 1px solid #6b46c1;
+        color: #6b46c1;
+        box-shadow: 0 1px 3px rgba(107, 70, 193, 0.1);
+    }
+
+    .modal-btn-primary:hover {
+        background: #6b46c1;
+        border-color: #6b46c1;
+        color: white;
+        box-shadow: 0 4px 12px rgba(107, 70, 193, 0.25);
+    }
+
+    .modal-btn-primary:active, .modal-btn-primary:focus {
+        background: #553c9a;
+        border-color: #553c9a;
+        color: white;
+        box-shadow: 0 2px 6px rgba(107, 70, 193, 0.3);
+    }
+
+    /* Secondary button - matches apple-btn-outline-secondary */
+    .modal-btn-secondary {
+        background: white;
+        border: 1px solid #6c757d;
+        color: #6c757d;
+        box-shadow: 0 1px 3px rgba(108, 117, 125, 0.1);
+    }
+
+    .modal-btn-secondary:hover {
+        background: #6c757d;
+        border-color: #6c757d;
+        color: white;
+        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.25);
+    }
+
+    .modal-btn-secondary:active, .modal-btn-secondary:focus {
+        background: #5a6268;
+        border-color: #5a6268;
+        color: white;
+        box-shadow: 0 2px 6px rgba(108, 117, 125, 0.3);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .modal-header {
+            padding: 1rem 1.5rem;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-actions {
+            flex-direction: column;
+        }
+
+        .modal-btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -724,6 +1873,15 @@
         <div>
             <strong>Privacy First:</strong> Your API keys are securely stored in your browser session only. 
             We never see or store your credentials on our servers.
+        </div>
+    </div>
+
+    <div class="api-key-info" style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); border-color: #90caf9;">
+        <i class="fas fa-info-circle"></i>
+        <div>
+            <strong>Model Updates (May 2025):</strong> Our model list has been updated with the latest available models from each provider. 
+            All experimental and preview models have been removed to show only stable, production-ready options. 
+            Model information will be regularly updated to reflect the latest official releases.
         </div>
     </div>
 
@@ -751,8 +1909,48 @@
                     <label for="llm_model_id" class="form-label">
                         <i class="fas fa-brain"></i>
                         AI Model
+                        <button type="button" class="model-guide-btn" id="model-guide-btn" title="Click for model selection guide">
+                            <i class="fas fa-question-circle"></i>
+                        </button>
                     </label>
-                    <select name="llm_model_id" id="llm_model_id" class="apple-select"></select>
+                    <div class="model-select-wrapper">
+                        <!-- Hidden select for form submission -->
+                        <select name="llm_model_id" id="llm_model_id" class="apple-select" style="display: none;"></select>
+                        
+                        <!-- Custom dropdown that looks like the original -->
+                        <div class="custom-dropdown" id="custom-dropdown">
+                            <div class="dropdown-trigger" id="dropdown-trigger">
+                                <span class="dropdown-text">Select a model</span>
+                                <i class="fas fa-chevron-down dropdown-arrow"></i>
+                            </div>
+                            <div class="dropdown-options" id="dropdown-options">
+                                <!-- Options will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        
+                        <!-- Model Info Popup -->
+                        <div id="model-info-popup" class="model-info-popup">
+                            <div class="popup-content">
+                                <div class="popup-header">
+                                    <span class="model-name">Model Name</span>
+                                    <span class="model-type">Type</span>
+                                </div>
+                                <div class="model-description">Model description</div>
+                                <div class="popup-specs">
+                                    <div class="spec-item">
+                                        <span class="spec-label">Context Window:</span>
+                                        <span class="spec-value">-</span>
+                                    </div>
+                                    <div class="spec-item">
+                                        <span class="spec-label">Pricing:</span>
+                                        <span class="spec-value">-</span>
+                                    </div>
+                                </div>
+                                <div class="model-strengths"></div>
+                                <div class="model-recommendation"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -770,7 +1968,9 @@
                        name="{{ provider_name_key.lower() }}_api_key" 
                        id="{{ provider_name_key.lower() }}_api_key" 
                        class="apple-input" 
-                       placeholder="Enter your API key here">
+                       placeholder="Enter your API key here"
+                       oninput="handleApiKeyInput('{{ provider_name_key.lower() }}_api_key')"
+                       onpaste="setTimeout(() => handleApiKeyInput('{{ provider_name_key.lower() }}_api_key'), 10)">
                 
                 <div class="button-group">
                     <button class="apple-btn apple-btn-outline-secondary" type="button" 
@@ -784,6 +1984,15 @@
                             title="Test API key">
                         <i class="fas fa-flask"></i>
                         Test Key
+                    </button>
+                    <button type="button" 
+                            id="clear_input_{{ provider_name_key.lower() }}_api_key_btn" 
+                            class="apple-btn apple-btn-outline-danger" 
+                            onclick="clearApiKeyInput('{{ provider_name_key.lower() }}_api_key')"
+                            style="display: none;" 
+                            title="Clear input field">
+                        <i class="fas fa-times"></i>
+                        Clear
                     </button>
                 </div>
             </div>
@@ -805,9 +2014,9 @@
                             id="clear_{{ provider_name_key.lower() }}_api_key_btn" 
                             class="apple-btn apple-btn-outline-danger" 
                             style="display: none;" 
-                            title="Clear API Key from session">
+                            title="Clear API Key from session storage">
                         <i class="fas fa-trash-alt"></i>
-                        Clear Key
+                        Clear Session Key
                     </button>
                 </div>
             </div>
@@ -835,7 +2044,7 @@
         </div>
         {% endfor %}
         
-        <button type="submit" name="save_llm_config" value="true" class="submit-button">
+        <button type="button" id="save-config-btn" class="submit-button">
             <i class="fas fa-rocket"></i>
             <span id="submit-text">Save Configuration & Continue</span>
             <div id="submit-spinner" class="apple-spinner" style="display: none;"></div>
@@ -843,15 +2052,199 @@
     </form>
 </div>
 
+
+
+
+<!-- Model Selection Guide Modal -->
+<div id="model-guide-modal" class="model-guide-modal">
+    <div class="guide-modal-content">
+        <div class="guide-header">
+            <h3>🤖 AI Model Selection Guide</h3>
+            <button type="button" class="guide-close" id="guide-close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="guide-body">
+            <div class="guide-section">
+                <h4><i class="fas fa-cloud"></i> AI Providers Comparison</h4>
+                <div class="provider-grid">
+                    <div class="provider-card">
+                        <h5>🚀 DeepSeek</h5>
+                        <p><strong>Best for:</strong> Cost-effective research, coding tasks</p>
+                        <p><strong>Strengths:</strong> Excellent price-performance ratio, strong reasoning</p>
+                    </div>
+                    <div class="provider-card">
+                        <h5>🧠 OpenAI</h5>
+                        <p><strong>Best for:</strong> General-purpose tasks, proven reliability</p>
+                        <p><strong>Strengths:</strong> Most mature ecosystem, consistent quality</p>
+                    </div>
+                    <div class="provider-card">
+                        <h5>💎 Google Gemini</h5>
+                        <p><strong>Best for:</strong> Multimodal tasks, large context windows</p>
+                        <p><strong>Strengths:</strong> Advanced reasoning, integrated with Google services</p>
+                    </div>
+                    <div class="provider-card">
+                        <h5>🎯 Anthropic Claude</h5>
+                        <p><strong>Best for:</strong> Complex analysis, safety-critical tasks</p>
+                        <p><strong>Strengths:</strong> Exceptional reasoning, ethical AI design</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="guide-section">
+                <h4><i class="fas fa-cogs"></i> Model Types Explained</h4>
+                <div class="type-comparison">
+                    <div class="type-card chat">
+                        <div class="type-header">
+                            <i class="fas fa-comments"></i>
+                            <h5>Chat Models</h5>
+                        </div>
+                        <p><strong>Purpose:</strong> Fast, conversational interactions</p>
+                        <p><strong>Best for:</strong></p>
+                        <ul>
+                            <li>Quick literature screening</li>
+                            <li>Simple classification tasks</li>
+                            <li>High-volume processing</li>
+                            <li>Cost-sensitive projects</li>
+                        </ul>
+                        <p><strong>Examples:</strong> GPT-4o Mini, DeepSeek V3, Gemini Flash</p>
+                    </div>
+                    <div class="type-card reasoning">
+                        <div class="type-header">
+                            <i class="fas fa-brain"></i>
+                            <h5>Reasoning Models</h5>
+                        </div>
+                        <p><strong>Purpose:</strong> Deep analysis and complex reasoning</p>
+                        <p><strong>Best for:</strong></p>
+                        <ul>
+                            <li>Complex screening criteria</li>
+                            <li>Quality assessment tasks</li>
+                            <li>Detailed data extraction</li>
+                            <li>Research requiring high accuracy</li>
+                        </ul>
+                        <p><strong>Examples:</strong> Claude 4 Opus, DeepSeek R1, GPT-4.1</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="guide-section">
+                <h4><i class="fas fa-lightbulb"></i> Recommendations for Literature Screening</h4>
+                <div class="recommendation-grid">
+                    <div class="rec-card budget">
+                        <h5>💰 Budget-Conscious</h5>
+                        <p><strong>Recommended:</strong> DeepSeek V3 or Gemini Flash</p>
+                        <p>Great balance of cost and quality for most screening tasks</p>
+                    </div>
+                    <div class="rec-card quality">
+                        <h5>🎯 Maximum Quality</h5>
+                        <p><strong>Recommended:</strong> Claude 4 Opus or GPT-4.1</p>
+                        <p>Best for complex criteria and high-stakes research</p>
+                    </div>
+                    <div class="rec-card speed">
+                        <h5>⚡ High Volume</h5>
+                        <p><strong>Recommended:</strong> GPT-4o Mini or DeepSeek V3</p>
+                        <p>Fast processing for large literature databases</p>
+                    </div>
+                    <div class="rec-card reasoning">
+                        <h5>🧠 Complex Analysis</h5>
+                        <p><strong>Recommended:</strong> DeepSeek R1 or Claude 4 Sonnet</p>
+                        <p>Advanced reasoning for nuanced screening criteria</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Enhanced transition message that shows during page transition -->
 <div id="transitionMessage" class="transition-message">
-    <div><i class="fas fa-check-circle" style="color: var(--success-color);"></i> Configuration successful!</div>
+    <div><i class="fas fa-check-circle" style="color: var(--success-color);"></i> Configuration successful and API key validated!</div>
     <div style="margin-top: 0.75rem; display: flex; align-items: center; justify-content: center;">
         Redirecting to Screening Criteria
         <div class="loading-spinner">
             <span class="dot"></span>
             <span class="dot"></span>
             <span class="dot"></span>
+        </div>
+    </div>
+</div>
+
+<!-- API Test Failed Modal -->
+<div id="apiTestModal" class="api-test-modal">
+    <div class="api-test-modal-content">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-exclamation-triangle warning-icon"></i>
+                API Key Test Failed
+            </h3>
+            <button type="button" class="modal-close" id="modalClose">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-message" id="modalMessage">
+                The automatic API key test failed. This could be due to various reasons.
+            </div>
+            
+            <div class="modal-description">
+                <strong>Common causes:</strong>
+                <ul>
+                    <li>Invalid or expired API key</li>
+                    <li>Insufficient account balance or quota exceeded</li>
+                    <li>Regional restrictions or network connectivity issues</li>
+                    <li>Temporary service unavailability</li>
+                </ul>
+                <strong>What would you like to do?</strong>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-secondary" id="modalContinue">
+                    <i class="fas fa-arrow-right"></i>
+                    Continue Anyway
+                </button>
+                <button type="button" class="modal-btn modal-btn-primary" id="modalRetry">
+                    <i class="fas fa-flask"></i>
+                    Test Manually
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- No API Key Modal -->
+<div id="noApiKeyModal" class="api-test-modal">
+    <div class="api-test-modal-content">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-info-circle info-icon"></i>
+                No API Key Provided
+            </h3>
+            <button type="button" class="modal-close" id="noApiKeyModalClose">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-message" id="noApiKeyModalMessage">
+                No API key was provided for the selected AI provider.
+            </div>
+            
+            <div class="modal-description">
+                <strong>Important information:</strong>
+                <ul>
+                    <li>You can continue without an API key to explore the interface</li>
+                    <li>However, AI-powered features will not function properly</li>
+                    <li>Literature screening and analysis will be unavailable</li>
+                    <li>You can add an API key later in the configuration</li>
+                </ul>
+                <strong>Would you like to proceed anyway?</strong>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-primary" id="noApiKeyModalContinue">
+                    <i class="fas fa-arrow-right"></i>
+                    Continue Without API Key
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -872,22 +2265,68 @@
 
     function updateModelOptions(selectedProvider, selectedModelId) {
         const modelSelect = document.getElementById('llm_model_id');
+        const dropdownOptions = document.getElementById('dropdown-options');
+        const dropdownText = document.querySelector('.dropdown-text');
+        
+        // Clear both selects
         modelSelect.innerHTML = ''; 
+        dropdownOptions.innerHTML = '';
+        
         if (llmProvidersData[selectedProvider] && llmProvidersData[selectedProvider].models) {
+            let selectedModel = null;
+            
             llmProvidersData[selectedProvider].models.forEach(model => {
+                // Add to hidden select for form submission
                 const option = document.createElement('option');
                 option.value = model.id;
                 option.textContent = model.display_name + " (" + (model.type || 'N/A') + ")"; 
+                option.setAttribute('data-model-info', JSON.stringify(model));
                 if (model.id === selectedModelId) {
                     option.selected = true;
+                    selectedModel = model;
                 }
                 modelSelect.appendChild(option);
+                
+                // Add to custom dropdown
+                const dropdownOption = document.createElement('div');
+                dropdownOption.className = 'dropdown-option';
+                dropdownOption.setAttribute('data-value', model.id);
+                dropdownOption.setAttribute('data-model-info', JSON.stringify(model));
+                
+                if (model.id === selectedModelId) {
+                    dropdownOption.classList.add('selected');
+                    selectedModel = model;
+                }
+                
+                dropdownOption.innerHTML = `
+                    <div class="option-label">
+                        <span>${model.display_name}</span>
+                        <span class="option-type-badge">${model.type || 'N/A'}</span>
+                    </div>
+                `;
+                
+                dropdownOptions.appendChild(dropdownOption);
             });
-            if (modelSelect.selectedIndex === -1 && modelSelect.options.length > 0) {
+            
+            // Set default selection if none selected
+            if (!selectedModel && llmProvidersData[selectedProvider].models.length > 0) {
+                selectedModel = llmProvidersData[selectedProvider].models[0];
                 modelSelect.options[0].selected = true;
+                dropdownOptions.children[0].classList.add('selected');
+            }
+            
+            // Update display text
+            if (selectedModel) {
+                dropdownText.textContent = `${selectedModel.display_name} (${selectedModel.type || 'N/A'})`;
+            } else {
+                dropdownText.textContent = 'Select a model';
             }
         }
     }
+    
+
+
+
 
     function updateApiKeyDisplay(selectedProvider) {
         document.querySelectorAll('.api-key-section').forEach(group => {
@@ -923,13 +2362,48 @@
 
     function toggleApiKeyVisibility(inputId) {
         const input = document.getElementById(inputId);
-        const button = input.parentElement.querySelector('button');
+        const button = input.parentElement.querySelector('.apple-btn-outline-secondary');
         if (input.type === "password") {
             input.type = "text";
-            button.innerHTML = '<i class="fas fa-eye-slash"></i>';
+            button.innerHTML = '<i class="fas fa-eye-slash"></i> Hide';
         } else {
             input.type = "password";
-            button.innerHTML = '<i class="fas fa-eye"></i>';
+            button.innerHTML = '<i class="fas fa-eye"></i> Show';
+        }
+    }
+
+    function clearApiKeyInput(inputId) {
+        const input = document.getElementById(inputId);
+        const clearButton = document.getElementById('clear_input_' + inputId + '_btn');
+        
+        if (input) {
+            input.value = '';
+            input.focus();
+            
+            // Hide clear button when input is empty
+            if (clearButton) {
+                clearButton.style.display = 'none';
+            }
+            
+            // Clear any previous test results
+            const messageDiv = document.getElementById('llmConfigMessage');
+            if (messageDiv) {
+                messageDiv.classList.remove('show');
+            }
+        }
+    }
+
+    function handleApiKeyInput(inputId) {
+        const input = document.getElementById(inputId);
+        const clearButton = document.getElementById('clear_input_' + inputId + '_btn');
+        
+        if (input && clearButton) {
+            // Show/hide clear button based on input content
+            if (input.value.trim().length > 0) {
+                clearButton.style.display = 'inline-flex';
+            } else {
+                clearButton.style.display = 'none';
+            }
         }
     }
 
@@ -960,12 +2434,19 @@
         formData.append('provider', provider);
         formData.append(`${provider.toLowerCase()}_api_key`, apiKey);
         
-        // Send request to test the API key
+        // Send request to test the API key with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        
         fetch('{{ url_for("test_api_key") }}', {
             method: 'POST',
-            body: formData
+            body: formData,
+            signal: controller.signal
         })
-        .then(response => response.json())
+        .then(response => {
+            clearTimeout(timeoutId); // Clear timeout on successful response
+            return response.json();
+        })
         .then(data => {
             testButton.disabled = false;
             testButton.innerHTML = originalButtonHTML;
@@ -986,11 +2467,21 @@
             }
         })
         .catch(error => {
+            clearTimeout(timeoutId); // Clear timeout on error
             console.error('Error testing API key:', error);
             testButton.disabled = false;
             testButton.innerHTML = originalButtonHTML;
             
-            messageDiv.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>A network error occurred while testing the API key. Please try again.';
+            let errorMessage;
+            if (error.name === 'AbortError') {
+                errorMessage = 'Request timed out. The API key test took too long. Please try again.';
+            } else if (error.message && error.message.includes('Failed to fetch')) {
+                errorMessage = 'Network error: Unable to connect to the server. Please check your connection.';
+            } else {
+                errorMessage = 'A network error occurred while testing the API key. Please try again.';
+            }
+            
+            messageDiv.innerHTML = `<i class="fas fa-exclamation-triangle mr-2"></i>${errorMessage}`;
             messageDiv.className = 'form-message error show';
         });
     }
@@ -999,27 +2490,503 @@
     function smoothRedirect(url, delay = 600) {
         // Show transition message - no need to set text content as it's already in the HTML
         const transitionMsg = document.getElementById('transitionMessage');
-        transitionMsg.classList.add('show');
+        if (transitionMsg) {
+            transitionMsg.classList.add('show');
+        }
         
-        // Start the exit animation
+        // Start the exit animation if main-content exists
         const mainContent = document.getElementById('main-content');
-        mainContent.classList.add('page-transition-exit');
-        
-        // Wait a short moment for animation to start
-        setTimeout(() => {
-            mainContent.classList.add('page-transition-exit-active');
+        if (mainContent) {
+            mainContent.classList.add('page-transition-exit');
             
-            // Wait for animation to complete before redirecting
+            // Wait a short moment for animation to start
+            setTimeout(() => {
+                mainContent.classList.add('page-transition-exit-active');
+                
+                // Wait for animation to complete before redirecting
+                setTimeout(() => {
+                    window.location.href = url;
+                }, delay);
+            }, 50);
+        } else {
+            // If no main-content element, redirect immediately after delay
             setTimeout(() => {
                 window.location.href = url;
             }, delay);
-        }, 50);
+        }
+    }
+
+    // Model Info Popup Functions
+    function showModelPopup() {
+        const modelSelect = document.getElementById('llm_model_id');
+        const popup = document.getElementById('model-info-popup');
+        const selectedOption = modelSelect.options[modelSelect.selectedIndex];
+        
+        if (!selectedOption || !selectedOption.getAttribute('data-model-info')) {
+            return;
+        }
+        
+        try {
+            const modelData = JSON.parse(selectedOption.getAttribute('data-model-info'));
+            updatePopupContent(modelData);
+            popup.classList.add('show');
+        } catch (e) {
+            console.warn('Failed to parse model info:', e);
+        }
+    }
+
+    function hideModelPopup() {
+        const popup = document.getElementById('model-info-popup');
+        popup.classList.remove('show');
+    }
+
+    function updatePopupContent(modelData) {
+        const popup = document.getElementById('model-info-popup');
+        if (!popup) return;
+
+        // Update model name and type
+        const modelName = popup.querySelector('.model-name');
+        const modelType = popup.querySelector('.model-type');
+        const description = popup.querySelector('.model-description');
+        
+        if (modelName) modelName.textContent = modelData.display_name || 'Unknown Model';
+        if (modelType) {
+            modelType.textContent = modelData.type || '';
+            modelType.style.display = modelData.type ? 'inline-block' : 'none';
+        }
+        if (description) description.textContent = modelData.description || 'No description available';
+
+        // Update specs
+        const contextValue = popup.querySelector('.spec-item:nth-child(1) .spec-value');
+        const pricingValue = popup.querySelector('.spec-item:nth-child(2) .spec-value');
+        
+        if (contextValue) contextValue.textContent = modelData.context_window || '-';
+        if (pricingValue) pricingValue.textContent = modelData.pricing || '-';
+
+        // Update strengths
+        const strengthsContainer = popup.querySelector('.model-strengths');
+        if (strengthsContainer && modelData.strengths && modelData.strengths.length > 0) {
+            strengthsContainer.innerHTML = `
+                <h4>Key Strengths</h4>
+                <ul>
+                    ${modelData.strengths.map(strength => `<li>${strength}</li>`).join('')}
+                </ul>
+            `;
+            strengthsContainer.style.display = 'block';
+        } else if (strengthsContainer) {
+            strengthsContainer.style.display = 'none';
+        }
+
+        // Update recommendation
+        const recommendationContainer = popup.querySelector('.model-recommendation');
+        if (recommendationContainer && modelData.recommendation) {
+            recommendationContainer.innerHTML = `
+                <span class="rec-icon">💡</span>
+                <span class="rec-text">${modelData.recommendation}</span>
+            `;
+            recommendationContainer.style.display = 'block';
+        } else if (recommendationContainer) {
+            recommendationContainer.style.display = 'none';
+        }
+    }
+
+    // Custom dropdown functionality
+    let dropdownInitialized = false;
+    let currentEventListeners = [];
+    
+    function initializeCustomDropdown() {
+        const dropdown = document.getElementById('custom-dropdown');
+        const trigger = document.getElementById('dropdown-trigger');
+        const options = document.getElementById('dropdown-options');
+        const popup = document.getElementById('model-info-popup');
+        const hiddenSelect = document.getElementById('llm_model_id');
+        
+        if (!dropdown || !trigger || !options || !popup || !hiddenSelect) return;
+        
+        // Clean up existing event listeners
+        cleanupDropdownEvents();
+        
+        let hoverTimeout;
+        
+        // Toggle dropdown
+        const triggerClickHandler = function(e) {
+            e.stopPropagation();
+            const isOpen = options.classList.contains('show');
+            
+            if (isOpen) {
+                closeDropdown();
+            } else {
+                openDropdown();
+            }
+        };
+        trigger.addEventListener('click', triggerClickHandler);
+        currentEventListeners.push({element: trigger, event: 'click', handler: triggerClickHandler});
+        
+        function openDropdown() {
+            trigger.classList.add('active');
+            options.classList.add('show');
+            
+            // Show popup for currently selected option
+            const selectedOption = options.querySelector('.dropdown-option.selected');
+            if (selectedOption) {
+                showPopupForOption(selectedOption);
+            }
+        }
+        
+        function closeDropdown() {
+            trigger.classList.remove('active');
+            options.classList.remove('show');
+            hideModelPopup();
+        }
+        
+        // Handle option selection
+        const optionsClickHandler = function(e) {
+            const option = e.target.closest('.dropdown-option');
+            if (option) {
+                selectOption(option);
+                closeDropdown();
+            }
+        };
+        options.addEventListener('click', optionsClickHandler);
+        currentEventListeners.push({element: options, event: 'click', handler: optionsClickHandler});
+        
+        // Handle option hovering - THIS IS THE KEY FEATURE!
+        const optionsMouseoverHandler = function(e) {
+            const option = e.target.closest('.dropdown-option');
+            if (option) {
+                clearTimeout(hoverTimeout);
+                showPopupForOption(option);
+            }
+        };
+        options.addEventListener('mouseover', optionsMouseoverHandler);
+        currentEventListeners.push({element: options, event: 'mouseover', handler: optionsMouseoverHandler});
+        
+        const optionsMouseleaveHandler = function() {
+            hoverTimeout = setTimeout(() => {
+                if (!popup.matches(':hover')) {
+                    hideModelPopup();
+                }
+            }, 100);
+        };
+        options.addEventListener('mouseleave', optionsMouseleaveHandler);
+        currentEventListeners.push({element: options, event: 'mouseleave', handler: optionsMouseleaveHandler});
+        
+        // Keep popup visible when hovering over it
+        const popupMouseenterHandler = function() {
+            clearTimeout(hoverTimeout);
+        };
+        popup.addEventListener('mouseenter', popupMouseenterHandler);
+        currentEventListeners.push({element: popup, event: 'mouseenter', handler: popupMouseenterHandler});
+        
+        const popupMouseleaveHandler = function() {
+            if (!options.classList.contains('show')) {
+                hideModelPopup();
+            }
+        };
+        popup.addEventListener('mouseleave', popupMouseleaveHandler);
+        currentEventListeners.push({element: popup, event: 'mouseleave', handler: popupMouseleaveHandler});
+        
+        function selectOption(option) {
+            // Remove previous selection
+            options.querySelectorAll('.dropdown-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            
+            // Add selection to clicked option
+            option.classList.add('selected');
+            
+            // Update display text
+            const optionLabel = option.querySelector('.option-label span').textContent;
+            const optionType = option.querySelector('.option-type-badge').textContent;
+            trigger.querySelector('.dropdown-text').textContent = `${optionLabel} (${optionType})`;
+            
+            // Update hidden select
+            const value = option.getAttribute('data-value');
+            hiddenSelect.value = value;
+            
+            // Trigger change event for form handling
+            hiddenSelect.dispatchEvent(new Event('change'));
+        }
+        
+        function showPopupForOption(option) {
+            const modelInfo = option.getAttribute('data-model-info');
+            if (modelInfo) {
+                try {
+                    const modelData = JSON.parse(modelInfo);
+                    updatePopupContent(modelData);
+                    popup.classList.add('show');
+                } catch (e) {
+                    console.warn('Failed to parse model info:', e);
+                }
+            }
+        }
+        
+        // Close dropdown when clicking outside
+        const documentClickHandler = function(e) {
+            if (!dropdown.contains(e.target) && !popup.contains(e.target)) {
+                closeDropdown();
+            }
+        };
+        document.addEventListener('click', documentClickHandler);
+        currentEventListeners.push({element: document, event: 'click', handler: documentClickHandler});
+        
+        // Keyboard navigation
+        const triggerKeydownHandler = function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openDropdown();
+            } else if (e.key === 'Escape') {
+                closeDropdown();
+            }
+        };
+        trigger.addEventListener('keydown', triggerKeydownHandler);
+        currentEventListeners.push({element: trigger, event: 'keydown', handler: triggerKeydownHandler});
+        
+        // Hide popup when scrolling or resizing
+        const scrollHandler = hideModelPopup;
+        const resizeHandler = hideModelPopup;
+        window.addEventListener('scroll', scrollHandler);
+        window.addEventListener('resize', resizeHandler);
+        currentEventListeners.push({element: window, event: 'scroll', handler: scrollHandler});
+        currentEventListeners.push({element: window, event: 'resize', handler: resizeHandler});
+        
+        dropdownInitialized = true;
+    }
+    
+    // Function to clean up existing event listeners
+    function cleanupDropdownEvents() {
+        currentEventListeners.forEach(listener => {
+            listener.element.removeEventListener(listener.event, listener.handler);
+        });
+        currentEventListeners = [];
+        dropdownInitialized = false;
+    }
+
+
+
+    // Enhanced form submission with auto API testing
+    function handleConfigurationSave() {
+        const saveButton = document.getElementById('save-config-btn');
+        const submitText = document.getElementById('submit-text');
+        const submitSpinner = document.getElementById('submit-spinner');
+        const messageDiv = document.getElementById('llmConfigMessage');
+        const configForm = document.getElementById('llm_config_form');
+        
+        // Disable button and show loading state
+        saveButton.disabled = true;
+        submitText.style.display = 'none';
+        submitSpinner.style.display = 'inline-block';
+        
+        // Show initial message
+        messageDiv.innerHTML = '<i class="fas fa-cog fa-spin mr-2"></i>Saving configuration and testing API key...';
+        messageDiv.className = 'form-message show';
+        
+        // Create form data
+        const formData = new FormData(configForm);
+        formData.append('save_llm_config', 'true');
+        
+        // Send AJAX request
+        fetch('{{ url_for("configure_llm") }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success' && data.api_test_passed) {
+                // Success - API test passed
+                messageDiv.innerHTML = `<i class="fas fa-check-circle mr-2"></i>${data.message}`;
+                messageDiv.className = 'form-message success show';
+                
+                // Show transition message and redirect
+                const transitionMsg = document.getElementById('transitionMessage');
+                if (transitionMsg) {
+                    transitionMsg.classList.add('show');
+                }
+                
+                // Redirect after a short delay
+                setTimeout(() => {
+                    window.location.href = data.redirect_url;
+                }, 1200);
+                
+            } else if (data.status === 'error' && data.show_manual_test) {
+                // Configuration saved but API test failed - show modal
+                messageDiv.innerHTML = `<i class="fas fa-exclamation-triangle mr-2"></i>${data.message}`;
+                messageDiv.className = 'form-message error show';
+                
+                // Show API test failed modal
+                showApiTestModal(data.message);
+                
+                // Re-enable save button
+                saveButton.disabled = false;
+                submitText.style.display = 'inline';
+                submitSpinner.style.display = 'none';
+                
+            } else if (data.status === 'warning' && data.needs_api_key) {
+                // No API key provided - show modal
+                messageDiv.innerHTML = `<i class="fas fa-exclamation-circle mr-2"></i>${data.message}`;
+                messageDiv.className = 'form-message warning show';
+                
+                // Show no API key modal
+                showNoApiKeyModal(data.message);
+                
+                // Re-enable save button
+                saveButton.disabled = false;
+                submitText.style.display = 'inline';
+                submitSpinner.style.display = 'none';
+                
+            } else {
+                // Other error
+                messageDiv.innerHTML = `<i class="fas fa-exclamation-circle mr-2"></i>${data.message || 'An error occurred while saving configuration.'}`;
+                messageDiv.className = 'form-message error show';
+                
+                // Re-enable save button
+                saveButton.disabled = false;
+                submitText.style.display = 'inline';
+                submitSpinner.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error saving configuration:', error);
+            messageDiv.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Network error occurred. Please try again.';
+            messageDiv.className = 'form-message error show';
+            
+            // Re-enable save button
+            saveButton.disabled = false;
+            submitText.style.display = 'inline';
+            submitSpinner.style.display = 'none';
+        });
+    }
+    
+    // Retry API test manually
+    function retryApiTest() {
+        // Hide modal first
+        hideModal('apiTestModal');
+        
+        const providerSelect = document.getElementById('llm_provider');
+        const selectedProvider = providerSelect.value;
+        const apiKeyInputId = selectedProvider.toLowerCase() + '_api_key';
+        
+        testApiKey(selectedProvider, apiKeyInputId);
+    }
+    
+    // Initialize modal event listeners
+    function initializeModalEvents() {
+        // API Test Modal events
+        const apiTestModal = document.getElementById('apiTestModal');
+        const modalClose = document.getElementById('modalClose');
+        const modalRetry = document.getElementById('modalRetry');
+        const modalContinue = document.getElementById('modalContinue');
+        
+        // No API Key Modal events
+        const noApiKeyModal = document.getElementById('noApiKeyModal');
+        const noApiKeyModalClose = document.getElementById('noApiKeyModalClose');
+        const noApiKeyModalContinue = document.getElementById('noApiKeyModalContinue');
+        
+        // Close buttons
+        if (modalClose) {
+            modalClose.addEventListener('click', () => hideModal('apiTestModal'));
+        }
+        
+        if (noApiKeyModalClose) {
+            noApiKeyModalClose.addEventListener('click', () => hideModal('noApiKeyModal'));
+        }
+        
+        // Action buttons
+        if (modalRetry) {
+            modalRetry.addEventListener('click', retryApiTest);
+        }
+        
+        if (modalContinue) {
+            modalContinue.addEventListener('click', proceedAnyway);
+        }
+        
+        if (noApiKeyModalContinue) {
+            noApiKeyModalContinue.addEventListener('click', proceedAnyway);
+        }
+        
+        // Close modal when clicking outside
+        if (apiTestModal) {
+            apiTestModal.addEventListener('click', function(e) {
+                if (e.target === apiTestModal) {
+                    hideModal('apiTestModal');
+                }
+            });
+        }
+        
+        if (noApiKeyModal) {
+            noApiKeyModal.addEventListener('click', function(e) {
+                if (e.target === noApiKeyModal) {
+                    hideModal('noApiKeyModal');
+                }
+            });
+        }
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                if (apiTestModal.classList.contains('show')) {
+                    hideModal('apiTestModal');
+                }
+                if (noApiKeyModal.classList.contains('show')) {
+                    hideModal('noApiKeyModal');
+                }
+            }
+        });
+    }
+    
+    // Show API test failed modal
+    function showApiTestModal(message) {
+        const modal = document.getElementById('apiTestModal');
+        const modalMessage = document.getElementById('modalMessage');
+        
+        modalMessage.textContent = message;
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+    
+    // Show no API key modal
+    function showNoApiKeyModal(message) {
+        const modal = document.getElementById('noApiKeyModal');
+        const modalMessage = document.getElementById('noApiKeyModalMessage');
+        
+        modalMessage.textContent = message;
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+    
+    // Hide modals
+    function hideModal(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.classList.remove('show');
+        document.body.style.overflow = ''; // Restore scrolling
+    }
+    
+    // Proceed without successful API test
+    function proceedAnyway() {
+        // Hide any open modals
+        hideModal('apiTestModal');
+        hideModal('noApiKeyModal');
+        
+        const messageDiv = document.getElementById('llmConfigMessage');
+        messageDiv.innerHTML = '<i class="fas fa-info-circle mr-2"></i>Proceeding to screening criteria...';
+        messageDiv.className = 'form-message show';
+        
+        // Show transition message
+        const transitionMsg = document.getElementById('transitionMessage');
+        if (transitionMsg) {
+            transitionMsg.classList.add('show');
+        }
+        
+        setTimeout(() => {
+            window.location.href = '{{ url_for("screening_criteria_page") }}';
+        }, 800);
     }
 
     document.addEventListener('DOMContentLoaded', function() {
         const providerSelect = document.getElementById('llm_provider');
         const configForm = document.getElementById('llm_config_form');
         const messageDiv = document.getElementById('llmConfigMessage'); // Get the message div
+        const saveButton = document.getElementById('save-config-btn');
 
         if (currentProviderFromServer && llmProvidersData[currentProviderFromServer]) {
             updateModelOptions(currentProviderFromServer, currentModelIdFromServer);
@@ -1038,7 +3005,56 @@
                     inputField.value = '';
                 }
             });
+            // Re-initialize dropdown after updating options
+            setTimeout(() => {
+                initializeCustomDropdown();
+            }, 50);
         });
+
+        // Add event listener for save button
+        if (saveButton) {
+            saveButton.addEventListener('click', handleConfigurationSave);
+        }
+
+        // Initialize dropdown events
+        initializeCustomDropdown();
+        
+        // Initialize modal event listeners
+        initializeModalEvents();
+
+        // Model Guide Modal functionality
+        const guideBtn = document.getElementById('model-guide-btn');
+        const guideModal = document.getElementById('model-guide-modal');
+        const guideClose = document.getElementById('guide-close');
+
+        if (guideBtn && guideModal && guideClose) {
+            guideBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                guideModal.classList.add('show');
+                document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            });
+
+            guideClose.addEventListener('click', function() {
+                guideModal.classList.remove('show');
+                document.body.style.overflow = ''; // Restore scrolling
+            });
+
+            // Close modal when clicking outside
+            guideModal.addEventListener('click', function(e) {
+                if (e.target === guideModal) {
+                    guideModal.classList.remove('show');
+                    document.body.style.overflow = '';
+                }
+            });
+
+            // Close modal with Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && guideModal.classList.contains('show')) {
+                    guideModal.classList.remove('show');
+                    document.body.style.overflow = '';
+                }
+            });
+        }
         
         if (configForm) {
             configForm.addEventListener('submit', function(event) {
