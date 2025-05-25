@@ -3323,6 +3323,29 @@ def save_screening_state():
         app_logger.exception(f"Error saving screening state: {e}")
         return jsonify({"status": "error", "message": f"Server error: {str(e)}"}), 500
 
+# Network health check endpoint
+@app.route('/health/network')
+def network_health_check():
+    """网络健康检查端点"""
+    import requests
+    results = {}
+    
+    endpoints = {
+        "DeepSeek": "https://api.deepseek.com",
+        "OpenAI": "https://api.openai.com", 
+        "Claude": "https://api.anthropic.com",
+        "Gemini": "https://generativelanguage.googleapis.com"
+    }
+    
+    for name, url in endpoints.items():
+        try:
+            response = requests.get(url, timeout=10)
+            results[name] = {"status": "ok", "code": response.status_code}
+        except Exception as e:
+            results[name] = {"status": "error", "error": str(e)}
+    
+    return jsonify(results)
+
 # Legacy URL redirect for quality assessment
 @app.route('/quality/')
 @app.route('/quality/<path:path>')
