@@ -384,9 +384,10 @@ Dict[str, str]:
                 "presence_penalty": model_config.get("presence_penalty", 0.0),
             })
     
-    # Special handling for DeepSeek R1 timeout issues
+    # Special handling for DeepSeek R1 - use faster timeout for cloud deployment
     if provider_name == "DeepSeek" and model_id == "deepseek-reasoner":
-        return _call_deepseek_r1_with_enhanced_timeout(api_endpoint, headers, data, retry_strategy, model_config)
+        # Use shorter timeout to avoid network layer conflicts
+        timeout_config = min(model_config.get("timeout", 30), 90)
     
     # Implement retry logic with exponential backoff
     max_retries = retry_strategy["max_retries"]

@@ -6,14 +6,14 @@ bind = "0.0.0.0:5000"
 backlog = 2048
 
 # Worker processes
-workers = multiprocessing.cpu_count() * 2 + 1
-worker_class = "gevent"
-worker_connections = 1000
-max_requests = 1000
-max_requests_jitter = 50
+workers = 4  # Fixed worker count for better performance
+worker_class = "sync"  # Changed to sync for better stability
+worker_connections = 100  # Reduced connections
+max_requests = 500  # Reduced max requests
+max_requests_jitter = 25
 
 # Worker timeouts
-timeout = 3600  # 60 minutes for long-running tasks
+timeout = 120  # Reduced to 2 minutes for faster response
 keepalive = 5
 graceful_timeout = 30
 
@@ -40,11 +40,11 @@ limit_request_line = 8192
 limit_request_fields = 100
 limit_request_field_size = 8190
 
-# Environment variables - All Redis configurations use consistent databases
+# Environment variables - Unified Redis configuration for better performance
 raw_env = [
-    "CELERY_BROKER_URL=redis://localhost:6379/1",
-    "CELERY_RESULT_BACKEND=redis://localhost:6379/2", 
-    "REDIS_URL=redis://localhost:6379/1",  # Fixed: Use same database as CELERY_BROKER_URL
+    "CELERY_BROKER_URL=redis://localhost:6379/0",  # Unified to database 0
+    "CELERY_RESULT_BACKEND=redis://localhost:6379/0", 
+    "REDIS_URL=redis://localhost:6379/0",  # Unified to database 0
     "FLASK_ENV=production",
     "FLASK_APP=app.py",
 ]
