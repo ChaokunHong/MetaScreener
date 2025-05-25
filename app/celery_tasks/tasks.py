@@ -155,8 +155,38 @@ def process_literature_screening(self, file_path, criteria_prompt, llm_config, s
                     )
                     processing_time = time.time() - start_time
                     
-                    # Parse response
-                    decision, justification = _parse_llm_response(ai_response)
+                    # Parse response with error handling and recovery
+                    if ai_response and isinstance(ai_response, dict):
+                        decision = ai_response.get('label', 'ERROR')
+                        justification = ai_response.get('justification', 'API call failed or returned invalid data.')
+                        
+                        # 检查是否需要恢复
+                        if decision in ['API_TIMEOUT', 'API_HTTP_ERROR_N/A', 'SCRIPT_ERROR']:
+                            logger.warning(f"Celery literature screening error detected: {decision} - {justification}")
+                            
+                            # 尝试恢复
+                            from app.utils.utils import handle_processing_error_recovery
+                            error_result = {'decision': 'PROCESSING_ERROR', 'reasoning': f'Celery literature screening failed: {justification}'}
+                            item_data = {
+                                'abstract': abstract,
+                                'title': title
+                            }
+                            
+                            recovery_result = handle_processing_error_recovery(
+                                error_result, item_data, provider_name, model_id, api_key, base_url, criteria_prompt
+                            )
+                            
+                            if recovery_result.get('decision') in ['INCLUDE', 'EXCLUDE', 'MAYBE']:
+                                logger.info(f"Celery literature screening recovered successfully: {recovery_result.get('decision')}")
+                                decision = recovery_result.get('decision')
+                                justification = f"[RECOVERED] {recovery_result.get('reasoning')}"
+                            else:
+                                logger.warning(f"Celery literature screening recovery failed: {recovery_result.get('reasoning')}")
+                                decision = recovery_result.get('decision', 'RECOVERY_FAILED')
+                                justification = recovery_result.get('reasoning', 'Recovery attempt failed')
+                    else:
+                        decision = 'API_ERROR'
+                        justification = 'API call returned invalid response format'
                     
                     result = {
                         'title': title,
@@ -293,8 +323,38 @@ def process_pdf_screening(self, pdf_files, criteria_prompt, llm_config, session_
                     )
                     processing_time = time.time() - start_time
                     
-                    # Parse response
-                    decision, justification = _parse_llm_response(ai_response)
+                    # Parse response with error handling and recovery
+                    if ai_response and isinstance(ai_response, dict):
+                        decision = ai_response.get('label', 'ERROR')
+                        justification = ai_response.get('justification', 'API call failed or returned invalid data.')
+                        
+                        # 检查是否需要恢复
+                        if decision in ['API_TIMEOUT', 'API_HTTP_ERROR_N/A', 'SCRIPT_ERROR']:
+                            logger.warning(f"Celery PDF screening error detected for {original_filename}: {decision} - {justification}")
+                            
+                            # 尝试恢复
+                            from app.utils.utils import handle_processing_error_recovery
+                            error_result = {'decision': 'PROCESSING_ERROR', 'reasoning': f'Celery PDF screening failed: {justification}'}
+                            item_data = {
+                                'abstract': extracted_text[:2000],  # 使用前2000字符作为摘要
+                                'title': original_filename
+                            }
+                            
+                            recovery_result = handle_processing_error_recovery(
+                                error_result, item_data, provider_name, model_id, api_key, base_url, criteria_prompt
+                            )
+                            
+                            if recovery_result.get('decision') in ['INCLUDE', 'EXCLUDE', 'MAYBE']:
+                                logger.info(f"Celery PDF screening recovered successfully for {original_filename}: {recovery_result.get('decision')}")
+                                decision = recovery_result.get('decision')
+                                justification = f"[RECOVERED] {recovery_result.get('reasoning')}"
+                            else:
+                                logger.warning(f"Celery PDF screening recovery failed for {original_filename}: {recovery_result.get('reasoning')}")
+                                decision = recovery_result.get('decision', 'RECOVERY_FAILED')
+                                justification = recovery_result.get('reasoning', 'Recovery attempt failed')
+                    else:
+                        decision = 'API_ERROR'
+                        justification = 'API call returned invalid response format'
                     
                     result = {
                         'filename': original_filename,
@@ -427,8 +487,54 @@ def process_quality_assessment(self, file_paths, assessment_config, llm_config, 
                     )
                     processing_time = time.time() - start_time
                     
-                    # Parse quality assessment response
-                    quality_data = _parse_quality_response(ai_response)
+                    # Parse quality assessment response with error handling
+                    if ai_response and isinstance(ai_response, dict):
+                        decision = ai_response.get('label', 'ERROR')
+                        justification = ai_response.get('justification', 'API call failed or returned invalid data.')
+                        
+                        # 检查是否需要恢复
+                        if decision in ['API_TIMEOUT', 'API_HTTP_ERROR_N/A', 'SCRIPT_ERROR']:
+                            logger.warning(f"Celery quality assessment error detected for {original_filename}: {decision} - {justification}")
+                            
+                            # 尝试恢复
+                            from app.utils.utils import handle_processing_error_recovery
+                            error_result = {'decision': 'PROCESSING_ERROR', 'reasoning': f'Celery quality assessment failed: {justification}'}
+                            item_data = {
+                                'abstract': extracted_text[:1000],  # 使用前1000字符
+                                'title': original_filename
+                            }
+                            
+                            # 构建简化的质量评价标准
+                            recovery_criteria = "Please assess the quality of this research document based on methodology, data analysis, and overall scientific rigor."
+                            
+                            recovery_result = handle_processing_error_recovery(
+                                error_result, item_data, provider_name, model_id, api_key, base_url, recovery_criteria
+                            )
+                            
+                            if recovery_result.get('decision') in ['INCLUDE', 'EXCLUDE', 'MAYBE']:
+                                logger.info(f"Celery quality assessment recovered successfully for {original_filename}: {recovery_result.get('decision')}")
+                                quality_data = {
+                                    'score': 5,  # 中等分数
+                                    'details': f"[RECOVERED] {recovery_result.get('reasoning')}",
+                                    'recommendations': ['Assessment recovered from error - manual review recommended']
+                                }
+                            else:
+                                logger.warning(f"Celery quality assessment recovery failed for {original_filename}: {recovery_result.get('reasoning')}")
+                                quality_data = {
+                                    'score': 0,
+                                    'details': f"Recovery failed: {recovery_result.get('reasoning', 'Unknown error')}",
+                                    'recommendations': ['Manual assessment required due to processing error']
+                                }
+                        else:
+                            # 正常解析响应
+                            quality_data = _parse_quality_response(ai_response)
+                    else:
+                        # API 调用失败
+                        quality_data = {
+                            'score': 0,
+                            'details': 'API call returned invalid response format',
+                            'recommendations': ['Manual assessment required due to API error']
+                        }
                     
                     result = {
                         'filename': original_filename,

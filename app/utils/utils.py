@@ -1543,3 +1543,790 @@ def _generate_summary_recommendations(decision_counts: Dict[str, int], error_rat
         recommendations.append("Excellent quality score. Current configuration is working well.")
     
     return recommendations
+
+def handle_screening_error(error: Exception, item_index: int, provider_name: str, 
+                          attempt: int = 1, max_attempts: int = 3) -> Dict[str, str]:
+    """
+    Handle screening errors with intelligent retry and skip logic.
+    
+    Args:
+        error: The exception that occurred
+        item_index: Index of the item being processed
+        provider_name: Name of the LLM provider
+        attempt: Current attempt number
+        max_attempts: Maximum number of attempts before skipping
+        
+    Returns:
+        Dictionary with decision and reasoning for error handling
+    """
+    error_type = type(error).__name__
+    error_msg = str(error)
+    
+    # Categorize errors for different handling strategies
+    network_errors = [
+        "ConnectionError", "Timeout", "ChunkedEncodingError", 
+        "SSLError", "ProxyError", "HTTPError"
+    ]
+    
+    api_errors = [
+        "RateLimitError", "APIError", "AuthenticationError",
+        "QuotaExceededError", "ServiceUnavailableError"
+    ]
+    
+    critical_errors = [
+        "KeyboardInterrupt", "SystemExit", "MemoryError"
+    ]
+    
+    # Log the error with context
+    utils_logger.warning(f"Screening error for item {item_index} (attempt {attempt}/{max_attempts}): {error_type} - {error_msg}")
+    
+    # Handle critical errors - these should stop processing
+    if error_type in critical_errors:
+        utils_logger.error(f"Critical error encountered: {error_type}. Processing should be stopped.")
+        return {
+            "decision": "CRITICAL_ERROR",
+            "reasoning": f"Critical system error: {error_type}. Processing terminated for safety."
+        }
+    
+    # Handle network errors - retry with exponential backoff
+    if error_type in network_errors or "network" in error_msg.lower():
+        if attempt < max_attempts:
+            utils_logger.info(f"Network error for item {item_index}, will retry (attempt {attempt + 1}/{max_attempts})")
+            return {
+                "decision": "RETRY_NETWORK",
+                "reasoning": f"Network error on attempt {attempt}: {error_msg}. Will retry."
+            }
+        else:
+            utils_logger.warning(f"Network error for item {item_index} after {max_attempts} attempts, skipping")
+            return {
+                "decision": "NETWORK_ERROR_SKIP",
+                "reasoning": f"Network error after {max_attempts} attempts: {error_msg}. Item skipped to prevent hang."
+            }
+    
+    # Handle API errors - retry with rate limiting consideration
+    if error_type in api_errors or "api" in error_msg.lower():
+        if "rate limit" in error_msg.lower() or "429" in error_msg:
+            if attempt < max_attempts:
+                utils_logger.info(f"Rate limit error for item {item_index}, will retry with delay")
+                return {
+                    "decision": "RETRY_RATE_LIMIT",
+                    "reasoning": f"Rate limit error on attempt {attempt}: {error_msg}. Will retry with delay."
+                }
+            else:
+                utils_logger.warning(f"Rate limit error for item {item_index} after {max_attempts} attempts, skipping")
+                return {
+                    "decision": "RATE_LIMIT_SKIP",
+                    "reasoning": f"Rate limit error after {max_attempts} attempts. Item skipped."
+                }
+        else:
+            if attempt < max_attempts:
+                utils_logger.info(f"API error for item {item_index}, will retry")
+                return {
+                    "decision": "RETRY_API",
+                    "reasoning": f"API error on attempt {attempt}: {error_msg}. Will retry."
+                }
+            else:
+                utils_logger.warning(f"API error for item {item_index} after {max_attempts} attempts, skipping")
+                return {
+                    "decision": "API_ERROR_SKIP",
+                    "reasoning": f"API error after {max_attempts} attempts: {error_msg}. Item skipped."
+                }
+    
+    # Handle parsing/processing errors - usually skip these
+    if "json" in error_msg.lower() or "parse" in error_msg.lower():
+        utils_logger.warning(f"Parsing error for item {item_index}, skipping: {error_msg}")
+        return {
+            "decision": "PARSING_ERROR_SKIP",
+            "reasoning": f"Response parsing error: {error_msg}. Item skipped."
+        }
+    
+    # Handle unknown errors - retry once, then skip
+    if attempt < min(2, max_attempts):  # Only retry once for unknown errors
+        utils_logger.info(f"Unknown error for item {item_index}, will retry once")
+        return {
+            "decision": "RETRY_UNKNOWN",
+            "reasoning": f"Unknown error on attempt {attempt}: {error_msg}. Will retry once."
+        }
+    else:
+        utils_logger.warning(f"Unknown error for item {item_index} after retry, skipping")
+        return {
+            "decision": "UNKNOWN_ERROR_SKIP",
+            "reasoning": f"Unknown error after retry: {error_msg}. Item skipped to continue processing."
+        }
+
+
+def should_retry_error(error_result: Dict[str, str]) -> bool:
+    """
+    Determine if an error should trigger a retry.
+    
+    Args:
+        error_result: Result from handle_screening_error
+        
+    Returns:
+        True if the error should be retried, False if it should be skipped
+    """
+    retry_decisions = [
+        "RETRY_NETWORK", "RETRY_RATE_LIMIT", "RETRY_API", "RETRY_UNKNOWN"
+    ]
+    return error_result.get("decision", "") in retry_decisions
+
+
+def get_retry_delay(error_result: Dict[str, str], attempt: int) -> float:
+    """
+    Calculate appropriate delay before retry based on error type.
+    
+    Args:
+        error_result: Result from handle_screening_error
+        attempt: Current attempt number
+        
+    Returns:
+        Delay in seconds before retry
+    """
+    decision = error_result.get("decision", "")
+    
+    if "RATE_LIMIT" in decision:
+        # Longer delay for rate limit errors
+        return min(5.0 * (2 ** attempt), 60.0)  # 5s, 10s, 20s, 40s, max 60s
+    elif "NETWORK" in decision:
+        # Medium delay for network errors
+        return min(2.0 * (2 ** attempt), 30.0)  # 2s, 4s, 8s, 16s, max 30s
+    elif "API" in decision:
+        # Short delay for API errors
+        return min(1.0 * (2 ** attempt), 15.0)  # 1s, 2s, 4s, 8s, max 15s
+    else:
+        # Default delay for unknown errors
+        return min(3.0 * (2 ** attempt), 20.0)  # 3s, 6s, 12s, max 20s
+
+
+def create_error_summary(error_counts: Dict[str, int], total_items: int) -> Dict[str, Any]:
+    """
+    Create a summary of errors encountered during screening.
+    
+    Args:
+        error_counts: Dictionary of error types and their counts
+        total_items: Total number of items processed
+        
+    Returns:
+        Dictionary with error summary and recommendations
+    """
+    total_errors = sum(error_counts.values())
+    error_rate = (total_errors / total_items * 100) if total_items > 0 else 0
+    
+    # Categorize errors by severity
+    critical_errors = sum(count for error_type, count in error_counts.items() 
+                         if "CRITICAL" in error_type)
+    network_errors = sum(count for error_type, count in error_counts.items() 
+                        if "NETWORK" in error_type)
+    api_errors = sum(count for error_type, count in error_counts.items() 
+                    if "API" in error_type or "RATE_LIMIT" in error_type)
+    parsing_errors = sum(count for error_type, count in error_counts.items() 
+                        if "PARSING" in error_type)
+    
+    # Generate recommendations
+    recommendations = []
+    
+    if error_rate > 20:
+        recommendations.append("High error rate detected. Consider checking network connectivity and API configuration.")
+    
+    if network_errors > total_items * 0.1:
+        recommendations.append("Frequent network errors. Check internet connection and firewall settings.")
+    
+    if api_errors > total_items * 0.15:
+        recommendations.append("Frequent API errors. Check API key validity and rate limits.")
+    
+    if parsing_errors > total_items * 0.05:
+        recommendations.append("Parsing errors detected. The AI model may need prompt adjustments.")
+    
+    if critical_errors > 0:
+        recommendations.append("Critical errors encountered. System stability should be checked.")
+    
+    if error_rate < 5:
+        recommendations.append("Low error rate. Processing completed successfully with minimal issues.")
+    
+    return {
+        "total_errors": total_errors,
+        "error_rate_percentage": round(error_rate, 2),
+        "error_breakdown": {
+            "critical_errors": critical_errors,
+            "network_errors": network_errors,
+            "api_errors": api_errors,
+            "parsing_errors": parsing_errors,
+            "other_errors": total_errors - critical_errors - network_errors - api_errors - parsing_errors
+        },
+        "error_details": error_counts,
+        "recommendations": recommendations
+    }
+
+
+def handle_processing_error_recovery(error_result: Dict[str, str], item_data: Dict[str, Any], 
+                                    provider_name: str, model_id: str, api_key: str, 
+                                    base_url: str, criteria_prompt: str) -> Dict[str, str]:
+    """
+    尝试从 PROCESSING_ERROR 中恢复，使用简化的处理策略。
+    
+    Args:
+        error_result: 原始错误结果
+        item_data: 项目数据（包含 abstract, title 等）
+        provider_name: LLM 提供商名称
+        model_id: 模型 ID
+        api_key: API 密钥
+        base_url: API 基础 URL
+        criteria_prompt: 筛选标准
+        
+    Returns:
+        恢复后的结果或确认的错误结果
+    """
+    error_reasoning = error_result.get('reasoning', '')
+    
+    # 检查是否是可恢复的错误类型
+    recoverable_errors = [
+        'Processing was terminated due to timeout',
+        'Error processing result',
+        'Invalid result type',
+        'Greenlet was terminated'
+    ]
+    
+    is_recoverable = any(recoverable_text in error_reasoning for recoverable_text in recoverable_errors)
+    
+    if not is_recoverable:
+        utils_logger.info(f"PROCESSING_ERROR not recoverable: {error_reasoning}")
+        return error_result
+    
+    # 尝试使用简化的处理策略进行恢复
+    utils_logger.info(f"Attempting recovery for PROCESSING_ERROR: {error_reasoning}")
+    
+    try:
+        # 使用更短的超时和简化的参数进行重试
+        abstract = item_data.get('abstract', '')
+        if not abstract:
+            return {
+                "decision": "NO_ABSTRACT_RECOVERY",
+                "reasoning": "Cannot recover: No abstract available for processing"
+            }
+        
+        # 构建简化的提示
+        simplified_prompt = construct_llm_prompt(abstract, criteria_prompt)
+        if not simplified_prompt:
+            return {
+                "decision": "PROMPT_ERROR_RECOVERY",
+                "reasoning": "Cannot recover: Failed to construct simplified prompt"
+            }
+        
+        # 使用更保守的参数进行 API 调用
+        recovery_result = _call_llm_with_recovery_settings(
+            simplified_prompt, provider_name, model_id, api_key, base_url
+        )
+        
+        if recovery_result and isinstance(recovery_result, dict):
+            decision = recovery_result.get('label', 'RECOVERY_ERROR')
+            reasoning = recovery_result.get('justification', 'Recovery attempt completed')
+            
+            # 验证恢复结果的有效性
+            if decision in ['INCLUDE', 'EXCLUDE', 'MAYBE']:
+                utils_logger.info(f"Successfully recovered from PROCESSING_ERROR: {decision}")
+                return {
+                    "decision": decision,
+                    "reasoning": f"[RECOVERED] {reasoning}"
+                }
+            else:
+                utils_logger.warning(f"Recovery attempt returned invalid decision: {decision}")
+                return {
+                    "decision": "RECOVERY_FAILED",
+                    "reasoning": f"Recovery attempt failed: {reasoning}"
+                }
+        else:
+            return {
+                "decision": "RECOVERY_API_ERROR",
+                "reasoning": "Recovery attempt: API call returned invalid response"
+            }
+            
+    except Exception as e:
+        utils_logger.warning(f"Exception during PROCESSING_ERROR recovery: {str(e)}")
+        return {
+            "decision": "RECOVERY_EXCEPTION",
+            "reasoning": f"Recovery attempt failed with exception: {str(e)}"
+        }
+
+
+def _call_llm_with_recovery_settings(prompt_data: Dict[str, str], provider_name: str, 
+                                   model_id: str, api_key: str, base_url: str) -> Dict[str, str]:
+    """
+    使用恢复设置调用 LLM API，采用更保守的参数。
+    """
+    system_prompt = prompt_data.get("system_prompt")
+    main_prompt = prompt_data.get("main_prompt")
+    
+    if not api_key or not main_prompt:
+        return {"label": "CONFIG_ERROR", "justification": "Missing API key or prompt"}
+    
+    utils_logger.info(f"Recovery call to {provider_name} model: {model_id}")
+    
+    try:
+        if provider_name == "DeepSeek" or provider_name == "OpenAI_ChatGPT":
+            return _call_openai_compatible_api_recovery(
+                main_prompt, system_prompt, model_id, api_key, base_url, provider_name
+            )
+        elif provider_name == "Google_Gemini":
+            full_prompt = f"{system_prompt}\n\n{main_prompt}" if system_prompt else main_prompt
+            return _call_gemini_api_recovery(full_prompt, model_id, api_key)
+        elif provider_name == "Anthropic_Claude":
+            return _call_claude_api_recovery(main_prompt, system_prompt, model_id, api_key, base_url)
+        else:
+            return {"label": "CONFIG_ERROR", "justification": f"Unsupported provider for recovery: {provider_name}"}
+            
+    except Exception as e:
+        utils_logger.warning(f"Recovery API call failed: {str(e)}")
+        return {"label": "RECOVERY_API_ERROR", "justification": f"Recovery API call failed: {str(e)}"}
+
+
+def _call_openai_compatible_api_recovery(main_prompt: str, system_prompt: Optional[str], 
+                                       model_id: str, api_key: str, base_url: str, 
+                                       provider_name: str) -> Dict[str, str]:
+    """OpenAI 兼容 API 的恢复调用，使用保守设置"""
+    api_endpoint = f"{base_url.rstrip('/')}/chat/completions"
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": main_prompt})
+    
+    # 使用保守但合理的参数设置
+    data = {
+        "model": model_id,
+        "messages": messages,
+        "max_tokens": 200,  # 增加到 200，确保恢复时有足够的响应长度
+        "temperature": 0.0,  # 使用最低温度确保一致性
+    }
+    
+    # 对于 DeepSeek reasoner，使用更短的超时
+    if provider_name == "DeepSeek" and model_id == "deepseek-reasoner":
+        timeout = 60  # 1分钟超时
+    else:
+        timeout = 30  # 30秒超时
+    
+    try:
+        response = requests.post(api_endpoint, headers=headers, json=data, timeout=timeout)
+        response.raise_for_status()
+        res_json = response.json()
+        
+        if res_json.get('choices') and res_json['choices'][0].get('message'):
+            content = res_json['choices'][0]['message'].get('content', '')
+            return _parse_llm_response(content)
+        
+        error_msg = res_json.get('error', {}).get('message', str(res_json))
+        return {"label": "API_ERROR", "justification": f"Recovery {provider_name} API Error: {error_msg}"}
+        
+    except requests.exceptions.Timeout:
+        return {"label": "API_TIMEOUT", "justification": f"Recovery {provider_name} request timed out"}
+    except requests.exceptions.RequestException as e:
+        return {"label": "API_HTTP_ERROR", "justification": f"Recovery {provider_name} HTTP Error: {str(e)}"}
+    except Exception as e:
+        return {"label": "SCRIPT_ERROR", "justification": f"Recovery {provider_name} script error: {str(e)}"}
+
+
+def _call_gemini_api_recovery(full_prompt: str, model_id: str, api_key: str) -> Dict[str, str]:
+    """Gemini API 的恢复调用"""
+    if genai is None:
+        return {"label": "CONFIG_ERROR", "justification": "Google Gemini SDK not installed"}
+    
+    try:
+        if GEMINI_SDK_VERSION == "new":
+            from google.genai import types
+            client = genai.Client(api_key=api_key)
+            
+            response = client.models.generate_content(
+                model=model_id,
+                contents=full_prompt,
+                config=types.GenerateContentConfig(
+                    max_output_tokens=200,  # 增加到 200
+                    temperature=0.0,
+                    candidate_count=1,
+                    safety_settings=[
+                        types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+                        types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
+                        types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+                        types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE")
+                    ]
+                )
+            )
+            
+            # 解析响应
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'content') and candidate.content:
+                    if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                        for part in candidate.content.parts:
+                            if hasattr(part, 'text') and part.text:
+                                return _parse_llm_response(part.text)
+            
+            return {"label": "API_ERROR", "justification": "Recovery Gemini response has no text content"}
+            
+        else:
+            # Legacy SDK
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel(model_id)
+            config = genai.types.GenerationConfig(
+                max_output_tokens=200,  # 增加到 200
+                temperature=0.0,
+                candidate_count=1
+            )
+            
+            response = model.generate_content(
+                contents=[{"role": "user", "parts": [{"text": full_prompt}]}],
+                generation_config=config
+            )
+            
+            if response.parts:
+                content = "".join(part.text for part in response.parts if hasattr(part, 'text'))
+                return _parse_llm_response(content)
+            
+            return {"label": "API_ERROR", "justification": "Recovery Gemini no content"}
+            
+    except Exception as e:
+        return {"label": "GEMINI_API_ERROR", "justification": f"Recovery Gemini error: {str(e)}"}
+
+
+def _call_claude_api_recovery(main_prompt: str, system_prompt: Optional[str], 
+                            model_id: str, api_key: str, base_url: Optional[str] = None) -> Dict[str, str]:
+    """Claude API 的恢复调用"""
+    try:
+        client = Anthropic(
+            api_key=api_key,
+            base_url=base_url or SUPPORTED_LLM_PROVIDERS["Anthropic_Claude"]["default_base_url"],
+            timeout=30
+        )
+        
+        response = client.messages.create(
+            model=model_id,
+            max_tokens=200,  # 增加到 200
+            temperature=0.0,
+            system=system_prompt or DEFAULT_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": main_prompt}]
+        )
+        
+        if response.content and response.content[0].type == "text":
+            return _parse_llm_response(response.content[0].text)
+        
+        return {"label": "API_ERROR", "justification": f"Recovery Claude API Error: {response.stop_reason}"}
+        
+    except Exception as e:
+        return {"label": "CLAUDE_API_ERROR", "justification": f"Recovery Claude error: {str(e)}"}
+
+
+def create_processing_error_summary(processing_errors: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    创建 PROCESSING_ERROR 的详细分析报告。
+    
+    Args:
+        processing_errors: 处理错误列表
+        
+    Returns:
+        包含错误分析和建议的字典
+    """
+    if not processing_errors:
+        return {"message": "No processing errors to analyze"}
+    
+    total_errors = len(processing_errors)
+    
+    # 分类错误类型
+    error_categories = {
+        "greenlet_terminated": 0,
+        "timeout_related": 0,
+        "network_related": 0,
+        "result_processing": 0,
+        "recovery_attempts": 0,
+        "other": 0
+    }
+    
+    recovery_success_count = 0
+    
+    for error in processing_errors:
+        reasoning = error.get('reasoning', '').lower()
+        decision = error.get('decision', '')
+        
+        if 'terminated' in reasoning or 'greenlet' in reasoning:
+            error_categories["greenlet_terminated"] += 1
+        elif 'timeout' in reasoning:
+            error_categories["timeout_related"] += 1
+        elif 'network' in reasoning or 'connection' in reasoning:
+            error_categories["network_related"] += 1
+        elif 'processing result' in reasoning:
+            error_categories["result_processing"] += 1
+        elif '[RECOVERED]' in reasoning or decision.startswith('RECOVERY'):
+            error_categories["recovery_attempts"] += 1
+            if decision in ['INCLUDE', 'EXCLUDE', 'MAYBE']:
+                recovery_success_count += 1
+        else:
+            error_categories["other"] += 1
+    
+    # 计算恢复成功率
+    recovery_rate = (recovery_success_count / total_errors * 100) if total_errors > 0 else 0
+    
+    # 生成建议
+    recommendations = []
+    
+    if error_categories["greenlet_terminated"] > total_errors * 0.3:
+        recommendations.append("高频率的 greenlet 终止。建议增加超时时间或减少并发数量。")
+    
+    if error_categories["timeout_related"] > total_errors * 0.2:
+        recommendations.append("超时错误较多。建议检查网络连接或使用更快的模型。")
+    
+    if error_categories["network_related"] > total_errors * 0.2:
+        recommendations.append("网络相关错误较多。建议检查网络稳定性和防火墙设置。")
+    
+    if recovery_rate > 50:
+        recommendations.append(f"恢复机制效果良好（成功率 {recovery_rate:.1f}%）。")
+    elif recovery_rate > 0:
+        recommendations.append(f"恢复机制部分有效（成功率 {recovery_rate:.1f}%），可考虑优化恢复策略。")
+    
+    if total_errors < 5:
+        recommendations.append("处理错误数量较少，系统运行良好。")
+    
+    return {
+        "total_processing_errors": total_errors,
+        "error_breakdown": error_categories,
+        "recovery_success_rate": round(recovery_rate, 2),
+        "recovery_successful_count": recovery_success_count,
+        "recommendations": recommendations,
+        "severity": "low" if total_errors < 5 else "medium" if total_errors < 15 else "high"
+    }
+
+def call_llm_api_fast_test(prompt_data: Dict[str, str], provider_name: str, model_id: str, 
+                          api_key: str, base_url: str) -> str:
+    """
+    Fast API test function with optimized parameters for quick validation.
+    
+    Args:
+        prompt_data: Dictionary with system_prompt and main_prompt
+        provider_name: LLM provider name
+        model_id: Model identifier
+        api_key: API key
+        base_url: Base URL for the API
+        
+    Returns:
+        String response or error message
+    """
+    from config.config import API_TEST_CONFIG
+    
+    # Get test configuration
+    fast_config = API_TEST_CONFIG.get("fast_test_mode", {})
+    provider_config = API_TEST_CONFIG.get("provider_optimizations", {}).get(provider_name, {})
+    
+    # Use optimized parameters - handle Gemini's different token parameter name
+    if provider_name == "Google_Gemini":
+        max_tokens = provider_config.get("max_output_tokens", fast_config.get("max_tokens", 300))
+    else:
+        max_tokens = provider_config.get("max_tokens", fast_config.get("max_tokens", 300))
+    
+    timeout = provider_config.get("timeout", fast_config.get("timeout", 30))
+    temperature = fast_config.get("temperature", 0.1)
+    retry_attempts = fast_config.get("retry_attempts", 2)
+    retry_delay = fast_config.get("retry_delay", 1.0)
+    
+    utils_logger.info(f"Fast API test for {provider_name} with optimized params: max_tokens={max_tokens}, timeout={timeout}")
+    
+    try:
+        if provider_name == "Anthropic_Claude":
+            return _call_claude_api_fast_test(
+                prompt_data, model_id, api_key, max_tokens, timeout, retry_attempts, retry_delay
+            )
+        elif provider_name == "Google_Gemini":
+            return _call_gemini_api_fast_test(
+                prompt_data, model_id, api_key, max_tokens, timeout, retry_attempts, retry_delay
+            )
+        elif provider_name in ["OpenAI_ChatGPT", "DeepSeek"]:
+            return _call_openai_compatible_api_fast_test(
+                prompt_data, model_id, api_key, base_url, provider_name, 
+                max_tokens, timeout, temperature, retry_attempts, retry_delay
+            )
+        else:
+            return f"API_ERROR: Unsupported provider for fast test: {provider_name}"
+            
+    except Exception as e:
+        utils_logger.error(f"Fast API test error for {provider_name}: {str(e)}")
+        return f"API_ERROR: Fast test failed: {str(e)}"
+
+def _call_openai_compatible_api_fast_test(prompt_data: Dict[str, str], model_id: str, api_key: str, 
+                                         base_url: str, provider_name: str, max_tokens: int, 
+                                         timeout: int, temperature: float, retry_attempts: int, 
+                                         retry_delay: float) -> str:
+    """OpenAI兼容API的快速测试"""
+    api_endpoint = f"{base_url.rstrip('/')}/chat/completions"
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    
+    messages = []
+    if prompt_data.get("system_prompt"):
+        messages.append({"role": "system", "content": prompt_data["system_prompt"]})
+    messages.append({"role": "user", "content": prompt_data["main_prompt"]})
+    
+    data = {
+        "model": model_id,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+    
+    # DeepSeek reasoner特殊处理
+    if provider_name == "DeepSeek" and "reasoner" in model_id.lower():
+        data.pop("temperature", None)  # 推理模型不支持temperature
+    
+    for attempt in range(retry_attempts + 1):
+        try:
+            response = requests.post(api_endpoint, headers=headers, json=data, timeout=timeout)
+            response.raise_for_status()
+            res_json = response.json()
+            
+            if res_json.get('choices') and res_json['choices'][0].get('message'):
+                content = res_json['choices'][0]['message'].get('content', '')
+                return content.strip() if content else "OK"
+            else:
+                error_msg = res_json.get('error', {}).get('message', str(res_json))
+                return f"API_ERROR: {provider_name} API Error: {error_msg}"
+                
+        except requests.exceptions.Timeout:
+            if attempt < retry_attempts:
+                utils_logger.warning(f"{provider_name} fast test timeout on attempt {attempt + 1}, retrying in {retry_delay}s")
+                time.sleep(retry_delay)
+                continue
+            return f"API_ERROR: {provider_name} request timed out after {retry_attempts} retries"
+            
+        except requests.exceptions.RequestException as e:
+            if attempt < retry_attempts:
+                utils_logger.warning(f"{provider_name} fast test error on attempt {attempt + 1}, retrying in {retry_delay}s: {str(e)}")
+                time.sleep(retry_delay)
+                continue
+            return f"API_ERROR: {provider_name} request failed: {str(e)}"
+            
+        except Exception as e:
+            utils_logger.error(f"Unexpected error in {provider_name} fast test: {str(e)}")
+            return f"API_ERROR: Unexpected error: {str(e)}"
+    
+    return f"API_ERROR: {provider_name} fast test failed after all attempts"
+
+def _call_claude_api_fast_test(prompt_data: Dict[str, str], model_id: str, api_key: str, 
+                              max_tokens: int, timeout: int, retry_attempts: int, 
+                              retry_delay: float) -> str:
+    """Claude API的快速测试"""
+    if anthropic is None:
+        return "API_ERROR: Anthropic library not installed"
+    
+    try:
+        client = anthropic.Anthropic(api_key=api_key, timeout=timeout)
+        
+        # 构建消息
+        messages = [{"role": "user", "content": prompt_data["main_prompt"]}]
+        
+        # 系统提示
+        system_prompt = prompt_data.get("system_prompt", "You are a helpful assistant.")
+        
+        for attempt in range(retry_attempts + 1):
+            try:
+                response = client.messages.create(
+                    model=model_id,
+                    max_tokens=max_tokens,
+                    system=system_prompt,
+                    messages=messages
+                )
+                
+                if response.content and len(response.content) > 0:
+                    return response.content[0].text.strip()
+                else:
+                    return "OK"
+                    
+            except Exception as e:
+                if attempt < retry_attempts:
+                    utils_logger.warning(f"Claude fast test error on attempt {attempt + 1}, retrying in {retry_delay}s: {str(e)}")
+                    time.sleep(retry_delay)
+                    continue
+                return f"API_ERROR: Claude API error: {str(e)}"
+                
+    except Exception as e:
+        return f"API_ERROR: Claude client error: {str(e)}"
+
+def _call_gemini_api_fast_test(prompt_data: Dict[str, str], model_id: str, api_key: str, 
+                              max_tokens: int, timeout: int, retry_attempts: int, 
+                              retry_delay: float) -> str:
+    """Gemini API的快速测试"""
+    if genai is None:
+        return "API_ERROR: Google Generative AI library not installed"
+    
+    try:
+        # 构建完整提示
+        full_prompt = prompt_data["main_prompt"]
+        if prompt_data.get("system_prompt"):
+            full_prompt = f"{prompt_data['system_prompt']}\n\n{full_prompt}"
+        
+        if GEMINI_SDK_VERSION == "new":
+            # 使用新的 Google Gen AI SDK
+            from google.genai import types
+            client = genai.Client(api_key=api_key)
+            
+            for attempt in range(retry_attempts + 1):
+                try:
+                    response = client.models.generate_content(
+                        model=model_id,
+                        contents=full_prompt,
+                        config=types.GenerateContentConfig(
+                            max_output_tokens=max_tokens,
+                            temperature=0.0,
+                            safety_settings=[
+                                types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+                                types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
+                                types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+                                types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE")
+                            ]
+                        )
+                    )
+                    
+                    # 解析响应 - 使用与主函数相同的逻辑
+                    if hasattr(response, 'candidates') and response.candidates:
+                        candidate = response.candidates[0]
+                        if hasattr(candidate, 'content') and candidate.content:
+                            if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                                for part in candidate.content.parts:
+                                    if hasattr(part, 'text') and part.text:
+                                        return part.text.strip()
+                    
+                    # 如果没有找到文本内容，返回默认成功消息
+                    return "API_TEST_SUCCESSFUL"
+                        
+                except Exception as e:
+                    if attempt < retry_attempts:
+                        utils_logger.warning(f"Gemini fast test error on attempt {attempt + 1}, retrying in {retry_delay}s: {str(e)}")
+                        time.sleep(retry_delay)
+                        continue
+                    return f"API_ERROR: Gemini API error: {str(e)}"
+        else:
+            # 使用 legacy SDK
+            genai.configure(api_key=api_key)
+            
+            # 配置生成参数
+            generation_config = genai.types.GenerationConfig(
+                max_output_tokens=max_tokens,
+                temperature=0.0,
+            )
+            
+            model = genai.GenerativeModel(model_id, generation_config=generation_config)
+            
+            for attempt in range(retry_attempts + 1):
+                try:
+                    response = model.generate_content(
+                        full_prompt,
+                        request_options={"timeout": timeout}
+                    )
+                    
+                    if response.text:
+                        return response.text.strip()
+                    else:
+                        return "API_TEST_SUCCESSFUL"
+                        
+                except Exception as e:
+                    if attempt < retry_attempts:
+                        utils_logger.warning(f"Gemini fast test error on attempt {attempt + 1}, retrying in {retry_delay}s: {str(e)}")
+                        time.sleep(retry_delay)
+                        continue
+                    return f"API_ERROR: Gemini API error: {str(e)}"
+                
+    except Exception as e:
+        return f"API_ERROR: Gemini client error: {str(e)}"

@@ -55,7 +55,7 @@ app_logger = logging.getLogger("metascreener_app") # Use a specific name for the
 # --- End logging configuration ---
 
 # Import functions from our utils and config
-from app.utils.utils import load_literature_ris, extract_text_from_pdf, construct_llm_prompt, call_llm_api, call_llm_api_raw_content, _parse_llm_response
+from app.utils.utils import load_literature_ris, extract_text_from_pdf, construct_llm_prompt, call_llm_api, call_llm_api_raw_content, _parse_llm_response, call_llm_api_fast_test
 from config.config import (
     get_screening_criteria, set_user_criteria, reset_to_default_criteria,
     USER_CRITERIA, # USER_CRITERIA is still used directly in app.py for session init, keep for now
@@ -312,8 +312,8 @@ def configure_llm():
                 }
             
             try:
-                # Test the API key
-                api_result = call_llm_api_raw_content(test_prompt, selected_provider, test_model_id, api_key_to_test, base_url, max_tokens_override=100)
+                # Test the API key with fast test function
+                api_result = call_llm_api_fast_test(test_prompt, selected_provider, test_model_id, api_key_to_test, base_url)
                 
                 if api_result and isinstance(api_result, str) and len(api_result) > 0 and not api_result.startswith("API_ERROR:"):
                     app_logger.info(f"Auto API key test successful for {selected_provider}")
@@ -506,23 +506,27 @@ def test_api_key():
     test_model_id = provider_models[0]['id']  # Use first model
     base_url = get_base_url_for_provider(provider)
     
-    # Create a simple test prompt with the proper structure
-    # For OpenAI providers, include "json" in the message to support JSON mode
+    # Get optimized test configuration
+    from config.config import API_TEST_CONFIG
+    from app.utils.utils import call_llm_api_fast_test
+    
+    # Use optimized test prompts
+    test_prompts = API_TEST_CONFIG.get("test_prompts", {})
     if provider in ["OpenAI_ChatGPT", "DeepSeek"]:
-        test_prompt = {
-            "system_prompt": "You are a helpful AI assistant.",
-            "main_prompt": "Hello, please respond with 'OK' if you can receive this message. You may respond in json format if needed."
-        }
+        test_prompt = test_prompts.get("json_compatible", {
+            "system_prompt": "You are a helpful AI assistant. Respond in JSON format when requested.",
+            "main_prompt": "Respond with {'status': 'OK'} to confirm you received this message."
+        })
     else:
-        test_prompt = {
-            "system_prompt": "You are a helpful AI assistant.",
-            "main_prompt": "Hello, please respond with 'OK' if you can receive this message."
-        }
+        test_prompt = test_prompts.get("simple", {
+            "system_prompt": "You are a helpful assistant.",
+            "main_prompt": "Respond with 'OK' to confirm you received this message."
+        })
     
     try:
-        # Test the API key with a minimal request
-        app_logger.info(f"Testing API key for {provider} with model {test_model_id}")
-        api_result = call_llm_api_raw_content(test_prompt, provider, test_model_id, api_key, base_url, max_tokens_override=100)
+        # Test the API key with optimized fast test function
+        app_logger.info(f"Fast testing API key for {provider} with model {test_model_id}")
+        api_result = call_llm_api_fast_test(test_prompt, provider, test_model_id, api_key, base_url)
         
         if api_result and isinstance(api_result, str) and len(api_result) > 0 and not api_result.startswith("API_ERROR:"):
             app_logger.info(f"API key test successful for {provider}")
@@ -703,53 +707,143 @@ def reset_criteria():
 
 
 # --- Screening Logic Helper ---
-def _perform_screening_on_abstract(abstract_text, criteria_prompt_text, provider_name, model_id, api_key, base_url):
-    func_start_time = time.time()
-    app_logger.info(f"PERF: _perform_screening_on_abstract started for abstract: {abstract_text[:50]}...") # Log first 50 chars
-
-    try:
-        # Check if essential config is provided (already checked before calling usually, but good safeguard)
-        if not api_key:
-            # This case should ideally be caught before calling this helper
-            return {"decision": "CONFIG_ERROR", "reasoning": f"API Key for {provider_name} missing in call."}
-
-        ai_decision = "ERROR"
-        ai_reasoning = "An unexpected error occurred during AI screening."
-
-        if pd.isna(abstract_text) or not abstract_text or not isinstance(abstract_text, str) or abstract_text.strip() == "":
-            ai_decision = "NO_ABSTRACT"
-            ai_reasoning = "Abstract is missing or empty."
-        else:
-            prompt_construct_start_time = time.time()
-            prompt = construct_llm_prompt(abstract_text, criteria_prompt_text)
-            prompt_construct_end_time = time.time()
-            app_logger.info(f"PERF: construct_llm_prompt took {prompt_construct_end_time - prompt_construct_start_time:.4f} seconds.")
-
-            if prompt:
-                llm_call_start_time = time.time()
-                # Use passed-in parameters for the API call
-                api_result = call_llm_api(prompt, provider_name, model_id, api_key, base_url)
-                llm_call_end_time = time.time()
-                app_logger.info(f"PERF: call_llm_api for provider {provider_name} model {model_id} took {llm_call_end_time - llm_call_start_time:.4f} seconds.")
-
-                if api_result and isinstance(api_result, dict):
-                    ai_decision = api_result.get('label', 'API_ERROR')
-                    ai_reasoning = api_result.get('justification', 'API call failed or returned invalid data.')
-                else:
-                    ai_decision = "API_ERROR"
-                    ai_reasoning = "API call function returned None or malformed data structure."
-            else:
-                ai_decision = "PROMPT_ERROR"
-                ai_reasoning = "Failed to construct LLM prompt."
-        
-        func_end_time = time.time()
-        app_logger.info(f"PERF: _perform_screening_on_abstract finished in {func_end_time - func_start_time:.4f} seconds. Decision: {ai_decision}")
-        return {"decision": ai_decision, "reasoning": ai_reasoning}
+def _perform_screening_on_abstract(abstract_text, criteria_prompt_text, provider_name, model_id, api_key, base_url, 
+                                  item_index=None, max_retry_attempts=3):
+    """
+    Perform screening on a single abstract with enhanced error handling and retry logic.
     
-    except Exception as e:
-        app_logger.error(f"CRITICAL: Exception in _perform_screening_on_abstract: {str(e)}")
-        app_logger.exception("Full exception details:")
-        return {"decision": "FUNCTION_ERROR", "reasoning": f"Function error: {str(e)}"}
+    Args:
+        abstract_text: The abstract text to screen
+        criteria_prompt_text: The screening criteria
+        provider_name: LLM provider name
+        model_id: Model identifier
+        api_key: API key for the provider
+        base_url: Base URL for the API
+        item_index: Index of the item being processed (for logging)
+        max_retry_attempts: Maximum number of retry attempts
+        
+    Returns:
+        Dictionary with decision and reasoning
+    """
+    from app.utils.utils import handle_screening_error, should_retry_error, get_retry_delay, handle_processing_error_recovery
+    from gevent import sleep
+    
+    func_start_time = time.time()
+    if item_index is not None:
+        app_logger.info(f"PERF: _perform_screening_on_abstract started for item {item_index}, abstract: {abstract_text[:50]}...")
+    else:
+        app_logger.info(f"PERF: _perform_screening_on_abstract started for abstract: {abstract_text[:50]}...")
+
+    # Track error counts for this item
+    attempt_count = 0
+    last_error = None
+    
+    while attempt_count < max_retry_attempts:
+        attempt_count += 1
+        
+        try:
+            # Check if essential config is provided
+            if not api_key:
+                return {"decision": "CONFIG_ERROR", "reasoning": f"API Key for {provider_name} missing in call."}
+
+            ai_decision = "ERROR"
+            ai_reasoning = "An unexpected error occurred during AI screening."
+
+            if pd.isna(abstract_text) or not abstract_text or not isinstance(abstract_text, str) or abstract_text.strip() == "":
+                ai_decision = "NO_ABSTRACT"
+                ai_reasoning = "Abstract is missing or empty."
+            else:
+                prompt_construct_start_time = time.time()
+                prompt = construct_llm_prompt(abstract_text, criteria_prompt_text)
+                prompt_construct_end_time = time.time()
+                app_logger.info(f"PERF: construct_llm_prompt took {prompt_construct_end_time - prompt_construct_start_time:.4f} seconds.")
+
+                if prompt:
+                    llm_call_start_time = time.time()
+                    # Use passed-in parameters for the API call
+                    api_result = call_llm_api(prompt, provider_name, model_id, api_key, base_url)
+                    llm_call_end_time = time.time()
+                    app_logger.info(f"PERF: call_llm_api for provider {provider_name} model {model_id} took {llm_call_end_time - llm_call_start_time:.4f} seconds.")
+
+                    if api_result and isinstance(api_result, dict):
+                        ai_decision = api_result.get('label', 'API_ERROR')
+                        ai_reasoning = api_result.get('justification', 'API call failed or returned invalid data.')
+                        
+                        # Check if the result indicates an error that should be retried
+                        if ai_decision in ['API_TIMEOUT', 'API_HTTP_ERROR_N/A', 'SCRIPT_ERROR'] and attempt_count < max_retry_attempts:
+                            # Create a mock error for the error handler
+                            mock_error = Exception(f"API returned error decision: {ai_decision} - {ai_reasoning}")
+                            error_result = handle_screening_error(
+                                mock_error, item_index or 0, provider_name, attempt_count, max_retry_attempts
+                            )
+                            
+                            if should_retry_error(error_result):
+                                delay = get_retry_delay(error_result, attempt_count)
+                                app_logger.info(f"API error detected, retrying in {delay:.2f}s (attempt {attempt_count}/{max_retry_attempts})")
+                                sleep(delay)
+                                continue
+                            else:
+                                # Return the error handling result
+                                return {"decision": error_result["decision"], "reasoning": error_result["reasoning"]}
+                    else:
+                        ai_decision = "API_ERROR"
+                        ai_reasoning = "API call function returned None or malformed data structure."
+                else:
+                    ai_decision = "PROMPT_ERROR"
+                    ai_reasoning = "Failed to construct LLM prompt."
+            
+            # If we reach here, the processing was successful
+            func_end_time = time.time()
+            if attempt_count > 1:
+                app_logger.info(f"PERF: _perform_screening_on_abstract succeeded on attempt {attempt_count} in {func_end_time - func_start_time:.4f} seconds. Decision: {ai_decision}")
+            else:
+                app_logger.info(f"PERF: _perform_screening_on_abstract finished in {func_end_time - func_start_time:.4f} seconds. Decision: {ai_decision}")
+            
+            return {"decision": ai_decision, "reasoning": ai_reasoning}
+        
+        except Exception as e:
+            last_error = e
+            
+            # Use the enhanced error handling
+            error_result = handle_screening_error(e, item_index or 0, provider_name, attempt_count, max_retry_attempts)
+            
+            # Check if this is a critical error that should stop processing immediately
+            if error_result["decision"] == "CRITICAL_ERROR":
+                app_logger.error(f"Critical error in _perform_screening_on_abstract: {str(e)}")
+                return error_result
+            
+            # Check if we should retry
+            if should_retry_error(error_result) and attempt_count < max_retry_attempts:
+                delay = get_retry_delay(error_result, attempt_count)
+                app_logger.info(f"Retrying _perform_screening_on_abstract in {delay:.2f}s (attempt {attempt_count + 1}/{max_retry_attempts})")
+                sleep(delay)
+                continue
+            else:
+                # Max attempts reached or error should not be retried
+                app_logger.warning(f"_perform_screening_on_abstract failed after {attempt_count} attempts: {str(e)}")
+                return error_result
+    
+    # If we exit the loop without success, return the last error result
+    if last_error:
+        final_error_result = handle_screening_error(last_error, item_index or 0, provider_name, max_retry_attempts, max_retry_attempts)
+        app_logger.error(f"_perform_screening_on_abstract failed after all {max_retry_attempts} attempts: {str(last_error)}")
+        
+        # NEW: Attempt recovery for PROCESSING_ERROR
+        if final_error_result.get("decision") == "PROCESSING_ERROR":
+            app_logger.info(f"Attempting recovery for PROCESSING_ERROR on item {item_index}")
+            item_data = {
+                'abstract': abstract_text,
+                'title': f"Item {item_index}" if item_index else "Unknown Item"
+            }
+            recovery_result = handle_processing_error_recovery(
+                final_error_result, item_data, provider_name, model_id, api_key, base_url, criteria_prompt_text
+            )
+            return recovery_result
+        
+        return final_error_result
+    else:
+        # This should not happen, but provide a fallback
+        return {"decision": "UNKNOWN_ERROR", "reasoning": "Processing failed for unknown reasons after all retry attempts."}
 
 
 # --- Screening Routes ---
@@ -802,7 +896,7 @@ def screen_full_dataset(session_id):
             abstract = row.get('abstract')
             greenlet = spawn(_perform_screening_on_abstract,
                              abstract, criteria_prompt_text,
-                             provider_name, model_id, api_key, base_url)
+                             provider_name, model_id, api_key, base_url, index)
             greenlets.append((index, row, greenlet))
 
         # Wait for all greenlets to complete, with a timeout
@@ -1382,7 +1476,7 @@ def stream_screen_file():
                     greenlet = spawn(_perform_screening_on_abstract,
                                     abstract, criteria_prompt,
                                     llm_provider, llm_model, 
-                                    llm_api_key_from_outer_scope, llm_base_url)
+                                    llm_api_key_from_outer_scope, llm_base_url, index)
                     batch_greenlets.append((index, row, greenlet))
                 
                 # Optimize: Use reasonable timeout for DeepSeek reasoner model
@@ -1420,7 +1514,19 @@ def stream_screen_file():
                                     # Check if greenlet was killed and returned GreenletExit
                                     if hasattr(screening_result, '__class__') and 'GreenletExit' in str(type(screening_result)):
                                         app_logger.warning(f"Greenlet for item {index} was terminated (GreenletExit)")
-                                        screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': 'Processing was terminated due to timeout or system constraints'}
+                                        processing_error_result = {'decision': 'PROCESSING_ERROR', 'reasoning': 'Processing was terminated due to timeout or system constraints'}
+                                        
+                                        # Attempt recovery for terminated greenlet
+                                        app_logger.info(f"Attempting recovery for terminated greenlet on item {index}")
+                                        from app.utils.utils import handle_processing_error_recovery
+                                        item_data = {
+                                            'abstract': row.get('abstract', ''),
+                                            'title': row.get('title', f"Item {index}")
+                                        }
+                                        screening_result = handle_processing_error_recovery(
+                                            processing_error_result, item_data, llm_provider_param, llm_model_param, 
+                                            llm_api_key_from_outer_scope, llm_base_url_param, criteria_prompt_param
+                                        )
                                     
                                     # Ensure screening_result is a dictionary
                                     elif not isinstance(screening_result, dict):
@@ -1526,7 +1632,19 @@ def stream_screen_file():
                             # Check if greenlet was killed and returned GreenletExit
                             if hasattr(screening_result, '__class__') and 'GreenletExit' in str(type(screening_result)):
                                 app_logger.warning(f"Greenlet for item {index} was terminated (GreenletExit)")
-                                screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': 'Processing was terminated due to timeout or system constraints'}
+                                processing_error_result = {'decision': 'PROCESSING_ERROR', 'reasoning': 'Processing was terminated due to timeout or system constraints'}
+                                
+                                # Attempt recovery for terminated greenlet
+                                app_logger.info(f"Attempting recovery for terminated greenlet on item {index}")
+                                from app.utils.utils import handle_processing_error_recovery
+                                item_data = {
+                                    'abstract': row.get('abstract', ''),
+                                    'title': row.get('title', f"Item {index}")
+                                }
+                                screening_result = handle_processing_error_recovery(
+                                    processing_error_result, item_data, llm_provider, llm_model, 
+                                    llm_api_key_from_outer_scope, llm_base_url, criteria_prompt
+                                )
                             
                             # Ensure screening_result is a dictionary
                             elif not isinstance(screening_result, dict):
@@ -1881,7 +1999,7 @@ def stream_test_screen_file():
                     greenlet = spawn(_perform_screening_on_abstract,
                                    abstract, criteria_prompt_param,
                                    llm_provider_param, llm_model_param, 
-                                   llm_api_key_from_outer_scope, llm_base_url_param)
+                                   llm_api_key_from_outer_scope, llm_base_url_param, index)
                     batch_greenlets.append((index, row, greenlet))
                 
                 # Optimize: Use reasonable timeout for DeepSeek reasoner model
@@ -2312,11 +2430,44 @@ def screen_pdf_decision():
             # Call LLM (Synchronous)
             screening_result = call_llm_api(prompt_data, provider_name, model_id, api_key, base_url)
             
+            # 添加错误处理和恢复机制
+            if screening_result and isinstance(screening_result, dict):
+                decision = screening_result.get('label', 'ERROR')
+                reasoning = screening_result.get('justification', 'API call failed or returned invalid data.')
+                
+                # 检查是否需要恢复
+                if decision in ['API_TIMEOUT', 'API_HTTP_ERROR_N/A', 'SCRIPT_ERROR']:
+                    app_logger.warning(f"PDF screening error detected: {decision} - {reasoning}")
+                    
+                    # 尝试恢复
+                    from app.utils.utils import handle_processing_error_recovery
+                    error_result = {'decision': 'PROCESSING_ERROR', 'reasoning': f'PDF screening failed: {reasoning}'}
+                    item_data = {
+                        'abstract': full_text[:2000],  # 使用前2000字符作为摘要
+                        'title': original_filename
+                    }
+                    
+                    recovery_result = handle_processing_error_recovery(
+                        error_result, item_data, provider_name, model_id, api_key, base_url, criteria_full_text
+                    )
+                    
+                    if recovery_result.get('decision') in ['INCLUDE', 'EXCLUDE', 'MAYBE']:
+                        app_logger.info(f"PDF screening recovered successfully: {recovery_result.get('decision')}")
+                        decision = recovery_result.get('decision')
+                        reasoning = f"[RECOVERED] {recovery_result.get('reasoning')}"
+                    else:
+                        app_logger.warning(f"PDF screening recovery failed: {recovery_result.get('reasoning')}")
+                        decision = recovery_result.get('decision', 'RECOVERY_FAILED')
+                        reasoning = recovery_result.get('reasoning', 'Recovery attempt failed')
+            else:
+                decision = 'API_ERROR'
+                reasoning = 'API call returned invalid response format'
+            
             pdf_screening_results[pdf_screening_id] = {
                 'filename': original_filename, # Original filename for display
                 'saved_pdf_path': pdf_save_path, # Store the path to the saved PDF
-                'decision': screening_result.get('label', 'ERROR'),
-                'reasoning': screening_result.get('justification', '-'),
+                'decision': decision,
+                'reasoning': reasoning,
                 'extracted_text_preview': full_text[:2000] + ("... (truncated)" if len(full_text) > 2000 else "")
             }
 
@@ -2901,12 +3052,45 @@ def _perform_batch_pdf_screening_for_file(item_manifest_with_path_and_index, cri
         
         api_result = call_llm_api(prompt_data, llm_provider_name, llm_model_id, llm_api_key, llm_base_url)
         
+        # 添加错误处理和恢复机制
+        if api_result and isinstance(api_result, dict):
+            decision = api_result.get('label', 'API_ERROR')
+            reasoning = api_result.get('justification', 'API call failed or returned invalid data.')
+            
+            # 检查是否需要恢复
+            if decision in ['API_TIMEOUT', 'API_HTTP_ERROR_N/A', 'SCRIPT_ERROR']:
+                app_logger.warning(f"Batch PDF screening error detected for {original_filename}: {decision} - {reasoning}")
+                
+                # 尝试恢复
+                from app.utils.utils import handle_processing_error_recovery
+                error_result = {'decision': 'PROCESSING_ERROR', 'reasoning': f'Batch PDF screening failed: {reasoning}'}
+                item_data = {
+                    'abstract': full_text[:2000],  # 使用前2000字符作为摘要
+                    'title': display_title
+                }
+                
+                recovery_result = handle_processing_error_recovery(
+                    error_result, item_data, llm_provider_name, llm_model_id, llm_api_key, llm_base_url, criteria_prompt_text
+                )
+                
+                if recovery_result.get('decision') in ['INCLUDE', 'EXCLUDE', 'MAYBE']:
+                    app_logger.info(f"Batch PDF screening recovered successfully for {original_filename}: {recovery_result.get('decision')}")
+                    decision = recovery_result.get('decision')
+                    reasoning = f"[RECOVERED] {recovery_result.get('reasoning')}"
+                else:
+                    app_logger.warning(f"Batch PDF screening recovery failed for {original_filename}: {recovery_result.get('reasoning')}")
+                    decision = recovery_result.get('decision', 'RECOVERY_FAILED')
+                    reasoning = recovery_result.get('reasoning', 'Recovery attempt failed')
+        else:
+            decision = 'API_ERROR'
+            reasoning = 'API call returned invalid response format'
+        
         result_to_return = {
             'original_index': original_index_from_manifest, # Add original_index to the successful result
             'filename': original_filename, 
             'title_for_display': display_title, 
-            'decision': api_result.get('label', 'API_ERROR'),
-            'reasoning': api_result.get('justification', 'API call failed or returned invalid data.')
+            'decision': decision,
+            'reasoning': reasoning
         }
         app_logger.info(f"Batch PDF Thread: Returning result for '{original_filename}': {result_to_return}") # Log the entire result
         return result_to_return

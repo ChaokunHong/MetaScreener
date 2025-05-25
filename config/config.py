@@ -135,7 +135,7 @@ SCREENING_OPTIMIZATION_CONFIG = {
 BATCH_PROCESSING_CONFIG = {
     # Concurrent request limits to respect rate limits
     "concurrent_requests": {
-        "DeepSeek": 50,         # Very high concurrency (no rate limits per official docs)
+        "DeepSeek": 100,        # 大幅增加并发数，利用无限制特性
         "OpenAI_ChatGPT": 5,    # Moderate concurrency
         "Google_Gemini": 8,     # Good concurrency for Tier 1
         "Anthropic_Claude": 2   # Very conservative due to strict limits
@@ -2078,18 +2078,19 @@ GEMINI_MODEL_CONFIGS = {
 DEEPSEEK_MODEL_CONFIGS = {
     "deepseek-chat": {  # DeepSeek-V3
         "temperature": 0.0,  # Recommended for coding/math tasks
-        "max_tokens": 200,
+        "max_tokens": 300,  # 
         "top_p": 0.7,
         "frequency_penalty": 0.0,
         "presence_penalty": 0.0,
         "timeout": 30,  # Optimized timeout for fast responses
         "max_retries": 3,  # Standard retries since no rate limits
         "retry_delay": 1.0,  # Shorter delay since no rate limiting
+        "max_delay": 30.0,  # Maximum delay between retries
         "rate_limit": {
             "requests_per_minute": None,  # No rate limits per official docs
             "tokens_per_minute": None,  # No token limits
-            "batch_size": 20,  # Higher batch size due to no limits
-            "concurrent_requests": 50  # High concurrency allowed
+            "batch_size": 30, 
+            "concurrent_requests": 100 
         },
         "cost_per_1k_tokens": {"input": 0.00014, "output": 0.00028},
         "keep_alive_handling": True,  # Handle keep-alive responses
@@ -2101,7 +2102,7 @@ DEEPSEEK_MODEL_CONFIGS = {
     },
     "deepseek-reasoner": {  # DeepSeek-R1
         "temperature": None,  # Not supported for reasoning model
-        "max_tokens": 200,  # Only controls final answer, not reasoning
+        "max_tokens": 300,  
         "top_p": None,  # Not supported
         "frequency_penalty": None,  # Not supported
         "presence_penalty": None,  # Not supported
@@ -2112,8 +2113,8 @@ DEEPSEEK_MODEL_CONFIGS = {
         "rate_limit": {
             "requests_per_minute": None,  # No rate limits per official docs
             "tokens_per_minute": None,  # No token limits
-            "batch_size": 5,  # Smaller batch for reasoning model
-            "concurrent_requests": 10  # Moderate concurrency for reasoning
+            "batch_size": 10,  
+            "concurrent_requests": 20 
         },
         "cost_per_1k_tokens": {"input": 0.00055, "output": 0.0022},
         "reasoning_effort": "medium",  # Future parameter
@@ -2154,8 +2155,9 @@ SCREENING_OPTIMIZATION_CONFIG = {
     }
 }
 
-# --- ENHANCED BATCH PROCESSING CONFIG ---
-BATCH_PROCESSING_CONFIG = {
+# --- ENHANCED BATCH PROCESSING CONFIG (MERGED) ---
+# Note: This extends the original BATCH_PROCESSING_CONFIG with additional features
+ENHANCED_BATCH_PROCESSING_CONFIG = {
     "adaptive_batch_sizing": True,
     "min_batch_size": 2,
     "max_batch_size": 25,
@@ -2431,4 +2433,62 @@ CACHING_CONFIG = {
     ],
     "enable_cache_warming": True,
     "cache_hit_ratio_target": 0.3
+}
+
+# --- API TESTING CONFIGURATION ---
+API_TEST_CONFIG = {
+    # Fast testing parameters for API key validation
+    "fast_test_mode": {
+        "enabled": True,
+        "max_tokens": 300,  
+        "timeout": 30,     
+        "temperature": 0.1,  
+        "simple_prompt": True,  
+        "retry_attempts": 2,  
+        "retry_delay": 1.0,  
+    },
+    
+    # Provider-specific test optimizations
+    "provider_optimizations": {
+        "DeepSeek": {
+            "max_tokens": 400, 
+            "timeout": 25,     
+            "concurrent_test": True, 
+            "use_fast_model": True,  
+        },
+        "OpenAI_ChatGPT": {
+            "max_tokens": 350,  
+            "timeout": 30,     
+            "use_gpt_3_5": True, 
+        },
+        "Google_Gemini": {
+            "max_output_tokens": 300,  # 修正：Gemini使用max_output_tokens
+            "timeout": 35,      
+            "use_flash_model": True, 
+        },
+        "Anthropic_Claude": {
+            "max_tokens": 300, 
+            "timeout": 40,      
+            "use_haiku_model": True, 
+        }
+    },
+    
+    # Test prompt templates
+    "test_prompts": {
+        "simple": {
+            "system_prompt": "You are a helpful AI assistant specialized in academic research and literature screening.",
+            "main_prompt": "Please provide a comprehensive response to test your capabilities. Explain what you can do to help with literature screening, systematic reviews, and research tasks. Include details about your ability to analyze abstracts, assess study quality, and extract key information from research papers. Conclude with 'API_TEST_SUCCESSFUL' to confirm the connection is working properly."
+        },
+        "json_compatible": {
+            "system_prompt": "You are a helpful AI assistant specialized in academic research. Respond in JSON format when requested.",
+            "main_prompt": "Please provide a comprehensive JSON response to test your capabilities. The response should include: 1) Your main functions for literature screening, 2) Types of research you can analyze, 3) Quality assessment capabilities, 4) Data extraction abilities. Format as JSON with keys: 'functions', 'research_types', 'quality_assessment', 'data_extraction', and 'status'. Set status to 'API_TEST_SUCCESSFUL'."
+        }
+    },
+    
+    # Safety limits to prevent abuse
+    "safety_limits": {
+        "max_concurrent_tests": 3,  
+        "rate_limit_per_minute": 10,  
+        "cooldown_period": 5,  
+    }
 }
