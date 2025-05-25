@@ -313,7 +313,7 @@ def configure_llm():
             
             try:
                 # Test the API key
-                api_result = call_llm_api_raw_content(test_prompt, selected_provider, test_model_id, api_key_to_test, base_url, max_tokens_override=20)
+                api_result = call_llm_api_raw_content(test_prompt, selected_provider, test_model_id, api_key_to_test, base_url, max_tokens_override=100)
                 
                 if api_result and isinstance(api_result, str) and len(api_result) > 0 and not api_result.startswith("API_ERROR:"):
                     app_logger.info(f"Auto API key test successful for {selected_provider}")
@@ -522,7 +522,7 @@ def test_api_key():
     try:
         # Test the API key with a minimal request
         app_logger.info(f"Testing API key for {provider} with model {test_model_id}")
-        api_result = call_llm_api_raw_content(test_prompt, provider, test_model_id, api_key, base_url, max_tokens_override=20)
+        api_result = call_llm_api_raw_content(test_prompt, provider, test_model_id, api_key, base_url, max_tokens_override=100)
         
         if api_result and isinstance(api_result, str) and len(api_result) > 0 and not api_result.startswith("API_ERROR:"):
             app_logger.info(f"API key test successful for {provider}")
@@ -1385,9 +1385,10 @@ def stream_screen_file():
                                     llm_api_key_from_outer_scope, llm_base_url)
                     batch_greenlets.append((index, row, greenlet))
                 
-                # Optimize: Use longer timeout for DeepSeek R1 reasoning model
-                max_wait_time = 120 # 120 seconds total timeout for reasoning models
+                # Optimize: Use reasonable timeout for DeepSeek reasoner model
+                max_wait_time = 90 # 90 seconds timeout - DeepSeek reasoner needs 20-40s per call
                 check_interval = 0.5 # Check every 0.5 seconds
+                force_timeout = 120 # 120 seconds absolute maximum before force kill
                 checks_completed = 0
                 max_checks = int(max_wait_time / check_interval)
                 
@@ -1411,18 +1412,42 @@ def stream_screen_file():
                             authors_list = row.get('authors', [])
                             authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
                             
-                            # Process result
-                            if greenlet.successful():
-                                screening_result = greenlet.get(block=False)
-                                
-                                # Detect 429 errors
-                                if (screening_result.get('decision') == 'API_ERROR' and 
-                                    '429' in str(screening_result.get('reasoning', ''))):
-                                    batch_429_errors += 1
-                            else:
-                                # Handle timeout or failure
-                                error_msg = str(greenlet.exception) if greenlet.exception else "Processing error"
-                                screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
+                            # Process result with enhanced error handling
+                            try:
+                                if greenlet.successful():
+                                    screening_result = greenlet.get(block=False)
+                                    
+                                    # Check if greenlet was killed and returned GreenletExit
+                                    if hasattr(screening_result, '__class__') and 'GreenletExit' in str(type(screening_result)):
+                                        app_logger.warning(f"Greenlet for item {index} was terminated (GreenletExit)")
+                                        screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': 'Processing was terminated due to timeout or system constraints'}
+                                    
+                                    # Ensure screening_result is a dictionary
+                                    elif not isinstance(screening_result, dict):
+                                        app_logger.warning(f"Invalid screening result type for item {index}: {type(screening_result)}")
+                                        screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': f'Invalid result type: {type(screening_result)}'}
+                                    
+                                    # Fast detection of network errors - auto skip to prevent hang
+                                    elif (screening_result.get('decision') in ['API_HTTP_ERROR_N/A', 'API_TIMEOUT', 'API_ERROR'] and 
+                                        ('Network error' in str(screening_result.get('reasoning', '')) or 
+                                         'ConnectionError' in str(screening_result.get('reasoning', '')) or
+                                         'ChunkedEncodingError' in str(screening_result.get('reasoning', '')) or
+                                         'timeout' in str(screening_result.get('reasoning', '')).lower())):
+                                        app_logger.warning(f"Network error detected for item {index}, auto-skipping: {screening_result.get('reasoning', '')}")
+                                        screening_result = {'decision': 'NETWORK_ERROR', 'reasoning': 'Network error - automatically skipped to prevent hang'}
+                                    
+                                    # Detect 429 errors
+                                    elif (screening_result.get('decision') == 'API_ERROR' and 
+                                        '429' in str(screening_result.get('reasoning', ''))):
+                                        batch_429_errors += 1
+                                else:
+                                    # Handle timeout or failure
+                                    error_msg = str(greenlet.exception) if greenlet.exception else "Processing error"
+                                    screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
+                            except Exception as e:
+                                # Handle any unexpected errors during result processing
+                                app_logger.error(f"Error processing greenlet result for item {index}: {e}")
+                                screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': f'Error processing result: {str(e)}'}
                             
                             # Save result
                             output_data = {
@@ -1472,32 +1497,63 @@ def stream_screen_file():
                                 status_message = f"Completed: {completed}/{total}, Remaining: {remaining}, Speed: {active_batch_size} per batch"
                                 yield f"data: {json.dumps({'type': 'status', 'message': status_message})}\n\n"
                 
-                # Handle any remaining unprocessed greenlets
+                # Handle any remaining unprocessed greenlets with force termination
                 for idx, (index, row, greenlet) in enumerate(batch_greenlets):
                     if idx in completed_indices:
                         continue  # Already processed
                         
-                    # Force wait up to 1 second for remaining results
+                    # Force wait up to 30 seconds for remaining results, then kill if stuck
                     try:
-                        greenlet.join(timeout=1)
-                    except Exception:
-                        pass
+                        greenlet.join(timeout=30)
+                        if not greenlet.ready():
+                            app_logger.warning(f"Force killing stuck greenlet for item {index} to prevent hang")
+                            greenlet.kill()  # Force terminate stuck greenlets
+                    except Exception as e:
+                        app_logger.warning(f"Exception handling stuck greenlet for item {index}: {e}")
+                        try:
+                            greenlet.kill()  # Force terminate on exception
+                        except:
+                            pass
                     
                     title = row.get('title', "N/A")
                     authors_list = row.get('authors', [])
                     authors_str = ", ".join(authors_list) if authors_list else "Authors Not Found"
                     
-                    if greenlet.ready() and greenlet.successful():
-                        screening_result = greenlet.get(block=False)
-                        
-                        # Detect 429 errors
-                        if (screening_result.get('decision') == 'API_ERROR' and 
-                            '429' in str(screening_result.get('reasoning', ''))):
-                            batch_429_errors += 1
-                    else:
-                        # Handle timeout or failure
-                        error_msg = str(greenlet.exception) if hasattr(greenlet, 'exception') and greenlet.exception else "Processing timed out"
-                        screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
+                    try:
+                        if greenlet.ready() and greenlet.successful():
+                            screening_result = greenlet.get(block=False)
+                            
+                            # Check if greenlet was killed and returned GreenletExit
+                            if hasattr(screening_result, '__class__') and 'GreenletExit' in str(type(screening_result)):
+                                app_logger.warning(f"Greenlet for item {index} was terminated (GreenletExit)")
+                                screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': 'Processing was terminated due to timeout or system constraints'}
+                            
+                            # Ensure screening_result is a dictionary
+                            elif not isinstance(screening_result, dict):
+                                app_logger.warning(f"Invalid screening result type for item {index}: {type(screening_result)}")
+                                screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': f'Invalid result type: {type(screening_result)}'}
+                            
+                            # Detect network errors
+                            elif (screening_result.get('decision') in ['API_HTTP_ERROR_N/A', 'API_TIMEOUT', 'API_ERROR'] and 
+                                ('Network error' in str(screening_result.get('reasoning', '')) or 
+                                 'ConnectionError' in str(screening_result.get('reasoning', '')) or
+                                 'ChunkedEncodingError' in str(screening_result.get('reasoning', '')) or
+                                 'timeout' in str(screening_result.get('reasoning', '')).lower())):
+                                app_logger.warning(f"Network error detected for item {index}, auto-skipping: {screening_result.get('reasoning', '')}")
+                                screening_result = {'decision': 'NETWORK_ERROR', 'reasoning': 'Network error - automatically skipped to prevent hang'}
+                            
+                            # Detect 429 errors
+                            elif (screening_result.get('decision') == 'API_ERROR' and 
+                                '429' in str(screening_result.get('reasoning', ''))):
+                                batch_429_errors += 1
+                        else:
+                            # Handle timeout or failure
+                            error_msg = str(greenlet.exception) if hasattr(greenlet, 'exception') and greenlet.exception else "Processing timed out"
+                            screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
+                    except Exception as e:
+                        # Handle any unexpected errors during result processing
+                        app_logger.error(f"Error processing greenlet result for item {index}: {e}")
+                        screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': f'Error processing result: {str(e)}'}
                     
                     # Save result
                     output_data = {
@@ -1828,8 +1884,8 @@ def stream_test_screen_file():
                                    llm_api_key_from_outer_scope, llm_base_url_param)
                     batch_greenlets.append((index, row, greenlet))
                 
-                # Optimize: Use longer timeout for DeepSeek R1 reasoning model
-                max_wait_time = 120  # 120 seconds total timeout for reasoning models
+                # Optimize: Use reasonable timeout for DeepSeek reasoner model
+                max_wait_time = 90  # 90 seconds timeout - DeepSeek reasoner needs 20-40s per call
                 check_interval = 0.5  # Check every 500ms for stability
                 checks_completed = 0
                 max_checks = int(max_wait_time / check_interval)
@@ -1858,18 +1914,42 @@ def stream_test_screen_file():
                             # Generate unique ID for test item
                             item_id = str(uuid.uuid4())
                             
-                            # Process result
-                            if greenlet.successful():
-                                screening_result = greenlet.get(block=False)
-                                
-                                # Detect 429 errors
-                                if (screening_result.get('decision') == 'API_ERROR' and 
-                                    '429' in str(screening_result.get('reasoning', ''))):
-                                    batch_429_errors += 1
-                            else:
-                                # Handle timeout or failure
-                                error_msg = str(greenlet.exception) if greenlet.exception else "Processing error"
-                                screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
+                            # Process result with enhanced error handling
+                            try:
+                                if greenlet.successful():
+                                    screening_result = greenlet.get(block=False)
+                                    
+                                    # Check if greenlet was killed and returned GreenletExit
+                                    if hasattr(screening_result, '__class__') and 'GreenletExit' in str(type(screening_result)):
+                                        app_logger.warning(f"Test greenlet for item {index} was terminated (GreenletExit)")
+                                        screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': 'Processing was terminated due to timeout or system constraints'}
+                                    
+                                    # Ensure screening_result is a dictionary
+                                    elif not isinstance(screening_result, dict):
+                                        app_logger.warning(f"Invalid test screening result type for item {index}: {type(screening_result)}")
+                                        screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': f'Invalid result type: {type(screening_result)}'}
+                                    
+                                    # Fast detection of network errors - auto skip to prevent hang
+                                    elif (screening_result.get('decision') in ['API_HTTP_ERROR_N/A', 'API_TIMEOUT', 'API_ERROR'] and 
+                                        ('Network error' in str(screening_result.get('reasoning', '')) or 
+                                         'ConnectionError' in str(screening_result.get('reasoning', '')) or
+                                         'ChunkedEncodingError' in str(screening_result.get('reasoning', '')) or
+                                         'timeout' in str(screening_result.get('reasoning', '')).lower())):
+                                        app_logger.warning(f"Network error detected for test item {index}, auto-skipping: {screening_result.get('reasoning', '')}")
+                                        screening_result = {'decision': 'NETWORK_ERROR', 'reasoning': 'Network error - automatically skipped to prevent hang'}
+                                    
+                                    # Detect 429 errors
+                                    elif (screening_result.get('decision') == 'API_ERROR' and 
+                                        '429' in str(screening_result.get('reasoning', ''))):
+                                        batch_429_errors += 1
+                                else:
+                                    # Handle timeout or failure
+                                    error_msg = str(greenlet.exception) if greenlet.exception else "Processing error"
+                                    screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
+                            except Exception as e:
+                                # Handle any unexpected errors during result processing
+                                app_logger.error(f"Error processing test greenlet result for item {index}: {e}")
+                                screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': f'Error processing result: {str(e)}'}
                             
                             # Prepare test item data
                             test_item_template_data = {
@@ -1910,11 +1990,18 @@ def stream_test_screen_file():
                     if idx in completed_indices:
                         continue  # Already processed this greenlet
                         
-                    # Force wait up to 1 second to get remaining results
+                    # Force wait up to 30 seconds to get remaining results, then kill if stuck
                     try:
-                        greenlet.join(timeout=1)
-                    except Exception:
-                        pass
+                        greenlet.join(timeout=30)
+                        if not greenlet.ready():
+                            app_logger.warning(f"Force killing stuck test greenlet for item {index} to prevent hang")
+                            greenlet.kill()  # Force terminate stuck greenlets
+                    except Exception as e:
+                        app_logger.warning(f"Exception handling stuck test greenlet for item {index}: {e}")
+                        try:
+                            greenlet.kill()  # Force terminate on exception
+                        except:
+                            pass
                     
                     title = row.get('title', "N/A")
                     abstract_text = row.get('abstract', '')
@@ -1924,17 +2011,41 @@ def stream_test_screen_file():
                     # Generate unique ID for test item
                     item_id = str(uuid.uuid4())
                     
-                    if greenlet.ready() and greenlet.successful():
-                        screening_result = greenlet.get(block=False)
-                        
-                        # Detect 429 errors
-                        if (screening_result.get('decision') == 'API_ERROR' and 
-                            '429' in str(screening_result.get('reasoning', ''))):
-                            batch_429_errors += 1
-                    else:
-                        # Handle timeout or failure
-                        error_msg = str(greenlet.exception) if hasattr(greenlet, 'exception') and greenlet.exception else "Processing timed out"
-                        screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
+                    try:
+                        if greenlet.ready() and greenlet.successful():
+                            screening_result = greenlet.get(block=False)
+                            
+                            # Check if greenlet was killed and returned GreenletExit
+                            if hasattr(screening_result, '__class__') and 'GreenletExit' in str(type(screening_result)):
+                                app_logger.warning(f"Test greenlet for item {index} was terminated (GreenletExit)")
+                                screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': 'Processing was terminated due to timeout or system constraints'}
+                            
+                            # Ensure screening_result is a dictionary
+                            elif not isinstance(screening_result, dict):
+                                app_logger.warning(f"Invalid test screening result type for item {index}: {type(screening_result)}")
+                                screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': f'Invalid result type: {type(screening_result)}'}
+                            
+                            # Detect network errors
+                            elif (screening_result.get('decision') in ['API_HTTP_ERROR_N/A', 'API_TIMEOUT', 'API_ERROR'] and 
+                                ('Network error' in str(screening_result.get('reasoning', '')) or 
+                                 'ConnectionError' in str(screening_result.get('reasoning', '')) or
+                                 'ChunkedEncodingError' in str(screening_result.get('reasoning', '')) or
+                                 'timeout' in str(screening_result.get('reasoning', '')).lower())):
+                                app_logger.warning(f"Network error detected for test item {index}, auto-skipping: {screening_result.get('reasoning', '')}")
+                                screening_result = {'decision': 'NETWORK_ERROR', 'reasoning': 'Network error - automatically skipped to prevent hang'}
+                            
+                            # Detect 429 errors
+                            elif (screening_result.get('decision') == 'API_ERROR' and 
+                                '429' in str(screening_result.get('reasoning', ''))):
+                                batch_429_errors += 1
+                        else:
+                            # Handle timeout or failure
+                            error_msg = str(greenlet.exception) if hasattr(greenlet, 'exception') and greenlet.exception else "Processing timed out"
+                            screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': error_msg}
+                    except Exception as e:
+                        # Handle any unexpected errors during result processing
+                        app_logger.error(f"Error processing test greenlet result for item {index}: {e}")
+                        screening_result = {'decision': 'PROCESSING_ERROR', 'reasoning': f'Error processing result: {str(e)}'}
                     
                     # Prepare test item data
                     test_item_template_data = {
@@ -2596,6 +2707,38 @@ def batch_screen_pdfs_stream():
                     try:
                         if glet.successful():
                             screening_result = glet.get(block=False)
+                            
+                            # Check if greenlet was killed and returned GreenletExit
+                            if hasattr(screening_result, '__class__') and 'GreenletExit' in str(type(screening_result)):
+                                app_logger.warning(f"Batch PDF greenlet for {original_filename_for_log} was terminated (GreenletExit)")
+                                screening_result = {
+                                    'original_index': completed_item_manifest['original_index'],
+                                    'filename': original_filename_for_log, 
+                                    'title_for_display': original_filename_for_log,
+                                    'decision': 'PROCESSING_ERROR',
+                                    'reasoning': 'Processing was terminated due to timeout or system constraints'
+                                }
+                            
+                            # Ensure screening_result is a dictionary
+                            elif not isinstance(screening_result, dict):
+                                app_logger.warning(f"Invalid batch PDF screening result type for {original_filename_for_log}: {type(screening_result)}")
+                                screening_result = {
+                                    'original_index': completed_item_manifest['original_index'],
+                                    'filename': original_filename_for_log, 
+                                    'title_for_display': original_filename_for_log,
+                                    'decision': 'PROCESSING_ERROR',
+                                    'reasoning': f'Invalid result type: {type(screening_result)}'
+                                }
+                            
+                            # Fast detection of network errors - auto skip to prevent hang
+                            elif (screening_result.get('decision') in ['API_HTTP_ERROR_N/A', 'API_TIMEOUT', 'API_ERROR'] and 
+                                ('Network error' in str(screening_result.get('reasoning', '')) or 
+                                 'ConnectionError' in str(screening_result.get('reasoning', '')) or
+                                 'ChunkedEncodingError' in str(screening_result.get('reasoning', '')) or
+                                 'timeout' in str(screening_result.get('reasoning', '')).lower())):
+                                app_logger.warning(f"Network error detected for batch PDF {original_filename_for_log}, auto-skipping: {screening_result.get('reasoning', '')}")
+                                screening_result['decision'] = 'NETWORK_ERROR'
+                                screening_result['reasoning'] = 'Network error - automatically skipped to prevent hang'
                         else:
                             app_logger.error(f"Batch PDF SSE: Unhandled exception in greenlet for {original_filename_for_log}: {glet.exception}")
                             screening_result = {
@@ -2651,10 +2794,40 @@ def batch_screen_pdfs_stream():
                     
                     if glet.ready() and glet.successful():
                         screening_result = glet.get(block=False)
+                        
+                        # Check if greenlet was killed and returned GreenletExit
+                        if hasattr(screening_result, '__class__') and 'GreenletExit' in str(type(screening_result)):
+                            app_logger.warning(f"Late batch PDF greenlet for {original_filename_for_log} was terminated (GreenletExit)")
+                            screening_result = {
+                                'original_index': completed_item_manifest['original_index'],
+                                'filename': original_filename_for_log,
+                                'title_for_display': original_filename_for_log,
+                                'decision': 'PROCESSING_ERROR',
+                                'reasoning': 'Processing was terminated due to timeout or system constraints'
+                            }
+                        
+                        # Ensure screening_result is a dictionary
+                        elif not isinstance(screening_result, dict):
+                            app_logger.warning(f"Invalid late batch PDF screening result type for {original_filename_for_log}: {type(screening_result)}")
+                            screening_result = {
+                                'original_index': completed_item_manifest['original_index'],
+                                'filename': original_filename_for_log,
+                                'title_for_display': original_filename_for_log,
+                                'decision': 'PROCESSING_ERROR',
+                                'reasoning': f'Invalid result type: {type(screening_result)}'
+                            }
+                        
                         processed_files_results.append(screening_result)
                         app_logger.info(f"Batch PDF SSE: Late completion for {original_filename_for_log}")
                     else:
-                        # Handle timeout or error for remaining tasks
+                        # Handle timeout or error for remaining tasks - force kill stuck greenlets
+                        if not glet.ready():
+                            app_logger.warning(f"Force killing stuck batch PDF greenlet for {original_filename_for_log} to prevent hang")
+                            try:
+                                glet.kill()  # Force terminate stuck greenlets
+                            except:
+                                pass
+                        
                         app_logger.warning(f"Batch PDF SSE: Greenlet for {original_filename_for_log} timed out or failed")
                         timeout_result = {
                             'original_index': completed_item_manifest['original_index'],
