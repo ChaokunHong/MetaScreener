@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}Screening Results - AI Literature Screening Assistant{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Balanced elegant table styles with soft colors */
+    .results-table {
+        background: white;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        font-size: 0.85rem;
+    }
+    
+    .results-table thead th {
+        background: linear-gradient(135deg, #f8fafc 0%, #e7e3ff 100%);
+        color: #5b21b6;
+        font-weight: 600;
+        font-size: 0.8rem;
+        padding: 0.75rem 0.5rem;
+        border-bottom: 2px solid #e2e8f0;
+        text-align: left;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .results-table tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .results-table tbody tr:hover {
+        background-color: #faf9ff;
+    }
+    
+    .results-table tbody tr:last-child {
+        border-bottom: none;
+    }
+    
+    .results-table td {
+        padding: 0.5rem;
+        vertical-align: top;
+        border: none;
+        font-size: 0.8rem;
+        line-height: 1.3;
+    }
+    
+    /* Abstract text styling */
+    .abstract-text {
+        font-size: 0.75rem;
+        max-height: 120px;
+        overflow-y: auto;
+        background: #fafafa;
+        padding: 0.5rem;
+        border-radius: 4px;
+        border: 1px solid #e5e7eb;
+        margin-top: 0.5rem;
+    }
+    
+    /* Simple summary toggle */
+    summary {
+        cursor: pointer;
+        font-weight: 500;
+        color: #6b46c1;
+        font-size: 0.75rem;
+        padding: 0.25rem;
+        border-radius: 3px;
+    }
+    
+    summary:hover {
+        background: #f3f0ff;
+    }
+    
+    /* AI reasoning text */
+    .ai-reasoning {
+        font-size: 0.7rem;
+        color: #64748b;
+        line-height: 1.4;
+        margin-top: 0.25rem;
+        padding: 0.4rem;
+        background: #f8fafc;
+        border-radius: 3px;
+        border-left: 2px solid #c4b5fd;
+    }
+    
+    /* Balanced soft decision badges */
+    .badge-include {
+        background: #059669;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        font-weight: 500;
+        font-size: 0.7rem;
+    }
+    
+    .badge-exclude {
+        background: #dc2626;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        font-weight: 500;
+        font-size: 0.7rem;
+    }
+    
+    .badge-maybe {
+        background: #d97706;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        font-weight: 500;
+        font-size: 0.7rem;
+    }
+    
+    .badge-error {
+        background: #9ca3af;
+        color: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        font-weight: 500;
+        font-size: 0.7rem;
+    }
+    
+    /* Table responsive container */
+    .table-responsive {
+        max-height: calc(100vh - 320px);
+        overflow-y: auto;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+    }
+    
+    /* Balanced header styling */
+    .page-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #f3f0ff 100%);
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .page-header h1 {
+        font-size: 1.25rem;
+        color: #1e293b;
+        margin: 0;
+        font-weight: 600;
+    }
+    
+    /* Balanced info text styling */
+    .info-text {
+        background: #f0f9ff;
+        padding: 0.75rem;
+        border-radius: 4px;
+        border-left: 3px solid #6b46c1;
+        margin-bottom: 1rem;
+        font-size: 0.8rem;
+        color: #374151;
+    }
+    
+    /* Filter info */
+    .filter-info {
+        font-size: 0.7rem;
+        color: #64748b;
+        font-style: italic;
+        margin-bottom: 0.75rem;
+        padding: 0.4rem;
+        background: #fafafa;
+        border-radius: 3px;
+    }
+    
+    /* Export button group */
+    .export-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .export-btn {
+        background: #6b46c1;
+        color: white;
+        border: none;
+        padding: 0.5rem 0.75rem;
+        border-radius: 4px;
+        font-weight: 500;
+        font-size: 0.8rem;
+        text-decoration: none;
+        transition: background-color 0.2s;
+    }
+    
+    .export-btn:hover {
+        background: #553c9a;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .export-btn i {
+        margin-right: 0.3rem;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .results-table {
+            font-size: 0.75rem;
+        }
+        
+        .results-table thead th,
+        .results-table td {
+            padding: 0.4rem 0.3rem;
+        }
+        
+        .page-header {
+            padding: 0.75rem;
+            text-align: center;
+        }
+        
+        .export-buttons {
+            justify-content: center;
+        }
+        
+        .export-btn {
+            font-size: 0.75rem;
+            padding: 0.4rem 0.6rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><i class="fas fa-clipboard-list mr-2"></i>AI Screening Results</h1>
+            <a href="{{ url_for('screening_actions_page') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left mr-1"></i>Back to Screening Actions
+            </a>
+        </div>
+    </div>
+
+    {% if results %}
+        {% if filter_applied and filter_applied != 'all entries' %}
+            <div class="filter-info">
+                <i class="fas fa-filter mr-1"></i>Filter applied: {{ filter_applied }} 
+                (Showing {{ results|length }} of {{ total_count }} entries)
+            </div>
+        {% endif %}
+        
+        <div class="info-text">
+            <strong><i class="fas fa-info-circle mr-2"></i>Summary:</strong>
+            Total items screened: <strong>{{ results|length }}</strong> | 
+            Include: <span class="badge-include">{{ results|selectattr('ai_decision', 'equalto', 'INCLUDE')|list|length }}</span> | 
+            Exclude: <span class="badge-exclude">{{ results|selectattr('ai_decision', 'equalto', 'EXCLUDE')|list|length }}</span> | 
+            Maybe: <span class="badge-maybe">{{ results|selectattr('ai_decision', 'equalto', 'MAYBE')|list|length }}</span>
+        </div>
+        
+        <div class="export-buttons">
+            <a href="{{ url_for('export_ris', decision='INCLUDE') }}" class="export-btn">
+                <i class="fas fa-download"></i>Export INCLUDE as RIS
+            </a>
+            <a href="{{ url_for('export_ris', decision='EXCLUDE') }}" class="export-btn">
+                <i class="fas fa-download"></i>Export EXCLUDE as RIS
+            </a>
+            <a href="{{ url_for('export_ris', decision='MAYBE') }}" class="export-btn">
+                <i class="fas fa-download"></i>Export MAYBE as RIS
+            </a>
+            <a href="{{ url_for('export_ris', decision='ALL') }}" class="export-btn">
+                <i class="fas fa-download"></i>Export ALL as RIS
+            </a>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table results-table">
+                <thead>
+                    <tr>
+                        <th style="width: 4%;">#</th>
+                        <th style="width: 28%;">Title & Authors</th>
+                        <th style="width: 32%;">Abstract</th>
+                        <th style="width: 24%;">AI Decision & Reasoning</th>
+                        <th style="width: 12%;">Journal & Year</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in results %}
+                    <tr>
+                        <td class="text-center">
+                            <span class="badge bg-light text-secondary border">{{ loop.index }}</span>
+                        </td>
+                        <td>
+                            <div class="fw-bold mb-1" style="font-size: 0.8rem; color: #1e293b;">{{ item.title if item.title else 'N/A' }}</div>
+                            <small class="text-muted" style="font-size: 0.7rem;">{{ item.authors if item.authors else 'Authors not available' }}</small>
+                        </td>
+                        <td>
+                            {% if item.abstract and item.abstract != "Abstract is missing or empty." and item.ai_decision != "NO_ABSTRACT" %}
+                                <details>
+                                    <summary><i class="fas fa-eye mr-1"></i>Show Abstract</summary>
+                                    <div class="abstract-text">{{ item.abstract }}</div>
+                                </details>
+                            {% else %}
+                                <em class="text-muted" style="font-size: 0.7rem;">
+                                    <i class="fas fa-exclamation-circle mr-1"></i>No abstract available
+                                </em>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="mb-1">
+                                {% if item.ai_decision == 'INCLUDE' %}
+                                    <span class="badge-include">INCLUDE</span>
+                                {% elif item.ai_decision == 'EXCLUDE' %}
+                                    <span class="badge-exclude">EXCLUDE</span>
+                                {% elif item.ai_decision == 'MAYBE' %}
+                                    <span class="badge-maybe">MAYBE</span>
+                                {% else %}
+                                    <span class="badge-error">{{ item.ai_decision | upper if item.ai_decision else 'ERROR' }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="ai-reasoning">{{ item.ai_reasoning }}</div>
+                        </td>
+                        <td>
+                            <small class="text-muted" style="font-size: 0.7rem;">
+                                {% if item.journal_name %}
+                                    <strong>{{ item.journal_name }}</strong><br>
+                                {% endif %}
+                                {% if item.year %}
+                                    <i class="fas fa-calendar mr-1"></i>{{ item.year }}
+                                {% else %}
+                                    Year not available
+                                {% endif %}
+                            </small>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <strong>No results to display.</strong> Please run screening first.
+        </div>
+    {% endif %}
+{% endblock %}
