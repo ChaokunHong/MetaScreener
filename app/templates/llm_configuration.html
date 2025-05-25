@@ -2418,8 +2418,8 @@
             return;
         }
         
-        // Show testing message
-        messageDiv.innerHTML = `<i class="fas fa-cog fa-spin mr-2"></i>Testing ${provider.replace('_', ' ')} API key...`;
+        // Show testing message with fast mode indicator
+        messageDiv.innerHTML = `<i class="fas fa-cog fa-spin mr-2"></i>Fast testing ${provider.replace('_', ' ')} API key... (optimized for speed)`;
         messageDiv.className = 'form-message show';
         
         // Get the test button and show loading state

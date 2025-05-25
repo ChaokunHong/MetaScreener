@@ -1206,6 +1206,47 @@ def _execute_assessment_logic(assessment_id: str, llm_config: Dict):
                 raw_response = call_llm_api_raw_content(
                     prompt_struct, p_name, m_id, key, url, max_tokens_override=300
                 )
+                
+                # 添加错误处理和恢复机制
+                if raw_response and isinstance(raw_response, str) and raw_response.startswith("API_ERROR:"):
+                    # 检查是否是可恢复的错误
+                    if any(error_type in raw_response for error_type in ["API_TIMEOUT", "API_HTTP_ERROR", "ChunkedEncodingError"]):
+                        print(f"Quality assessment error detected for criterion {criterion_item['id']}: {raw_response}")
+                        
+                        # 尝试恢复
+                        from app.utils.utils import handle_processing_error_recovery
+                        error_result = {'decision': 'PROCESSING_ERROR', 'reasoning': f'Quality assessment failed: {raw_response}'}
+                        item_data = {
+                            'abstract': doc_text_segment[:1000],  # 使用前1000字符
+                            'title': f"Quality Assessment - {criterion_item['text'][:50]}"
+                        }
+                        
+                        # 构建简化的筛选标准用于恢复
+                        recovery_criteria = f"Please assess this document based on: {criterion_item['text']}"
+                        
+                        recovery_result = handle_processing_error_recovery(
+                            error_result, item_data, p_name, m_id, key, url, recovery_criteria
+                        )
+                        
+                        if recovery_result.get('decision') in ['INCLUDE', 'EXCLUDE', 'MAYBE']:
+                            print(f"Quality assessment recovered for criterion {criterion_item['id']}: {recovery_result.get('decision')}")
+                            return {
+                                "criterion_id": criterion_item['id'], 
+                                "criterion_text": criterion_item['text'],
+                                "judgment": f"[RECOVERED] {recovery_result.get('decision')}",
+                                "reason": f"[RECOVERED] {recovery_result.get('reasoning')}",
+                                "evidence_quotes": []
+                            }
+                        else:
+                            print(f"Quality assessment recovery failed for criterion {criterion_item['id']}: {recovery_result.get('reasoning')}")
+                            return {
+                                "criterion_id": criterion_item['id'], 
+                                "criterion_text": criterion_item['text'], 
+                                "judgment": "Error: Recovery Failed", 
+                                "reason": f"Recovery failed: {recovery_result.get('reasoning', 'Unknown error')}", 
+                                "evidence_quotes": []
+                            }
+                
                 parsed_resp = _parse_llm_json_response(raw_response)
                 if parsed_resp and isinstance(parsed_resp, dict):
                     return {
