@@ -249,84 +249,36 @@ def call_llm_api(prompt_data: Dict[str, str], provider_name: str, model_id: str,
 
 
 def _parse_llm_response(message_content: str) -> Dict[str, str]:
-    """
-    Enhanced LLM response parser that supports multiple modern LLM response formats.
-    
-    Supports formats from OpenAI, Claude, Gemini, and other providers.
-    """
     label, justification = "PARSE_ERROR", "Could not parse justification."
-    
-    # Clean the response content
-    content = message_content.strip()
-    
-    # Try multiple label formats (in order of preference)
-    label_patterns = [
-        r"^\s*LABEL:\s*(INCLUDE|EXCLUDE|MAYBE)\s*$",  # Original format
-        r"^\s*Decision:\s*(INCLUDE|EXCLUDE|MAYBE)\s*$",  # Decision format
-        r"^\s*Result:\s*(INCLUDE|EXCLUDE|MAYBE)\s*$",  # Result format
-        r"^\s*(INCLUDE|EXCLUDE|MAYBE)\s*$",  # Direct format
-        r"^\s*\*\*(INCLUDE|EXCLUDE|MAYBE)\*\*\s*$",  # Markdown bold format
-        r"(INCLUDE|EXCLUDE|MAYBE)",  # Any position (last resort)
-    ]
-    
-    # Try multiple justification formats
-    justification_patterns = [
-        r"^\s*Justification:\s*(.+)$",  # Original format
-        r"^\s*Reasoning:\s*(.+)$",  # Reasoning format
-        r"^\s*Explanation:\s*(.+)$",  # Explanation format
-        r"^\s*Because:\s*(.+)$",  # Because format
-        r"^\s*Rationale:\s*(.+)$",  # Rationale format
-        r"^\s*Analysis:\s*(.+)$",  # Analysis format
-    ]
-    
-    # Find label
-    for pattern in label_patterns:
-        match = re.search(pattern, content, re.I | re.M)
-        if match:
-            label = match.group(1).upper()
-            break
-    
-    # Find justification
-    for pattern in justification_patterns:
-        match = re.search(pattern, content, re.I | re.M | re.S)
-        if match:
-            justification = match.group(1).strip()
-            break
-    
-    # If no justification found, try to extract content after label line
-    if justification == "Could not parse justification." and label != "PARSE_ERROR":
-        lines = content.splitlines()
-        for i, line in enumerate(lines):
-            if any(re.search(pattern, line, re.I) for pattern in label_patterns):
-                # Found label line, extract subsequent content
-                remaining_lines = [l.strip() for l in lines[i+1:] if l.strip()]
-                if remaining_lines:
-                    justification = " ".join(remaining_lines)
-                break
-    
-    # If still no justification, try to extract non-label content
-    if justification == "Could not parse justification.":
-        lines = content.splitlines()
-        non_label_lines = []
-        for line in lines:
-            # Skip lines that contain only labels
-            if not any(re.search(pattern, line, re.I) for pattern in label_patterns):
-                if line.strip():
-                    non_label_lines.append(line.strip())
-        
-        if non_label_lines:
-            justification = " ".join(non_label_lines)
-        elif label != "PARSE_ERROR":
-            justification = f"Decision: {label} (no detailed reasoning provided)"
-        else:
-            justification = f"Raw response: {content[:200]}..."
-    
-    # Log parsing issues for debugging
+    label_match = re.search(r"^\s*LABEL:\s*(INCLUDE|EXCLUDE|MAYBE)\s*$", message_content, re.I | re.M)
+    just_match = re.search(r"^\s*Justification:\s*(.*)$", message_content,
+                           re.I | re.M | re.S)  # re.S for multiline justification
+
+    if label_match:
+        label = label_match.group(1).upper()
+        if just_match:
+            justification = just_match.group(1).strip()
+        else:  # Try to grab text after label line if "Justification:" prefix is missing
+            lines = message_content.splitlines()
+            try:
+                label_line_idx = next(i for i, line in enumerate(lines) if re.match(r"^\s*LABEL:\s*", line, re.I))
+                just_lines = [line.strip() for line in lines[label_line_idx + 1:] if line.strip()]
+                if just_lines:
+                    justification = " ".join(just_lines)
+                else:
+                    justification = "Justification missing or not formatted after LABEL."
+            except StopIteration:  # Should not happen if label_match was successful
+                justification = "Justification format error after LABEL."
+    elif "INCLUDE" in message_content.upper():
+        label = "INCLUDE"  # Basic fallback
+    elif "EXCLUDE" in message_content.upper():
+        label = "EXCLUDE"
+    elif "MAYBE" in message_content.upper():
+        label = "MAYBE"
+
     if label == "PARSE_ERROR":
-        utils_logger.warning(f"Parse Error: Could not extract LABEL. Response snippet: '{content[:200]}...'")
-    elif justification.startswith("Raw response:"):
-        utils_logger.warning(f"Justification parsing issue for label {label}. Response: '{content[:100]}...'")
-    
+        utils_logger.warning(f"Parse Error: Could not extract LABEL. Response snippet: '{message_content[:200]}...'")
+        justification = f"Original unparsed response: {message_content[:200]}..."
     return {"label": label, "justification": justification}
 
 
@@ -336,28 +288,23 @@ Dict[str, str]:
     model_config = get_optimized_parameters(provider_name, model_id, "screening")
     retry_strategy = get_retry_strategy(provider_name, model_id)
     
-    # Build API endpoint
     api_endpoint = f"{base_url.rstrip('/')}/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    
-    # Prepare messages
     messages = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
-    messages.append({"role": "user", "content": main_prompt})
+    else: # Add a default minimal system message if none provided
+         messages.append({"role": "system", "content": "You are a helpful assistant performing literature screening."}) # Slightly more specific default
+    messages.append({"role": "user", "content": main_prompt}) # Main prompt as user message
     
-    # Build request data with optimized parameters
+    # Build optimized data payload with model-specific parameters
     data = {
-        "model": model_id,
-        "messages": messages,
-        "max_tokens": model_config.get("max_tokens", 200)
+        "model": model_id, 
+        "messages": messages, 
+        "temperature": model_config.get("temperature", 0.1),
+        "max_tokens": model_config.get("max_tokens", 200), 
+        "top_p": model_config.get("top_p", 0.8)
     }
-    
-    # Add temperature and top_p only if they are not None
-    if model_config.get("temperature") is not None:
-        data["temperature"] = model_config["temperature"]
-    if model_config.get("top_p") is not None:
-        data["top_p"] = model_config["top_p"]
     
     # Add provider-specific parameters
     if provider_name == "OpenAI_ChatGPT":
@@ -384,10 +331,6 @@ Dict[str, str]:
                 "presence_penalty": model_config.get("presence_penalty", 0.0),
             })
     
-    # Special handling for DeepSeek R1 timeout issues
-    if provider_name == "DeepSeek" and model_id == "deepseek-reasoner":
-        return _call_deepseek_r1_with_enhanced_timeout(api_endpoint, headers, data, retry_strategy, model_config)
-    
     # Implement retry logic with exponential backoff
     max_retries = retry_strategy["max_retries"]
     base_delay = retry_strategy["retry_delay"]
@@ -401,6 +344,10 @@ Dict[str, str]:
             res_json = response.json()
             if res_json.get('choices') and res_json['choices'][0].get('message'):
                 content = res_json['choices'][0]['message'].get('content', '')
+                # Handle DeepSeek-R1 reasoning content
+                if model_id == "deepseek-reasoner" and 'reasoning_content' in res_json['choices'][0]['message']:
+                    reasoning_content = res_json['choices'][0]['message'].get('reasoning_content', '')
+                    utils_logger.info(f"DeepSeek-R1 reasoning length: {len(reasoning_content)} chars")
                 return _parse_llm_response(content)
             error_msg = res_json.get('error', {}).get('message', str(res_json))
             return {"label": "API_ERROR", "justification": f"{provider_name} API Error: {error_msg}"}
@@ -452,128 +399,6 @@ Dict[str, str]:
             return {"label": "SCRIPT_ERROR", "justification": f"Script error ({provider_name}): {str(e)}"}
 
 
-def _call_deepseek_r1_with_enhanced_timeout(api_endpoint: str, headers: Dict[str, str], data: Dict[str, Any], 
-                                           retry_strategy: Dict[str, Any], model_config: Dict[str, Any]) -> Dict[str, str]:
-    """
-    Enhanced timeout handling specifically for DeepSeek R1 reasoning model.
-    Implements multiple strategies to overcome network-level timeout limitations.
-    """
-    import socket
-    import requests.adapters
-    from urllib3.util.retry import Retry
-    
-    max_retries = retry_strategy["max_retries"]
-    base_delay = retry_strategy["retry_delay"]
-    max_delay = retry_strategy["max_delay"]
-    
-    # Strategy 1: Use separate connection and read timeouts
-    connect_timeout = 30  # 30 seconds for connection
-    read_timeout = 240    # 4 minutes for reading (reasoning takes time)
-    
-    utils_logger.info(f"DeepSeek R1: Using enhanced timeout strategy (connect: {connect_timeout}s, read: {read_timeout}s)")
-    
-    for attempt in range(max_retries + 1):
-        try:
-            # Strategy 2: Create custom session with optimized settings
-            session = requests.Session()
-            
-            # Configure HTTP adapter with custom settings
-            retry_config = Retry(
-                total=0,  # We handle retries manually
-                connect=0,
-                read=0,
-                backoff_factor=0,
-                status_forcelist=[]
-            )
-            
-            adapter = requests.adapters.HTTPAdapter(
-                pool_connections=1,
-                pool_maxsize=1,
-                max_retries=retry_config,
-                socket_options=[
-                    (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
-                    (socket.SOL_TCP, socket.TCP_KEEPIDLE, 60),
-                    (socket.SOL_TCP, socket.TCP_KEEPINTVL, 30),
-                    (socket.SOL_TCP, socket.TCP_KEEPCNT, 3)
-                ]
-            )
-            
-            session.mount('https://', adapter)
-            session.mount('http://', adapter)
-            
-            # Strategy 3: Use tuple timeout (connect_timeout, read_timeout)
-            response = session.post(
-                api_endpoint, 
-                headers=headers, 
-                json=data, 
-                timeout=(connect_timeout, read_timeout),
-                stream=False
-            )
-            
-            response.raise_for_status()
-            res_json = response.json()
-            
-            if res_json.get('choices') and res_json['choices'][0].get('message'):
-                content = res_json['choices'][0]['message'].get('content', '')
-                
-                # Handle DeepSeek-R1 reasoning content
-                if 'reasoning_content' in res_json['choices'][0]['message']:
-                    reasoning_content = res_json['choices'][0]['message'].get('reasoning_content', '')
-                    utils_logger.info(f"DeepSeek-R1 reasoning length: {len(reasoning_content)} chars")
-                
-                utils_logger.info(f"DeepSeek R1: Successfully completed on attempt {attempt + 1}")
-                return _parse_llm_response(content)
-            
-            error_msg = res_json.get('error', {}).get('message', str(res_json))
-            return {"label": "API_ERROR", "justification": f"DeepSeek R1 API Error: {error_msg}"}
-            
-        except requests.exceptions.Timeout as e:
-            timeout_type = "connection" if "timed out" in str(e) and "connect" in str(e) else "read"
-            utils_logger.warning(f"DeepSeek R1: {timeout_type} timeout on attempt {attempt + 1}")
-            
-            if attempt < max_retries:
-                # Strategy 4: Adaptive timeout increase
-                if timeout_type == "read":
-                    read_timeout = min(read_timeout + 60, 360)  # Increase read timeout up to 6 minutes
-                    utils_logger.info(f"DeepSeek R1: Increasing read timeout to {read_timeout}s for next attempt")
-                
-                delay = min(base_delay * (2 ** attempt), max_delay)
-                if retry_strategy.get("jitter", True):
-                    delay *= (0.5 + random.random() * 0.5)
-                
-                utils_logger.warning(f"DeepSeek R1: Retrying in {delay:.2f}s with enhanced timeout settings")
-                time.sleep(delay)
-                continue
-            
-            return {"label": "API_TIMEOUT", "justification": f"DeepSeek R1 {timeout_type} timeout after {max_retries} retries with enhanced timeout handling."}
-            
-        except requests.exceptions.RequestException as e:
-            status = e.response.status_code if e.response is not None else "N/A"
-            
-            # Handle rate limiting
-            if status == 429 or "rate limit" in str(e).lower():
-                if attempt < max_retries:
-                    delay = min(base_delay * (2 ** attempt), max_delay)
-                    utils_logger.warning(f"DeepSeek R1: Rate limited on attempt {attempt + 1}, retrying in {delay:.2f}s")
-                    time.sleep(delay)
-                    continue
-            
-            details = str(e.response.text[:200]) if e.response is not None else str(e)
-            return {"label": f"API_HTTP_ERROR_{status}", "justification": f"DeepSeek R1 HTTP Error {status}: {details}"}
-            
-        except Exception as e:
-            if attempt < max_retries:
-                delay = min(base_delay * (2 ** attempt), max_delay)
-                utils_logger.warning(f"DeepSeek R1: Unexpected error on attempt {attempt + 1}, retrying in {delay:.2f}s: {str(e)}")
-                time.sleep(delay)
-                continue
-            
-            utils_logger.exception("DeepSeek R1: Script error")
-            return {"label": "SCRIPT_ERROR", "justification": f"DeepSeek R1 script error after {max_retries} retries: {str(e)}"}
-    
-    return {"label": "API_TIMEOUT", "justification": "DeepSeek R1 failed after all retry attempts with enhanced timeout handling."}
-
-
 def get_optimized_parameters(provider_name: str, model_id: str, task_type: str = "screening") -> Dict[str, Any]:
     """
     Get optimized parameters for a specific model and task type.
@@ -612,14 +437,12 @@ def get_optimized_parameters(provider_name: str, model_id: str, task_type: str =
         if config.get("temperature") is not None:
             config["temperature"] = max(0.0, config["temperature"] - 0.05)
         
-        # Special handling for DeepSeek R1 reasoning model
-        if provider_name == "DeepSeek" and model_id == "deepseek-reasoner":
-            # Use the enhanced timeout settings directly for reasoning model
-            config["timeout"] = config.get("timeout", 240)  # Keep the configured timeout
+        # Increase timeout slightly for screening reliability, but be careful with reasoning models
+        current_timeout = config.get("timeout", 30)
+        if current_timeout >= 120:  # For reasoning models like DeepSeek R1
+            config["timeout"] = 180  # Force 3 minutes for reasoning models
         else:
-            # Standard timeout increase for other models
-            current_timeout = config.get("timeout", 30)
-            config["timeout"] = current_timeout + 10
+            config["timeout"] = current_timeout + 10  # Standard increase
         
         # Ensure we have reasonable defaults for screening
         config.setdefault("max_tokens", 200)
@@ -963,17 +786,7 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
             else: error_info = f"No choices/message in response: {res_json}"
 
         elif provider_name == "Google_Gemini":
-            # Import genai here to ensure it's available
-            try:
-                if GEMINI_SDK_VERSION == "new":
-                    from google import genai as gemini_client
-                else:
-                    import google.generativeai as gemini_client
-            except ImportError:
-                error_info = "Google Gemini SDK not installed"
-                gemini_client = None
-            
-            if gemini_client is None:
+            if genai is None:
                 error_info = "Google Gemini SDK not installed"
             else:
                 full_prompt = f"{system_prompt}\n\n{main_prompt}" if system_prompt else main_prompt
@@ -981,7 +794,7 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
                 if GEMINI_SDK_VERSION == "new":
                     # Use new Google Gen AI SDK
                     from google.genai import types
-                    client = gemini_client.Client(api_key=api_key)
+                    client = genai.Client(api_key=api_key)
                     response = client.models.generate_content(
                         model=model_id,
                         contents=full_prompt,
@@ -1003,9 +816,9 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
                         
                 else:
                     # Use legacy google.generativeai SDK
-                    gemini_client.configure(api_key=api_key)
-                    model = gemini_client.GenerativeModel(model_id)
-                    config = gemini_client.types.GenerationConfig(max_output_tokens=max_tokens, temperature=temperature)
+                    genai.configure(api_key=api_key)
+                    model = genai.GenerativeModel(model_id)
+                    config = genai.types.GenerationConfig(max_output_tokens=max_tokens, temperature=temperature)
                     safety = [{"category": c, "threshold": "BLOCK_NONE"} for c in ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"]]
                     
                     response = model.generate_content(contents=[{"role": "user", "parts": [{"text": full_prompt}]}], generation_config=config, safety_settings=safety)
@@ -1018,53 +831,15 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
                         error_info = f"Prompt blocked: {response.prompt_feedback.block_reason}"
 
         elif provider_name == "Anthropic_Claude":
-            # Use the optimized Claude API function with proper error handling
-            try:
-                # Get model-specific configuration
-                model_config = get_optimized_parameters("Anthropic_Claude", model_id, "screening")
-                timeout_config = model_config.get("timeout", 30)
-                
-                client = Anthropic(
-                    api_key=api_key, 
-                    base_url=base_url or SUPPORTED_LLM_PROVIDERS["Anthropic_Claude"]["default_base_url"],
-                    timeout=timeout_config
-                )
-                
-                # Build request parameters with optimized settings
-                request_params = {
-                    "model": model_id,
-                    "max_tokens": max_tokens,
-                    "temperature": temperature,
-                    "system": system_prompt or DEFAULT_SYSTEM_PROMPT,
-                    "messages": [{"role": "user", "content": main_prompt}]
-                }
-                
-                # Add Claude-specific parameters if available
-                if model_config.get("top_p") is not None:
-                    request_params["top_p"] = model_config["top_p"]
-                if model_config.get("top_k") is not None:
-                    request_params["top_k"] = model_config["top_k"]
-                if model_config.get("stop_sequences"):
-                    request_params["stop_sequences"] = model_config["stop_sequences"]
-                
-                response = client.messages.create(**request_params)
-                
-                if response.content and response.content[0].type == "text": 
-                    raw_content = response.content[0].text
-                else: 
-                    error_info = f"No text content. Stop reason: {response.stop_reason}"
-                    
-            except Exception as claude_error:
-                # Handle Claude-specific errors more gracefully
-                error_msg = str(claude_error)
-                if "403" in error_msg or "forbidden" in error_msg.lower():
-                    error_info = f"Claude API access forbidden. Check API key, account balance, and permissions: {error_msg}"
-                elif "401" in error_msg or "unauthorized" in error_msg.lower():
-                    error_info = f"Claude API authentication failed. Check API key: {error_msg}"
-                elif "429" in error_msg or "rate limit" in error_msg.lower():
-                    error_info = f"Claude API rate limit exceeded: {error_msg}"
-                else:
-                    error_info = f"Claude API error: {error_msg}"
+            client = Anthropic(api_key=api_key, base_url=base_url or SUPPORTED_LLM_PROVIDERS["Anthropic_Claude"]["default_base_url"])
+            # Claude doesn't have explicit JSON mode via API param AFAIK, rely on prompt.
+            response = client.messages.create(
+                 model=model_id, max_tokens=max_tokens, temperature=temperature,
+                 system=system_prompt or DEFAULT_SYSTEM_PROMPT, 
+                 messages=[{"role": "user", "content": main_prompt}]
+             )
+            if response.content and response.content[0].type == "text": raw_content = response.content[0].text
+            else: error_info = f"No text content. Stop reason: {response.stop_reason}"
         
         else:
             error_info = f"Unsupported provider for raw content: {provider_name}"

@@ -60,7 +60,7 @@ SCREENING_OPTIMIZATION_CONFIG = {
     
     # Retry configuration for robustness
     "retry_config": {
-        "max_retries": 4,
+        "max_retries": 3,
         "base_delay": 1.0,      # Base delay in seconds
         "max_delay": 30.0,      # Maximum delay between retries
         "exponential_base": 2.0, # Exponential backoff multiplier
@@ -1669,8 +1669,8 @@ OPENAI_MODEL_CONFIGS = {
         "frequency_penalty": 0.05,
         "presence_penalty": 0.0,
         "timeout": 30,
-        "max_retries": 4,
-        "retry_delay": 2.0,
+        "max_retries": 3,
+        "retry_delay": 1.5,
         "rate_limit": {
             "requests_per_minute": 1000,
             "tokens_per_minute": 200000,
@@ -1684,7 +1684,7 @@ OPENAI_MODEL_CONFIGS = {
         "top_p": 0.8,
         "frequency_penalty": 0.1,
         "presence_penalty": 0.0,
-        "timeout": 45,
+        "timeout": 40,
         "max_retries": 4,
         "retry_delay": 2.0,
         "rate_limit": {
@@ -1700,8 +1700,8 @@ OPENAI_MODEL_CONFIGS = {
         "top_p": 0.7,
         "frequency_penalty": 0.05,
         "presence_penalty": 0.0,
-        "timeout": 30,
-        "max_retries": 4,
+        "timeout": 25,
+        "max_retries": 3,
         "retry_delay": 1.0,
         "rate_limit": {
             "requests_per_minute": 3500,
@@ -1734,9 +1734,9 @@ CLAUDE_MODEL_CONFIGS = {
         "max_tokens": 200,
         "top_p": 0.7,
         "top_k": 30,
-        "timeout": 30,
-        "max_retries": 4,
-        "retry_delay": 2.0,
+        "timeout": 25,
+        "max_retries": 3,
+        "retry_delay": 1.5,
         "rate_limit": {
             "requests_per_minute": 2000,
             "tokens_per_minute": 100000,
@@ -1765,7 +1765,7 @@ CLAUDE_MODEL_CONFIGS = {
         "top_p": 0.7,
         "top_k": 30,
         "timeout": 20,
-        "max_retries": 4,
+        "max_retries": 3,
         "retry_delay": 1.0,
         "rate_limit": {
             "requests_per_minute": 2000,
@@ -1783,9 +1783,9 @@ GEMINI_MODEL_CONFIGS = {
         "max_output_tokens": 200,
         "top_p": 0.7,
         "top_k": 30,
-        "timeout": 30,
-        "max_retries": 4,
-        "retry_delay": 2.0,
+        "timeout": 25,
+        "max_retries": 3,
+        "retry_delay": 1.5,
         "rate_limit": {
             "requests_per_minute": 2000,
             "tokens_per_minute": 1000000,  # High token limit for Flash
@@ -1804,7 +1804,7 @@ GEMINI_MODEL_CONFIGS = {
         "max_output_tokens": 200,
         "top_p": 0.8,
         "top_k": 40,
-        "timeout": 45,
+        "timeout": 40,
         "max_retries": 4,
         "retry_delay": 2.0,
         "rate_limit": {
@@ -1826,7 +1826,7 @@ GEMINI_MODEL_CONFIGS = {
         "top_p": 0.8,
         "top_k": 40,
         "timeout": 35,
-        "max_retries": 4,
+        "max_retries": 3,
         "retry_delay": 2.0,
         "rate_limit": {
             "requests_per_minute": 300,
@@ -1847,8 +1847,8 @@ GEMINI_MODEL_CONFIGS = {
         "top_p": 0.8,
         "top_k": 40,
         "timeout": 30,
-        "max_retries": 4,
-        "retry_delay": 2.0,
+        "max_retries": 3,
+        "retry_delay": 1.5,
         "rate_limit": {
             "requests_per_minute": 300,
             "tokens_per_minute": 32000,
@@ -1888,22 +1888,17 @@ DEEPSEEK_MODEL_CONFIGS = {
         "top_p": None,  # Not supported
         "frequency_penalty": None,  # Not supported
         "presence_penalty": None,  # Not supported
-        "timeout": 240,  # 4 minutes base timeout for reasoning model
-        "max_retries": 3,  # Increased retries with enhanced timeout handling
-        "retry_delay": 8.0,  # Longer delay between retries for reasoning
-        "max_delay": 60.0,  # Maximum delay between retries
+        "timeout": 120,  # Much higher timeout for reasoning (2 minutes)
+        "max_retries": 2,  # Lower retries due to much longer processing
+        "retry_delay": 5.0,  # Longer delay between retries
         "rate_limit": {
-            "requests_per_minute": 60,  # Conservative rate for reasoning model
-            "tokens_per_minute": 12000,
-            "batch_size": 1  # Single request processing for stability
+            "requests_per_minute": 100,  # Even lower rate for reasoning model
+            "tokens_per_minute": 15000,
+            "batch_size": 2  # Much smaller batches for reasoning
         },
         "cost_per_1k_tokens": {"input": 0.00055, "output": 0.0022},
         "reasoning_effort": "medium",  # Future parameter
-        "max_reasoning_tokens": 32000,  # CoT can be up to 32K tokens
-        "enhanced_timeout_handling": True,  # Enable special timeout handling
-        "adaptive_timeout": True,  # Allow timeout to increase on failures
-        "connection_timeout": 30,  # Separate connection timeout
-        "read_timeout": 240  # Separate read timeout for reasoning
+        "max_reasoning_tokens": 32000  # CoT can be up to 32K tokens
     }
 }
 
