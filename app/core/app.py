@@ -279,21 +279,114 @@ def configure_llm():
     else:
         app_logger.debug(f"No new API key submitted for {selected_provider}. Retaining existing session key if any.")
 
-    # Join messages for the final success message
-    final_success_message = " ".join(success_message_parts)
-    final_success_message += " Configuration saved! Redirecting..."
-
     # If any key was set or LLM provider/model was changed, mark session as permanent
     if request.form.get('llm_provider') or any(key.endswith('_api_key') for key in request.form if request.form.get(key)):
         session.permanent = True
 
     app_logger.debug(f"Session contents after configure_llm: {session}")
-    # return redirect(url_for('screening_criteria_page')) # Old redirect
-    return jsonify({
-        'status': 'success',
-        'message': final_success_message,
-        'redirect_url': url_for('screening_criteria_page')
-    }), 200
+    
+    # NEW: Auto-test API key if one is available
+    # Check if we have an API key for the selected provider (either from form or session)
+    session_key_for_api = provider_config.get("api_key_session_key")
+    api_key_to_test = user_api_key or (session.get(session_key_for_api) if session_key_for_api else None)
+    
+    if api_key_to_test:
+        app_logger.info(f"Auto-testing API key for {selected_provider} after configuration save")
+        
+        # Get model for testing
+        provider_models = providers_info[selected_provider].get('models', [])
+        if provider_models:
+            test_model_id = selected_model_id or provider_models[0]['id']
+            base_url = get_base_url_for_provider(selected_provider)
+            
+            # Create test prompt
+            if selected_provider in ["OpenAI_ChatGPT", "DeepSeek"]:
+                test_prompt = {
+                    "system_prompt": "You are a helpful AI assistant.",
+                    "main_prompt": "Hello, please respond with 'OK' if you can receive this message. You may respond in json format if needed."
+                }
+            else:
+                test_prompt = {
+                    "system_prompt": "You are a helpful AI assistant.",
+                    "main_prompt": "Hello, please respond with 'OK' if you can receive this message."
+                }
+            
+            try:
+                # Test the API key
+                api_result = call_llm_api_raw_content(test_prompt, selected_provider, test_model_id, api_key_to_test, base_url, max_tokens_override=20)
+                
+                if api_result and isinstance(api_result, str) and len(api_result) > 0 and not api_result.startswith("API_ERROR:"):
+                    app_logger.info(f"Auto API key test successful for {selected_provider}")
+                    final_success_message = " ".join(success_message_parts)
+                    final_success_message += " API key validated successfully! Redirecting..."
+                    
+                    return jsonify({
+                        'status': 'success',
+                        'message': final_success_message,
+                        'redirect_url': url_for('screening_criteria_page'),
+                        'api_test_passed': True
+                    }), 200
+                else:
+                    # API test failed
+                    app_logger.warning(f"Auto API key test failed for {selected_provider}: {api_result}")
+                    
+                    # Provide specific error message based on the error
+                    if isinstance(api_result, str):
+                        if "401" in api_result or "unauthorized" in api_result.lower():
+                            error_message = "API key is invalid or unauthorized. Please check your key."
+                        elif "403" in api_result or "forbidden" in api_result.lower():
+                            if selected_provider == "Anthropic_Claude":
+                                error_message = "Claude API access forbidden. This could be due to invalid API key, insufficient balance, regional restrictions, or account issues."
+                            else:
+                                error_message = "API key does not have required permissions."
+                        elif "429" in api_result or "rate limit" in api_result.lower() or "quota" in api_result.lower():
+                            if selected_provider == "OpenAI_ChatGPT":
+                                error_message = "OpenAI quota exceeded. Please check your billing and usage limits."
+                            else:
+                                error_message = "Rate limit or quota exceeded. Please check your account."
+                        else:
+                            error_message = "API key validation failed. Please verify your key is correct."
+                    else:
+                        error_message = "Unable to validate API key. Please check your key and try again."
+                    
+                    return jsonify({
+                        'status': 'error',
+                        'message': f'Configuration saved, but API key test failed: {error_message}',
+                        'api_test_passed': False,
+                        'show_manual_test': True
+                    }), 200
+                    
+            except Exception as e:
+                app_logger.error(f"Exception during auto API key test for {selected_provider}: {str(e)}")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Configuration saved, but an error occurred while testing the API key. Please test manually.',
+                    'api_test_passed': False,
+                    'show_manual_test': True
+                }), 200
+        else:
+            # No models available for testing
+            final_success_message = " ".join(success_message_parts)
+            final_success_message += " Configuration saved! (No models available for API testing)"
+            
+            return jsonify({
+                'status': 'success',
+                'message': final_success_message,
+                'redirect_url': url_for('screening_criteria_page'),
+                'api_test_passed': True
+            }), 200
+    else:
+        # No API key to test - just save configuration
+        final_success_message = " ".join(success_message_parts)
+        final_success_message += " Configuration saved! Please add an API key to continue."
+        
+        return jsonify({
+            'status': 'warning',
+            'message': final_success_message,
+            'api_test_passed': False,
+            'show_manual_test': False,
+            'needs_api_key': True
+        }), 200
 
 
 @app.route('/get_models_for_provider/<provider_name>')
@@ -348,6 +441,7 @@ def llm_config_page():
 def test_api_key():
     app_logger.info("--- Testing API Key --- ")
     
+    # Basic request validation
     if not request.form.get('test_api_key'):
         return jsonify({
             'status': 'error',
@@ -355,13 +449,43 @@ def test_api_key():
         }), 400
     
     # Get provider and API key from request
-    provider = request.form.get('provider')
-    api_key = request.form.get(f"{provider.lower()}_api_key")
+    provider = request.form.get('provider', '').strip()
+    api_key_field = f"{provider.lower()}_api_key" if provider else ''
+    api_key = request.form.get(api_key_field, '').strip()
     
-    if not provider or not api_key:
+    # Enhanced input validation
+    if not provider:
         return jsonify({
             'status': 'error',
-            'message': 'Missing provider or API key.'
+            'message': 'Provider parameter is required.'
+        }), 400
+        
+    if not api_key:
+        return jsonify({
+            'status': 'error',
+            'message': 'API key is required.'
+        }), 400
+    
+    # Validate API key format (basic checks)
+    if len(api_key) < 10:
+        return jsonify({
+            'status': 'error',
+            'message': 'API key appears to be too short. Please check your key.'
+        }), 400
+        
+    if len(api_key) > 500:
+        return jsonify({
+            'status': 'error',
+            'message': 'API key appears to be too long. Please check your key.'
+        }), 400
+    
+    # Check for suspicious characters that might indicate injection attempts
+    suspicious_chars = ['<', '>', '"', "'", ';', '--', '/*', '*/', 'DROP', 'SELECT', 'INSERT']
+    if any(char in api_key.upper() for char in suspicious_chars):
+        app_logger.warning(f"Suspicious API key test attempt from {request.remote_addr}: {api_key[:20]}...")
+        return jsonify({
+            'status': 'error',
+            'message': 'Invalid API key format detected.'
         }), 400
     
     providers_info = get_llm_providers_info()
@@ -383,31 +507,73 @@ def test_api_key():
     base_url = get_base_url_for_provider(provider)
     
     # Create a simple test prompt with the proper structure
-    test_prompt = {
-        "system_prompt": "You are a helpful AI assistant.",
-        "main_prompt": "Hello, please respond with 'OK' if you can receive this message."
-    }
+    # For OpenAI providers, include "json" in the message to support JSON mode
+    if provider in ["OpenAI_ChatGPT", "DeepSeek"]:
+        test_prompt = {
+            "system_prompt": "You are a helpful AI assistant.",
+            "main_prompt": "Hello, please respond with 'OK' if you can receive this message. You may respond in json format if needed."
+        }
+    else:
+        test_prompt = {
+            "system_prompt": "You are a helpful AI assistant.",
+            "main_prompt": "Hello, please respond with 'OK' if you can receive this message."
+        }
     
     try:
         # Test the API key with a minimal request
+        app_logger.info(f"Testing API key for {provider} with model {test_model_id}")
         api_result = call_llm_api_raw_content(test_prompt, provider, test_model_id, api_key, base_url, max_tokens_override=20)
         
         if api_result and isinstance(api_result, str) and len(api_result) > 0 and not api_result.startswith("API_ERROR:"):
+            app_logger.info(f"API key test successful for {provider}")
             return jsonify({
                 'status': 'success',
-                'message': f'API key for {provider.replace("_", " ")} is valid!'
+                'message': f'API key for {provider.replace("_", " ")} is valid and working!'
             }), 200
         else:
-            error_details = api_result if isinstance(api_result, str) else "No response received"
+            # Log the actual error but don't expose sensitive details to user
+            app_logger.warning(f"API key test failed for {provider}: {api_result}")
+            
+            # Provide user-friendly error messages based on common error patterns
+            if isinstance(api_result, str):
+                if "401" in api_result or "unauthorized" in api_result.lower():
+                    user_message = "API key is invalid or unauthorized. Please check your key."
+                elif "403" in api_result or "forbidden" in api_result.lower():
+                    if provider == "Anthropic_Claude":
+                        user_message = "Claude API access forbidden. This could be due to: 1) Invalid API key, 2) Insufficient account balance, 3) No permission for this model, 4) Regional restrictions, or 5) Account suspension. Please check your account at https://console.anthropic.com/"
+                    else:
+                        user_message = "API key does not have required permissions."
+                elif "429" in api_result or "rate limit" in api_result.lower() or "quota" in api_result.lower():
+                    if provider == "OpenAI_ChatGPT":
+                        user_message = "OpenAI quota exceeded. Please check your billing and usage limits at https://platform.openai.com/usage"
+                    elif provider == "Anthropic_Claude":
+                        user_message = "Claude API rate limit or quota exceeded. Please check your usage at https://console.anthropic.com/"
+                    else:
+                        user_message = "Rate limit or quota exceeded. Please try again later or check your account."
+                elif "timeout" in api_result.lower():
+                    user_message = "Request timed out. Please check your connection and try again."
+                elif "billing" in api_result.lower():
+                    if provider == "OpenAI_ChatGPT":
+                        user_message = "OpenAI billing issue. Please check your payment method at https://platform.openai.com/account/billing"
+                    elif provider == "Anthropic_Claude":
+                        user_message = "Claude billing issue. Please check your account balance at https://console.anthropic.com/"
+                    else:
+                        user_message = "Billing issue detected. Please check your account."
+                else:
+                    user_message = "API key validation failed. Please verify your key is correct."
+            else:
+                user_message = "Unable to validate API key. Please check your key and try again."
+            
             return jsonify({
                 'status': 'error',
-                'message': f'API key for {provider.replace("_", " ")} appears to be invalid. Please check your key. Details: {error_details}'
+                'message': f'API key for {provider.replace("_", " ")} validation failed: {user_message}'
             }), 200
     except Exception as e:
-        app_logger.error(f"Error testing API key for {provider}: {str(e)}")
+        # Log the full error for debugging but provide generic message to user
+        app_logger.error(f"Exception during API key test for {provider}: {str(e)}", exc_info=True)
         return jsonify({
             'status': 'error',
-            'message': f'Error testing API key: {str(e)}'
+            'message': 'An error occurred while testing the API key. Please try again.'
         }), 200  # Still return 200 to handle error in frontend
 
 @app.route('/criteria', methods=['GET'], endpoint='screening_criteria_page')

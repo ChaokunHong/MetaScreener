@@ -217,3 +217,7 @@ DEPLOYMENT.md
 # Example files
 *.example
 example.*
+
+# Cursorrules
+.cursor/
+**/.cursor/

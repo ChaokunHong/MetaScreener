@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from typing import Dict, List, TypedDict
+from typing import Dict, List, TypedDict, Any
 
 load_dotenv()
 
@@ -23,9 +23,253 @@ DEFAULT_OUTPUT_INSTRUCTIONS = (
     "Justification: [Your Brief Justification. If MAYBE, state what needs clarification.]"
 ).strip().replace('\r', '').replace('\t', '    ')
 
+# --- SCREENING-SPECIFIC OPTIMIZATION PARAMETERS ---
+# Based on official API documentation research (May 2025)
+SCREENING_OPTIMIZATION_CONFIG = {
+    # Temperature settings for consistency (lower = more deterministic)
+    "temperature": {
+        "DeepSeek": 0.0,        # DeepSeek recommends 0.0 for coding/math tasks
+        "OpenAI_ChatGPT": 0.1,  # Very low for consistency
+        "Google_Gemini": 0.1,   # Low for deterministic outputs
+        "Anthropic_Claude": 0.1 # Low for consistent screening decisions
+    },
+    
+    # Top-p settings for focused token selection
+    "top_p": {
+        "DeepSeek": 0.8,        # Focused selection
+        "OpenAI_ChatGPT": 0.8,  # Reduced from default 1.0
+        "Google_Gemini": 0.8,   # Focused probability mass
+        "Anthropic_Claude": 0.8 # Conservative selection
+    },
+    
+    # Max tokens for screening responses (conservative to avoid truncation)
+    "max_tokens": {
+        "DeepSeek": 300,        # Sufficient for screening decisions
+        "OpenAI_ChatGPT": 300,  # Conservative limit
+        "Google_Gemini": 300,   # Adequate for justifications
+        "Anthropic_Claude": 300 # Enough for detailed reasoning
+    },
+    
+    # Request timeout settings (seconds)
+    "timeout": {
+        "DeepSeek": 60,         # DeepSeek: No rate limits but may queue
+        "OpenAI_ChatGPT": 45,   # Standard timeout
+        "Google_Gemini": 60,    # Longer for potential processing delays
+        "Anthropic_Claude": 45  # Standard timeout
+    },
+    
+    # Retry configuration for robustness
+    "retry_config": {
+        "max_retries": 3,
+        "base_delay": 1.0,      # Base delay in seconds
+        "max_delay": 30.0,      # Maximum delay between retries
+        "exponential_base": 2.0, # Exponential backoff multiplier
+        "jitter": True          # Add random jitter to prevent thundering herd
+    },
+    
+    # Rate limiting awareness (requests per minute based on official docs)
+    "rate_limits": {
+        "DeepSeek": {
+            "rpm": None,        # No official rate limits
+            "tpm": None,        # No token limits
+            "note": "No rate limits but may queue under high load"
+        },
+        "OpenAI_ChatGPT": {
+            "rpm": 3500,        # Tier 1 limit for GPT-4o mini
+            "tpm": 200000,      # Tier 1 token limit
+            "note": "Rate limits vary by tier and model"
+        },
+        "Google_Gemini": {
+            "rpm": 2000,        # Tier 1 limit for Gemini 1.5 Flash
+            "tpm": 4000000,     # Tier 1 token limit
+            "note": "Limits increase with higher tiers"
+        },
+        "Anthropic_Claude": {
+            "rpm": 50,          # Tier 1 limit (conservative)
+            "tpm": 40000,       # Input tokens per minute (Tier 1)
+            "otpm": 8000,       # Output tokens per minute (Tier 1)
+            "note": "Strict rate limits, especially for Tier 1"
+        }
+    },
+    
+    # Safety and content filtering (minimal for academic content)
+    "safety_settings": {
+        "Google_Gemini": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+        ]
+    },
+    
+    # Provider-specific optimizations
+    "provider_specific": {
+        "DeepSeek": {
+            "context_caching": True,    # Enable built-in caching
+            "keep_alive_handling": True # Handle keep-alive responses
+        },
+        "OpenAI_ChatGPT": {
+            "frequency_penalty": 0.0,   # No repetition penalty
+            "presence_penalty": 0.0,    # No presence penalty
+            "logit_bias": {},           # No token biasing
+            "seed": None                # No deterministic seed (let model vary slightly)
+        },
+        "Google_Gemini": {
+            "top_k": 40,                # Conservative top-k sampling
+            "candidate_count": 1,       # Single response only
+            "stop_sequences": []        # No custom stop sequences
+        },
+        "Anthropic_Claude": {
+            "stop_sequences": [],       # No custom stop sequences
+            "metadata": {               # Metadata for tracking
+                "user_id": "screening_system"
+            }
+        }
+    }
+}
+
+# --- BATCH PROCESSING OPTIMIZATION ---
+BATCH_PROCESSING_CONFIG = {
+    # Concurrent request limits to respect rate limits
+    "concurrent_requests": {
+        "DeepSeek": 10,         # Higher concurrency (no rate limits)
+        "OpenAI_ChatGPT": 5,    # Moderate concurrency
+        "Google_Gemini": 8,     # Good concurrency for Tier 1
+        "Anthropic_Claude": 2   # Very conservative due to strict limits
+    },
+    
+    # Batch size recommendations
+    "batch_sizes": {
+        "small": 10,    # For testing or small datasets
+        "medium": 50,   # For moderate datasets
+        "large": 200    # For large-scale screening
+    },
+    
+    # Progress tracking intervals
+    "progress_update_interval": 10,  # Update progress every N requests
+    
+    # Error handling thresholds
+    "error_thresholds": {
+        "max_consecutive_errors": 5,    # Stop after N consecutive errors
+        "max_error_rate": 0.1,          # Stop if error rate exceeds 10%
+        "cooldown_period": 300          # Wait 5 minutes before retry
+    }
+}
+
+# --- QUALITY ASSURANCE PARAMETERS ---
+QUALITY_ASSURANCE_CONFIG = {
+    # Response validation patterns
+    "validation_patterns": {
+        "label_pattern": r"LABEL:\s*(INCLUDE|EXCLUDE|MAYBE)",
+        "justification_pattern": r"Justification:\s*(.+)",
+        "min_justification_length": 10,  # Minimum characters for justification
+        "max_justification_length": 500  # Maximum characters to prevent verbosity
+    },
+    
+    # Consistency checking (for duplicate abstracts)
+    "consistency_check": {
+        "enabled": True,
+        "similarity_threshold": 0.95,   # Consider abstracts similar if >95% match
+        "flag_inconsistent": True       # Flag inconsistent decisions for review
+    },
+    
+    # Response quality metrics
+    "quality_metrics": {
+        "track_response_time": True,
+        "track_token_usage": True,
+        "track_error_rates": True,
+        "log_unusual_responses": True
+    }
+}
+
+# --- MONITORING AND LOGGING CONFIGURATION ---
+MONITORING_CONFIG = {
+    # Performance monitoring
+    "performance_tracking": {
+        "response_time_buckets": [0.5, 1.0, 2.0, 5.0, 10.0, 30.0],  # Seconds
+        "token_usage_tracking": True,
+        "cost_tracking": True
+    },
+    
+    # Error categorization
+    "error_categories": {
+        "rate_limit": ["429", "rate_limit", "quota_exceeded"],
+        "authentication": ["401", "403", "invalid_api_key"],
+        "timeout": ["timeout", "connection_timeout", "read_timeout"],
+        "server_error": ["500", "502", "503", "504"],
+        "parsing_error": ["invalid_response", "parse_error", "format_error"]
+    },
+    
+    # Alerting thresholds
+    "alert_thresholds": {
+        "high_error_rate": 0.05,        # Alert if >5% error rate
+        "slow_response_time": 10.0,     # Alert if >10s average response time
+        "high_cost_per_request": 0.01   # Alert if >$0.01 per request
+    }
+}
+
 # --- Configuration for PDF Processing ---
 TESSERACT_CMD_PATH = os.getenv("TESSERACT_CMD_PATH", None)
 PDF_OCR_THRESHOLD_CHARS = int(os.getenv("PDF_OCR_THRESHOLD_CHARS", 50))
+
+# --- Helper Functions for Optimization ---
+def get_screening_config(provider_name: str, config_type: str = "all"):
+    """
+    Get optimized configuration for screening tasks.
+    
+    Args:
+        provider_name: Name of the LLM provider
+        config_type: Type of config to return ('temperature', 'retry', 'all')
+    
+    Returns:
+        Dictionary with optimized configuration
+    """
+    if config_type == "temperature":
+        return {
+            "temperature": SCREENING_OPTIMIZATION_CONFIG["temperature"].get(provider_name, 0.1),
+            "top_p": SCREENING_OPTIMIZATION_CONFIG["top_p"].get(provider_name, 0.8),
+            "max_tokens": SCREENING_OPTIMIZATION_CONFIG["max_tokens"].get(provider_name, 300)
+        }
+    elif config_type == "retry":
+        return SCREENING_OPTIMIZATION_CONFIG["retry_config"]
+    elif config_type == "rate_limits":
+        return SCREENING_OPTIMIZATION_CONFIG["rate_limits"].get(provider_name, {})
+    else:
+        return {
+            "optimization": SCREENING_OPTIMIZATION_CONFIG,
+            "batch_processing": BATCH_PROCESSING_CONFIG,
+            "quality_assurance": QUALITY_ASSURANCE_CONFIG,
+            "monitoring": MONITORING_CONFIG
+        }
+
+def get_provider_specific_config(provider_name: str):
+    """Get provider-specific optimization parameters."""
+    return SCREENING_OPTIMIZATION_CONFIG["provider_specific"].get(provider_name, {})
+
+def calculate_optimal_batch_size(provider_name: str, total_items: int):
+    """
+    Calculate optimal batch size based on provider rate limits and dataset size.
+    
+    Args:
+        provider_name: Name of the LLM provider
+        total_items: Total number of items to process
+    
+    Returns:
+        Recommended batch size
+    """
+    rate_limits = SCREENING_OPTIMIZATION_CONFIG["rate_limits"].get(provider_name, {})
+    concurrent_limit = BATCH_PROCESSING_CONFIG["concurrent_requests"].get(provider_name, 1)
+    
+    if total_items <= 50:
+        return BATCH_PROCESSING_CONFIG["batch_sizes"]["small"]
+    elif total_items <= 500:
+        return BATCH_PROCESSING_CONFIG["batch_sizes"]["medium"]
+    else:
+        # For large datasets, consider rate limits
+        if provider_name == "Anthropic_Claude":
+            return min(BATCH_PROCESSING_CONFIG["batch_sizes"]["medium"], 30)  # Conservative for Claude
+        else:
+            return BATCH_PROCESSING_CONFIG["batch_sizes"]["large"]
 
 # --- LLM Provider Configurations ---
 SUPPORTED_LLM_PROVIDERS = {
@@ -35,8 +279,26 @@ SUPPORTED_LLM_PROVIDERS = {
         "base_url_env_var": "DEEPSEEK_API_BASE_URL",
         "default_base_url": "https://api.deepseek.com",
         "models": [
-            {"id": "deepseek-chat", "display_name": "DeepSeek Chat (General)", "type": "chat"},
-            {"id": "deepseek-reasoner", "display_name": "DeepSeek Coder (Specialized/Reasoning)", "type": "reasoning"},
+            {
+                "id": "deepseek-chat", 
+                "display_name": "DeepSeek V3", 
+                "type": "chat",
+                "description": "Latest general-purpose model with strong performance across diverse tasks",
+                "context_window": "128K tokens",
+                "pricing": "$0.27/1M input, $1.10/1M output",
+                "recommendation": "Recommended for general use",
+                "strengths": ["Fast inference", "Cost-effective", "Strong coding abilities"]
+            },
+            {
+                "id": "deepseek-reasoner", 
+                "display_name": "DeepSeek R1", 
+                "type": "reasoning",
+                "description": "Advanced reasoning model with chain-of-thought capabilities, rivaling GPT-4o performance",
+                "context_window": "128K tokens",
+                "pricing": "$0.55/1M input, $2.19/1M output",
+                "recommendation": "Best for complex reasoning tasks",
+                "strengths": ["Advanced reasoning", "Chain-of-thought", "Math and science"]
+            },
         ]
     },
     "OpenAI_ChatGPT": {
@@ -44,10 +306,46 @@ SUPPORTED_LLM_PROVIDERS = {
         "api_key_session_key": "openai_api_key_user",
         "default_base_url": "https://api.openai.com/v1",
         "models": [
-            {"id": "gpt-3.5-turbo", "display_name": "GPT-3.5 Turbo", "type": "chat"},
-            {"id": "gpt-4", "display_name": "GPT-4", "type": "reasoning"},
-            {"id": "gpt-4-turbo-preview", "display_name": "GPT-4 Turbo", "type": "reasoning"},
-            {"id": "gpt-4o", "display_name": "GPT-4o (Omni/Advanced Reasoning)", "type": "reasoning"},
+            {
+                "id": "gpt-4o", 
+                "display_name": "GPT-4o", 
+                "type": "reasoning",
+                "description": "Flagship multimodal model with text, vision, and audio capabilities",
+                "context_window": "128K tokens",
+                "pricing": "$2.50/1M input, $10.00/1M output",
+                "recommendation": "Best for complex multimodal tasks",
+                "strengths": ["Multimodal", "Vision", "Audio processing", "Advanced reasoning"]
+            },
+            {
+                "id": "gpt-4o-mini", 
+                "display_name": "GPT-4o Mini", 
+                "type": "chat",
+                "description": "Fast and cost-effective version of GPT-4o for everyday tasks",
+                "context_window": "128K tokens",
+                "pricing": "$0.15/1M input, $0.60/1M output",
+                "recommendation": "Best value for money",
+                "strengths": ["Very cost-effective", "Fast", "Good quality", "Multimodal"]
+            },
+            {
+                "id": "gpt-4-turbo", 
+                "display_name": "GPT-4 Turbo", 
+                "type": "reasoning",
+                "description": "High-performance model with enhanced capabilities and large context window",
+                "context_window": "128K tokens",
+                "pricing": "$10.00/1M input, $30.00/1M output",
+                "recommendation": "For complex reasoning tasks",
+                "strengths": ["Large context", "Strong reasoning", "Reliable performance"]
+            },
+            {
+                "id": "gpt-3.5-turbo", 
+                "display_name": "GPT-3.5 Turbo", 
+                "type": "chat",
+                "description": "Fast and efficient model for general conversational tasks",
+                "context_window": "16K tokens",
+                "pricing": "$0.50/1M input, $1.50/1M output",
+                "recommendation": "Budget-friendly option",
+                "strengths": ["Very affordable", "Fast", "Reliable for simple tasks"]
+            },
         ]
     },
     "Google_Gemini": {
@@ -55,20 +353,93 @@ SUPPORTED_LLM_PROVIDERS = {
         "api_key_session_key": "gemini_api_key_user",
         "default_base_url": "https://generativelanguage.googleapis.com/v1beta",
         "models": [
-            {"id": "gemini-1.0-pro", "display_name": "Gemini 1.0 Pro", "type": "chat"},
-            {"id": "gemini-1.5-pro-latest", "display_name": "Gemini 1.5 Pro (Advanced Reasoning)", "type": "reasoning"},
-            {"id": "gemini-1.5-flash-latest", "display_name": "Gemini 1.5 Flash (Fast Chat)", "type": "chat"},
+            {
+                "id": "gemini-1.5-flash", 
+                "display_name": "Gemini 1.5 Flash", 
+                "type": "chat",
+                "description": "Fast and versatile model for diverse tasks with good performance",
+                "context_window": "1M tokens",
+                "pricing": "$0.075/1M input, $0.30/1M output",
+                "recommendation": "Best balance of speed and capability",
+                "strengths": ["Fast", "Versatile", "Cost-effective", "Reliable"]
+            },
+            {
+                "id": "gemini-1.5-pro", 
+                "display_name": "Gemini 1.5 Pro", 
+                "type": "reasoning",
+                "description": "High-performance model optimized for complex reasoning tasks",
+                "context_window": "2M tokens",
+                "pricing": "$1.25/1M input, $5.00/1M output",
+                "recommendation": "For complex reasoning and long context",
+                "strengths": ["Very large context", "Strong reasoning", "Multimodal"]
+            },
+            {
+                "id": "gemini-1.0-pro", 
+                "display_name": "Gemini 1.0 Pro", 
+                "type": "reasoning",
+                "description": "Stable and reliable model for general-purpose tasks",
+                "context_window": "32K tokens",
+                "pricing": "$0.50/1M input, $1.50/1M output",
+                "recommendation": "Stable option for production use",
+                "strengths": ["Stable", "Reliable", "Good performance", "Well-tested"]
+            },
+            {
+                "id": "gemini-pro", 
+                "display_name": "Gemini Pro", 
+                "type": "chat",
+                "description": "General-purpose model for everyday tasks",
+                "context_window": "32K tokens",
+                "pricing": "$0.50/1M input, $1.50/1M output",
+                "recommendation": "Good for general use",
+                "strengths": ["Balanced", "Reliable", "Good value", "Stable"]
+            },
         ]
     },
     "Anthropic_Claude": {
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "api_key_session_key": "anthropic_api_key_user",
-        "default_base_url": "https://api.anthropic.com/v1",
+        "default_base_url": "https://api.anthropic.com",
         "models": [
-            {"id": "claude-3-haiku-20240307", "display_name": "Claude 3 Haiku (Fast Chat)", "type": "chat"},
-            {"id": "claude-3-sonnet-20240229", "display_name": "Claude 3 Sonnet (Balanced Reasoning)", "type": "reasoning"},
-            {"id": "claude-3-opus-20240229", "display_name": "Claude 3 Opus (Max Intelligence)", "type": "reasoning"},
-            {"id": "claude-2.1", "display_name": "Claude 2.1 (Older Reasoning)", "type": "reasoning"},
+            {
+                "id": "claude-3-5-sonnet-20241022", 
+                "display_name": "Claude 3.5 Sonnet", 
+                "type": "reasoning",
+                "description": "High-performance model with excellent reasoning and coding capabilities",
+                "context_window": "200K tokens",
+                "pricing": "$3.00/1M input, $15.00/1M output",
+                "recommendation": "Best overall Claude model",
+                "strengths": ["Strong reasoning", "Excellent coding", "Reliable performance", "Good value"]
+            },
+            {
+                "id": "claude-3-5-haiku-20241022", 
+                "display_name": "Claude 3.5 Haiku", 
+                "type": "chat",
+                "description": "Fast and cost-effective model for everyday tasks and high-volume usage",
+                "context_window": "200K tokens",
+                "pricing": "$0.80/1M input, $4.00/1M output",
+                "recommendation": "Best for speed and cost efficiency",
+                "strengths": ["Very fast", "Cost-effective", "Good for simple tasks", "High throughput"]
+            },
+            {
+                "id": "claude-3-opus-20240229", 
+                "display_name": "Claude 3 Opus", 
+                "type": "reasoning",
+                "description": "Most capable Claude 3 model for complex reasoning and analysis tasks",
+                "context_window": "200K tokens",
+                "pricing": "$15.00/1M input, $75.00/1M output",
+                "recommendation": "For most demanding tasks",
+                "strengths": ["Highest intelligence", "Complex reasoning", "Premium quality", "Deep analysis"]
+            },
+            {
+                "id": "claude-3-haiku-20240307", 
+                "display_name": "Claude 3 Haiku", 
+                "type": "chat",
+                "description": "Budget-friendly model for simple tasks and quick responses",
+                "context_window": "200K tokens",
+                "pricing": "$0.25/1M input, $1.25/1M output",
+                "recommendation": "Most affordable option",
+                "strengths": ["Very affordable", "Fast", "Good for basic tasks", "Reliable"]
+            },
         ]
     }
 }
@@ -1269,3 +1640,568 @@ def get_base_url_for_provider(provider_name):
     if provider_name not in SUPPORTED_LLM_PROVIDERS: return None
     provider_config = SUPPORTED_LLM_PROVIDERS[provider_name]
     return os.getenv(provider_config.get("base_url_env_var", ""), provider_config["default_base_url"])
+
+# --- MODEL-SPECIFIC OPTIMIZATION CONFIGURATIONS ---
+# Based on official API documentation from each provider (2025)
+
+# OpenAI Model-Specific Configurations
+OPENAI_MODEL_CONFIGS = {
+    "gpt-4o": {
+        "temperature": 0.1,  # Lower for consistency in screening
+        "max_tokens": 200,
+        "top_p": 0.8,
+        "frequency_penalty": 0.1,
+        "presence_penalty": 0.0,
+        "timeout": 45,  # Higher for complex model
+        "max_retries": 4,
+        "retry_delay": 2.0,
+        "rate_limit": {
+            "requests_per_minute": 500,
+            "tokens_per_minute": 30000,
+            "batch_size": 8
+        },
+        "cost_per_1k_tokens": {"input": 0.0025, "output": 0.01}
+    },
+    "gpt-4o-mini": {
+        "temperature": 0.05,  # Very low for deterministic screening
+        "max_tokens": 200,
+        "top_p": 0.7,
+        "frequency_penalty": 0.05,
+        "presence_penalty": 0.0,
+        "timeout": 30,
+        "max_retries": 3,
+        "retry_delay": 1.5,
+        "rate_limit": {
+            "requests_per_minute": 1000,
+            "tokens_per_minute": 200000,
+            "batch_size": 12
+        },
+        "cost_per_1k_tokens": {"input": 0.00015, "output": 0.0006}
+    },
+    "gpt-4-turbo": {
+        "temperature": 0.1,
+        "max_tokens": 200,
+        "top_p": 0.8,
+        "frequency_penalty": 0.1,
+        "presence_penalty": 0.0,
+        "timeout": 40,
+        "max_retries": 4,
+        "retry_delay": 2.0,
+        "rate_limit": {
+            "requests_per_minute": 500,
+            "tokens_per_minute": 30000,
+            "batch_size": 8
+        },
+        "cost_per_1k_tokens": {"input": 0.01, "output": 0.03}
+    },
+    "gpt-3.5-turbo": {
+        "temperature": 0.05,
+        "max_tokens": 200,
+        "top_p": 0.7,
+        "frequency_penalty": 0.05,
+        "presence_penalty": 0.0,
+        "timeout": 25,
+        "max_retries": 3,
+        "retry_delay": 1.0,
+        "rate_limit": {
+            "requests_per_minute": 3500,
+            "tokens_per_minute": 90000,
+            "batch_size": 15
+        },
+        "cost_per_1k_tokens": {"input": 0.0005, "output": 0.0015}
+    }
+}
+
+# Anthropic Claude Model-Specific Configurations
+CLAUDE_MODEL_CONFIGS = {
+    "claude-3-5-sonnet-20241022": {
+        "temperature": 0.1,
+        "max_tokens": 200,
+        "top_p": 0.8,
+        "top_k": 40,
+        "timeout": 45,
+        "max_retries": 4,
+        "retry_delay": 2.5,
+        "rate_limit": {
+            "requests_per_minute": 1000,
+            "tokens_per_minute": 80000,
+            "batch_size": 10
+        },
+        "cost_per_1k_tokens": {"input": 0.003, "output": 0.015}
+    },
+    "claude-3-5-haiku-20241022": {
+        "temperature": 0.05,  # Lower for faster, more consistent model
+        "max_tokens": 200,
+        "top_p": 0.7,
+        "top_k": 30,
+        "timeout": 25,
+        "max_retries": 3,
+        "retry_delay": 1.5,
+        "rate_limit": {
+            "requests_per_minute": 2000,
+            "tokens_per_minute": 100000,
+            "batch_size": 15
+        },
+        "cost_per_1k_tokens": {"input": 0.0008, "output": 0.004}
+    },
+    "claude-3-opus-20240229": {
+        "temperature": 0.1,
+        "max_tokens": 200,
+        "top_p": 0.8,
+        "top_k": 40,
+        "timeout": 60,  # Highest timeout for most capable model
+        "max_retries": 5,
+        "retry_delay": 3.0,
+        "rate_limit": {
+            "requests_per_minute": 500,
+            "tokens_per_minute": 40000,
+            "batch_size": 6
+        },
+        "cost_per_1k_tokens": {"input": 0.015, "output": 0.075}
+    },
+    "claude-3-haiku-20240307": {
+        "temperature": 0.05,
+        "max_tokens": 200,
+        "top_p": 0.7,
+        "top_k": 30,
+        "timeout": 20,
+        "max_retries": 3,
+        "retry_delay": 1.0,
+        "rate_limit": {
+            "requests_per_minute": 2000,
+            "tokens_per_minute": 100000,
+            "batch_size": 15
+        },
+        "cost_per_1k_tokens": {"input": 0.00025, "output": 0.00125}
+    }
+}
+
+# Google Gemini Model-Specific Configurations
+GEMINI_MODEL_CONFIGS = {
+    "gemini-1.5-flash": {
+        "temperature": 0.05,  # Very low for fast, consistent screening
+        "max_output_tokens": 200,
+        "top_p": 0.7,
+        "top_k": 30,
+        "timeout": 25,
+        "max_retries": 3,
+        "retry_delay": 1.5,
+        "rate_limit": {
+            "requests_per_minute": 2000,
+            "tokens_per_minute": 1000000,  # High token limit for Flash
+            "batch_size": 20
+        },
+        "cost_per_1k_tokens": {"input": 0.000075, "output": 0.0003},
+        "safety_settings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+        ]
+    },
+    "gemini-1.5-pro": {
+        "temperature": 0.1,
+        "max_output_tokens": 200,
+        "top_p": 0.8,
+        "top_k": 40,
+        "timeout": 40,
+        "max_retries": 4,
+        "retry_delay": 2.0,
+        "rate_limit": {
+            "requests_per_minute": 360,
+            "tokens_per_minute": 120000,
+            "batch_size": 8
+        },
+        "cost_per_1k_tokens": {"input": 0.00125, "output": 0.005},
+        "safety_settings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+        ]
+    },
+    "gemini-1.0-pro": {
+        "temperature": 0.1,
+        "max_output_tokens": 200,
+        "top_p": 0.8,
+        "top_k": 40,
+        "timeout": 35,
+        "max_retries": 3,
+        "retry_delay": 2.0,
+        "rate_limit": {
+            "requests_per_minute": 300,
+            "tokens_per_minute": 32000,
+            "batch_size": 6
+        },
+        "cost_per_1k_tokens": {"input": 0.0005, "output": 0.0015},
+        "safety_settings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+        ]
+    },
+    "gemini-pro": {
+        "temperature": 0.1,
+        "max_output_tokens": 200,
+        "top_p": 0.8,
+        "top_k": 40,
+        "timeout": 30,
+        "max_retries": 3,
+        "retry_delay": 1.5,
+        "rate_limit": {
+            "requests_per_minute": 300,
+            "tokens_per_minute": 32000,
+            "batch_size": 6
+        },
+        "cost_per_1k_tokens": {"input": 0.0005, "output": 0.0015},
+        "safety_settings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+        ]
+    }
+}
+
+# DeepSeek Model-Specific Configurations
+DEEPSEEK_MODEL_CONFIGS = {
+    "deepseek-chat": {  # DeepSeek-V3
+        "temperature": 0.0,  # Recommended for coding/math tasks
+        "max_tokens": 200,
+        "top_p": 0.7,
+        "frequency_penalty": 0.0,
+        "presence_penalty": 0.0,
+        "timeout": 35,
+        "max_retries": 4,
+        "retry_delay": 2.0,
+        "rate_limit": {
+            "requests_per_minute": 500,
+            "tokens_per_minute": 50000,
+            "batch_size": 10
+        },
+        "cost_per_1k_tokens": {"input": 0.00014, "output": 0.00028}
+    },
+    "deepseek-reasoner": {  # DeepSeek-R1
+        "temperature": None,  # Not supported for reasoning model
+        "max_tokens": 200,  # Only controls final answer, not reasoning
+        "top_p": None,  # Not supported
+        "frequency_penalty": None,  # Not supported
+        "presence_penalty": None,  # Not supported
+        "timeout": 120,  # Much higher timeout for reasoning (2 minutes)
+        "max_retries": 2,  # Lower retries due to much longer processing
+        "retry_delay": 5.0,  # Longer delay between retries
+        "rate_limit": {
+            "requests_per_minute": 100,  # Even lower rate for reasoning model
+            "tokens_per_minute": 15000,
+            "batch_size": 2  # Much smaller batches for reasoning
+        },
+        "cost_per_1k_tokens": {"input": 0.00055, "output": 0.0022},
+        "reasoning_effort": "medium",  # Future parameter
+        "max_reasoning_tokens": 32000  # CoT can be up to 32K tokens
+    }
+}
+
+# --- ENHANCED SCREENING OPTIMIZATION CONFIG ---
+SCREENING_OPTIMIZATION_CONFIG = {
+    "consistency_mode": True,
+    "deterministic_screening": True,
+    "quality_assurance": {
+        "enable_response_validation": True,
+        "enable_confidence_scoring": True,
+        "enable_consistency_checks": True,
+        "min_confidence_threshold": 0.85,
+        "max_response_variance": 0.1
+    },
+    "performance_optimization": {
+        "enable_adaptive_batching": True,
+        "enable_smart_retry": True,
+        "enable_circuit_breaker": True,
+        "enable_request_deduplication": True
+    },
+    "cost_optimization": {
+        "prefer_efficient_models": True,
+        "enable_cost_tracking": True,
+        "daily_cost_limit": 100.0,  # USD
+        "cost_alert_threshold": 80.0  # USD
+    }
+}
+
+# --- ENHANCED BATCH PROCESSING CONFIG ---
+BATCH_PROCESSING_CONFIG = {
+    "adaptive_batch_sizing": True,
+    "min_batch_size": 2,
+    "max_batch_size": 25,
+    "batch_timeout": 300,  # 5 minutes
+    "concurrent_batches": 3,
+    "batch_retry_limit": 2,
+    "load_balancing": {
+        "enable_provider_rotation": True,
+        "enable_model_rotation": True,
+        "health_check_interval": 60,  # seconds
+        "failure_threshold": 3
+    },
+    "progress_tracking": {
+        "enable_real_time_updates": True,
+        "update_interval": 2,  # seconds
+        "enable_eta_calculation": True
+    }
+}
+
+# --- ENHANCED QUALITY ASSURANCE CONFIG ---
+QUALITY_ASSURANCE_CONFIG = {
+    "response_validation": {
+        "required_fields": ["label", "justification"],
+        "valid_labels": ["INCLUDE", "EXCLUDE", "MAYBE"],
+        "min_justification_length": 10,
+        "max_justification_length": 500,
+        "enable_semantic_validation": True
+    },
+    "consistency_checks": {
+        "enable_cross_model_validation": True,
+        "consensus_threshold": 0.7,
+        "enable_temporal_consistency": True,
+        "consistency_window": 100  # number of recent responses to compare
+    },
+    "confidence_scoring": {
+        "enable_uncertainty_quantification": True,
+        "confidence_factors": [
+            "response_length",
+            "keyword_presence",
+            "sentiment_consistency",
+            "logical_coherence"
+        ]
+    },
+    "error_detection": {
+        "enable_anomaly_detection": True,
+        "enable_bias_detection": True,
+        "enable_hallucination_detection": True
+    }
+}
+
+# --- ENHANCED MONITORING CONFIG ---
+MONITORING_CONFIG = {
+    "performance_metrics": {
+        "track_response_time": True,
+        "track_success_rate": True,
+        "track_cost_per_request": True,
+        "track_model_performance": True,
+        "track_batch_efficiency": True
+    },
+    "alerting": {
+        "enable_performance_alerts": True,
+        "enable_cost_alerts": True,
+        "enable_error_alerts": True,
+        "alert_thresholds": {
+            "response_time": 30.0,  # seconds
+            "error_rate": 0.05,  # 5%
+            "cost_spike": 2.0  # 2x normal cost
+        }
+    },
+    "logging": {
+        "log_level": "INFO",
+        "enable_detailed_logging": True,
+        "enable_performance_logging": True,
+        "log_retention_days": 30
+    },
+    "reporting": {
+        "enable_daily_reports": True,
+        "enable_weekly_summaries": True,
+        "include_cost_analysis": True,
+        "include_performance_trends": True
+    }
+}
+
+# --- HELPER FUNCTIONS FOR MODEL-SPECIFIC CONFIGURATIONS ---
+
+def get_model_specific_config(provider_name: str, model_id: str) -> Dict[str, Any]:
+    """
+    Get model-specific configuration based on provider and model ID.
+    
+    Args:
+        provider_name: Name of the AI provider
+        model_id: Specific model identifier
+        
+    Returns:
+        Dictionary containing model-specific configuration
+    """
+    config_maps = {
+        "OpenAI_ChatGPT": OPENAI_MODEL_CONFIGS,
+        "Anthropic_Claude": CLAUDE_MODEL_CONFIGS,
+        "Google_Gemini": GEMINI_MODEL_CONFIGS,
+        "DeepSeek": DEEPSEEK_MODEL_CONFIGS
+    }
+    
+    provider_configs = config_maps.get(provider_name, {})
+    return provider_configs.get(model_id, {})
+
+def get_optimized_parameters(provider_name: str, model_id: str, task_type: str = "screening") -> Dict[str, Any]:
+    """
+    Get optimized parameters for a specific model and task type.
+    
+    Args:
+        provider_name: Name of the AI provider
+        model_id: Specific model identifier
+        task_type: Type of task (screening, quality_assessment, etc.)
+        
+    Returns:
+        Dictionary containing optimized parameters
+    """
+    base_config = get_model_specific_config(provider_name, model_id)
+    
+    if task_type == "screening":
+        # Apply screening-specific optimizations
+        optimized = base_config.copy()
+        
+        # Further reduce temperature for screening consistency
+        if "temperature" in optimized and optimized["temperature"] is not None:
+            optimized["temperature"] = max(0.0, optimized["temperature"] - 0.05)
+            
+        # Increase timeout for critical screening tasks
+        if "timeout" in optimized:
+            optimized["timeout"] = optimized["timeout"] + 10
+            
+        return optimized
+    
+    return base_config
+
+def calculate_optimal_batch_size(provider_name: str, model_id: str, total_items: int) -> int:
+    """
+    Calculate optimal batch size based on model capabilities and rate limits.
+    
+    Args:
+        provider_name: Name of the AI provider
+        model_id: Specific model identifier
+        total_items: Total number of items to process
+        
+    Returns:
+        Optimal batch size
+    """
+    config = get_model_specific_config(provider_name, model_id)
+    rate_limit = config.get("rate_limit", {})
+    
+    base_batch_size = rate_limit.get("batch_size", 5)
+    max_batch_size = BATCH_PROCESSING_CONFIG["max_batch_size"]
+    min_batch_size = BATCH_PROCESSING_CONFIG["min_batch_size"]
+    
+    # Adjust based on total items
+    if total_items < 10:
+        optimal_size = min(base_batch_size, total_items)
+    elif total_items < 100:
+        optimal_size = min(base_batch_size + 2, max_batch_size)
+    else:
+        optimal_size = min(base_batch_size + 5, max_batch_size)
+    
+    return max(min_batch_size, optimal_size)
+
+def get_retry_strategy(provider_name: str, model_id: str) -> Dict[str, Any]:
+    """
+    Get retry strategy configuration for a specific model.
+    
+    Args:
+        provider_name: Name of the AI provider
+        model_id: Specific model identifier
+        
+    Returns:
+        Dictionary containing retry strategy configuration
+    """
+    config = get_model_specific_config(provider_name, model_id)
+    
+    return {
+        "max_retries": config.get("max_retries", 3),
+        "retry_delay": config.get("retry_delay", 1.5),
+        "exponential_backoff": True,
+        "max_delay": 30.0,
+        "jitter": True,
+        "retry_on_errors": [
+            "timeout",
+            "rate_limit",
+            "server_error",
+            "network_error"
+        ]
+    }
+
+def estimate_processing_cost(provider_name: str, model_id: str, num_abstracts: int, avg_tokens_per_abstract: int = 250) -> Dict[str, float]:
+    """
+    Estimate processing cost for a given number of abstracts.
+    
+    Args:
+        provider_name: Name of the AI provider
+        model_id: Specific model identifier
+        num_abstracts: Number of abstracts to process
+        avg_tokens_per_abstract: Average tokens per abstract
+        
+    Returns:
+        Dictionary containing cost estimates
+    """
+    config = get_model_specific_config(provider_name, model_id)
+    cost_config = config.get("cost_per_1k_tokens", {"input": 0.001, "output": 0.002})
+    
+    # Estimate tokens
+    input_tokens_per_abstract = avg_tokens_per_abstract + 100  # Abstract + prompt
+    output_tokens_per_abstract = 50  # Typical screening response
+    
+    total_input_tokens = num_abstracts * input_tokens_per_abstract
+    total_output_tokens = num_abstracts * output_tokens_per_abstract
+    
+    input_cost = (total_input_tokens / 1000) * cost_config["input"]
+    output_cost = (total_output_tokens / 1000) * cost_config["output"]
+    total_cost = input_cost + output_cost
+    
+    return {
+        "input_cost": round(input_cost, 4),
+        "output_cost": round(output_cost, 4),
+        "total_cost": round(total_cost, 4),
+        "cost_per_abstract": round(total_cost / num_abstracts, 6),
+        "estimated_tokens": {
+            "input": total_input_tokens,
+            "output": total_output_tokens,
+            "total": total_input_tokens + total_output_tokens
+        }
+    }
+
+# --- CIRCUIT BREAKER CONFIGURATION ---
+CIRCUIT_BREAKER_CONFIG = {
+    "failure_threshold": 5,  # Number of failures before opening circuit
+    "recovery_timeout": 60,  # Seconds to wait before attempting recovery
+    "success_threshold": 3,  # Successful calls needed to close circuit
+    "timeout": 30,  # Request timeout in seconds
+    "enable_fallback": True,
+    "fallback_providers": {
+        "OpenAI_ChatGPT": ["Anthropic_Claude", "Google_Gemini"],
+        "Anthropic_Claude": ["OpenAI_ChatGPT", "Google_Gemini"],
+        "Google_Gemini": ["OpenAI_ChatGPT", "DeepSeek"],
+        "DeepSeek": ["OpenAI_ChatGPT", "Google_Gemini"]
+    }
+}
+
+# --- RATE LIMITING CONFIGURATION ---
+RATE_LIMITING_CONFIG = {
+    "enable_global_rate_limiting": True,
+    "enable_per_provider_limiting": True,
+    "enable_adaptive_limiting": True,
+    "rate_limit_buffer": 0.8,  # Use 80% of actual limits for safety
+    "burst_allowance": 1.2,  # Allow 20% burst for short periods
+    "cooldown_period": 60,  # Seconds to wait after rate limit hit
+    "priority_queue": {
+        "enable": True,
+        "high_priority_ratio": 0.3,  # 30% of capacity for high priority
+        "priority_factors": ["user_tier", "request_urgency", "batch_size"]
+    }
+}
+
+# --- CACHING CONFIGURATION ---
+CACHING_CONFIG = {
+    "enable_response_caching": True,
+    "enable_prompt_caching": True,
+    "cache_ttl": 3600,  # 1 hour
+    "max_cache_size": 1000,  # Number of cached responses
+    "cache_key_factors": [
+        "provider_name",
+        "model_id", 
+        "prompt_hash",
+        "parameters_hash"
+    ],
+    "enable_cache_warming": True,
+    "cache_hit_ratio_target": 0.3
+}

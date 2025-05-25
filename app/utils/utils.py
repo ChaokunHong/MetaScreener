@@ -10,9 +10,23 @@ import fitz # PyMuPDF
 import pytesseract # <--- Newly added import
 from PIL import Image # <--- Newly added import
 import logging # <-- Import logging
+import time
+import random
 
-# For Gemini
-import google.generativeai as genai
+# For Gemini - Updated to use the new SDK
+try:
+    from google import genai
+    GEMINI_SDK_VERSION = "new"
+    print(f"Using new Google Gen AI SDK version: {GEMINI_SDK_VERSION}")
+except ImportError:
+    try:
+        import google.generativeai as genai
+        GEMINI_SDK_VERSION = "legacy"
+        print(f"Using legacy Google Generative AI SDK version: {GEMINI_SDK_VERSION}")
+    except ImportError:
+        genai = None
+        GEMINI_SDK_VERSION = "none"
+        print("No Google Gemini SDK found")
 
 # For Anthropic
 from anthropic import Anthropic, APIStatusError, APIConnectionError, RateLimitError, APIError
@@ -23,7 +37,10 @@ from config.config import (
     DEFAULT_SYSTEM_PROMPT, DEFAULT_OUTPUT_INSTRUCTIONS,
     get_screening_criteria, get_current_criteria_object,
     get_supported_criteria_frameworks, get_default_criteria_for_framework, get_current_framework_id,
-    TESSERACT_CMD_PATH, PDF_OCR_THRESHOLD_CHARS
+    TESSERACT_CMD_PATH, PDF_OCR_THRESHOLD_CHARS,
+    # Import optimization configurations
+    SCREENING_OPTIMIZATION_CONFIG, BATCH_PROCESSING_CONFIG, QUALITY_ASSURANCE_CONFIG, MONITORING_CONFIG,
+    get_screening_config, get_provider_specific_config, calculate_optimal_batch_size
 )
 
 # Get a logger for this module
@@ -267,6 +284,10 @@ def _parse_llm_response(message_content: str) -> Dict[str, str]:
 
 def _call_openai_compatible_api(main_prompt: str, system_prompt: Optional[str], model_id: str, api_key: str, base_url: str, provider_name: str) -> \
 Dict[str, str]:
+    # Get model-specific optimized configuration for screening
+    model_config = get_optimized_parameters(provider_name, model_id, "screening")
+    retry_strategy = get_retry_strategy(provider_name, model_id)
+    
     api_endpoint = f"{base_url.rstrip('/')}/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     messages = []
@@ -275,74 +296,453 @@ Dict[str, str]:
     else: # Add a default minimal system message if none provided
          messages.append({"role": "system", "content": "You are a helpful assistant performing literature screening."}) # Slightly more specific default
     messages.append({"role": "user", "content": main_prompt}) # Main prompt as user message
-    data = {"model": model_id, "messages": messages, "temperature": 0.2, "max_tokens": 200, "top_p": 0.9}
-    try:
-        response = requests.post(api_endpoint, headers=headers, json=data, timeout=120)
-        response.raise_for_status()
-        res_json = response.json()
-        if res_json.get('choices') and res_json['choices'][0].get('message'):
-            content = res_json['choices'][0]['message'].get('content', '')
-            return _parse_llm_response(content)
-        error_msg = res_json.get('error', {}).get('message', str(res_json))
-        return {"label": "API_ERROR", "justification": f"{provider_name} API Error: {error_msg}"}
-    except requests.exceptions.Timeout:
-        return {"label": "API_TIMEOUT", "justification": f"{provider_name} request timed out."}
-    except requests.exceptions.RequestException as e:
-        status = e.response.status_code if e.response is not None else "N/A"
-        details = str(e.response.text[:200]) if e.response is not None else str(e)
-        return {"label": f"API_HTTP_ERROR_{status}", "justification": f"{provider_name} HTTP Error {status}: {details}"}
-    except Exception as e:
-        utils_logger.exception(f"Script error ({provider_name})")
-        return {"label": "SCRIPT_ERROR", "justification": f"Script error ({provider_name}): {str(e)}"}
+    
+    # Build optimized data payload with model-specific parameters
+    data = {
+        "model": model_id, 
+        "messages": messages, 
+        "temperature": model_config.get("temperature", 0.1),
+        "max_tokens": model_config.get("max_tokens", 200), 
+        "top_p": model_config.get("top_p", 0.8)
+    }
+    
+    # Add provider-specific parameters
+    if provider_name == "OpenAI_ChatGPT":
+        data.update({
+            "frequency_penalty": model_config.get("frequency_penalty", 0.0),
+            "presence_penalty": model_config.get("presence_penalty", 0.0),
+        })
+        # Add seed for deterministic responses if specified
+        if model_config.get("seed") is not None:
+            data["seed"] = model_config["seed"]
+    elif provider_name == "DeepSeek":
+        # DeepSeek-specific parameters
+        if model_id == "deepseek-reasoner":
+            # For reasoning model, remove unsupported parameters
+            data = {
+                "model": model_id,
+                "messages": messages,
+                "max_tokens": model_config.get("max_tokens", 200)
+            }
+        else:
+            # For deepseek-chat, use all parameters
+            data.update({
+                "frequency_penalty": model_config.get("frequency_penalty", 0.0),
+                "presence_penalty": model_config.get("presence_penalty", 0.0),
+            })
+    
+    # Implement retry logic with exponential backoff
+    max_retries = retry_strategy["max_retries"]
+    base_delay = retry_strategy["retry_delay"]
+    max_delay = retry_strategy["max_delay"]
+    timeout_config = model_config.get("timeout", 30)
+    
+    for attempt in range(max_retries + 1):
+        try:
+            response = requests.post(api_endpoint, headers=headers, json=data, timeout=timeout_config)
+            response.raise_for_status()
+            res_json = response.json()
+            if res_json.get('choices') and res_json['choices'][0].get('message'):
+                content = res_json['choices'][0]['message'].get('content', '')
+                # Handle DeepSeek-R1 reasoning content
+                if model_id == "deepseek-reasoner" and 'reasoning_content' in res_json['choices'][0]['message']:
+                    reasoning_content = res_json['choices'][0]['message'].get('reasoning_content', '')
+                    utils_logger.info(f"DeepSeek-R1 reasoning length: {len(reasoning_content)} chars")
+                return _parse_llm_response(content)
+            error_msg = res_json.get('error', {}).get('message', str(res_json))
+            return {"label": "API_ERROR", "justification": f"{provider_name} API Error: {error_msg}"}
+            
+        except requests.exceptions.Timeout:
+            if attempt < max_retries:
+                delay = min(base_delay * (2 ** attempt), max_delay)
+                if retry_strategy.get("jitter", True):
+                    delay *= (0.5 + random.random() * 0.5)  # Add jitter
+                utils_logger.warning(f"{provider_name} timeout on attempt {attempt + 1}, retrying in {delay:.2f}s")
+                time.sleep(delay)
+                continue
+            return {"label": "API_TIMEOUT", "justification": f"{provider_name} request timed out after {max_retries} retries."}
+            
+        except requests.exceptions.RequestException as e:
+            status = e.response.status_code if e.response is not None else "N/A"
+            
+            # Handle rate limiting with exponential backoff
+            if status == 429 or "rate limit" in str(e).lower():
+                if attempt < max_retries:
+                    # Extract retry-after header if available
+                    retry_after = None
+                    if e.response and 'retry-after' in e.response.headers:
+                        try:
+                            retry_after = int(e.response.headers['retry-after'])
+                        except ValueError:
+                            pass
+                    
+                    delay = retry_after if retry_after else min(base_delay * (2 ** attempt), max_delay)
+                    if retry_strategy.get("jitter", True) and not retry_after:
+                        delay *= (0.5 + random.random() * 0.5)  # Add jitter only if no retry-after
+                    
+                    utils_logger.warning(f"{provider_name} rate limited on attempt {attempt + 1}, retrying in {delay:.2f}s")
+                    time.sleep(delay)
+                    continue
+                    
+            details = str(e.response.text[:200]) if e.response is not None else str(e)
+            return {"label": f"API_HTTP_ERROR_{status}", "justification": f"{provider_name} HTTP Error {status}: {details}"}
+            
+        except Exception as e:
+            if attempt < max_retries:
+                delay = min(base_delay * (2 ** attempt), max_delay)
+                if retry_strategy.get("jitter", True):
+                    delay *= (0.5 + random.random() * 0.5)  # Add jitter
+                utils_logger.warning(f"{provider_name} error on attempt {attempt + 1}, retrying in {delay:.2f}s: {str(e)}")
+                time.sleep(delay)
+                continue
+            utils_logger.exception(f"Script error ({provider_name})")
+            return {"label": "SCRIPT_ERROR", "justification": f"Script error ({provider_name}): {str(e)}"}
+
+
+def get_optimized_parameters(provider_name: str, model_id: str, task_type: str = "screening") -> Dict[str, Any]:
+    """
+    Get optimized parameters for a specific model and task type.
+    
+    Args:
+        provider_name: Name of the LLM provider
+        model_id: Model identifier
+        task_type: Type of task (e.g., "screening", "extraction")
+    
+    Returns:
+        Dictionary with optimized parameters
+    """
+    # Import here to avoid circular imports
+    from config.config import get_model_specific_config
+    
+    # Get base configuration
+    base_config = get_model_specific_config(provider_name, model_id)
+    
+    if not base_config:
+        # Return default configuration if model not found
+        return {
+            "temperature": 0.1,
+            "max_tokens": 200,
+            "max_output_tokens": 200,
+            "timeout": 30,
+            "top_p": 0.8,
+            "top_k": 40
+        }
+    
+    # Create a copy to avoid modifying the original
+    config = base_config.copy()
+    
+    # Apply task-specific optimizations
+    if task_type == "screening":
+        # Reduce temperature for more consistent screening results
+        if config.get("temperature") is not None:
+            config["temperature"] = max(0.0, config["temperature"] - 0.05)
+        
+        # Increase timeout slightly for screening reliability, but be careful with reasoning models
+        current_timeout = config.get("timeout", 30)
+        if current_timeout >= 120:  # For reasoning models like DeepSeek R1
+            config["timeout"] = 180  # Force 3 minutes for reasoning models
+        else:
+            config["timeout"] = current_timeout + 10  # Standard increase
+        
+        # Ensure we have reasonable defaults for screening
+        config.setdefault("max_tokens", 200)
+        config.setdefault("max_output_tokens", 200)
+    
+    return config
+
+
+def get_retry_strategy(provider_name: str, model_id: str) -> Dict[str, Any]:
+    """
+    Get retry strategy configuration for a specific provider and model.
+    
+    Args:
+        provider_name: Name of the LLM provider
+        model_id: Model identifier
+    
+    Returns:
+        Dictionary with retry strategy parameters
+    """
+    # Import here to avoid circular imports
+    from config.config import get_model_specific_config
+    
+    # Get model-specific retry config
+    model_config = get_model_specific_config(provider_name, model_id)
+    
+    # Default retry strategy
+    default_strategy = {
+        "max_retries": 3,
+        "retry_delay": 2.0,
+        "max_delay": 30.0,
+        "jitter": True
+    }
+    
+    # Override with model-specific settings if available
+    if model_config:
+        default_strategy.update({
+            "max_retries": model_config.get("max_retries", 3),
+            "retry_delay": model_config.get("retry_delay", 2.0),
+            "max_delay": model_config.get("max_delay", 30.0),
+            "jitter": model_config.get("jitter", True)
+        })
+    
+    return default_strategy
 
 
 def _call_gemini_api(full_prompt: str, model_id: str, api_key: str) -> Dict[str, str]:
-    try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(model_id)
-        config = genai.types.GenerationConfig(max_output_tokens=200, temperature=0.2, top_p=0.9)
-        safety = [{"category": c, "threshold": "BLOCK_NONE"} for c in
-                  ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                   "HARM_CATEGORY_DANGEROUS_CONTENT"]]
-        response = model.generate_content(contents=[{"role": "user", "parts": [{"text": full_prompt}]}],
-                                          generation_config=config, safety_settings=safety)
-        if response.parts:
-            content = "".join(part.text for part in response.parts if hasattr(part, 'text'))
-            return _parse_llm_response(content)
-        if response.prompt_feedback and response.prompt_feedback.block_reason:
-            return {"label": "API_BLOCKED",
-                    "justification": f"Gemini content blocked: {response.prompt_feedback.block_reason}"}
-        finish_reason = response.candidates[0].finish_reason.name if response.candidates and response.candidates[
-            0].finish_reason else "UNKNOWN"
-        return {"label": f"API_{finish_reason}",
-                "justification": f"Gemini API no content, reason: {finish_reason}. Details: {str(response)[:200]}"}
-    except Exception as e:
-        utils_logger.exception("Gemini API error")
-        return {"label": "GEMINI_API_ERROR", "justification": f"Gemini API error: {str(e)}"}
+    if genai is None:
+        return {"label": "CONFIG_ERROR", "justification": "Google Gemini SDK not installed"}
+    
+    # Get model-specific optimized configuration for screening
+    model_config = get_optimized_parameters("Google_Gemini", model_id, "screening")
+    retry_strategy = get_retry_strategy("Google_Gemini", model_id)
+    
+    # Get safety settings from model config
+    safety_settings = model_config.get("safety_settings", [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+    ])
+    
+    # Implement retry logic with exponential backoff
+    max_retries = retry_strategy["max_retries"]
+    base_delay = retry_strategy["retry_delay"]
+    max_delay = retry_strategy["max_delay"]
+    timeout_config = model_config.get("timeout", 30)
+    
+    for attempt in range(max_retries + 1):
+        try:
+            if GEMINI_SDK_VERSION == "new":
+                # Use new Google Gen AI SDK with optimized parameters
+                from google.genai import types
+                client = genai.Client(api_key=api_key)
+                
+                # Convert safety settings to new SDK format
+                new_safety_settings = []
+                for setting in safety_settings:
+                    new_safety_settings.append(
+                        types.SafetySetting(
+                            category=setting["category"], 
+                            threshold=setting["threshold"]
+                        )
+                    )
+                
+                response = client.models.generate_content(
+                    model=model_id,
+                    contents=full_prompt,
+                    config=types.GenerateContentConfig(
+                        max_output_tokens=model_config.get("max_output_tokens", 200),
+                        temperature=model_config.get("temperature", 0.1),
+                        top_p=model_config.get("top_p", 0.8),
+                        top_k=model_config.get("top_k", 40),
+                        candidate_count=1,  # Always 1 for screening consistency
+                        stop_sequences=model_config.get("stop_sequences", []),
+                        safety_settings=new_safety_settings
+                    )
+                )
+                if hasattr(response, 'text') and response.text:
+                    return _parse_llm_response(response.text)
+                else:
+                    return {"label": "API_ERROR", "justification": "No text content in Gemini response"}
+                    
+            else:
+                # Use legacy google.generativeai SDK with optimized parameters
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel(model_id)
+                config = genai.types.GenerationConfig(
+                    max_output_tokens=model_config.get("max_output_tokens", 200), 
+                    temperature=model_config.get("temperature", 0.1), 
+                    top_p=model_config.get("top_p", 0.8),
+                    top_k=model_config.get("top_k", 40),
+                    candidate_count=1,  # Always 1 for screening consistency
+                    stop_sequences=model_config.get("stop_sequences", [])
+                )
+                
+                # Convert safety settings to legacy format
+                legacy_safety = [{"category": s["category"], "threshold": s["threshold"]} for s in safety_settings]
+                
+                response = model.generate_content(
+                    contents=[{"role": "user", "parts": [{"text": full_prompt}]}],
+                    generation_config=config, 
+                    safety_settings=legacy_safety
+                )
+                
+                if response.parts:
+                    content = "".join(part.text for part in response.parts if hasattr(part, 'text'))
+                    return _parse_llm_response(content)
+                if response.prompt_feedback and response.prompt_feedback.block_reason:
+                    return {"label": "API_BLOCKED",
+                            "justification": f"Gemini content blocked: {response.prompt_feedback.block_reason}"}
+                finish_reason = response.candidates[0].finish_reason.name if response.candidates and response.candidates[
+                    0].finish_reason else "UNKNOWN"
+                return {"label": f"API_{finish_reason}",
+                        "justification": f"Gemini API no content, reason: {finish_reason}. Details: {str(response)[:200]}"}
+                        
+        except Exception as e:
+            error_msg = str(e)
+            
+            # Handle rate limiting with exponential backoff
+            if "quota" in error_msg.lower() or "rate limit" in error_msg.lower() or "429" in error_msg:
+                if attempt < max_retries:
+                    delay = min(base_delay * (2 ** attempt), max_delay)
+                    if retry_strategy.get("jitter", True):
+                        delay *= (0.5 + random.random() * 0.5)  # Add jitter
+                    utils_logger.warning(f"Gemini rate limited on attempt {attempt + 1}, retrying in {delay:.2f}s")
+                    time.sleep(delay)
+                    continue
+                return {"label": "API_QUOTA_ERROR", "justification": f"Gemini API quota/rate limit error after {max_retries} retries: {error_msg}"}
+            
+            # Handle timeout errors
+            if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+                if attempt < max_retries:
+                    delay = min(base_delay * (2 ** attempt), max_delay)
+                    if retry_strategy.get("jitter", True):
+                        delay *= (0.5 + random.random() * 0.5)  # Add jitter
+                    utils_logger.warning(f"Gemini timeout on attempt {attempt + 1}, retrying in {delay:.2f}s")
+                    time.sleep(delay)
+                    continue
+                return {"label": "API_TIMEOUT", "justification": f"Gemini API timeout after {max_retries} retries: {error_msg}"}
+            
+            # Handle authentication errors (no retry)
+            if "api key" in error_msg.lower() or "authentication" in error_msg.lower():
+                return {"label": "API_AUTH_ERROR", "justification": f"Gemini API authentication error: {error_msg}"}
+            
+            # Handle other errors with retry
+            if attempt < max_retries:
+                delay = min(base_delay * (2 ** attempt), max_delay)
+                if retry_strategy.get("jitter", True):
+                    delay *= (0.5 + random.random() * 0.5)  # Add jitter
+                utils_logger.warning(f"Gemini error on attempt {attempt + 1}, retrying in {delay:.2f}s: {error_msg}")
+                time.sleep(delay)
+                continue
+            
+            utils_logger.exception("Gemini API error")
+            return {"label": "GEMINI_API_ERROR", "justification": f"Gemini API error after {max_retries} retries: {error_msg}"}
 
 
 def _call_claude_api(main_prompt: str, system_prompt: Optional[str], model_id: str, api_key: str, base_url: Optional[str] = None) -> Dict[str, str]:
-    try:
-        client = Anthropic(api_key=api_key,
-                           base_url=base_url or SUPPORTED_LLM_PROVIDERS["Anthropic_Claude"]["default_base_url"])
-        effective_system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT # Use default if none provided
-        response = client.messages.create(
-             model=model_id, max_tokens=200, temperature=0.2,
-             system=effective_system_prompt, # Pass system prompt here
-             messages=[{"role": "user", "content": main_prompt}]
-         )
-        if response.content and response.content[0].type == "text":
-            return _parse_llm_response(response.content[0].text)
-        reason = response.stop_reason or 'unknown_format'
-        if reason == "max_tokens": return {"label": "API_MAX_TOKENS",
-                                           "justification": "Claude output truncated (max_tokens)."}
-        return {"label": "API_ERROR", "justification": f"Claude API Error ({reason}): {str(response)[:200]}"}
-    except APIError as e:  # Catch specific Anthropic errors
-        return {"label": f"CLAUDE_API_ERROR_{e.status_code if hasattr(e, 'status_code') else 'GENERAL'}",
-                "justification": f"Claude API Error: {str(e)}"}
-    except Exception as e:
-        utils_logger.exception(f"Script error (Claude)")
-        return {"label": "SCRIPT_ERROR", "justification": f"Script error (Claude): {str(e)}"}
+    # Get model-specific optimized configuration for screening
+    model_config = get_optimized_parameters("Anthropic_Claude", model_id, "screening")
+    retry_strategy = get_retry_strategy("Anthropic_Claude", model_id)
+    
+    # Implement retry logic with exponential backoff
+    max_retries = retry_strategy["max_retries"]
+    base_delay = retry_strategy["retry_delay"]
+    max_delay = retry_strategy["max_delay"]
+    timeout_config = model_config.get("timeout", 30)
+    
+    for attempt in range(max_retries + 1):
+        try:
+            client = Anthropic(
+                api_key=api_key,
+                base_url=base_url or SUPPORTED_LLM_PROVIDERS["Anthropic_Claude"]["default_base_url"],
+                timeout=timeout_config
+            )
+            effective_system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT # Use default if none provided
+            
+            # Build request parameters with optimized settings
+            request_params = {
+                "model": model_id, 
+                "max_tokens": model_config.get("max_tokens", 200), 
+                "temperature": model_config.get("temperature", 0.1),
+                "system": effective_system_prompt,
+                "messages": [{"role": "user", "content": main_prompt}]
+            }
+            
+            # Add Claude-specific parameters if available
+            if model_config.get("top_p") is not None:
+                request_params["top_p"] = model_config["top_p"]
+            if model_config.get("top_k") is not None:
+                request_params["top_k"] = model_config["top_k"]
+            if model_config.get("stop_sequences"):
+                request_params["stop_sequences"] = model_config["stop_sequences"]
+            
+            response = client.messages.create(**request_params)
+            
+            if response.content and response.content[0].type == "text":
+                return _parse_llm_response(response.content[0].text)
+            reason = response.stop_reason or 'unknown_format'
+            if reason == "max_tokens": 
+                return {"label": "API_MAX_TOKENS", "justification": "Claude output truncated (max_tokens)."}
+            return {"label": "API_ERROR", "justification": f"Claude API Error ({reason}): {str(response)[:200]}"}
+            
+        except RateLimitError as e:
+            if attempt < max_retries:
+                # Extract retry-after from headers if available
+                retry_after = None
+                if hasattr(e, 'response') and e.response and hasattr(e.response, 'headers'):
+                    retry_after_header = e.response.headers.get('retry-after') or e.response.headers.get('anthropic-ratelimit-requests-reset')
+                    if retry_after_header:
+                        try:
+                            retry_after = int(retry_after_header)
+                        except ValueError:
+                            pass
+                
+                delay = retry_after if retry_after else min(base_delay * (2 ** attempt), max_delay)
+                if retry_strategy.get("jitter", True) and not retry_after:
+                    delay *= (0.5 + random.random() * 0.5)  # Add jitter only if no retry-after
+                
+                utils_logger.warning(f"Claude rate limited on attempt {attempt + 1}, retrying in {delay:.2f}s")
+                time.sleep(delay)
+                continue
+            return {"label": "CLAUDE_RATE_LIMIT", "justification": f"Claude API rate limit exceeded after {max_retries} retries: {str(e)}"}
+            
+        except APIConnectionError as e:
+            if attempt < max_retries:
+                delay = min(base_delay * (2 ** attempt), max_delay)
+                if retry_strategy.get("jitter", True):
+                    delay *= (0.5 + random.random() * 0.5)  # Add jitter
+                utils_logger.warning(f"Claude connection error on attempt {attempt + 1}, retrying in {delay:.2f}s")
+                time.sleep(delay)
+                continue
+            return {"label": "CLAUDE_CONNECTION_ERROR", "justification": f"Claude API connection error after {max_retries} retries: {str(e)}"}
+            
+        except APIStatusError as e:
+            # Handle specific HTTP status codes
+            if hasattr(e, 'status_code'):
+                if e.status_code == 429:  # Rate limit
+                    if attempt < max_retries:
+                        delay = min(base_delay * (2 ** attempt), max_delay)
+                        if retry_strategy.get("jitter", True):
+                            delay *= (0.5 + random.random() * 0.5)  # Add jitter
+                        utils_logger.warning(f"Claude 429 error on attempt {attempt + 1}, retrying in {delay:.2f}s")
+                        time.sleep(delay)
+                        continue
+                elif e.status_code in [500, 502, 503, 504]:  # Server errors
+                    if attempt < max_retries:
+                        delay = min(base_delay * (2 ** attempt), max_delay)
+                        if retry_strategy.get("jitter", True):
+                            delay *= (0.5 + random.random() * 0.5)  # Add jitter
+                        utils_logger.warning(f"Claude server error {e.status_code} on attempt {attempt + 1}, retrying in {delay:.2f}s")
+                        time.sleep(delay)
+                        continue
+                elif e.status_code in [401, 403]:  # Auth errors (no retry)
+                    return {"label": f"CLAUDE_AUTH_ERROR_{e.status_code}", "justification": f"Claude API authentication error: {str(e)}"}
+            
+            return {"label": f"CLAUDE_API_ERROR_{e.status_code if hasattr(e, 'status_code') else 'GENERAL'}", 
+                    "justification": f"Claude API Error: {str(e)}"}
+            
+        except APIError as e:  # Catch other Anthropic errors
+            if attempt < max_retries:
+                delay = min(base_delay * (2 ** attempt), max_delay)
+                if retry_strategy.get("jitter", True):
+                    delay *= (0.5 + random.random() * 0.5)  # Add jitter
+                utils_logger.warning(f"Claude API error on attempt {attempt + 1}, retrying in {delay:.2f}s: {str(e)}")
+                time.sleep(delay)
+                continue
+            return {"label": f"CLAUDE_API_ERROR_{e.status_code if hasattr(e, 'status_code') else 'GENERAL'}",
+                    "justification": f"Claude API Error after {max_retries} retries: {str(e)}"}
+            
+        except Exception as e:
+            if attempt < max_retries:
+                delay = min(base_delay * (2 ** attempt), max_delay)
+                if retry_strategy.get("jitter", True):
+                    delay *= (0.5 + random.random() * 0.5)  # Add jitter
+                utils_logger.warning(f"Claude error on attempt {attempt + 1}, retrying in {delay:.2f}s: {str(e)}")
+                time.sleep(delay)
+                continue
+            utils_logger.exception(f"Script error (Claude)")
+            return {"label": "SCRIPT_ERROR", "justification": f"Script error (Claude) after {max_retries} retries: {str(e)}"}
 
 
 # --- ADDED/REFINED: LLM API Call for Raw Content ---
@@ -386,18 +786,49 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
             else: error_info = f"No choices/message in response: {res_json}"
 
         elif provider_name == "Google_Gemini":
-            genai.configure(api_key=api_key)
-            # Newer Gemini models might support JSON mode via GenerationConfig
-            # Check documentation for specific model_id capabilities.
-            # For now, rely on prompt instructions.
-            model = genai.GenerativeModel(model_id)
-            config = genai.types.GenerationConfig(max_output_tokens=max_tokens, temperature=temperature)
-            safety = [{"category": c, "threshold": "BLOCK_NONE"} for c in ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"]]
-            full_prompt = f"{system_prompt}\n\n{main_prompt}" if system_prompt else main_prompt
-            response = model.generate_content(contents=[{"role": "user", "parts": [{"text": full_prompt}]}], generation_config=config, safety_settings=safety)
-            if response.parts: raw_content = "".join(part.text for part in response.parts if hasattr(part, 'text'))
-            else: error_info = f"No parts in response. Finish Reason: {response.candidates[0].finish_reason.name if response.candidates else 'Unknown'}"
-            if response.prompt_feedback and response.prompt_feedback.block_reason: error_info = f"Prompt blocked: {response.prompt_feedback.block_reason}"
+            if genai is None:
+                error_info = "Google Gemini SDK not installed"
+            else:
+                full_prompt = f"{system_prompt}\n\n{main_prompt}" if system_prompt else main_prompt
+                
+                if GEMINI_SDK_VERSION == "new":
+                    # Use new Google Gen AI SDK
+                    from google.genai import types
+                    client = genai.Client(api_key=api_key)
+                    response = client.models.generate_content(
+                        model=model_id,
+                        contents=full_prompt,
+                        config=types.GenerateContentConfig(
+                            max_output_tokens=max_tokens,
+                            temperature=temperature,
+                            safety_settings=[
+                                types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+                                types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
+                                types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+                                types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE")
+                            ]
+                        )
+                    )
+                    if hasattr(response, 'text') and response.text:
+                        raw_content = response.text
+                    else:
+                        error_info = "No text content in Gemini response"
+                        
+                else:
+                    # Use legacy google.generativeai SDK
+                    genai.configure(api_key=api_key)
+                    model = genai.GenerativeModel(model_id)
+                    config = genai.types.GenerationConfig(max_output_tokens=max_tokens, temperature=temperature)
+                    safety = [{"category": c, "threshold": "BLOCK_NONE"} for c in ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"]]
+                    
+                    response = model.generate_content(contents=[{"role": "user", "parts": [{"text": full_prompt}]}], generation_config=config, safety_settings=safety)
+                    
+                    if response.parts: 
+                        raw_content = "".join(part.text for part in response.parts if hasattr(part, 'text'))
+                    else: 
+                        error_info = f"No parts in response. Finish Reason: {response.candidates[0].finish_reason.name if response.candidates else 'Unknown'}"
+                    if response.prompt_feedback and response.prompt_feedback.block_reason: 
+                        error_info = f"Prompt blocked: {response.prompt_feedback.block_reason}"
 
         elif provider_name == "Anthropic_Claude":
             client = Anthropic(api_key=api_key, base_url=base_url or SUPPORTED_LLM_PROVIDERS["Anthropic_Claude"]["default_base_url"])
@@ -413,6 +844,7 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
         else:
             error_info = f"Unsupported provider for raw content: {provider_name}"
 
+    except TimeoutError: error_info = f"{provider_name} request timed out."
     except requests.exceptions.Timeout: error_info = f"{provider_name} request timed out."
     except requests.exceptions.RequestException as e: status = e.response.status_code if e.response is not None else 'N/A'; details = str(e.response.text[:200]) if e.response is not None else str(e); error_info = f"{provider_name} HTTP Error {status}: {details}"
     except APIError as e: error_info = f"Claude API Error: {str(e)}" # Specific Claude error
@@ -428,3 +860,356 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
         
     # utils_logger.debug(f"Raw LLM Output: {raw_content[:200]}...") # If re-enabling debug logging for this
     return raw_content
+
+# --- QUALITY ASSURANCE AND MONITORING FUNCTIONS ---
+
+def validate_screening_response(response: Dict[str, str], abstract: str = "") -> Dict[str, Any]:
+    """
+    Validate the quality of a screening response against defined criteria.
+    
+    Args:
+        response: The parsed LLM response with 'label' and 'justification'
+        abstract: The original abstract (for context validation)
+    
+    Returns:
+        Dictionary with validation results and quality metrics
+    """
+    validation_config = QUALITY_ASSURANCE_CONFIG["response_validation"]
+    
+    validation_result = {
+        "is_valid": True,
+        "issues": [],
+        "quality_score": 1.0,
+        "metrics": {}
+    }
+    
+    # Validate label format
+    label = response.get("label", "")
+    if label not in ["INCLUDE", "EXCLUDE", "MAYBE"]:
+        validation_result["is_valid"] = False
+        validation_result["issues"].append(f"Invalid label: '{label}'. Must be INCLUDE, EXCLUDE, or MAYBE.")
+        validation_result["quality_score"] -= 0.5
+    
+    # Validate justification
+    justification = response.get("justification", "")
+    if not justification or len(justification.strip()) < validation_config["min_justification_length"]:
+        validation_result["is_valid"] = False
+        validation_result["issues"].append(f"Justification too short: {len(justification)} chars (min: {validation_config['min_justification_length']})")
+        validation_result["quality_score"] -= 0.3
+    
+    if len(justification) > validation_config["max_justification_length"]:
+        validation_result["issues"].append(f"Justification too long: {len(justification)} chars (max: {validation_config['max_justification_length']})")
+        validation_result["quality_score"] -= 0.1
+    
+    # Check for generic/template responses
+    generic_phrases = [
+        "based on the abstract",
+        "the study appears to",
+        "this study seems to",
+        "the abstract suggests"
+    ]
+    generic_count = sum(1 for phrase in generic_phrases if phrase.lower() in justification.lower())
+    if generic_count > 2:
+        validation_result["issues"].append("Justification appears generic or template-like")
+        validation_result["quality_score"] -= 0.2
+    
+    # Calculate quality metrics
+    validation_result["metrics"] = {
+        "label_valid": label in ["INCLUDE", "EXCLUDE", "MAYBE"],
+        "justification_length": len(justification),
+        "justification_word_count": len(justification.split()),
+        "generic_phrase_count": generic_count,
+        "has_specific_reasoning": any(word in justification.lower() for word in ["because", "since", "due to", "given that", "as", "therefore"])
+    }
+    
+    return validation_result
+
+def track_api_performance(provider_name: str, model_id: str, response_time: float, 
+                         token_usage: Dict[str, int] = None, error: str = None) -> None:
+    """
+    Track API performance metrics for monitoring and optimization.
+    
+    Args:
+        provider_name: Name of the LLM provider
+        model_id: Model identifier
+        response_time: Response time in seconds
+        token_usage: Dictionary with input/output token counts
+        error: Error message if request failed
+    """
+    if not MONITORING_CONFIG["performance_metrics"]["track_response_time"]:
+        return
+    
+    # Log performance metrics
+    utils_logger.info(f"API Performance - Provider: {provider_name}, Model: {model_id}, "
+                     f"Response Time: {response_time:.2f}s, Tokens: {token_usage}, Error: {error}")
+    
+    # Check alert thresholds
+    alert_thresholds = MONITORING_CONFIG["alerting"]["alert_thresholds"]
+    if response_time > alert_thresholds["response_time"]:
+        utils_logger.warning(f"ALERT: Slow response time detected - {response_time:.2f}s > {alert_thresholds['response_time']}s")
+    
+    # Calculate cost if token usage provided
+    if token_usage and MONITORING_CONFIG["performance_metrics"]["track_cost_per_request"]:
+        estimated_cost = estimate_api_cost(provider_name, model_id, token_usage)
+        # Use a reasonable default threshold if not specified
+        cost_threshold = 0.01  # $0.01 per request
+        if estimated_cost > cost_threshold:
+            utils_logger.warning(f"ALERT: High cost per request - ${estimated_cost:.4f} > ${cost_threshold}")
+
+def estimate_api_cost(provider_name: str, model_id: str, token_usage: Dict[str, int]) -> float:
+    """
+    Estimate the cost of an API call based on token usage.
+    
+    Args:
+        provider_name: Name of the LLM provider
+        model_id: Model identifier
+        token_usage: Dictionary with 'input_tokens' and 'output_tokens'
+    
+    Returns:
+        Estimated cost in USD
+    """
+    # Simplified cost estimation based on known pricing (May 2025)
+    cost_per_1k_tokens = {
+        "DeepSeek": {"input": 0.00027, "output": 0.0011},  # DeepSeek V3
+        "OpenAI_ChatGPT": {
+            "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
+            "gpt-4o": {"input": 0.0025, "output": 0.01},
+            "default": {"input": 0.0015, "output": 0.006}
+        },
+        "Google_Gemini": {"input": 0.000075, "output": 0.0003},  # Gemini 1.5 Flash
+        "Anthropic_Claude": {"input": 0.0008, "output": 0.004}   # Claude 3.5 Haiku
+    }
+    
+    input_tokens = token_usage.get("input_tokens", 0)
+    output_tokens = token_usage.get("output_tokens", 0)
+    
+    if provider_name == "OpenAI_ChatGPT" and model_id in cost_per_1k_tokens[provider_name]:
+        rates = cost_per_1k_tokens[provider_name][model_id]
+    elif provider_name in cost_per_1k_tokens:
+        rates = cost_per_1k_tokens[provider_name]
+        if isinstance(rates, dict) and "default" in rates:
+            rates = rates["default"]
+    else:
+        return 0.0  # Unknown provider
+    
+    if isinstance(rates, dict) and "input" in rates:
+        input_cost = (input_tokens / 1000) * rates["input"]
+        output_cost = (output_tokens / 1000) * rates["output"]
+        return input_cost + output_cost
+    
+    return 0.0
+
+def optimize_batch_processing(provider_name: str, total_items: int, current_error_rate: float = 0.0) -> Dict[str, Any]:
+    """
+    Calculate optimal batch processing parameters based on provider capabilities and current performance.
+    
+    Args:
+        provider_name: Name of the LLM provider
+        total_items: Total number of items to process
+        current_error_rate: Current error rate (0.0 to 1.0)
+    
+    Returns:
+        Dictionary with optimized batch processing parameters
+    """
+    # Get model-specific rate limits
+    model_config = get_model_specific_config(provider_name, "default")
+    rate_limits = model_config.get("rate_limit", {})
+    
+    # Calculate base batch size
+    base_batch_size = calculate_optimal_batch_size(provider_name, "default", total_items)
+    
+    # Adjust based on error rate
+    max_error_rate = 0.05  # 5% error rate threshold
+    if current_error_rate > max_error_rate:
+        # Reduce batch size and concurrency if error rate is high
+        adjusted_batch_size = max(2, int(base_batch_size * 0.5))
+        adjusted_concurrency = max(1, int(BATCH_PROCESSING_CONFIG["concurrent_batches"] * 0.5))
+        recommended_delay = 2.0  # Add delay between batches
+    else:
+        adjusted_batch_size = base_batch_size
+        adjusted_concurrency = BATCH_PROCESSING_CONFIG["concurrent_batches"]
+        recommended_delay = 0.5
+    
+    # Calculate estimated processing time
+    rpm_limit = rate_limits.get("requests_per_minute")
+    if rpm_limit:
+        max_requests_per_second = rpm_limit / 60
+        estimated_time_seconds = total_items / max_requests_per_second
+    else:
+        # Estimate based on typical response times
+        avg_response_time = 2.0  # seconds
+        estimated_time_seconds = (total_items / adjusted_concurrency) * avg_response_time
+    
+    return {
+        "batch_size": adjusted_batch_size,
+        "concurrent_requests": adjusted_concurrency,
+        "delay_between_batches": recommended_delay,
+        "estimated_time_minutes": estimated_time_seconds / 60,
+        "rate_limit_info": rate_limits,
+        "recommendations": _generate_batch_recommendations(provider_name, total_items, current_error_rate)
+    }
+
+def _generate_batch_recommendations(provider_name: str, total_items: int, error_rate: float) -> List[str]:
+    """Generate specific recommendations for batch processing optimization."""
+    recommendations = []
+    
+    if provider_name == "Anthropic_Claude":
+        recommendations.append("Claude has strict rate limits (50 RPM for Tier 1). Consider upgrading tier or using multiple API keys.")
+        if total_items > 100:
+            recommendations.append("For large datasets with Claude, consider processing in smaller chunks over multiple sessions.")
+    
+    elif provider_name == "DeepSeek":
+        recommendations.append("DeepSeek has no rate limits but may queue requests under high load. Monitor for keep-alive responses.")
+        if total_items > 1000:
+            recommendations.append("DeepSeek can handle high concurrency well. Consider increasing batch size for large datasets.")
+    
+    elif provider_name == "Google_Gemini":
+        recommendations.append("Gemini has generous rate limits. Good choice for medium to large batch processing.")
+        if total_items > 500:
+            recommendations.append("Consider using Gemini 1.5 Flash for cost-effective batch processing.")
+    
+    elif provider_name == "OpenAI_ChatGPT":
+        recommendations.append("OpenAI rate limits vary by tier. Monitor usage to avoid hitting limits.")
+        if total_items > 200:
+            recommendations.append("Consider using GPT-4o Mini for cost-effective screening tasks.")
+    
+    if error_rate > 0.05:
+        recommendations.append(f"High error rate detected ({error_rate:.1%}). Consider reducing batch size and adding delays.")
+    
+    if total_items > 1000:
+        recommendations.append("For very large datasets, consider implementing checkpointing to resume processing after interruptions.")
+    
+    return recommendations
+
+def create_screening_summary_report(results: List[Dict[str, Any]], provider_name: str, model_id: str) -> Dict[str, Any]:
+    """
+    Create a comprehensive summary report of screening results.
+    
+    Args:
+        results: List of screening results with validation and performance data
+        provider_name: Name of the LLM provider used
+        model_id: Model identifier used
+    
+    Returns:
+        Dictionary with comprehensive summary statistics
+    """
+    if not results:
+        return {"error": "No results to summarize"}
+    
+    total_items = len(results)
+    
+    # Count decisions
+    decision_counts = {"INCLUDE": 0, "EXCLUDE": 0, "MAYBE": 0, "ERROR": 0}
+    for result in results:
+        label = result.get("label", "ERROR")
+        decision_counts[label] = decision_counts.get(label, 0) + 1
+    
+    # Calculate performance metrics
+    response_times = [r.get("response_time", 0) for r in results if r.get("response_time")]
+    token_usage = {"input_tokens": 0, "output_tokens": 0}
+    error_count = sum(1 for r in results if r.get("label", "").startswith("API_") or r.get("label", "") == "ERROR")
+    
+    for result in results:
+        if result.get("token_usage"):
+            token_usage["input_tokens"] += result["token_usage"].get("input_tokens", 0)
+            token_usage["output_tokens"] += result["token_usage"].get("output_tokens", 0)
+    
+    # Calculate quality metrics
+    validation_scores = [r.get("validation", {}).get("quality_score", 0) for r in results if r.get("validation")]
+    avg_quality_score = sum(validation_scores) / len(validation_scores) if validation_scores else 0
+    
+    # Estimate total cost
+    total_cost = estimate_api_cost(provider_name, model_id, token_usage)
+    
+    summary = {
+        "processing_summary": {
+            "total_items": total_items,
+            "successful_items": total_items - error_count,
+            "error_count": error_count,
+            "error_rate": error_count / total_items if total_items > 0 else 0,
+            "provider": provider_name,
+            "model": model_id
+        },
+        "decision_distribution": decision_counts,
+        "decision_percentages": {
+            k: (v / total_items * 100) if total_items > 0 else 0 
+            for k, v in decision_counts.items()
+        },
+        "performance_metrics": {
+            "avg_response_time": sum(response_times) / len(response_times) if response_times else 0,
+            "min_response_time": min(response_times) if response_times else 0,
+            "max_response_time": max(response_times) if response_times else 0,
+            "total_tokens": token_usage["input_tokens"] + token_usage["output_tokens"],
+            "input_tokens": token_usage["input_tokens"],
+            "output_tokens": token_usage["output_tokens"],
+            "estimated_cost_usd": total_cost
+        },
+        "quality_metrics": {
+            "avg_quality_score": avg_quality_score,
+            "validation_issues": sum(len(r.get("validation", {}).get("issues", [])) for r in results),
+            "consistency_score": _calculate_consistency_score(results)
+        },
+        "recommendations": _generate_summary_recommendations(decision_counts, error_count / total_items if total_items > 0 else 0, avg_quality_score)
+    }
+    
+    return summary
+
+def _calculate_consistency_score(results: List[Dict[str, Any]]) -> float:
+    """Calculate a consistency score based on response patterns."""
+    if len(results) < 2:
+        return 1.0
+    
+    # Simple consistency check based on justification length variance
+    justification_lengths = [
+        len(r.get("justification", "")) for r in results 
+        if r.get("justification") and not r.get("label", "").startswith("API_")
+    ]
+    
+    if len(justification_lengths) < 2:
+        return 1.0
+    
+    # Calculate coefficient of variation (lower is more consistent)
+    mean_length = sum(justification_lengths) / len(justification_lengths)
+    variance = sum((x - mean_length) ** 2 for x in justification_lengths) / len(justification_lengths)
+    std_dev = variance ** 0.5
+    
+    if mean_length == 0:
+        return 1.0
+    
+    cv = std_dev / mean_length
+    # Convert to consistency score (1.0 = perfectly consistent, 0.0 = highly inconsistent)
+    consistency_score = max(0.0, 1.0 - cv)
+    
+    return consistency_score
+
+def _generate_summary_recommendations(decision_counts: Dict[str, int], error_rate: float, quality_score: float) -> List[str]:
+    """Generate recommendations based on screening results."""
+    recommendations = []
+    
+    total_decisions = sum(decision_counts.values())
+    if total_decisions == 0:
+        return ["No valid decisions to analyze"]
+    
+    # Analyze decision distribution
+    include_rate = decision_counts.get("INCLUDE", 0) / total_decisions
+    exclude_rate = decision_counts.get("EXCLUDE", 0) / total_decisions
+    maybe_rate = decision_counts.get("MAYBE", 0) / total_decisions
+    
+    if include_rate > 0.8:
+        recommendations.append("High inclusion rate (>80%). Consider reviewing inclusion criteria for specificity.")
+    elif include_rate < 0.05:
+        recommendations.append("Very low inclusion rate (<5%). Consider reviewing criteria for potential over-exclusion.")
+    
+    if maybe_rate > 0.3:
+        recommendations.append("High 'MAYBE' rate (>30%). Consider refining criteria or providing more specific guidance.")
+    
+    if error_rate > 0.1:
+        recommendations.append(f"High error rate ({error_rate:.1%}). Consider switching providers or adjusting rate limits.")
+    
+    if quality_score < 0.7:
+        recommendations.append(f"Low quality score ({quality_score:.2f}). Consider adjusting prompts or model parameters.")
+    
+    if quality_score > 0.95:
+        recommendations.append("Excellent quality score. Current configuration is working well.")
+    
+    return recommendations
