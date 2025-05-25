@@ -7,13 +7,13 @@ backlog = 2048
 
 # Worker processes
 workers = 4  # Fixed worker count for better performance
-worker_class = "sync"  # Changed to sync for better stability
-worker_connections = 100  # Reduced connections
-max_requests = 500  # Reduced max requests
-max_requests_jitter = 25
+worker_class = "gevent"  # CRITICAL: Must use gevent because code uses gevent.spawn
+worker_connections = 1000  # Restored for gevent
+max_requests = 1000  # Restored for gevent
+max_requests_jitter = 50
 
 # Worker timeouts
-timeout = 120  # Reduced to 2 minutes for faster response
+timeout = 300  # Increased to 5 minutes for DeepSeek R1 reasoning
 keepalive = 5
 graceful_timeout = 30
 
