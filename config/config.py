@@ -52,7 +52,7 @@ SCREENING_OPTIMIZATION_CONFIG = {
     
     # Request timeout settings (seconds)
     "timeout": {
-        "DeepSeek": 60,         # DeepSeek: No rate limits but may queue
+        "DeepSeek": 120,        # DeepSeek: Increased for reasoner model (2 minutes)
         "OpenAI_ChatGPT": 45,   # Standard timeout
         "Google_Gemini": 60,    # Longer for potential processing delays
         "Anthropic_Claude": 45  # Standard timeout
@@ -70,9 +70,12 @@ SCREENING_OPTIMIZATION_CONFIG = {
     # Rate limiting awareness (requests per minute based on official docs)
     "rate_limits": {
         "DeepSeek": {
-            "rpm": None,        # No official rate limits
-            "tpm": None,        # No token limits
-            "note": "No rate limits but may queue under high load"
+            "rpm": None,        # No rate limits per official documentation
+            "tpm": None,        # No token limits per official documentation
+            "concurrent": None, # No concurrency limits per official documentation
+            "queue_timeout": 1800,  # 30 minutes max queue time per official docs
+            "keep_alive": True, # Supports keep-alive during queuing
+            "note": "No rate limits - unlimited concurrency with queue tolerance up to 30 minutes"
         },
         "OpenAI_ChatGPT": {
             "rpm": 3500,        # Tier 1 limit for GPT-4o mini
@@ -132,7 +135,7 @@ SCREENING_OPTIMIZATION_CONFIG = {
 BATCH_PROCESSING_CONFIG = {
     # Concurrent request limits to respect rate limits
     "concurrent_requests": {
-        "DeepSeek": 10,         # Higher concurrency (no rate limits)
+        "DeepSeek": 50,         # Very high concurrency (no rate limits per official docs)
         "OpenAI_ChatGPT": 5,    # Moderate concurrency
         "Google_Gemini": 8,     # Good concurrency for Tier 1
         "Anthropic_Claude": 2   # Very conservative due to strict limits
@@ -278,26 +281,37 @@ SUPPORTED_LLM_PROVIDERS = {
         "api_key_session_key": "deepseek_api_key_user",
         "base_url_env_var": "DEEPSEEK_API_BASE_URL",
         "default_base_url": "https://api.deepseek.com",
+        "api_requirements": {
+            "content_type": "application/json",
+            "api_key_header": "Authorization",
+            "api_key_format": "Bearer {api_key}",
+            "request_format": "json",
+            "response_format": "json",
+            "openai_compatible": True,
+            "keep_alive_handling": True,  # DeepSeek supports keep-alive during queuing
+            "queue_tolerance": 1800,  # 30 minutes max queue time per official docs
+            "no_rate_limits": True  # DeepSeek has no rate limits per official documentation
+        },
         "models": [
             {
                 "id": "deepseek-chat", 
                 "display_name": "DeepSeek V3", 
                 "type": "chat",
-                "description": "Latest general-purpose model with strong performance across diverse tasks",
-                "context_window": "128K tokens",
-                "pricing": "$0.27/1M input, $1.10/1M output",
-                "recommendation": "Recommended for general use",
-                "strengths": ["Fast inference", "Cost-effective", "Strong coding abilities"]
+                "description": "Latest general-purpose model with strong performance across diverse tasks, no rate limits",
+                "context_window": "64K tokens",
+                "pricing": "$0.14/1M input, $0.28/1M output (standard), 50% off during off-peak hours",
+                "recommendation": "Recommended for general use - unlimited concurrency, no rate limits",
+                "strengths": ["No rate limits", "Cost-effective", "Strong coding abilities", "High concurrency", "Keep-alive support"]
             },
             {
                 "id": "deepseek-reasoner", 
                 "display_name": "DeepSeek R1", 
                 "type": "reasoning",
-                "description": "Advanced reasoning model with chain-of-thought capabilities, rivaling GPT-4o performance",
-                "context_window": "128K tokens",
-                "pricing": "$0.55/1M input, $2.19/1M output",
-                "recommendation": "Best for complex reasoning tasks",
-                "strengths": ["Advanced reasoning", "Chain-of-thought", "Math and science"]
+                "description": "Advanced reasoning model with chain-of-thought capabilities, no rate limits, 32K CoT tokens",
+                "context_window": "64K tokens (32K reasoning + 32K final)",
+                "pricing": "$0.55/1M input, $2.19/1M output (standard), 75% off during off-peak hours",
+                "recommendation": "Best for complex reasoning - unlimited concurrency, no rate limits",
+                "strengths": ["Advanced reasoning", "Chain-of-thought", "No rate limits", "Keep-alive support", "Off-peak discounts"]
             },
         ]
     },
@@ -305,7 +319,55 @@ SUPPORTED_LLM_PROVIDERS = {
         "api_key_env_var": "OPENAI_API_KEY",
         "api_key_session_key": "openai_api_key_user",
         "default_base_url": "https://api.openai.com/v1",
+        "api_requirements": {
+            "content_type": "application/json",
+            "api_key_header": "Authorization",
+            "api_key_format": "Bearer {api_key}",
+            "request_format": "json",
+            "response_format": "json",
+            "openai_compatible": True
+        },
         "models": [
+            {
+                "id": "gpt-4.1-2025-04-14", 
+                "display_name": "GPT-4.1", 
+                "type": "reasoning",
+                "description": "Highly advanced general-purpose model with extensive world knowledge and enhanced user intent understanding",
+                "context_window": "1M tokens",
+                "pricing": "$2.00/1M input, $8.00/1M output",
+                "recommendation": "Best for complex creative tasks and agentic planning",
+                "strengths": ["Creative tasks", "Agentic planning", "Large context", "Advanced reasoning"]
+            },
+            {
+                "id": "gpt-4.1-mini-2025-04-14", 
+                "display_name": "GPT-4.1 Mini", 
+                "type": "chat",
+                "description": "Compact, efficient version of GPT-4.1 for everyday tasks with good performance",
+                "context_window": "1M tokens",
+                "pricing": "$0.40/1M input, $1.60/1M output",
+                "recommendation": "Balanced performance and cost for most tasks",
+                "strengths": ["Cost-effective", "Good performance", "Large context", "Efficient"]
+            },
+            {
+                "id": "gpt-4.1-nano-2025-04-14", 
+                "display_name": "GPT-4.1 Nano", 
+                "type": "chat",
+                "description": "Ultra-efficient model for simple tasks with minimal cost",
+                "context_window": "1M tokens",
+                "pricing": "$0.10/1M input, $0.40/1M output",
+                "recommendation": "Most cost-effective for simple tasks",
+                "strengths": ["Ultra cost-effective", "Fast", "Simple tasks", "High throughput"]
+            },
+            {
+                "id": "o3-mini-2025-01-31", 
+                "display_name": "o3 Mini", 
+                "type": "reasoning",
+                "description": "Fast, cost-efficient reasoning model tailored to coding, math, and science use cases",
+                "context_window": "200K tokens",
+                "pricing": "$1.10/1M input, $4.40/1M output",
+                "recommendation": "Best for coding and math reasoning tasks",
+                "strengths": ["Reasoning", "Coding", "Math", "Science", "Cost-efficient"]
+            },
             {
                 "id": "gpt-4o", 
                 "display_name": "GPT-4o", 
@@ -326,42 +388,76 @@ SUPPORTED_LLM_PROVIDERS = {
                 "recommendation": "Best value for money",
                 "strengths": ["Very cost-effective", "Fast", "Good quality", "Multimodal"]
             },
-            {
-                "id": "gpt-4-turbo", 
-                "display_name": "GPT-4 Turbo", 
-                "type": "reasoning",
-                "description": "High-performance model with enhanced capabilities and large context window",
-                "context_window": "128K tokens",
-                "pricing": "$10.00/1M input, $30.00/1M output",
-                "recommendation": "For complex reasoning tasks",
-                "strengths": ["Large context", "Strong reasoning", "Reliable performance"]
-            },
-            {
-                "id": "gpt-3.5-turbo", 
-                "display_name": "GPT-3.5 Turbo", 
-                "type": "chat",
-                "description": "Fast and efficient model for general conversational tasks",
-                "context_window": "16K tokens",
-                "pricing": "$0.50/1M input, $1.50/1M output",
-                "recommendation": "Budget-friendly option",
-                "strengths": ["Very affordable", "Fast", "Reliable for simple tasks"]
-            },
         ]
     },
     "Google_Gemini": {
         "api_key_env_var": "GEMINI_API_KEY",
         "api_key_session_key": "gemini_api_key_user",
         "default_base_url": "https://generativelanguage.googleapis.com/v1beta",
+        "api_requirements": {
+            "content_type": "application/json",
+            "api_key_header": "x-goog-api-key",
+            "api_key_format": "{api_key}",
+            "request_format": "json",
+            "response_format": "json",
+            "safety_settings_required": True,
+            "safety_settings": [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+            ]
+        },
         "models": [
+            {
+                "id": "gemini-2.5-flash-preview-05-20", 
+                "display_name": "Gemini 2.5 Flash", 
+                "type": "reasoning",
+                "description": "Latest cost-effective model with comprehensive capabilities and adaptive thinking",
+                "context_window": "1M tokens",
+                "pricing": "$0.15/1M input, $0.60/1M output (non-thinking), $3.50/1M output (thinking)",
+                "recommendation": "Best value for most tasks with thinking capabilities",
+                "strengths": ["Cost-effective", "Adaptive thinking", "Multimodal", "Fast", "Preview model"]
+            },
+            {
+                "id": "gemini-2.5-pro-preview-05-06", 
+                "display_name": "Gemini 2.5 Pro", 
+                "type": "reasoning",
+                "description": "Most powerful thinking model with highest accuracy and advanced performance",
+                "context_window": "1M tokens",
+                "pricing": "$1.25/1M input (≤200K), $2.50/1M input (>200K), $10.00/1M output (≤200K), $15.00/1M output (>200K)",
+                "recommendation": "For complex reasoning and highest accuracy requirements",
+                "strengths": ["Highest accuracy", "Advanced reasoning", "Large context", "Thinking model", "Preview model"]
+            },
+            {
+                "id": "gemini-2.0-flash", 
+                "display_name": "Gemini 2.0 Flash", 
+                "type": "multimodal",
+                "description": "Latest multimodal model with next-generation capabilities and enhanced features",
+                "context_window": "1M tokens",
+                "pricing": "$0.10/1M input (text/image/video), $0.70/1M input (audio), $0.40/1M output",
+                "recommendation": "For multimodal tasks and next-gen features",
+                "strengths": ["Next-gen features", "Multimodal", "Real-time streaming", "Agent experience", "Image generation"]
+            },
+            {
+                "id": "gemini-2.0-flash-lite", 
+                "display_name": "Gemini 2.0 Flash Lite", 
+                "type": "chat",
+                "description": "Smallest and most cost-effective model, built for at-scale usage",
+                "context_window": "1M tokens",
+                "pricing": "$0.075/1M input, $0.30/1M output",
+                "recommendation": "Most cost-effective for high-volume usage",
+                "strengths": ["Ultra cost-effective", "High volume", "Fast", "Scalable"]
+            },
             {
                 "id": "gemini-1.5-flash", 
                 "display_name": "Gemini 1.5 Flash", 
                 "type": "chat",
                 "description": "Fast and versatile model for diverse tasks with good performance",
                 "context_window": "1M tokens",
-                "pricing": "$0.075/1M input, $0.30/1M output",
+                "pricing": "$0.075/1M input (≤128K), $0.15/1M input (>128K), $0.30/1M output (≤128K), $0.60/1M output (>128K)",
                 "recommendation": "Best balance of speed and capability",
-                "strengths": ["Fast", "Versatile", "Cost-effective", "Reliable"]
+                "strengths": ["Fast", "Versatile", "Cost-effective", "Reliable", "Stable model"]
             },
             {
                 "id": "gemini-1.5-pro", 
@@ -369,29 +465,9 @@ SUPPORTED_LLM_PROVIDERS = {
                 "type": "reasoning",
                 "description": "High-performance model optimized for complex reasoning tasks",
                 "context_window": "2M tokens",
-                "pricing": "$1.25/1M input, $5.00/1M output",
-                "recommendation": "For complex reasoning and long context",
-                "strengths": ["Very large context", "Strong reasoning", "Multimodal"]
-            },
-            {
-                "id": "gemini-1.0-pro", 
-                "display_name": "Gemini 1.0 Pro", 
-                "type": "reasoning",
-                "description": "Stable and reliable model for general-purpose tasks",
-                "context_window": "32K tokens",
-                "pricing": "$0.50/1M input, $1.50/1M output",
-                "recommendation": "Stable option for production use",
-                "strengths": ["Stable", "Reliable", "Good performance", "Well-tested"]
-            },
-            {
-                "id": "gemini-pro", 
-                "display_name": "Gemini Pro", 
-                "type": "chat",
-                "description": "General-purpose model for everyday tasks",
-                "context_window": "32K tokens",
-                "pricing": "$0.50/1M input, $1.50/1M output",
-                "recommendation": "Good for general use",
-                "strengths": ["Balanced", "Reliable", "Good value", "Stable"]
+                "pricing": "$1.25/1M input (≤128K), $2.50/1M input (>128K), $5.00/1M output (≤128K), $10.00/1M output (>128K)",
+                "recommendation": "For complex reasoning and very long context",
+                "strengths": ["Very large context", "Strong reasoning", "Multimodal", "Stable model"]
             },
         ]
     },
@@ -399,15 +475,55 @@ SUPPORTED_LLM_PROVIDERS = {
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "api_key_session_key": "anthropic_api_key_user",
         "default_base_url": "https://api.anthropic.com",
+        "api_requirements": {
+            "content_type": "application/json",
+            "api_key_header": "x-api-key",
+            "api_key_format": "{api_key}",
+            "request_format": "json",
+            "response_format": "json",
+            "required_headers": ["x-api-key", "content-type"],
+            "anthropic_version": "2023-06-01",  # Latest API version per official docs
+            "special_auth": True  # Claude uses x-api-key instead of Authorization header
+        },
         "models": [
+            {
+                "id": "claude-opus-4-20250514", 
+                "display_name": "Claude Opus 4", 
+                "type": "reasoning",
+                "description": "Our most capable and intelligent model yet with superior reasoning capabilities",
+                "context_window": "200K tokens",
+                "pricing": "$15.00/1M input, $75.00/1M output",
+                "recommendation": "For most demanding and complex tasks",
+                "strengths": ["Highest intelligence", "Superior reasoning", "Advanced coding", "Premium quality"]
+            },
+            {
+                "id": "claude-sonnet-4-20250514", 
+                "display_name": "Claude Sonnet 4", 
+                "type": "reasoning",
+                "description": "High-performance model with exceptional reasoning and efficiency",
+                "context_window": "200K tokens",
+                "pricing": "$3.00/1M input, $15.00/1M output",
+                "recommendation": "Best balance of performance and cost",
+                "strengths": ["High intelligence", "Balanced performance", "Efficient", "Excellent reasoning"]
+            },
+            {
+                "id": "claude-3-7-sonnet-20250219", 
+                "display_name": "Claude Sonnet 3.7", 
+                "type": "reasoning",
+                "description": "High-performance model with early extended thinking capabilities",
+                "context_window": "200K tokens",
+                "pricing": "$3.00/1M input, $15.00/1M output",
+                "recommendation": "For extended thinking tasks",
+                "strengths": ["Extended thinking", "High intelligence", "Good performance", "Reliable"]
+            },
             {
                 "id": "claude-3-5-sonnet-20241022", 
                 "display_name": "Claude 3.5 Sonnet", 
                 "type": "reasoning",
-                "description": "High-performance model with excellent reasoning and coding capabilities",
+                "description": "Previous generation high-performance model with excellent capabilities",
                 "context_window": "200K tokens",
                 "pricing": "$3.00/1M input, $15.00/1M output",
-                "recommendation": "Best overall Claude model",
+                "recommendation": "Stable option for most tasks",
                 "strengths": ["Strong reasoning", "Excellent coding", "Reliable performance", "Good value"]
             },
             {
@@ -419,26 +535,6 @@ SUPPORTED_LLM_PROVIDERS = {
                 "pricing": "$0.80/1M input, $4.00/1M output",
                 "recommendation": "Best for speed and cost efficiency",
                 "strengths": ["Very fast", "Cost-effective", "Good for simple tasks", "High throughput"]
-            },
-            {
-                "id": "claude-3-opus-20240229", 
-                "display_name": "Claude 3 Opus", 
-                "type": "reasoning",
-                "description": "Most capable Claude 3 model for complex reasoning and analysis tasks",
-                "context_window": "200K tokens",
-                "pricing": "$15.00/1M input, $75.00/1M output",
-                "recommendation": "For most demanding tasks",
-                "strengths": ["Highest intelligence", "Complex reasoning", "Premium quality", "Deep analysis"]
-            },
-            {
-                "id": "claude-3-haiku-20240307", 
-                "display_name": "Claude 3 Haiku", 
-                "type": "chat",
-                "description": "Budget-friendly model for simple tasks and quick responses",
-                "context_window": "200K tokens",
-                "pricing": "$0.25/1M input, $1.25/1M output",
-                "recommendation": "Most affordable option",
-                "strengths": ["Very affordable", "Fast", "Good for basic tasks", "Reliable"]
             },
         ]
     }
@@ -1678,8 +1774,8 @@ OPENAI_MODEL_CONFIGS = {
         },
         "cost_per_1k_tokens": {"input": 0.00015, "output": 0.0006}
     },
-    "gpt-4-turbo": {
-        "temperature": 0.1,
+    "gpt-4.1-2025-04-14": {
+        "temperature": 0.1,  # Latest GPT-4.1 model
         "max_tokens": 200,
         "top_p": 0.8,
         "frequency_penalty": 0.1,
@@ -1692,28 +1788,120 @@ OPENAI_MODEL_CONFIGS = {
             "tokens_per_minute": 30000,
             "batch_size": 8
         },
-        "cost_per_1k_tokens": {"input": 0.01, "output": 0.03}
+        "cost_per_1k_tokens": {"input": 0.003, "output": 0.012}  # Estimated pricing
     },
-    "gpt-3.5-turbo": {
-        "temperature": 0.05,
+    "gpt-4.1-mini-2025-04-14": {
+        "temperature": 0.05,  # Mini version for efficiency
         "max_tokens": 200,
         "top_p": 0.7,
         "frequency_penalty": 0.05,
         "presence_penalty": 0.0,
         "timeout": 30,
         "max_retries": 4,
-        "retry_delay": 1.0,
+        "retry_delay": 2.0,
         "rate_limit": {
-            "requests_per_minute": 3500,
-            "tokens_per_minute": 90000,
+            "requests_per_minute": 1000,
+            "tokens_per_minute": 200000,
+            "batch_size": 12
+        },
+        "cost_per_1k_tokens": {"input": 0.0002, "output": 0.0008}  # Estimated pricing
+    },
+    "gpt-4.1-nano-2025-04-14": {
+        "temperature": 0.05,  # Nano version for high-volume tasks
+        "max_tokens": 200,
+        "top_p": 0.7,
+        "frequency_penalty": 0.05,
+        "presence_penalty": 0.0,
+        "timeout": 25,
+        "max_retries": 4,
+        "retry_delay": 1.5,
+        "rate_limit": {
+            "requests_per_minute": 2000,
+            "tokens_per_minute": 400000,
             "batch_size": 15
         },
-        "cost_per_1k_tokens": {"input": 0.0005, "output": 0.0015}
+        "cost_per_1k_tokens": {"input": 0.0001, "output": 0.0004}  # Estimated pricing
+    },
+    "o3-mini-2025-01-31": {
+        "temperature": 0.1,  # O3 reasoning model
+        "max_tokens": 200,
+        "top_p": 0.8,
+        "frequency_penalty": 0.0,
+        "presence_penalty": 0.0,
+        "timeout": 60,  # Higher timeout for reasoning model
+        "max_retries": 3,
+        "retry_delay": 3.0,
+        "rate_limit": {
+            "requests_per_minute": 200,  # Lower rate for reasoning model
+            "tokens_per_minute": 20000,
+            "batch_size": 4
+        },
+        "cost_per_1k_tokens": {"input": 0.005, "output": 0.02}  # Estimated pricing for reasoning model
     }
 }
 
 # Anthropic Claude Model-Specific Configurations
 CLAUDE_MODEL_CONFIGS = {
+    "claude-opus-4-20250514": {
+        "temperature": 0.1,
+        "max_tokens": 200,
+        "top_p": 0.8,
+        "top_k": 40,
+        "timeout": 60,  # Highest timeout for most capable model
+        "max_retries": 5,
+        "retry_delay": 3.0,
+        "rate_limit": {
+            "requests_per_minute": 500,
+            "tokens_per_minute": 40000,
+            "batch_size": 6
+        },
+        "cost_per_1k_tokens": {"input": 0.015, "output": 0.075},
+        "api_specific": {
+            "anthropic_version": "2023-06-01",
+            "content_type": "application/json",
+            "api_key_header": "x-api-key"
+        }
+    },
+    "claude-sonnet-4-20250514": {
+        "temperature": 0.1,
+        "max_tokens": 200,
+        "top_p": 0.8,
+        "top_k": 40,
+        "timeout": 45,
+        "max_retries": 4,
+        "retry_delay": 2.5,
+        "rate_limit": {
+            "requests_per_minute": 1000,
+            "tokens_per_minute": 80000,
+            "batch_size": 10
+        },
+        "cost_per_1k_tokens": {"input": 0.003, "output": 0.015},
+        "api_specific": {
+            "anthropic_version": "2023-06-01",
+            "content_type": "application/json",
+            "api_key_header": "x-api-key"
+        }
+    },
+    "claude-3-7-sonnet-20250219": {
+        "temperature": 0.1,
+        "max_tokens": 200,
+        "top_p": 0.8,
+        "top_k": 40,
+        "timeout": 45,
+        "max_retries": 4,
+        "retry_delay": 2.5,
+        "rate_limit": {
+            "requests_per_minute": 1000,
+            "tokens_per_minute": 80000,
+            "batch_size": 10
+        },
+        "cost_per_1k_tokens": {"input": 0.003, "output": 0.015},
+        "api_specific": {
+            "anthropic_version": "2023-06-01",
+            "content_type": "application/json",
+            "api_key_header": "x-api-key"
+        }
+    },
     "claude-3-5-sonnet-20241022": {
         "temperature": 0.1,
         "max_tokens": 200,
@@ -1727,7 +1915,12 @@ CLAUDE_MODEL_CONFIGS = {
             "tokens_per_minute": 80000,
             "batch_size": 10
         },
-        "cost_per_1k_tokens": {"input": 0.003, "output": 0.015}
+        "cost_per_1k_tokens": {"input": 0.003, "output": 0.015},
+        "api_specific": {
+            "anthropic_version": "2023-06-01",
+            "content_type": "application/json",
+            "api_key_header": "x-api-key"
+        }
     },
     "claude-3-5-haiku-20241022": {
         "temperature": 0.05,  # Lower for faster, more consistent model
@@ -1742,42 +1935,59 @@ CLAUDE_MODEL_CONFIGS = {
             "tokens_per_minute": 100000,
             "batch_size": 15
         },
-        "cost_per_1k_tokens": {"input": 0.0008, "output": 0.004}
-    },
-    "claude-3-opus-20240229": {
-        "temperature": 0.1,
-        "max_tokens": 200,
-        "top_p": 0.8,
-        "top_k": 40,
-        "timeout": 60,  # Highest timeout for most capable model
-        "max_retries": 5,
-        "retry_delay": 3.0,
-        "rate_limit": {
-            "requests_per_minute": 500,
-            "tokens_per_minute": 40000,
-            "batch_size": 6
-        },
-        "cost_per_1k_tokens": {"input": 0.015, "output": 0.075}
-    },
-    "claude-3-haiku-20240307": {
-        "temperature": 0.05,
-        "max_tokens": 200,
-        "top_p": 0.7,
-        "top_k": 30,
-        "timeout": 20,
-        "max_retries": 4,
-        "retry_delay": 1.0,
-        "rate_limit": {
-            "requests_per_minute": 2000,
-            "tokens_per_minute": 100000,
-            "batch_size": 15
-        },
-        "cost_per_1k_tokens": {"input": 0.00025, "output": 0.00125}
+        "cost_per_1k_tokens": {"input": 0.0008, "output": 0.004},
+        "api_specific": {
+            "anthropic_version": "2023-06-01",
+            "content_type": "application/json",
+            "api_key_header": "x-api-key"
+        }
     }
 }
 
 # Google Gemini Model-Specific Configurations
 GEMINI_MODEL_CONFIGS = {
+    "gemini-2.5-flash-preview-05-20": {
+        "temperature": 0.05,  # Very low for fast, consistent screening
+        "max_output_tokens": 200,
+        "top_p": 0.7,
+        "top_k": 30,
+        "timeout": 35,
+        "max_retries": 4,
+        "retry_delay": 2.0,
+        "rate_limit": {
+            "requests_per_minute": 2000,
+            "tokens_per_minute": 1000000,  # High token limit for Flash
+            "batch_size": 20
+        },
+        "cost_per_1k_tokens": {"input": 0.00015, "output": 0.0006},  # Updated pricing for 2.5 Flash
+        "safety_settings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+        ]
+    },
+    "gemini-2.5-pro-preview-05-06": {
+        "temperature": 0.1,
+        "max_output_tokens": 200,
+        "top_p": 0.8,
+        "top_k": 40,
+        "timeout": 60,  # Longer timeout for thinking model
+        "max_retries": 4,
+        "retry_delay": 2.5,
+        "rate_limit": {
+            "requests_per_minute": 360,
+            "tokens_per_minute": 120000,
+            "batch_size": 8
+        },
+        "cost_per_1k_tokens": {"input": 0.00125, "output": 0.01},  # Updated pricing for 2.5 Pro
+        "safety_settings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+        ]
+    },
     "gemini-1.5-flash": {
         "temperature": 0.05,  # Very low for fast, consistent screening
         "max_output_tokens": 200,
@@ -1820,20 +2030,20 @@ GEMINI_MODEL_CONFIGS = {
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
         ]
     },
-    "gemini-1.0-pro": {
-        "temperature": 0.1,
+    "gemini-2.0-flash-lite": {
+        "temperature": 0.05,
         "max_output_tokens": 200,
-        "top_p": 0.8,
-        "top_k": 40,
-        "timeout": 35,
+        "top_p": 0.7,
+        "top_k": 30,
+        "timeout": 30,
         "max_retries": 4,
         "retry_delay": 2.0,
         "rate_limit": {
-            "requests_per_minute": 300,
-            "tokens_per_minute": 32000,
-            "batch_size": 6
+            "requests_per_minute": 2000,
+            "tokens_per_minute": 1000000,
+            "batch_size": 20
         },
-        "cost_per_1k_tokens": {"input": 0.0005, "output": 0.0015},
+        "cost_per_1k_tokens": {"input": 0.000075, "output": 0.0003},
         "safety_settings": [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -1841,20 +2051,20 @@ GEMINI_MODEL_CONFIGS = {
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
         ]
     },
-    "gemini-pro": {
-        "temperature": 0.1,
+    "gemini-2.0-flash": {
+        "temperature": 0.05,
         "max_output_tokens": 200,
-        "top_p": 0.8,
-        "top_k": 40,
-        "timeout": 30,
+        "top_p": 0.7,
+        "top_k": 30,
+        "timeout": 35,
         "max_retries": 4,
         "retry_delay": 2.0,
         "rate_limit": {
-            "requests_per_minute": 300,
-            "tokens_per_minute": 32000,
-            "batch_size": 6
+            "requests_per_minute": 2000,
+            "tokens_per_minute": 1000000,
+            "batch_size": 20
         },
-        "cost_per_1k_tokens": {"input": 0.0005, "output": 0.0015},
+        "cost_per_1k_tokens": {"input": 0.000075, "output": 0.0003},
         "safety_settings": [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -1872,15 +2082,22 @@ DEEPSEEK_MODEL_CONFIGS = {
         "top_p": 0.7,
         "frequency_penalty": 0.0,
         "presence_penalty": 0.0,
-        "timeout": 35,
-        "max_retries": 4,
-        "retry_delay": 2.0,
+        "timeout": 30,  # Optimized timeout for fast responses
+        "max_retries": 3,  # Standard retries since no rate limits
+        "retry_delay": 1.0,  # Shorter delay since no rate limiting
         "rate_limit": {
-            "requests_per_minute": 500,
-            "tokens_per_minute": 50000,
-            "batch_size": 10
+            "requests_per_minute": None,  # No rate limits per official docs
+            "tokens_per_minute": None,  # No token limits
+            "batch_size": 20,  # Higher batch size due to no limits
+            "concurrent_requests": 50  # High concurrency allowed
         },
-        "cost_per_1k_tokens": {"input": 0.00014, "output": 0.00028}
+        "cost_per_1k_tokens": {"input": 0.00014, "output": 0.00028},
+        "keep_alive_handling": True,  # Handle keep-alive responses
+        "queue_tolerance": 1800,  # 30 minutes max wait as per docs
+        "connection_timeout": 10,  # Faster connection timeout
+        "read_timeout": 30,  # Faster read timeout for normal requests
+        "fast_mode": True,  # Enable fast mode for API key testing
+        "performance_optimized": True  # Enable performance optimizations
     },
     "deepseek-reasoner": {  # DeepSeek-R1
         "temperature": None,  # Not supported for reasoning model
@@ -1888,22 +2105,27 @@ DEEPSEEK_MODEL_CONFIGS = {
         "top_p": None,  # Not supported
         "frequency_penalty": None,  # Not supported
         "presence_penalty": None,  # Not supported
-        "timeout": 60,  # Conservative 60 seconds to avoid network conflicts
-        "max_retries": 1,  # Minimal retries for faster failure
-        "retry_delay": 2.0,  # Short delay between retries
-        "max_delay": 10.0,  # Maximum delay between retries
+        "timeout": 120,  # Increased timeout for reasoning tasks (2 minutes)
+        "max_retries": 2,  # Limited retries for reasoning model
+        "retry_delay": 3.0,  # Optimized delay for reasoning model
+        "max_delay": 30.0,  # Maximum delay between retries
         "rate_limit": {
-            "requests_per_minute": 30,  # Very conservative RPM
-            "tokens_per_minute": 10000,
-            "batch_size": 1  # Single request processing for maximum stability
+            "requests_per_minute": None,  # No rate limits per official docs
+            "tokens_per_minute": None,  # No token limits
+            "batch_size": 5,  # Smaller batch for reasoning model
+            "concurrent_requests": 10  # Moderate concurrency for reasoning
         },
         "cost_per_1k_tokens": {"input": 0.00055, "output": 0.0022},
         "reasoning_effort": "medium",  # Future parameter
         "max_reasoning_tokens": 32000,  # CoT can be up to 32K tokens
-        "enhanced_timeout_handling": False,  # Disabled complex timeout handling
-        "adaptive_timeout": False,  # Disabled adaptive timeout
-        "connection_timeout": 10,  # Very short connection timeout
-        "read_timeout": 60  # Aligned with main timeout
+        "keep_alive_handling": True,  # Handle keep-alive responses
+        "queue_tolerance": 1800,  # 30 minutes max wait as per docs
+        "connection_timeout": 10,  # Faster connection timeout
+        "read_timeout": 60,  # Optimized read timeout for reasoning
+        "enhanced_timeout_handling": False,  # Keep disabled for stability
+        "adaptive_timeout": False,  # Keep disabled for stability
+        "fast_mode": True,  # Enable fast mode for API key testing
+        "performance_optimized": True  # Enable performance optimizations
     }
 }
 

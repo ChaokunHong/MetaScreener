@@ -742,10 +742,44 @@ def _call_gemini_api(full_prompt: str, model_id: str, api_key: str) -> Dict[str,
                         safety_settings=new_safety_settings
                     )
                 )
-                if hasattr(response, 'text') and response.text:
-                    return _parse_llm_response(response.text)
-                else:
-                    return {"label": "API_ERROR", "justification": "No text content in Gemini response"}
+                # Fixed response parsing for new Google Gen AI SDK
+                # The new SDK has a different response structure
+                try:
+                    # Method 1: Try candidates[0].content.parts[0].text (most reliable)
+                    if hasattr(response, 'candidates') and response.candidates:
+                        candidate = response.candidates[0]
+                        if hasattr(candidate, 'content') and candidate.content:
+                            if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                                for part in candidate.content.parts:
+                                    if hasattr(part, 'text') and part.text:
+                                        return _parse_llm_response(part.text)
+                    
+                    # Method 2: Try response.text (if available)
+                    if hasattr(response, 'text') and response.text:
+                        return _parse_llm_response(response.text)
+                    
+                    # Method 3: Try response.candidates[0].text (alternative structure)
+                    if hasattr(response, 'candidates') and response.candidates:
+                        candidate = response.candidates[0]
+                        if hasattr(candidate, 'text') and candidate.text:
+                            return _parse_llm_response(candidate.text)
+                    
+                    # If all methods fail, return detailed error
+                    error_details = []
+                    if hasattr(response, 'candidates') and response.candidates:
+                        candidate = response.candidates[0]
+                        error_details.append(f"Candidate finish_reason: {getattr(candidate, 'finish_reason', 'unknown')}")
+                        if hasattr(candidate, 'safety_ratings'):
+                            error_details.append(f"Safety ratings: {candidate.safety_ratings}")
+                    
+                    if hasattr(response, 'prompt_feedback'):
+                        error_details.append(f"Prompt feedback: {response.prompt_feedback}")
+                    
+                    return {"label": "API_ERROR", "justification": f"Gemini response has no text content. {'; '.join(error_details)}"}
+                    
+                except Exception as e:
+                    utils_logger.exception("Error parsing Gemini response")
+                    return {"label": "API_ERROR", "justification": f"Error parsing Gemini response: {str(e)}"}
                     
             else:
                 # Use legacy google.generativeai SDK with optimized parameters
@@ -1021,10 +1055,45 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
                             ]
                         )
                     )
-                    if hasattr(response, 'text') and response.text:
-                        raw_content = response.text
-                    else:
-                        error_info = "No text content in Gemini response"
+                    # Fixed response parsing for new Google Gen AI SDK
+                    try:
+                        # Method 1: Try candidates[0].content.parts[0].text (most reliable)
+                        if hasattr(response, 'candidates') and response.candidates:
+                            candidate = response.candidates[0]
+                            if hasattr(candidate, 'content') and candidate.content:
+                                if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                                    for part in candidate.content.parts:
+                                        if hasattr(part, 'text') and part.text:
+                                            raw_content = part.text
+                                            break
+                        
+                        # Method 2: Try response.text (if available)
+                        if not raw_content and hasattr(response, 'text') and response.text:
+                            raw_content = response.text
+                        
+                        # Method 3: Try response.candidates[0].text (alternative structure)
+                        if not raw_content and hasattr(response, 'candidates') and response.candidates:
+                            candidate = response.candidates[0]
+                            if hasattr(candidate, 'text') and candidate.text:
+                                raw_content = candidate.text
+                        
+                        # If no content found, set error
+                        if not raw_content:
+                            error_details = []
+                            if hasattr(response, 'candidates') and response.candidates:
+                                candidate = response.candidates[0]
+                                error_details.append(f"Candidate finish_reason: {getattr(candidate, 'finish_reason', 'unknown')}")
+                                if hasattr(candidate, 'safety_ratings'):
+                                    error_details.append(f"Safety ratings: {candidate.safety_ratings}")
+                            
+                            if hasattr(response, 'prompt_feedback'):
+                                error_details.append(f"Prompt feedback: {response.prompt_feedback}")
+                            
+                            error_info = f"Gemini response has no text content. {'; '.join(error_details)}"
+                            
+                    except Exception as e:
+                        utils_logger.exception("Error parsing Gemini raw response")
+                        error_info = f"Error parsing Gemini response: {str(e)}"
                         
                 else:
                     # Use legacy google.generativeai SDK
@@ -1035,11 +1104,22 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
                     
                     response = model.generate_content(contents=[{"role": "user", "parts": [{"text": full_prompt}]}], generation_config=config, safety_settings=safety)
                     
-                    if response.parts: 
+                    # Try multiple ways to extract text from legacy SDK response
+                    if hasattr(response, 'text') and response.text:
+                        raw_content = response.text
+                    elif hasattr(response, 'parts') and response.parts: 
                         raw_content = "".join(part.text for part in response.parts if hasattr(part, 'text'))
+                    elif hasattr(response, 'candidates') and response.candidates:
+                        candidate = response.candidates[0]
+                        if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                            raw_content = "".join(part.text for part in candidate.content.parts if hasattr(part, 'text'))
+                        else:
+                            error_info = f"No content in candidate. Finish Reason: {candidate.finish_reason.name if hasattr(candidate, 'finish_reason') else 'Unknown'}"
                     else: 
-                        error_info = f"No parts in response. Finish Reason: {response.candidates[0].finish_reason.name if response.candidates else 'Unknown'}"
-                    if response.prompt_feedback and response.prompt_feedback.block_reason: 
+                        error_info = f"No text content in response. Finish Reason: {response.candidates[0].finish_reason.name if response.candidates else 'Unknown'}"
+                    
+                    # Check for prompt blocking
+                    if hasattr(response, 'prompt_feedback') and response.prompt_feedback and hasattr(response.prompt_feedback, 'block_reason') and response.prompt_feedback.block_reason: 
                         error_info = f"Prompt blocked: {response.prompt_feedback.block_reason}"
 
         elif provider_name == "Anthropic_Claude":
