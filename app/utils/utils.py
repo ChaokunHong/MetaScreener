@@ -249,36 +249,84 @@ def call_llm_api(prompt_data: Dict[str, str], provider_name: str, model_id: str,
 
 
 def _parse_llm_response(message_content: str) -> Dict[str, str]:
+    """
+    Enhanced LLM response parser that supports multiple modern LLM response formats.
+    
+    Supports formats from OpenAI, Claude, Gemini, and other providers.
+    """
     label, justification = "PARSE_ERROR", "Could not parse justification."
-    label_match = re.search(r"^\s*LABEL:\s*(INCLUDE|EXCLUDE|MAYBE)\s*$", message_content, re.I | re.M)
-    just_match = re.search(r"^\s*Justification:\s*(.*)$", message_content,
-                           re.I | re.M | re.S)  # re.S for multiline justification
-
-    if label_match:
-        label = label_match.group(1).upper()
-        if just_match:
-            justification = just_match.group(1).strip()
-        else:  # Try to grab text after label line if "Justification:" prefix is missing
-            lines = message_content.splitlines()
-            try:
-                label_line_idx = next(i for i, line in enumerate(lines) if re.match(r"^\s*LABEL:\s*", line, re.I))
-                just_lines = [line.strip() for line in lines[label_line_idx + 1:] if line.strip()]
-                if just_lines:
-                    justification = " ".join(just_lines)
-                else:
-                    justification = "Justification missing or not formatted after LABEL."
-            except StopIteration:  # Should not happen if label_match was successful
-                justification = "Justification format error after LABEL."
-    elif "INCLUDE" in message_content.upper():
-        label = "INCLUDE"  # Basic fallback
-    elif "EXCLUDE" in message_content.upper():
-        label = "EXCLUDE"
-    elif "MAYBE" in message_content.upper():
-        label = "MAYBE"
-
+    
+    # Clean the response content
+    content = message_content.strip()
+    
+    # Try multiple label formats (in order of preference)
+    label_patterns = [
+        r"^\s*LABEL:\s*(INCLUDE|EXCLUDE|MAYBE)\s*$",  # Original format
+        r"^\s*Decision:\s*(INCLUDE|EXCLUDE|MAYBE)\s*$",  # Decision format
+        r"^\s*Result:\s*(INCLUDE|EXCLUDE|MAYBE)\s*$",  # Result format
+        r"^\s*(INCLUDE|EXCLUDE|MAYBE)\s*$",  # Direct format
+        r"^\s*\*\*(INCLUDE|EXCLUDE|MAYBE)\*\*\s*$",  # Markdown bold format
+        r"(INCLUDE|EXCLUDE|MAYBE)",  # Any position (last resort)
+    ]
+    
+    # Try multiple justification formats
+    justification_patterns = [
+        r"^\s*Justification:\s*(.+)$",  # Original format
+        r"^\s*Reasoning:\s*(.+)$",  # Reasoning format
+        r"^\s*Explanation:\s*(.+)$",  # Explanation format
+        r"^\s*Because:\s*(.+)$",  # Because format
+        r"^\s*Rationale:\s*(.+)$",  # Rationale format
+        r"^\s*Analysis:\s*(.+)$",  # Analysis format
+    ]
+    
+    # Find label
+    for pattern in label_patterns:
+        match = re.search(pattern, content, re.I | re.M)
+        if match:
+            label = match.group(1).upper()
+            break
+    
+    # Find justification
+    for pattern in justification_patterns:
+        match = re.search(pattern, content, re.I | re.M | re.S)
+        if match:
+            justification = match.group(1).strip()
+            break
+    
+    # If no justification found, try to extract content after label line
+    if justification == "Could not parse justification." and label != "PARSE_ERROR":
+        lines = content.splitlines()
+        for i, line in enumerate(lines):
+            if any(re.search(pattern, line, re.I) for pattern in label_patterns):
+                # Found label line, extract subsequent content
+                remaining_lines = [l.strip() for l in lines[i+1:] if l.strip()]
+                if remaining_lines:
+                    justification = " ".join(remaining_lines)
+                break
+    
+    # If still no justification, try to extract non-label content
+    if justification == "Could not parse justification.":
+        lines = content.splitlines()
+        non_label_lines = []
+        for line in lines:
+            # Skip lines that contain only labels
+            if not any(re.search(pattern, line, re.I) for pattern in label_patterns):
+                if line.strip():
+                    non_label_lines.append(line.strip())
+        
+        if non_label_lines:
+            justification = " ".join(non_label_lines)
+        elif label != "PARSE_ERROR":
+            justification = f"Decision: {label} (no detailed reasoning provided)"
+        else:
+            justification = f"Raw response: {content[:200]}..."
+    
+    # Log parsing issues for debugging
     if label == "PARSE_ERROR":
-        utils_logger.warning(f"Parse Error: Could not extract LABEL. Response snippet: '{message_content[:200]}...'")
-        justification = f"Original unparsed response: {message_content[:200]}..."
+        utils_logger.warning(f"Parse Error: Could not extract LABEL. Response snippet: '{content[:200]}...'")
+    elif justification.startswith("Raw response:"):
+        utils_logger.warning(f"Justification parsing issue for label {label}. Response: '{content[:100]}...'")
+    
     return {"label": label, "justification": justification}
 
 
@@ -786,7 +834,17 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
             else: error_info = f"No choices/message in response: {res_json}"
 
         elif provider_name == "Google_Gemini":
-            if genai is None:
+            # Import genai here to ensure it's available
+            try:
+                if GEMINI_SDK_VERSION == "new":
+                    from google import genai as gemini_client
+                else:
+                    import google.generativeai as gemini_client
+            except ImportError:
+                error_info = "Google Gemini SDK not installed"
+                gemini_client = None
+            
+            if gemini_client is None:
                 error_info = "Google Gemini SDK not installed"
             else:
                 full_prompt = f"{system_prompt}\n\n{main_prompt}" if system_prompt else main_prompt
@@ -794,7 +852,7 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
                 if GEMINI_SDK_VERSION == "new":
                     # Use new Google Gen AI SDK
                     from google.genai import types
-                    client = genai.Client(api_key=api_key)
+                    client = gemini_client.Client(api_key=api_key)
                     response = client.models.generate_content(
                         model=model_id,
                         contents=full_prompt,
@@ -816,9 +874,9 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
                         
                 else:
                     # Use legacy google.generativeai SDK
-                    genai.configure(api_key=api_key)
-                    model = genai.GenerativeModel(model_id)
-                    config = genai.types.GenerationConfig(max_output_tokens=max_tokens, temperature=temperature)
+                    gemini_client.configure(api_key=api_key)
+                    model = gemini_client.GenerativeModel(model_id)
+                    config = gemini_client.types.GenerationConfig(max_output_tokens=max_tokens, temperature=temperature)
                     safety = [{"category": c, "threshold": "BLOCK_NONE"} for c in ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"]]
                     
                     response = model.generate_content(contents=[{"role": "user", "parts": [{"text": full_prompt}]}], generation_config=config, safety_settings=safety)
@@ -831,15 +889,53 @@ def call_llm_api_raw_content(prompt_data: Dict[str, str], provider_name: str, mo
                         error_info = f"Prompt blocked: {response.prompt_feedback.block_reason}"
 
         elif provider_name == "Anthropic_Claude":
-            client = Anthropic(api_key=api_key, base_url=base_url or SUPPORTED_LLM_PROVIDERS["Anthropic_Claude"]["default_base_url"])
-            # Claude doesn't have explicit JSON mode via API param AFAIK, rely on prompt.
-            response = client.messages.create(
-                 model=model_id, max_tokens=max_tokens, temperature=temperature,
-                 system=system_prompt or DEFAULT_SYSTEM_PROMPT, 
-                 messages=[{"role": "user", "content": main_prompt}]
-             )
-            if response.content and response.content[0].type == "text": raw_content = response.content[0].text
-            else: error_info = f"No text content. Stop reason: {response.stop_reason}"
+            # Use the optimized Claude API function with proper error handling
+            try:
+                # Get model-specific configuration
+                model_config = get_optimized_parameters("Anthropic_Claude", model_id, "screening")
+                timeout_config = model_config.get("timeout", 30)
+                
+                client = Anthropic(
+                    api_key=api_key, 
+                    base_url=base_url or SUPPORTED_LLM_PROVIDERS["Anthropic_Claude"]["default_base_url"],
+                    timeout=timeout_config
+                )
+                
+                # Build request parameters with optimized settings
+                request_params = {
+                    "model": model_id,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                    "system": system_prompt or DEFAULT_SYSTEM_PROMPT,
+                    "messages": [{"role": "user", "content": main_prompt}]
+                }
+                
+                # Add Claude-specific parameters if available
+                if model_config.get("top_p") is not None:
+                    request_params["top_p"] = model_config["top_p"]
+                if model_config.get("top_k") is not None:
+                    request_params["top_k"] = model_config["top_k"]
+                if model_config.get("stop_sequences"):
+                    request_params["stop_sequences"] = model_config["stop_sequences"]
+                
+                response = client.messages.create(**request_params)
+                
+                if response.content and response.content[0].type == "text": 
+                    raw_content = response.content[0].text
+                else: 
+                    error_info = f"No text content. Stop reason: {response.stop_reason}"
+                    
+            except Exception as claude_error:
+                # Handle Claude-specific errors more gracefully
+                error_msg = str(claude_error)
+                if "403" in error_msg or "forbidden" in error_msg.lower():
+                    error_info = f"Claude API access forbidden. Check API key, account balance, and permissions: {error_msg}"
+                elif "401" in error_msg or "unauthorized" in error_msg.lower():
+                    error_info = f"Claude API authentication failed. Check API key: {error_msg}"
+                elif "429" in error_msg or "rate limit" in error_msg.lower():
+                    error_info = f"Claude API rate limit exceeded: {error_msg}"
+                else:
+                    error_info = f"Claude API error: {error_msg}"
         
         else:
             error_info = f"Unsupported provider for raw content: {provider_name}"
