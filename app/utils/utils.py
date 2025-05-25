@@ -437,8 +437,32 @@ Dict[str, str]:
                     utils_logger.warning(f"{provider_name} rate limited on attempt {attempt + 1}, retrying in {delay:.2f}s")
                     time.sleep(delay)
                     continue
+            
+            # Enhanced network error handling for N/A status
+            if e.response is None:
+                error_type = type(e).__name__
+                error_details = {
+                    "ConnectionError": "网络连接失败 - 检查DNS/防火墙",
+                    "SSLError": "SSL/TLS错误 - 检查证书配置", 
+                    "Timeout": "网络超时 - 检查网络稳定性",
+                    "ProxyError": "代理错误 - 检查代理配置"
+                }
+                
+                diagnostic_msg = error_details.get(error_type, f"网络错误 ({error_type})")
+                details = f"{diagnostic_msg}: {str(e)}"
+                
+                # 记录详细的网络诊断信息
+                utils_logger.error(f"Network diagnostic - Provider: {provider_name}, Error: {error_type}, Details: {str(e)}")
+                
+                # 对于网络层面错误，使用更激进的重试
+                if attempt < max_retries:
+                    delay = min(base_delay * (3 ** attempt), 120)  # 指数退避，最多2分钟
+                    utils_logger.warning(f"{provider_name} network error on attempt {attempt + 1}, retrying in {delay:.2f}s")
+                    time.sleep(delay)
+                    continue
+            else:
+                details = str(e.response.text[:200])
                     
-            details = str(e.response.text[:200]) if e.response is not None else str(e)
             return {"label": f"API_HTTP_ERROR_{status}", "justification": f"{provider_name} HTTP Error {status}: {details}"}
             
         except Exception as e:
