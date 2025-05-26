@@ -62,7 +62,7 @@
         }
         
         .actions-cell {
-            min-width: 120px;
+            min-width: 180px;
         }
         
         .history-stats {
@@ -130,6 +130,18 @@
                     Quality Assessment History
                     <small class="text-muted">(Last 24 Hours)</small>
                 </h2>
+                
+                <!-- View Toggle -->
+                <div class="btn-group mb-3" role="group" aria-label="View toggle">
+                    <a href="{{ url_for('quality_assessment.quality_assessment_history', view='individual') }}" 
+                       class="btn btn-{{ 'light-purple' if view_type == 'individual' else 'outline-light-purple' }}">
+                        <i class="fas fa-file-alt"></i> Individual Assessments
+                    </a>
+                    <a href="{{ url_for('quality_assessment.quality_assessment_history', view='batch') }}" 
+                       class="btn btn-{{ 'light-purple' if view_type == 'batch' else 'outline-light-purple' }}">
+                        <i class="fas fa-layer-group"></i> Batch Assessments
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -179,6 +191,18 @@
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead class="thead-light">
+                    {% if view_type == 'batch' %}
+                    <tr>
+                        <th>Batch ID</th>
+                        <th>Total Files</th>
+                        <th>Completed</th>
+                        <th>Processing</th>
+                        <th>Failed</th>
+                        <th>Avg Quality Score</th>
+                        <th>Created Time</th>
+                        <th>Actions</th>
+                    </tr>
+                    {% else %}
                     <tr>
                         <th>Filename</th>
                         <th>Document Type</th>
@@ -189,9 +213,96 @@
                         <th>Data Source</th>
                         <th>Actions</th>
                     </tr>
+                    {% endif %}
                 </thead>
                 <tbody>
                     {% for record in history_records %}
+                    {% if view_type == 'batch' %}
+                    <tr>
+                        <!-- Batch ID -->
+                        <td>
+                            <i class="fas fa-layer-group text-primary"></i>
+                            <strong>{{ record.batch_id[:8] }}...</strong>
+                            <br><small class="text-muted">{{ record.total_files }} files</small>
+                        </td>
+                        
+                        <!-- Total Files -->
+                        <td class="text-center">
+                            <span class="badge badge-info">{{ record.total_files }}</span>
+                        </td>
+                        
+                        <!-- Completed -->
+                        <td class="text-center">
+                            <span class="badge badge-success">{{ record.completed_count }}</span>
+                        </td>
+                        
+                        <!-- Processing -->
+                        <td class="text-center">
+                            {% if record.processing_count > 0 %}
+                                <span class="badge badge-warning">{{ record.processing_count }}</span>
+                            {% else %}
+                                <span class="text-muted">0</span>
+                            {% endif %}
+                        </td>
+                        
+                        <!-- Failed -->
+                        <td class="text-center">
+                            {% if record.error_count > 0 %}
+                                <span class="badge badge-danger">{{ record.error_count }}</span>
+                            {% else %}
+                                <span class="text-muted">0</span>
+                            {% endif %}
+                        </td>
+                        
+                        <!-- Avg Quality Score -->
+                        <td class="text-center">
+                            {% if record.avg_quality_score is not none %}
+                                <span class="quality-score 
+                                    {% if record.avg_quality_score >= 80 %}score-excellent
+                                    {% elif record.avg_quality_score >= 70 %}score-good
+                                    {% elif record.avg_quality_score >= 60 %}score-fair
+                                    {% else %}score-poor{% endif %}">
+                                    {{ record.avg_quality_score }}%
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        
+                        <!-- Created Time -->
+                        <td>
+                            <small>{{ record.created_at_formatted }}</small>
+                        </td>
+                        
+                        <!-- Actions -->
+                        <td class="actions-cell">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('quality_assessment.view_batch_results', batch_id=record.batch_id) }}" 
+                                   class="btn btn-outline-light-purple btn-sm"
+                                   title="View batch results">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                                {% if record.completed_count > 0 %}
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-success btn-sm dropdown-toggle" 
+                                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                            title="Download batch package (Data + Report)">
+                                        <i class="fas fa-file-download"></i> Package
+                                    </button>
+                                    <div class="dropdown-menu">
+                                        <a class="dropdown-item" href="{{ url_for('quality_assessment.download_batch_package', batch_id=record.batch_id, format='xlsx') }}">
+                                            <i class="fas fa-file-excel text-success"></i> Excel + PDF
+                                        </a>
+                                        <a class="dropdown-item" href="{{ url_for('quality_assessment.download_batch_package', batch_id=record.batch_id, format='csv') }}">
+                                            <i class="fas fa-file-csv text-info"></i> CSV + PDF
+                                        </a>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
                     <tr>
                         <!-- Filename -->
                         <td class="filename-cell" title="{{ record.filename }}">
@@ -275,21 +386,44 @@
                         <!-- Actions -->
                         <td class="actions-cell">
                             <div class="btn-group btn-group-sm" role="group">
+                                <!-- View Results Button -->
                                 <a href="{{ url_for('quality_assessment.view_assessment_result', assessment_id=record.assessment_id) }}" 
                                    class="btn btn-outline-light-purple btn-sm"
-                                   title="View detailed results">
-                                    <i class="fas fa-eye"></i>
+                                   title="View detailed assessment results">
+                                    <i class="fas fa-eye"></i> View
                                 </a>
+                                
+                                <!-- Status Check Button (only for processing items) -->
                                 {% if record.status in ['processing_assessment', 'pending_assessment', 'pending_text_extraction', 'pending_celery'] %}
-                                <button class="btn btn-outline-light-purple btn-sm" 
+                                <button class="btn btn-outline-warning btn-sm" 
                                         onclick="checkStatus('{{ record.assessment_id }}')"
-                                        title="Check status">
-                                    <i class="fas fa-sync"></i>
+                                        title="Refresh processing status">
+                                    <i class="fas fa-sync"></i> Refresh
                                 </button>
+                                {% endif %}
+                                
+                                <!-- Download Package Button (only for completed assessments) -->
+                                {% if record.status == 'completed' %}
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-success btn-sm dropdown-toggle" 
+                                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                            title="Download assessment package (Data + Report)">
+                                        <i class="fas fa-file-download"></i> Package
+                                    </button>
+                                    <div class="dropdown-menu">
+                                        <a class="dropdown-item" href="{{ url_for('quality_assessment.download_assessment_package', assessment_id=record.assessment_id, format='xlsx') }}">
+                                            <i class="fas fa-file-excel text-success"></i> Excel + PDF
+                                        </a>
+                                        <a class="dropdown-item" href="{{ url_for('quality_assessment.download_assessment_package', assessment_id=record.assessment_id, format='csv') }}">
+                                            <i class="fas fa-file-csv text-info"></i> CSV + PDF
+                                        </a>
+                                    </div>
+                                </div>
                                 {% endif %}
                             </div>
                         </td>
                     </tr>
+                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>
@@ -312,11 +446,12 @@
                 <div class="alert alert-info">
                     <h6><i class="fas fa-info-circle"></i> Usage Instructions</h6>
                     <ul class="mb-0">
-                        <li>History shows all quality assessments from the last 24 hours</li>
-                        <li>Click <i class="fas fa-eye"></i> to view detailed assessment results</li>
-                        <li>Quality scores are calculated based on passed criteria: Green(≥80%), Blue(70-79%), Yellow(60-69%), Red(<60%)</li>
-                        <li>Processing assessments will auto-update status, or click <i class="fas fa-sync"></i> to manually check</li>
-                        <li>Data will be automatically cleaned up after 24 hours</li>
+                        <li><strong>History Records:</strong> Shows all quality assessments from the last 24 hours</li>
+                        <li><strong><i class="fas fa-eye"></i> View:</strong> View detailed assessment results and quality analysis reports</li>
+                        <li><strong><i class="fas fa-sync"></i> Refresh:</strong> Manually check processing status (only shown for processing items)</li>
+                        <li><strong><i class="fas fa-file-download"></i> Package:</strong> Download complete assessment package with data file (Excel/CSV) + beautiful PDF report (only shown for completed assessments)</li>
+                        <li><strong>Quality Scores:</strong> Calculated based on passed criteria - Green(≥80%), Blue(70-79%), Yellow(60-69%), Red(<60%)</li>
+                        <li><strong>Auto-refresh:</strong> Processing assessments auto-update status, data retained for 24 hours then auto-cleaned</li>
                     </ul>
                 </div>
             </div>
@@ -330,51 +465,61 @@
             // Show loading state
             const button = event.target.closest('button');
             const originalContent = button.innerHTML;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
             button.disabled = true;
             
             // Make API call to check status
             fetch(`/quality/assessment_status/${assessmentId}`)
                 .then(response => response.json())
                 .then(data => {
-                    if (data.status === 'completed' || data.status === 'error') {
-                        // Reload page to show updated status
-                        window.location.reload();
+                    if (data.status === 'completed') {
+                        showToast(`Assessment ${assessmentId} completed! Refreshing page...`, 'success');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else if (data.status === 'error') {
+                        showToast(`Assessment ${assessmentId} failed. Refreshing page...`, 'error');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
                     } else {
                         // Reset button
                         button.innerHTML = originalContent;
                         button.disabled = false;
                         
-                        // Show toast notification
-                        showToast(`Status: ${data.status}`, 'info');
+                        // Show current status
+                        const statusText = data.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        showToast(`Assessment ${assessmentId}: ${statusText}`, 'info');
                     }
                 })
                 .catch(error => {
                     console.error('Error checking status:', error);
                     button.innerHTML = originalContent;
                     button.disabled = false;
-                    showToast('Failed to check status', 'error');
+                    showToast('Failed to check status. Please try again.', 'error');
                 });
         }
         
         function showToast(message, type = 'info') {
-            // Simple toast notification
+            // Better positioned toast notification
+            const toastId = 'toast-' + Date.now();
             const toast = $(`
-                <div class="alert alert-${type === 'error' ? 'danger' : 'info'} alert-dismissible fade show" 
-                     style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+                <div id="${toastId}" class="alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show" 
+                     style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                    <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 'check-circle'}"></i>
                     ${message}
-                    <button type="button" class="close" data-dismiss="alert">
-                        <span>&times;</span>
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
             `);
             
             $('body').append(toast);
             
-            // Auto-dismiss after 3 seconds
+            // Auto-dismiss after 4 seconds
             setTimeout(() => {
-                toast.alert('close');
-            }, 3000);
+                $(`#${toastId}`).alert('close');
+            }, 4000);
         }
         
         // Auto-refresh for processing items every 30 seconds

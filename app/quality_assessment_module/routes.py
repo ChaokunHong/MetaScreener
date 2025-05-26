@@ -8,6 +8,7 @@ from typing import Optional # Added for type hint
 
 # We will also need to import services and forms later
 from .services import process_uploaded_document, quick_upload_document, get_assessment_result, QUALITY_ASSESSMENT_TOOLS, _assessments_db, QA_PDF_UPLOAD_DIR, register_celery_item, _generate_safe_assessment_id, _save_assessment_to_redis, _save_assessments_to_file
+from config.config import get_api_key_for_provider, get_base_url_for_provider
 # from .forms import DocumentUploadForm, AssessmentReviewForm 
 
 # Import Redis storage utilities
@@ -58,11 +59,8 @@ def quality_assessment_main():
 @quality_bp.route('/upload', methods=['GET', 'POST'])
 def upload_document_for_assessment():
     if request.method == 'POST':
-        # Check if using quick upload mode
-        upload_mode = request.form.get('upload_mode', 'quick')  # Default to quick mode
-        
         uploaded_files = request.files.getlist("pdf_files")
-        current_app.logger.info(f"BATCH_UPLOAD: Received {len(uploaded_files)} files in {upload_mode} mode.")
+        current_app.logger.info(f"BATCH_UPLOAD: Received {len(uploaded_files)} files.")
         
         if not uploaded_files or not any(f.filename for f in uploaded_files):
             flash('No PDF files selected or all files are empty.', 'error')
@@ -74,37 +72,9 @@ def upload_document_for_assessment():
         failed_uploads = []
         assessment_ids_in_batch = []
 
-        # Quick mode optimization: defer heavy operations
-        if upload_mode == 'quick':
-            return handle_ultra_quick_upload(uploaded_files, selected_document_type, successful_uploads, failed_uploads, assessment_ids_in_batch)
+        # Use optimized upload processing
+        return handle_ultra_quick_upload(uploaded_files, selected_document_type, successful_uploads, failed_uploads, assessment_ids_in_batch)
 
-        # Traditional mode processing (unchanged)
-        for file_storage in uploaded_files:
-            if file_storage and file_storage.filename and allowed_file(file_storage.filename):
-                original_filename = secure_filename(file_storage.filename)
-                try:
-                    file_storage.stream.seek(0)
-                    
-                    # Traditional sync mode (kept for compatibility)
-                    assessment_id = process_uploaded_document(file_storage.stream, original_filename, selected_document_type, dict(session))
-                    current_app.logger.info(f"BATCH_UPLOAD: Traditional upload completed for {original_filename} (ID: {assessment_id})")
-                    
-                    current_assessment_status = _assessments_db.get(assessment_id, {}).get('status')
-                    if assessment_id and current_assessment_status not in ['error']:
-                        successful_uploads.append(original_filename)
-                        assessment_ids_in_batch.append(assessment_id)
-                        current_app.logger.info(f"BATCH_UPLOAD: Successfully processed and queued {original_filename} (ID: {assessment_id}).")
-                    else:
-                        failed_uploads.append(original_filename)
-                        current_app.logger.warning(f"BATCH_UPLOAD: Failed to queue {original_filename} (assessment_id: {assessment_id}, status: {current_assessment_status}).")
-                except Exception as e:
-                    current_app.logger.error(f"BATCH_UPLOAD: Error processing uploaded file {original_filename} in batch: {e}", exc_info=True)
-                    failed_uploads.append(original_filename)
-            elif file_storage and file_storage.filename:
-                failed_uploads.append(secure_filename(file_storage.filename) + " (invalid type)")
-                current_app.logger.warning(f"BATCH_UPLOAD: Skipped file {secure_filename(file_storage.filename)} due to invalid type.")
-        
-        return handle_upload_results(successful_uploads, failed_uploads, assessment_ids_in_batch, uploaded_files)
             
     return render_template('quality_assessment_upload.html', assessment_tools_info=QUALITY_ASSESSMENT_TOOLS)
 
@@ -144,7 +114,7 @@ def handle_ultra_quick_upload(uploaded_files, selected_document_type, successful
                 "saved_pdf_filename": None,
                 "raw_text": None,
                 "assessment_details": [],
-                "upload_mode": "ultra_quick"
+
             }
             
             # Save to Redis for cross-process access
@@ -178,7 +148,7 @@ def handle_ultra_quick_upload(uploaded_files, selected_document_type, successful
         "original_attempt_count": len(uploaded_files),
         "successful_filenames": successful_uploads,
         "failed_filenames": failed_uploads,
-        "upload_mode": "ultra_quick"
+
     }
     
     # Step 3: Quick Redis save (use pipeline for efficiency)
@@ -196,6 +166,7 @@ def handle_ultra_quick_upload(uploaded_files, selected_document_type, successful
     
     # Step 4: Spawn async task for heavy I/O operations (non-blocking)
     # Pass the current app to the async function for context
+    from gevent import spawn
     spawn(process_files_async, current_app._get_current_object(), temp_file_mapping, selected_document_type, batch_id, dict(session))
     
     # Step 5: Immediate redirect (no waiting for file I/O)
@@ -259,8 +230,34 @@ def process_files_async(app, temp_file_mapping, selected_document_type, batch_id
                 # Schedule background processing with existing ID
                 from app.quality_assessment_module.services import run_background_processing
                 from config.config import get_current_llm_config
+                from gevent import spawn
                 
-                spawn(run_background_processing, assessment_id, current_app.app_context(), get_current_llm_config(session_data))
+                # Get LLM config and ensure it's valid
+                llm_config = get_current_llm_config(session_data)
+                
+                # Ensure all required fields are present
+                if llm_config:
+                    provider_name = llm_config.get('provider_name')
+                    api_key_val = get_api_key_for_provider(provider_name, session_data)
+                    base_url = get_base_url_for_provider(provider_name)
+                    
+                    complete_llm_config = {
+                        "provider_name": provider_name,
+                        "model_id": llm_config.get('model_id'),
+                        "base_url": base_url,
+                        "api_key": api_key_val
+                    }
+                    
+                    current_app.logger.info(f"ASYNC_PROCESSOR: Starting background processing for {assessment_id} with complete LLM config")
+                    spawn(run_background_processing, assessment_id, current_app.app_context(), complete_llm_config)
+                else:
+                    current_app.logger.error(f"ASYNC_PROCESSOR: No LLM config available for {assessment_id}")
+                    # Update assessment status to error
+                    if assessment_id in _assessments_db:
+                        _assessments_db[assessment_id]["status"] = "error"
+                        _assessments_db[assessment_id]["message"] = "LLM configuration not available"
+                        _assessments_db[assessment_id]["progress"]["message"] = "Configuration error"
+                        _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
                 
                 current_app.logger.info(f"ASYNC_PROCESSOR: Completed processing {file_info['filename']} (ID: {assessment_id})")
                 
@@ -703,6 +700,15 @@ def get_batch_summary(batch_id):
 # --- NEW: Quality Assessment History Route --- #
 @quality_bp.route('/history')
 def quality_assessment_history():
+    """View history of all quality assessments and batches from the last 24 hours"""
+    view_type = request.args.get('view', 'individual')  # 'individual' or 'batch'
+    
+    if view_type == 'batch':
+        return quality_assessment_batch_history()
+    else:
+        return quality_assessment_individual_history()
+
+def quality_assessment_individual_history():
     """View history of all quality assessments from the last 24 hours"""
     current_app.logger.info("QA_HISTORY: Accessing quality assessment history page")
     
@@ -717,6 +723,17 @@ def quality_assessment_history():
     # Get from memory storage first
     for assessment_id, assessment_data in _assessments_db.items():
         created_time = assessment_data.get('created_at', 0)
+        
+        # If no created_at timestamp, include all recent assessments (assume they're recent)
+        # or use current time as fallback for very recent assessments
+        if created_time == 0:
+            # For assessments without timestamp, check if they have recent activity
+            status = assessment_data.get('status', 'Unknown')
+            if status in ['pending_text_extraction', 'processing_assessment', 'uploading', 'error']:
+                created_time = current_time  # Treat as current for recent activity
+            else:
+                created_time = current_time - (12 * 60 * 60)  # Assume 12 hours ago for completed ones
+        
         if created_time >= twenty_four_hours_ago:
             history_records.append({
                 'assessment_id': assessment_id,
@@ -749,6 +766,14 @@ def quality_assessment_history():
                 if serialized_data:
                     assessment_data = pickle.loads(serialized_data)
                     created_time = assessment_data.get('created_at', 0)
+                    
+                    # If no created_at timestamp, include recent assessments
+                    if created_time == 0:
+                        status = assessment_data.get('status', 'Unknown')
+                        if status in ['pending_text_extraction', 'processing_assessment', 'uploading', 'error']:
+                            created_time = current_time  # Treat as current for recent activity
+                        else:
+                            created_time = current_time - (12 * 60 * 60)  # Assume 12 hours ago for completed ones
                     
                     if created_time >= twenty_four_hours_ago:
                         history_records.append({
@@ -783,6 +808,96 @@ def quality_assessment_history():
     
     return render_template('quality_assessment_history.html', 
                          history_records=history_records,
+                         view_type='individual',
+                         QUALITY_ASSESSMENT_TOOLS=QUALITY_ASSESSMENT_TOOLS)
+
+def quality_assessment_batch_history():
+    """View history of batch assessments from the last 24 hours"""
+    current_app.logger.info("QA_BATCH_HISTORY: Accessing batch history page")
+    
+    # Get batch records from Redis
+    from app.quality_assessment_module.redis_storage import get_redis_client
+    import time
+    
+    batch_records = []
+    current_time = time.time()
+    twenty_four_hours_ago = current_time - (24 * 60 * 60)
+    
+    try:
+        redis_client = get_redis_client()
+        batch_keys = redis_client.keys("qa_batch:*")
+        
+        for key in batch_keys:
+            if isinstance(key, bytes):
+                key = key.decode('utf-8')
+            batch_id = key.replace("qa_batch:", "")
+            
+            try:
+                import json
+                batch_data_str = redis_client.get(key)
+                if batch_data_str:
+                    if isinstance(batch_data_str, bytes):
+                        batch_data_str = batch_data_str.decode('utf-8')
+                    batch_data = json.loads(batch_data_str)
+                    
+                    # Get creation time (use current time if not available)
+                    created_time = batch_data.get('created_at', current_time - (2 * 60 * 60))  # Default to 2 hours ago
+                    
+                    if created_time >= twenty_four_hours_ago:
+                        # Get assessment details for this batch
+                        assessment_ids = batch_data.get('assessment_ids', [])
+                        completed_count = 0
+                        processing_count = 0
+                        error_count = 0
+                        total_quality_score = 0
+                        quality_scores = []
+                        
+                        for assessment_id in assessment_ids:
+                            result_data = get_assessment_result(assessment_id)
+                            if result_data:
+                                status = result_data.get('status', 'unknown')
+                                if status == 'completed':
+                                    completed_count += 1
+                                    total_criteria = result_data.get('summary_total_criteria_evaluated', 0)
+                                    negative_findings = result_data.get('summary_negative_findings', 0)
+                                    if total_criteria > 0:
+                                        score = round((total_criteria - negative_findings) / total_criteria * 100, 1)
+                                        quality_scores.append(score)
+                                elif status in ['processing_assessment', 'pending_assessment', 'pending_text_extraction']:
+                                    processing_count += 1
+                                elif status == 'error':
+                                    error_count += 1
+                        
+                        avg_quality_score = round(sum(quality_scores) / len(quality_scores), 1) if quality_scores else None
+                        
+                        batch_records.append({
+                            'batch_id': batch_id,
+                            'total_files': len(assessment_ids),
+                            'completed_count': completed_count,
+                            'processing_count': processing_count,
+                            'error_count': error_count,
+                            'avg_quality_score': avg_quality_score,
+                            'created_at': created_time,
+                            'created_at_formatted': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(created_time)),
+                            'status': batch_data.get('status', 'unknown'),
+                            'successful_filenames': batch_data.get('successful_filenames', [])
+                        })
+                        
+            except Exception as e:
+                current_app.logger.warning(f"QA_BATCH_HISTORY: Error processing batch {batch_id}: {e}")
+                continue
+                
+    except Exception as e:
+        current_app.logger.error(f"QA_BATCH_HISTORY: Error accessing Redis: {e}")
+    
+    # Sort by creation time (newest first)
+    batch_records.sort(key=lambda x: x['created_at'], reverse=True)
+    
+    current_app.logger.info(f"QA_BATCH_HISTORY: Found {len(batch_records)} batch records from last 24 hours")
+    
+    return render_template('quality_assessment_history.html', 
+                         history_records=batch_records,
+                         view_type='batch',
                          QUALITY_ASSESSMENT_TOOLS=QUALITY_ASSESSMENT_TOOLS)
 
 # We will need more routes:
@@ -889,129 +1004,1282 @@ def view_batch_results(batch_id):
                            overall_stats=overall_stats,
                            QUALITY_ASSESSMENT_TOOLS=QUALITY_ASSESSMENT_TOOLS)
 
-# --- NEW: Batch Results Download --- #
-@quality_bp.route('/download_batch_results/<batch_id>/<format>')
-def download_batch_results(batch_id, format):
-    """Download batch results in various formats (CSV, Excel, JSON)"""
+# --- NEW: Download Individual Assessment Package (Data + Report) --- #
+@quality_bp.route('/download_report/<assessment_id>/<format>')
+def download_assessment_package(assessment_id, format):
+    """Download assessment package: data file (Excel/CSV) + beautiful PDF report"""
     import pandas as pd
     import io
+    import zipfile
+    import tempfile
+    import os
     from flask import send_file
+    from datetime import datetime
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    from reportlab.lib.utils import ImageReader
+    
+    # Get assessment data
+    result_data = get_assessment_result(assessment_id)
+    if not result_data or result_data.get("status") != "completed":
+        flash("Assessment report not available.", 'error')
+        return redirect(url_for('.quality_assessment_history'))
+    
+    try:
+        # Prepare basic information
+        filename = result_data.get('filename', 'Unknown')
+        doc_type = result_data.get('document_type', 'Unknown')
+        tool_name = QUALITY_ASSESSMENT_TOOLS.get(doc_type, {}).get('tool_name', 'Standard Assessment')
+        
+        # Calculate summary
+        total_criteria = result_data.get("summary_total_criteria_evaluated", 0)
+        negative_findings = result_data.get("summary_negative_findings", 0)
+        quality_score = round((total_criteria - negative_findings) / total_criteria * 100, 1) if total_criteria > 0 else 0
+        
+        # Generate safe filename
+        safe_filename = filename.replace('.pdf', '').replace(' ', '_').replace('/', '_')
+        
+        # Create temporary directory for package files
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # 1. Generate beautiful PDF report
+            pdf_filename = f"assessment_report_{safe_filename}_{assessment_id}.pdf"
+            pdf_path = os.path.join(temp_dir, pdf_filename)
+            create_beautiful_pdf_report(pdf_path, result_data, assessment_id, filename, doc_type, tool_name, total_criteria, negative_findings, quality_score)
+            
+            # 2. Generate data file (CSV or Excel)
+            if format == 'csv':
+                data_filename = f"assessment_data_{safe_filename}_{assessment_id}.csv"
+                data_path = os.path.join(temp_dir, data_filename)
+                create_csv_data_file(data_path, result_data, assessment_id, filename, doc_type, tool_name, total_criteria, negative_findings, quality_score)
+            else:  # xlsx
+                data_filename = f"assessment_data_{safe_filename}_{assessment_id}.xlsx"
+                data_path = os.path.join(temp_dir, data_filename)
+                create_excel_data_file(data_path, result_data, assessment_id, filename, doc_type, tool_name, total_criteria, negative_findings, quality_score)
+            
+            # 3. Create ZIP package
+            zip_filename = f"assessment_package_{safe_filename}_{assessment_id}.zip"
+            zip_path = os.path.join(temp_dir, zip_filename)
+            
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                zipf.write(pdf_path, pdf_filename)
+                zipf.write(data_path, data_filename)
+                
+                # Add README file
+                readme_content = f"""AI-Powered Literature Quality Assessment Package
+===============================================
+
+This package contains:
+1. {pdf_filename} - Professional assessment report with quality interpretation and recommendations
+2. {data_filename} - Complete assessment data with detailed criteria evaluation
+
+ASSESSMENT SUMMARY:
+- Document: {filename}
+- Assessment ID: {assessment_id}
+- Quality Score: {quality_score}%
+- Quality Rating: {'Excellent' if quality_score >= 80 else 'Good' if quality_score >= 70 else 'Fair' if quality_score >= 60 else 'Poor'}
+- Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+QUALITY SCORE INTERPRETATION:
+- 80-100%: Excellent - High quality, minimal methodological concerns
+- 70-79%:  Good - Good quality with minor limitations  
+- 60-69%:  Fair - Moderate quality with some issues
+- 0-59%:   Poor - Low quality with significant concerns
+
+USAGE RECOMMENDATIONS:
+- Review the PDF report for comprehensive quality analysis
+- Use the data file for further statistical analysis or integration
+- Consider the quality rating when including in systematic reviews
+
+Generated by AI-Powered Literature Quality Assessment Platform
+"""
+                readme_path = os.path.join(temp_dir, "README.txt")
+                with open(readme_path, 'w', encoding='utf-8') as f:
+                    f.write(readme_content)
+                zipf.write(readme_path, "README.txt")
+            
+            # 4. Send ZIP file
+            return send_file(
+                zip_path,
+                mimetype='application/zip',
+                as_attachment=True,
+                download_name=zip_filename
+            )
+            
+    except Exception as e:
+        current_app.logger.error(f"Error generating assessment package for {assessment_id}: {e}")
+        flash(f"Error generating assessment package: {str(e)}", 'error')
+        return redirect(url_for('.view_assessment_result', assessment_id=assessment_id))
+
+def create_beautiful_pdf_report(pdf_path, result_data, assessment_id, filename, doc_type, tool_name, total_criteria, negative_findings, quality_score):
+    """Create a beautiful PDF report with logo and professional formatting"""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    from reportlab.graphics.shapes import Drawing, Rect
+    from reportlab.graphics.charts.piecharts import Pie
+    from reportlab.graphics import renderPDF
+    from datetime import datetime
+    
+    doc = SimpleDocTemplate(pdf_path, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
+    story = []
+    styles = getSampleStyleSheet()
+    
+    # Custom styles with Times New Roman font
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=30,
+        textColor=colors.HexColor('#6b46c1'),
+        alignment=1,
+        fontName='Times-Bold'
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Heading2'],
+        fontSize=16,
+        spaceAfter=20,
+        textColor=colors.HexColor('#4a5568'),
+        fontName='Times-Bold'
+    )
+    
+    # Header with logo only
+    try:
+        # Add logo
+        png_logo_path = '/Users/hongchaokun/Desktop/screen_webapp/app/static/images/Meta_Screener_LOGO.png'
+        if os.path.exists(png_logo_path):
+            logo = Image(png_logo_path, width=3*inch, height=1.2*inch)
+            logo.hAlign = 'CENTER'
+            story.append(logo)
+            story.append(Spacer(1, 30))
+        else:
+            # Fallback to text if no logo image
+            story.append(Paragraph("Quality Assessment Report", ParagraphStyle('Brand', parent=styles['Normal'], fontSize=18, textColor=colors.HexColor('#6b46c1'), alignment=1, fontName='Times-Bold')))
+            story.append(Spacer(1, 30))
+    except Exception as e:
+        # Fallback to text if logo loading fails
+        story.append(Paragraph("Quality Assessment Report", ParagraphStyle('Brand', parent=styles['Normal'], fontSize=18, textColor=colors.HexColor('#6b46c1'), alignment=1, fontName='Times-Bold')))
+        story.append(Spacer(1, 30))
+    
+    # Title
+    story.append(Paragraph("Quality Assessment Report", title_style))
+    story.append(Spacer(1, 20))
+    
+    # Document info table
+    doc_info = [
+        ['Document Name:', filename],
+        ['Assessment ID:', assessment_id],
+        ['Document Type:', doc_type],
+        ['Assessment Tool:', tool_name],
+        ['Report Generated:', datetime.now().strftime('%B %d, %Y at %H:%M:%S')],
+    ]
+    
+    doc_table = Table(doc_info, colWidths=[2.5*inch, 3.5*inch])
+    doc_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f3f0ff')),  # Light purple background
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#2d3748')),
+        ('FONTNAME', (0, 0), (0, -1), 'Times-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Times-Roman'),
+        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('PADDING', (0, 0), (-1, -1), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#c7d2fe')),  # Purple border
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#6b46c1')),  # Purple text for labels
+    ]))
+    
+    story.append(doc_table)
+    story.append(Spacer(1, 30))
+    
+    # Quality score section with visual
+    story.append(Paragraph("Assessment Summary", subtitle_style))
+    
+    # Create quality score visualization
+    quality_rating = 'Excellent' if quality_score >= 80 else 'Good' if quality_score >= 70 else 'Fair' if quality_score >= 60 else 'Poor'
+    score_color = colors.HexColor('#48bb78') if quality_score >= 80 else colors.HexColor('#4299e1') if quality_score >= 70 else colors.HexColor('#ed8936') if quality_score >= 60 else colors.HexColor('#e53e3e')
+    
+    summary_data = [
+        ['Overall Quality Score:', f"{quality_score}% ({quality_rating})"],
+        ['Total Criteria Evaluated:', str(total_criteria)],
+        ['Criteria Passed:', str(total_criteria - negative_findings)],
+        ['Criteria Failed:', str(negative_findings)],
+    ]
+    
+    summary_table = Table(summary_data, colWidths=[3*inch, 2*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f3f0ff')),  # Light purple background
+        ('BACKGROUND', (1, 0), (1, 0), score_color),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#2d3748')),
+        ('TEXTCOLOR', (1, 0), (1, 0), colors.white),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#6b46c1')),  # Purple text for labels
+        ('FONTNAME', (0, 0), (-1, -1), 'Times-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('PADDING', (0, 0), (-1, -1), 15),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#c7d2fe')),  # Purple border
+        ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+    ]))
+    
+    story.append(summary_table)
+    story.append(Spacer(1, 30))
+    
+    # Skip detailed results as they are available in Excel file
+    
+    # Add quality score interpretation and recommendations
+    story.append(Spacer(1, 30))
+    story.append(Paragraph("Quality Score Interpretation & Recommendations", subtitle_style))
+    
+    # Create compact interpretation table
+    interpretation_data = [
+        ['Score', 'Rating', 'Interpretation & Recommendation']
+    ]
+    
+    score_ranges = [
+        ('80-100%', 'Excellent', 'High quality study with minimal concerns. Include with high confidence.'),
+        ('70-79%', 'Good', 'Good quality with minor limitations. Include with moderate confidence.'),
+        ('60-69%', 'Fair', 'Moderate quality with some issues. Include with caution, note limitations.'),
+        ('0-59%', 'Poor', 'Low quality with significant concerns. Consider exclusion or major caveats.')
+    ]
+    
+    for score_range, rating, interpretation in score_ranges:
+        interpretation_data.append([score_range, rating, interpretation])
+    
+    # Convert text to Paragraph objects for automatic wrapping
+    wrapped_interpretation_data = [interpretation_data[0]]  # Keep header as is
+    for i, row in enumerate(interpretation_data[1:], 1):
+        wrapped_row = [
+            row[0],  # Score range - keep as text
+            row[1],  # Rating - keep as text
+            Paragraph(row[2], ParagraphStyle('CellText', parent=styles['Normal'], fontSize=9, leading=11))  # Wrap long text
+        ]
+        wrapped_interpretation_data.append(wrapped_row)
+    
+    interpretation_table = Table(wrapped_interpretation_data, colWidths=[1.2*inch, 1.3*inch, 4*inch])
+    interpretation_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#6b46c1')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('FONTSIZE', (0, 1), (1, -1), 9),  # Only apply to non-paragraph cells
+        ('PADDING', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        # Enhanced color coding with purple theme
+        ('BACKGROUND', (0, 1), (1, 1), colors.HexColor('#d4edda')),  # Excellent - light green
+        ('BACKGROUND', (0, 2), (1, 2), colors.HexColor('#cce7ff')),  # Good - light blue  
+        ('BACKGROUND', (0, 3), (1, 3), colors.HexColor('#fff0cd')),  # Fair - light yellow
+        ('BACKGROUND', (0, 4), (1, 4), colors.HexColor('#ffe6e6')),  # Poor - light red
+        # Add subtle purple accent to rating column
+        ('TEXTCOLOR', (1, 1), (1, -1), colors.HexColor('#6b46c1')),
+        ('FONTNAME', (1, 1), (1, -1), 'Helvetica-Bold'),
+    ]))
+    
+    story.append(interpretation_table)
+    
+    # Add specific recommendations based on current assessment quality score
+    story.append(Spacer(1, 20))
+    
+    # Determine current assessment quality rating
+    current_rating = 'Poor'
+    if quality_score >= 80:
+        current_rating = 'Excellent'
+        recommendation_text = "This study demonstrates excellent methodological quality. It can be included in your systematic review with high confidence. The findings are likely to be reliable and contribute significantly to your evidence synthesis."
+    elif quality_score >= 70:
+        current_rating = 'Good'
+        recommendation_text = "This study shows good methodological quality with only minor limitations. It should be included in your systematic review with moderate confidence. Consider noting any identified limitations in your quality assessment summary."
+    elif quality_score >= 60:
+        current_rating = 'Fair'
+        recommendation_text = "This study has moderate methodological quality with some concerns. Include it in your review but exercise caution when interpreting results. Clearly document the limitations and consider their impact on your conclusions."
+    else:
+        current_rating = 'Poor'
+        recommendation_text = "This study has significant methodological limitations that may affect the reliability of its findings. Consider excluding it from your primary analysis or include it only in sensitivity analyses with appropriate caveats."
+    
+    story.append(Paragraph(f"Assessment for This Document ({quality_score}% - {current_rating})", 
+                          ParagraphStyle('RecTitle', parent=styles['Heading3'], fontSize=12, textColor=colors.HexColor('#4a5568'), fontName='Times-Bold')))
+    story.append(Paragraph(recommendation_text, 
+                          ParagraphStyle('RecText', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor('#2d3748'), leftIndent=20, rightIndent=20, fontName='Times-Roman')))
+    
+    # Footer
+    story.append(Spacer(1, 30))
+    story.append(Paragraph("Generated by AI-Powered Literature Quality Assessment Platform", 
+                          ParagraphStyle('Footer', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor('#718096'), alignment=1)))
+    
+    doc.build(story)
+
+def create_csv_data_file(csv_path, result_data, assessment_id, filename, doc_type, tool_name, total_criteria, negative_findings, quality_score):
+    """Create CSV data file with headers"""
+    import pandas as pd
+    from datetime import datetime
+    
+    # Prepare detailed data
+    export_data = []
+    assessment_details = result_data.get("assessment_details", [])
+    
+    if isinstance(assessment_details, list) and assessment_details:
+        for i, detail in enumerate(assessment_details, 1):
+            row_data = {
+                'Document_Name': filename,
+                'Assessment_ID': assessment_id,
+                'Document_Type': doc_type,
+                'Assessment_Tool': tool_name,
+                'Total_Criteria': total_criteria,
+                'Criteria_Passed': total_criteria - negative_findings,
+                'Criteria_Failed': negative_findings,
+                'Quality_Score_Percent': quality_score,
+                'Criterion_Number': i,
+                'Criterion_Text': detail.get('criterion_text', 'No criterion text'),
+                'AI_Judgment': detail.get('judgment', 'No judgment'),
+                'AI_Reasoning': detail.get('reason', 'No reasoning provided'),
+                'Generated_Date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+            export_data.append(row_data)
+    
+    df = pd.DataFrame(export_data)
+    
+    with open(csv_path, 'w', encoding='utf-8-sig') as f:
+        # Add comprehensive header information with purple theme
+        f.write("# ═══════════════════════════════════════════════════════════════\n")
+        f.write("# 🔬 AI-Powered Literature Quality Assessment - Individual Results\n")
+        f.write("# ═══════════════════════════════════════════════════════════════\n")
+        f.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write("#\n")
+        f.write("# 📊 ASSESSMENT SUMMARY\n")
+        f.write(f"# Document Name: {filename}\n")
+        f.write(f"# Assessment ID: {assessment_id}\n")
+        f.write(f"# Quality Score: {quality_score}%\n")
+        f.write(f"# Quality Rating: {'Excellent' if quality_score >= 80 else 'Good' if quality_score >= 70 else 'Fair' if quality_score >= 60 else 'Poor'}\n")
+        f.write(f"# Total Criteria: {total_criteria}\n")
+        f.write(f"# Criteria Passed: {total_criteria - negative_findings}\n")
+        f.write(f"# Criteria Failed: {negative_findings}\n")
+        f.write("#\n")
+        f.write("# 🎯 QUALITY SCORE INTERPRETATION\n")
+        f.write("# 80-100%: Excellent - High quality, minimal concerns\n")
+        f.write("# 70-79%:  Good - Good quality, minor limitations\n")
+        f.write("# 60-69%:  Fair - Moderate quality, some issues\n")
+        f.write("# 0-59%:   Poor - Low quality, significant concerns\n")
+        f.write("#\n")
+        f.write("# 📋 DETAILED ASSESSMENT DATA\n")
+        f.write("# Each row represents one assessment criterion\n")
+        f.write("# ═══════════════════════════════════════════════════════════════\n")
+        f.write("#\n")
+        
+        # Write the actual data
+        df.to_csv(f, index=False)
+
+def create_excel_data_file(excel_path, result_data, assessment_id, filename, doc_type, tool_name, total_criteria, negative_findings, quality_score):
+    """Create Excel data file with formatting"""
+    import pandas as pd
+    from datetime import datetime
+    
+    # Prepare detailed data
+    export_data = []
+    assessment_details = result_data.get("assessment_details", [])
+    
+    if isinstance(assessment_details, list) and assessment_details:
+        for i, detail in enumerate(assessment_details, 1):
+            row_data = {
+                'Document_Name': filename,
+                'Assessment_ID': assessment_id,
+                'Document_Type': doc_type,
+                'Assessment_Tool': tool_name,
+                'Total_Criteria': total_criteria,
+                'Criteria_Passed': total_criteria - negative_findings,
+                'Criteria_Failed': negative_findings,
+                'Quality_Score_Percent': quality_score,
+                'Criterion_Number': i,
+                'Criterion_Text': detail.get('criterion_text', 'No criterion text'),
+                'AI_Judgment': detail.get('judgment', 'No judgment'),
+                'AI_Reasoning': detail.get('reason', 'No reasoning provided'),
+                'Generated_Date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+            export_data.append(row_data)
+    
+    df = pd.DataFrame(export_data)
+    
+    with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
+        # Enhanced Summary sheet
+        summary_data = {
+            'Metric': [
+                'Document Name',
+                'Assessment ID', 
+                'Quality Score',
+                'Quality Rating',
+                'Total Criteria',
+                'Criteria Passed',
+                'Criteria Failed',
+                'Generated Date'
+            ],
+            'Value': [
+                filename,
+                assessment_id,
+                f"{quality_score}%",
+                'Excellent' if quality_score >= 80 else 'Good' if quality_score >= 70 else 'Fair' if quality_score >= 60 else 'Poor',
+                total_criteria,
+                total_criteria - negative_findings,
+                negative_findings,
+                datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            ]
+        }
+        summary_df = pd.DataFrame(summary_data)
+        summary_df.to_excel(writer, index=False, sheet_name='Summary', startrow=2)
+        
+        # Detailed assessment data
+        df.to_excel(writer, index=False, sheet_name='Detailed Results')
+        
+        # Quality interpretation guide
+        guide_data = {
+            'Quality Score Range': ['80-100%', '70-79%', '60-69%', '0-59%'],
+            'Rating': ['Excellent', 'Good', 'Fair', 'Poor'],
+            'Interpretation': [
+                'High quality study with minimal methodological concerns',
+                'Good quality study with minor limitations',
+                'Moderate quality study with some methodological issues',
+                'Low quality study with significant methodological concerns'
+            ],
+            'Recommendation': [
+                'Include in systematic review with high confidence',
+                'Include in systematic review with moderate confidence',
+                'Include with caution, note limitations in analysis',
+                'Consider exclusion or include with major caveats'
+            ]
+        }
+        guide_df = pd.DataFrame(guide_data)
+        guide_df.to_excel(writer, index=False, sheet_name='Interpretation Guide')
+        
+        # Format the Excel file with purple theme
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.utils import get_column_letter
+        
+        # Format Summary sheet
+        summary_ws = writer.sheets['Summary']
+        summary_ws['A1'] = 'AI-Powered Literature Quality Assessment - Individual Results'
+        summary_ws['A1'].font = Font(name='Times New Roman', size=16, bold=True, color='6b46c1')
+        summary_ws['A1'].alignment = Alignment(horizontal='center')
+        summary_ws.merge_cells('A1:B1')
+        
+        # Header formatting with purple theme and Times New Roman font
+        header_fill = PatternFill(start_color='6b46c1', end_color='6b46c1', fill_type='solid')
+        header_font = Font(name='Times New Roman', color='FFFFFF', bold=True)
+        
+        for col in ['A', 'B']:
+            cell = summary_ws[f'{col}3']
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+        
+        # Format Detailed Results sheet
+        detail_ws = writer.sheets['Detailed Results']
+        
+        # Header formatting for detailed results
+        for col_num in range(1, len(df.columns) + 1):
+            cell = detail_ws.cell(row=1, column=col_num)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+        
+        # Format Interpretation Guide sheet
+        guide_ws = writer.sheets['Interpretation Guide']
+        
+        # Header formatting for guide
+        for col_num in range(1, len(guide_df.columns) + 1):
+            cell = guide_ws.cell(row=1, column=col_num)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+        
+        # Color code the quality ratings in guide (same as individual)
+        quality_colors = {
+            'Excellent': PatternFill(start_color='d4edda', end_color='d4edda', fill_type='solid'),
+            'Good': PatternFill(start_color='cce7ff', end_color='cce7ff', fill_type='solid'),
+            'Fair': PatternFill(start_color='fff0cd', end_color='fff0cd', fill_type='solid'),
+            'Poor': PatternFill(start_color='ffe6e6', end_color='ffe6e6', fill_type='solid')
+        }
+        
+        for row_num in range(2, len(guide_df) + 2):
+            rating_cell = guide_ws.cell(row=row_num, column=2)
+            rating = rating_cell.value
+            if rating in quality_colors:
+                for col_num in range(1, len(guide_df.columns) + 1):
+                    guide_ws.cell(row=row_num, column=col_num).fill = quality_colors[rating]
+        
+        # Color code quality scores in detailed results based on Overall_Quality_Score_Percent
+        if 'Overall_Quality_Score_Percent' in df.columns:
+            score_col_idx = df.columns.get_loc('Overall_Quality_Score_Percent') + 1
+            for row_num in range(2, len(df) + 2):
+                score_cell = detail_ws.cell(row=row_num, column=score_col_idx)
+                try:
+                    score_value = float(str(score_cell.value).replace('%', ''))
+                    if score_value >= 80:
+                        score_cell.fill = PatternFill(start_color='d4edda', end_color='d4edda', fill_type='solid')
+                    elif score_value >= 70:
+                        score_cell.fill = PatternFill(start_color='cce7ff', end_color='cce7ff', fill_type='solid')
+                    elif score_value >= 60:
+                        score_cell.fill = PatternFill(start_color='fff0cd', end_color='fff0cd', fill_type='solid')
+                    else:
+                        score_cell.fill = PatternFill(start_color='ffe6e6', end_color='ffe6e6', fill_type='solid')
+                except:
+                    pass
+        
+        # Color code the quality ratings in guide
+        quality_colors = {
+            'Excellent': PatternFill(start_color='d4edda', end_color='d4edda', fill_type='solid'),
+            'Good': PatternFill(start_color='cce7ff', end_color='cce7ff', fill_type='solid'),
+            'Fair': PatternFill(start_color='fff0cd', end_color='fff0cd', fill_type='solid'),
+            'Poor': PatternFill(start_color='ffe6e6', end_color='ffe6e6', fill_type='solid')
+        }
+        
+        for row_num in range(2, len(guide_df) + 2):
+            rating_cell = guide_ws.cell(row=row_num, column=2)
+            rating = rating_cell.value
+            if rating in quality_colors:
+                for col_num in range(1, len(guide_df.columns) + 1):
+                    guide_ws.cell(row=row_num, column=col_num).fill = quality_colors[rating]
+        
+        # Auto-adjust column widths and set font/alignment
+        for sheet_name in writer.sheets:
+            worksheet = writer.sheets[sheet_name]
+            for col_num in range(1, worksheet.max_column + 1):
+                max_length = 0
+                column_letter = get_column_letter(col_num)
+                
+                # Set Times New Roman font and wrap text for all cells
+                for row_num in range(1, worksheet.max_row + 1):
+                    try:
+                        cell = worksheet.cell(row=row_num, column=col_num)
+                        if cell.value:
+                            # Set Times New Roman font for all cells
+                            if row_num == 1:  # Header row
+                                cell.font = Font(name='Times New Roman', bold=True, color='FFFFFF' if cell.fill.start_color.rgb == 'FF6b46c1' else '000000')
+                            else:
+                                cell.font = Font(name='Times New Roman')
+                            
+                            # Enable text wrapping for all cells
+                            cell.alignment = Alignment(wrap_text=True, vertical='top')
+                            
+                            # Calculate max length for column width
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(str(cell.value))
+                    except:
+                        pass
+                
+                # Set column width with special handling for document name columns
+                if 'Document' in str(worksheet.cell(row=1, column=col_num).value) or 'Name' in str(worksheet.cell(row=1, column=col_num).value):
+                    adjusted_width = min(max_length + 2, 50)  # Limit document name column width
+                else:
+                    adjusted_width = min(max_length + 2, 80)
+                
+                if adjusted_width > 8:
+                    worksheet.column_dimensions[column_letter].width = adjusted_width
+                
+                # Set row height to accommodate wrapped text
+                for row_num in range(2, worksheet.max_row + 1):
+                    worksheet.row_dimensions[row_num].height = None  # Auto-adjust height
+
+# --- NEW: Batch Assessment Package Download --- #
+@quality_bp.route('/download_batch_package/<batch_id>/<format>')
+def download_batch_package(batch_id, format):
+    """Download batch assessment package: data file (Excel/CSV) + beautiful PDF report"""
+    import pandas as pd
+    import zipfile
+    import tempfile
+    import os
+    from flask import send_file
+    from datetime import datetime
     
     batch_info = get_batch_info(batch_id)
     if not batch_info:
         flash("Batch assessment not found.", 'error')
         return redirect(url_for('.upload_document_for_assessment'))
     
-    # Prepare data for export
+    try:
+        # Create temporary directory for package files
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # 1. Generate beautiful batch PDF report
+            pdf_filename = f"batch_report_{batch_id[:8]}.pdf"
+            pdf_path = os.path.join(temp_dir, pdf_filename)
+            create_batch_pdf_report(pdf_path, batch_info, batch_id)
+            
+            # 2. Generate batch data file (CSV or Excel)
+            if format == 'csv':
+                data_filename = f"batch_data_{batch_id[:8]}.csv"
+                data_path = os.path.join(temp_dir, data_filename)
+                create_batch_csv_data_file(data_path, batch_info, batch_id)
+            else:  # xlsx
+                data_filename = f"batch_data_{batch_id[:8]}.xlsx"
+                data_path = os.path.join(temp_dir, data_filename)
+                create_batch_excel_data_file(data_path, batch_info, batch_id)
+            
+            # 3. Create ZIP package
+            zip_filename = f"batch_package_{batch_id[:8]}.zip"
+            zip_path = os.path.join(temp_dir, zip_filename)
+            
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                zipf.write(pdf_path, pdf_filename)
+                zipf.write(data_path, data_filename)
+                
+                # Add README file
+                assessment_ids = batch_info.get("assessment_ids", [])
+                completed_count = sum(1 for aid in assessment_ids if get_assessment_result(aid) and get_assessment_result(aid).get("status") == "completed")
+                
+                readme_content = f"""AI-Powered Literature Quality Assessment - Batch Package
+======================================================
+
+This package contains:
+1. {pdf_filename} - Professional batch assessment report with quality analysis and recommendations
+2. {data_filename} - Comprehensive batch data with all individual assessment details
+
+BATCH SUMMARY:
+- Batch ID: {batch_id}
+- Total Files: {len(assessment_ids)}
+- Completed Assessments: {completed_count}
+- Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+DATA STRUCTURE:
+- Each row in the data file represents one assessment criterion for one document
+- Multiple rows per document = multiple criteria evaluated
+- Use Assessment_ID to group criteria by document
+- Overall_Quality_Score_Percent shows the quality score for each document
+
+QUALITY SCORE INTERPRETATION:
+- 80-100%: Excellent - High quality, minimal methodological concerns
+- 70-79%:  Good - Good quality with minor limitations
+- 60-69%:  Fair - Moderate quality with some issues
+- 0-59%:   Poor - Low quality with significant concerns
+
+USAGE RECOMMENDATIONS:
+- Review the PDF report for batch overview and quality trends
+- Use the data file for detailed analysis of individual assessments
+- Filter by Assessment_ID to analyze specific documents
+- Consider quality scores when selecting studies for systematic reviews
+
+Generated by AI-Powered Literature Quality Assessment Platform
+"""
+                readme_path = os.path.join(temp_dir, "README.txt")
+                with open(readme_path, 'w', encoding='utf-8') as f:
+                    f.write(readme_content)
+                zipf.write(readme_path, "README.txt")
+            
+            # 4. Send ZIP file
+            return send_file(
+                zip_path,
+                mimetype='application/zip',
+                as_attachment=True,
+                download_name=zip_filename
+            )
+            
+    except Exception as e:
+        current_app.logger.error(f"Error generating batch package for {batch_id}: {e}")
+        flash(f"Error generating batch package: {str(e)}", 'error')
+        return redirect(url_for('.view_batch_results', batch_id=batch_id))
+
+def create_batch_pdf_report(pdf_path, batch_info, batch_id):
+    """Create a beautiful batch PDF report with summary and individual results"""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    from datetime import datetime
+    
+    doc = SimpleDocTemplate(pdf_path, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
+    story = []
+    styles = getSampleStyleSheet()
+    
+    # Custom styles with Times New Roman font
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=30,
+        textColor=colors.HexColor('#6b46c1'),
+        alignment=1,
+        fontName='Times-Bold'
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Heading2'],
+        fontSize=16,
+        spaceAfter=20,
+        textColor=colors.HexColor('#4a5568'),
+        fontName='Times-Bold'
+    )
+    
+    # Header with logo only
+    try:
+        # Add logo
+        png_logo_path = '/Users/hongchaokun/Desktop/screen_webapp/app/static/images/Meta_Screener_LOGO.png'
+        if os.path.exists(png_logo_path):
+            logo = Image(png_logo_path, width=3*inch, height=1.2*inch)
+            logo.hAlign = 'CENTER'
+            story.append(logo)
+            story.append(Spacer(1, 30))
+        else:
+            # Fallback to text if no logo image
+            story.append(Paragraph("Batch Quality Assessment Report", ParagraphStyle('Brand', parent=styles['Normal'], fontSize=18, textColor=colors.HexColor('#6b46c1'), alignment=1, fontName='Helvetica-Bold')))
+            story.append(Spacer(1, 30))
+    except Exception as e:
+        # Fallback to text if logo loading fails
+        story.append(Paragraph("Batch Quality Assessment Report", ParagraphStyle('Brand', parent=styles['Normal'], fontSize=18, textColor=colors.HexColor('#6b46c1'), alignment=1, fontName='Helvetica-Bold')))
+        story.append(Spacer(1, 30))
+    
+    # Title
+    story.append(Paragraph("Batch Quality Assessment Report", title_style))
+    story.append(Spacer(1, 20))
+    
+    # Batch info
+    assessment_ids = batch_info.get("assessment_ids", [])
+    completed_assessments = []
+    processing_count = 0
+    error_count = 0
+    total_quality_scores = []
+    
+    for assessment_id in assessment_ids:
+        result_data = get_assessment_result(assessment_id)
+        if result_data:
+            status = result_data.get("status", "unknown")
+            if status == 'completed':
+                completed_assessments.append(result_data)
+                total_criteria = result_data.get("summary_total_criteria_evaluated", 0)
+                negative_findings = result_data.get("summary_negative_findings", 0)
+                if total_criteria > 0:
+                    quality_score = round((total_criteria - negative_findings) / total_criteria * 100, 1)
+                    total_quality_scores.append(quality_score)
+            elif status in ['processing_assessment', 'pending_assessment']:
+                processing_count += 1
+            else:
+                error_count += 1
+    
+    avg_quality_score = round(sum(total_quality_scores) / len(total_quality_scores), 1) if total_quality_scores else 0
+    
+    # Batch summary table
+    batch_summary = [
+        ['Batch ID:', batch_id[:8] + "..."],
+        ['Total Files:', str(len(assessment_ids))],
+        ['Completed Assessments:', str(len(completed_assessments))],
+        ['Processing:', str(processing_count)],
+        ['Errors:', str(error_count)],
+        ['Average Quality Score:', f"{avg_quality_score}%" if total_quality_scores else "N/A"],
+        ['Report Generated:', datetime.now().strftime('%B %d, %Y at %H:%M:%S')],
+    ]
+    
+    batch_table = Table(batch_summary, colWidths=[2.5*inch, 3.5*inch])
+    batch_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f3f0ff')),  # Light purple background
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#2d3748')),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#6b46c1')),  # Purple text for labels
+        ('FONTNAME', (0, 0), (0, -1), 'Times-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Times-Roman'),
+        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('PADDING', (0, 0), (-1, -1), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#c7d2fe')),  # Purple border
+    ]))
+    
+    story.append(batch_table)
+    story.append(Spacer(1, 30))
+    
+    # Individual assessment results
+    if completed_assessments:
+        story.append(Paragraph("Individual Assessment Results", subtitle_style))
+        story.append(Spacer(1, 15))
+        
+        # Create results table
+        table_data = [['Document', 'Quality Score', 'Criteria Passed/Total', 'Rating']]
+        
+        for result_data in completed_assessments:
+            filename = result_data.get('filename', 'Unknown')
+            total_criteria = result_data.get("summary_total_criteria_evaluated", 0)
+            negative_findings = result_data.get("summary_negative_findings", 0)
+            quality_score = round((total_criteria - negative_findings) / total_criteria * 100, 1) if total_criteria > 0 else 0
+            quality_rating = 'Excellent' if quality_score >= 80 else 'Good' if quality_score >= 70 else 'Fair' if quality_score >= 60 else 'Poor'
+            
+            # Truncate filename if too long
+            if len(filename) > 40:
+                filename = filename[:40] + "..."
+            
+            table_data.append([
+                filename,
+                f"{quality_score}%",
+                f"{total_criteria - negative_findings}/{total_criteria}",
+                quality_rating
+            ])
+        
+        results_table = Table(table_data, colWidths=[2.5*inch, 1*inch, 1.5*inch, 1*inch])
+        results_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#6b46c1')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Times-Bold'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Times-Roman'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('PADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+        ]))
+        
+        # Add alternating row colors and quality score colors
+        for i in range(1, len(table_data)):
+            if i % 2 == 0:
+                results_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, i), (-1, i), colors.HexColor('#f8f9fa'))
+                ]))
+        
+        story.append(results_table)
+    
+    # Add quality score interpretation and recommendations (same as individual)
+    story.append(Spacer(1, 30))
+    story.append(Paragraph("Quality Score Interpretation & Recommendations", subtitle_style))
+    
+    # Create compact interpretation table
+    interpretation_data = [
+        ['Score', 'Rating', 'Interpretation & Recommendation']
+    ]
+    
+    score_ranges = [
+        ('80-100%', 'Excellent', 'High quality study with minimal concerns. Include with high confidence.'),
+        ('70-79%', 'Good', 'Good quality with minor limitations. Include with moderate confidence.'),
+        ('60-69%', 'Fair', 'Moderate quality with some issues. Include with caution, note limitations.'),
+        ('0-59%', 'Poor', 'Low quality with significant concerns. Consider exclusion or major caveats.')
+    ]
+    
+    for score_range, rating, interpretation in score_ranges:
+        interpretation_data.append([score_range, rating, interpretation])
+    
+    # Convert text to Paragraph objects for automatic wrapping
+    wrapped_interpretation_data = [interpretation_data[0]]  # Keep header as is
+    for i, row in enumerate(interpretation_data[1:], 1):
+        wrapped_row = [
+            row[0],  # Score range - keep as text
+            row[1],  # Rating - keep as text
+            Paragraph(row[2], ParagraphStyle('CellText', parent=styles['Normal'], fontSize=9, leading=11))  # Wrap long text
+        ]
+        wrapped_interpretation_data.append(wrapped_row)
+    
+    interpretation_table = Table(wrapped_interpretation_data, colWidths=[1.2*inch, 1.3*inch, 4*inch])
+    interpretation_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#6b46c1')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('FONTSIZE', (0, 1), (1, -1), 9),  # Only apply to non-paragraph cells
+        ('PADDING', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        # Enhanced color coding with purple theme
+        ('BACKGROUND', (0, 1), (1, 1), colors.HexColor('#d4edda')),  # Excellent - light green
+        ('BACKGROUND', (0, 2), (1, 2), colors.HexColor('#cce7ff')),  # Good - light blue  
+        ('BACKGROUND', (0, 3), (1, 3), colors.HexColor('#fff0cd')),  # Fair - light yellow
+        ('BACKGROUND', (0, 4), (1, 4), colors.HexColor('#ffe6e6')),  # Poor - light red
+        # Add subtle purple accent to rating column
+        ('TEXTCOLOR', (1, 1), (1, -1), colors.HexColor('#6b46c1')),
+        ('FONTNAME', (1, 1), (1, -1), 'Helvetica-Bold'),
+    ]))
+    
+    story.append(interpretation_table)
+    
+    # Add batch quality interpretation
+    story.append(Spacer(1, 30))
+    story.append(Paragraph("Batch Quality Assessment Summary", subtitle_style))
+    
+    # Overall batch recommendation
+    if avg_quality_score >= 80:
+        batch_recommendation = "This batch demonstrates excellent overall quality. Most studies can be included in systematic reviews with high confidence."
+    elif avg_quality_score >= 70:
+        batch_recommendation = "This batch shows good overall quality. Most studies are suitable for inclusion with moderate confidence."
+    elif avg_quality_score >= 60:
+        batch_recommendation = "This batch has moderate quality. Review individual assessments carefully and consider limitations in your analysis."
+    else:
+        batch_recommendation = "This batch has significant quality concerns. Careful individual review is recommended, and consider excluding low-quality studies."
+    
+    story.append(Paragraph(f"Overall Batch Quality: {avg_quality_score}%", 
+                          ParagraphStyle('BatchScore', parent=styles['Heading3'], fontSize=12, textColor=colors.HexColor('#4a5568'), fontName='Times-Bold')))
+    story.append(Paragraph(batch_recommendation, 
+                          ParagraphStyle('BatchRec', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor('#2d3748'), leftIndent=20, rightIndent=20, fontName='Times-Roman')))
+    
+    # Footer
+    story.append(Spacer(1, 30))
+    story.append(Paragraph("Generated by AI-Powered Literature Quality Assessment Platform", 
+                          ParagraphStyle('Footer', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor('#718096'), alignment=1)))
+    
+    doc.build(story)
+
+def create_batch_csv_data_file(csv_path, batch_info, batch_id):
+    """Create comprehensive batch CSV data file with all assessment details"""
+    import pandas as pd
+    from datetime import datetime
+    
     assessment_ids = batch_info.get("assessment_ids", [])
     export_data = []
     
     for idx, assessment_id in enumerate(assessment_ids):
         result_data = get_assessment_result(assessment_id)
         if result_data:
-            filename = result_data.get("filename", batch_info.get("successful_filenames", [])[idx] if idx < len(batch_info.get("successful_filenames", [])) else "Unknown Filename")
+            filename = result_data.get("filename", f"Unknown_{idx}")
             doc_type = result_data.get("document_type", "Unknown")
             status = result_data.get("status", "unknown")
-            
-            row_data = {
-                'Assessment ID': assessment_id,
-                'Filename': filename,
-                'Document Type': doc_type,
-                'Assessment Tool': QUALITY_ASSESSMENT_TOOLS.get(doc_type, {}).get("tool_name", "Standard Assessment"),
-                'Status': status
-            }
+            tool_name = QUALITY_ASSESSMENT_TOOLS.get(doc_type, {}).get('tool_name', 'Standard Assessment')
             
             if status == 'completed':
                 total_criteria = result_data.get("summary_total_criteria_evaluated", 0)
                 negative_findings = result_data.get("summary_negative_findings", 0)
                 quality_score = round((total_criteria - negative_findings) / total_criteria * 100, 1) if total_criteria > 0 else 0
                 
-                row_data.update({
-                    'Total Criteria': total_criteria,
-                    'Negative Findings': negative_findings,
-                    'Quality Score (%)': quality_score,
-                    'Positive Findings': total_criteria - negative_findings
-                })
-                
-                # Add detailed assessment results if available
+                # Get detailed assessment results
                 assessment_details = result_data.get("assessment_details", [])
-                if isinstance(assessment_details, list):
-                    for i, detail in enumerate(assessment_details):
-                        row_data[f'Criterion_{i+1}_Text'] = detail.get('criterion_text', '')
-                        row_data[f'Criterion_{i+1}_Judgment'] = detail.get('judgment', '')
-                        row_data[f'Criterion_{i+1}_Reason'] = detail.get('reason', '')
+                
+                if isinstance(assessment_details, list) and assessment_details:
+                    # Create one row per criterion
+                    for i, detail in enumerate(assessment_details, 1):
+                        row_data = {
+                            'Batch_ID': batch_id,
+                            'Assessment_ID': assessment_id,
+                            'Document_Name': filename,
+                            'Document_Type': doc_type,
+                            'Assessment_Tool': tool_name,
+                            'Overall_Quality_Score_Percent': quality_score,
+                            'Total_Criteria': total_criteria,
+                            'Criteria_Passed': total_criteria - negative_findings,
+                            'Criteria_Failed': negative_findings,
+                            'Criterion_Number': i,
+                            'Criterion_ID': detail.get('criterion_id', f'criterion_{i}'),
+                            'Criterion_Text': detail.get('criterion_text', 'No criterion text'),
+                            'AI_Judgment': detail.get('judgment', 'No judgment'),
+                            'AI_Reasoning': detail.get('reason', 'No reasoning provided'),
+                            'Status': status,
+                            'Generated_Date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        }
+                        export_data.append(row_data)
+                else:
+                    # If no detailed results, create summary row
+                    row_data = {
+                        'Batch_ID': batch_id,
+                        'Assessment_ID': assessment_id,
+                        'Document_Name': filename,
+                        'Document_Type': doc_type,
+                        'Assessment_Tool': tool_name,
+                        'Overall_Quality_Score_Percent': quality_score,
+                        'Total_Criteria': total_criteria,
+                        'Criteria_Passed': total_criteria - negative_findings,
+                        'Criteria_Failed': negative_findings,
+                        'Criterion_Number': 'N/A',
+                        'Criterion_ID': 'N/A',
+                        'Criterion_Text': 'No detailed assessment available',
+                        'AI_Judgment': 'N/A',
+                        'AI_Reasoning': 'No detailed reasoning available',
+                        'Status': status,
+                        'Generated_Date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    }
+                    export_data.append(row_data)
             else:
-                row_data.update({
-                    'Total Criteria': 'N/A',
-                    'Negative Findings': 'N/A',
-                    'Quality Score (%)': 'N/A',
-                    'Positive Findings': 'N/A'
-                })
-                if 'message' in result_data:
-                    row_data['Error Message'] = result_data['message']
-            
-            export_data.append(row_data)
+                # For non-completed assessments
+                row_data = {
+                    'Batch_ID': batch_id,
+                    'Assessment_ID': assessment_id,
+                    'Document_Name': filename,
+                    'Document_Type': doc_type,
+                    'Assessment_Tool': tool_name,
+                    'Overall_Quality_Score_Percent': 'N/A',
+                    'Total_Criteria': 'N/A',
+                    'Criteria_Passed': 'N/A',
+                    'Criteria_Failed': 'N/A',
+                    'Criterion_Number': 'N/A',
+                    'Criterion_ID': 'N/A',
+                    'Criterion_Text': 'Assessment not completed',
+                    'AI_Judgment': 'N/A',
+                    'AI_Reasoning': result_data.get('message', 'Assessment in progress or failed'),
+                    'Status': status,
+                    'Generated_Date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                }
+                export_data.append(row_data)
     
-    if not export_data:
-        flash("No data available for export.", 'warning')
-        return redirect(url_for('.view_batch_results', batch_id=batch_id))
-    
-    # Create DataFrame
     df = pd.DataFrame(export_data)
     
-    # Generate filename base
-    batch_name = f"quality_assessment_batch_{batch_id[:8]}"
-    
-    try:
-        if format == 'csv':
-            output = io.StringIO()
-            df.to_csv(output, index=False, encoding='utf-8-sig')
-            output.seek(0)
-            
-            bytes_output = io.BytesIO(output.getvalue().encode('utf-8-sig'))
-            bytes_output.seek(0)
-            
-            return send_file(
-                bytes_output,
-                mimetype='text/csv',
-                as_attachment=True,
-                download_name=f"{batch_name}_results.csv"
-            )
-            
-        elif format == 'xlsx':
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df.to_excel(writer, index=False, sheet_name='Quality Assessment Results')
-            output.seek(0)
-            
-            return send_file(
-                output,
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                as_attachment=True,
-                download_name=f"{batch_name}_results.xlsx"
-            )
-            
-        elif format == 'json':
-            output = io.StringIO()
-            df.to_json(output, orient='records', indent=2)
-            output.seek(0)
-            
-            bytes_output = io.BytesIO(output.getvalue().encode('utf-8'))
-            bytes_output.seek(0)
-            
-            return send_file(
-                bytes_output,
-                mimetype='application/json',
-                as_attachment=True,
-                download_name=f"{batch_name}_results.json"
-            )
-        else:
-            flash(f"Unsupported format: {format}", 'error')
-            return redirect(url_for('.view_batch_results', batch_id=batch_id))
-            
-    except Exception as e:
-        current_app.logger.error(f"Error generating {format} export for batch {batch_id}: {e}")
-        flash(f"Error generating {format} file: {str(e)}", 'error')
-        return redirect(url_for('.view_batch_results', batch_id=batch_id))
+    with open(csv_path, 'w', encoding='utf-8-sig') as f:
+        # Add comprehensive header information with beautiful formatting
+        f.write("# ═══════════════════════════════════════════════════════════════\n")
+        f.write("# 🔬 AI-Powered Literature Quality Assessment - Batch Results\n")
+        f.write("# ═══════════════════════════════════════════════════════════════\n")
+        f.write(f"# Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"# Batch ID: {batch_id}\n")
+        f.write(f"# Total Assessments: {len(assessment_ids)}\n")
+        
+        # Calculate batch statistics
+        completed_count = sum(1 for row in export_data if row.get('Status') == 'completed')
+        if completed_count > 0:
+            avg_score = sum(row.get('Overall_Quality_Score_Percent', 0) for row in export_data if isinstance(row.get('Overall_Quality_Score_Percent'), (int, float))) / completed_count
+            f.write(f"# Completed Assessments: {completed_count}\n")
+            f.write(f"# Average Quality Score: {avg_score:.1f}%\n")
+        
+        f.write("#\n")
+        f.write("# 📊 DATA STRUCTURE\n")
+        f.write("# Each row represents one assessment criterion for one document\n")
+        f.write("# Multiple rows per document = multiple criteria evaluated\n")
+        f.write("# Use Assessment_ID to group criteria by document\n")
+        f.write("# Overall_Quality_Score_Percent shows the quality score for each document\n")
+        f.write("#\n")
+        f.write("# 🎯 QUALITY SCORE INTERPRETATION\n")
+        f.write("# 80-100%: Excellent - High quality, minimal methodological concerns\n")
+        f.write("# 70-79%:  Good - Good quality with minor limitations\n")
+        f.write("# 60-69%:  Fair - Moderate quality with some issues\n")
+        f.write("# 0-59%:   Poor - Low quality with significant concerns\n")
+        f.write("#\n")
+        f.write("# 💡 USAGE RECOMMENDATIONS\n")
+        f.write("# - Filter by Assessment_ID to analyze specific documents\n")
+        f.write("# - Sort by Overall_Quality_Score_Percent to prioritize high-quality studies\n")
+        f.write("# - Use AI_Judgment and AI_Reasoning for detailed quality analysis\n")
+        f.write("# - Consider quality scores when selecting studies for systematic reviews\n")
+        f.write("#\n")
+        f.write("# 📋 DETAILED BATCH ASSESSMENT DATA\n")
+        f.write("# ═══════════════════════════════════════════════════════════════\n")
+        f.write("#\n")
+        
+        # Write the actual data
+        df.to_csv(f, index=False)
 
-# We need to access _assessments_db for the flash message, either pass it or check status differently
+def create_batch_excel_data_file(excel_path, batch_info, batch_id):
+    """Create comprehensive batch Excel data file with all assessment details and formatting"""
+    import pandas as pd
+    from datetime import datetime
+    
+    assessment_ids = batch_info.get("assessment_ids", [])
+    export_data = []
+    summary_stats = {'completed': 0, 'total_scores': []}
+    
+    for idx, assessment_id in enumerate(assessment_ids):
+        result_data = get_assessment_result(assessment_id)
+        if result_data:
+            filename = result_data.get("filename", f"Unknown_{idx}")
+            doc_type = result_data.get("document_type", "Unknown")
+            status = result_data.get("status", "unknown")
+            tool_name = QUALITY_ASSESSMENT_TOOLS.get(doc_type, {}).get('tool_name', 'Standard Assessment')
+            
+            if status == 'completed':
+                total_criteria = result_data.get("summary_total_criteria_evaluated", 0)
+                negative_findings = result_data.get("summary_negative_findings", 0)
+                quality_score = round((total_criteria - negative_findings) / total_criteria * 100, 1) if total_criteria > 0 else 0
+                
+                summary_stats['completed'] += 1
+                summary_stats['total_scores'].append(quality_score)
+                
+                # Get detailed assessment results
+                assessment_details = result_data.get("assessment_details", [])
+                
+                if isinstance(assessment_details, list) and assessment_details:
+                    # Create one row per criterion
+                    for i, detail in enumerate(assessment_details, 1):
+                        row_data = {
+                            'Batch_ID': batch_id,
+                            'Assessment_ID': assessment_id,
+                            'Document_Name': filename,
+                            'Document_Type': doc_type,
+                            'Assessment_Tool': tool_name,
+                            'Overall_Quality_Score_Percent': quality_score,
+                            'Total_Criteria': total_criteria,
+                            'Criteria_Passed': total_criteria - negative_findings,
+                            'Criteria_Failed': negative_findings,
+                            'Criterion_Number': i,
+                            'Criterion_ID': detail.get('criterion_id', f'criterion_{i}'),
+                            'Criterion_Text': detail.get('criterion_text', 'No criterion text'),
+                            'AI_Judgment': detail.get('judgment', 'No judgment'),
+                            'AI_Reasoning': detail.get('reason', 'No reasoning provided'),
+                            'Status': status,
+                            'Generated_Date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        }
+                        export_data.append(row_data)
+                else:
+                    # If no detailed results, create summary row
+                    row_data = {
+                        'Batch_ID': batch_id,
+                        'Assessment_ID': assessment_id,
+                        'Document_Name': filename,
+                        'Document_Type': doc_type,
+                        'Assessment_Tool': tool_name,
+                        'Overall_Quality_Score_Percent': quality_score,
+                        'Total_Criteria': total_criteria,
+                        'Criteria_Passed': total_criteria - negative_findings,
+                        'Criteria_Failed': negative_findings,
+                        'Criterion_Number': 'N/A',
+                        'Criterion_ID': 'N/A',
+                        'Criterion_Text': 'No detailed assessment available',
+                        'AI_Judgment': 'N/A',
+                        'AI_Reasoning': 'No detailed reasoning available',
+                        'Status': status,
+                        'Generated_Date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    }
+                    export_data.append(row_data)
+            else:
+                # For non-completed assessments
+                row_data = {
+                    'Batch_ID': batch_id,
+                    'Assessment_ID': assessment_id,
+                    'Document_Name': filename,
+                    'Document_Type': doc_type,
+                    'Assessment_Tool': tool_name,
+                    'Overall_Quality_Score_Percent': 'N/A',
+                    'Total_Criteria': 'N/A',
+                    'Criteria_Passed': 'N/A',
+                    'Criteria_Failed': 'N/A',
+                    'Criterion_Number': 'N/A',
+                    'Criterion_ID': 'N/A',
+                    'Criterion_Text': 'Assessment not completed',
+                    'AI_Judgment': 'N/A',
+                    'AI_Reasoning': result_data.get('message', 'Assessment in progress or failed'),
+                    'Status': status,
+                    'Generated_Date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                }
+                export_data.append(row_data)
+    
+    df = pd.DataFrame(export_data)
+    
+    with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
+        # Enhanced Summary sheet
+        avg_score = sum(summary_stats['total_scores']) / max(len(summary_stats['total_scores']), 1) if summary_stats['total_scores'] else 0
+        
+        summary_data = {
+            'Metric': [
+                'Batch ID',
+                'Total Files',
+                'Completed Assessments',
+                'Processing/Failed',
+                'Average Quality Score',
+                'Quality Rating',
+                'Generated Date'
+            ],
+            'Value': [
+                batch_id,
+                len(assessment_ids),
+                summary_stats['completed'],
+                len(assessment_ids) - summary_stats['completed'],
+                f"{avg_score:.1f}%",
+                'Excellent' if avg_score >= 80 else 'Good' if avg_score >= 70 else 'Fair' if avg_score >= 60 else 'Poor',
+                datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            ]
+        }
+        summary_df = pd.DataFrame(summary_data)
+        summary_df.to_excel(writer, index=False, sheet_name='Batch Summary', startrow=2)
+        
+        # Detailed assessment data
+        df.to_excel(writer, index=False, sheet_name='Detailed Results')
+        
+        # Quality interpretation guide
+        guide_data = {
+            'Quality Score Range': ['80-100%', '70-79%', '60-69%', '0-59%'],
+            'Rating': ['Excellent', 'Good', 'Fair', 'Poor'],
+            'Interpretation': [
+                'High quality studies with minimal methodological concerns',
+                'Good quality studies with minor limitations',
+                'Moderate quality studies with some methodological issues',
+                'Low quality studies with significant methodological concerns'
+            ],
+            'Recommendation': [
+                'Include in systematic review with high confidence',
+                'Include in systematic review with moderate confidence',
+                'Include with caution, note limitations in analysis',
+                'Consider exclusion or include with major caveats'
+            ]
+        }
+        guide_df = pd.DataFrame(guide_data)
+        guide_df.to_excel(writer, index=False, sheet_name='Interpretation Guide')
+        
+        # Format the Excel file with Times New Roman font
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.utils import get_column_letter
+        
+        # Format Summary sheet
+        summary_ws = writer.sheets['Batch Summary']
+        summary_ws['A1'] = 'AI-Powered Literature Quality Assessment - Batch Results'
+        summary_ws['A1'].font = Font(name='Times New Roman', size=16, bold=True, color='6b46c1')
+        summary_ws['A1'].alignment = Alignment(horizontal='center')
+        summary_ws.merge_cells('A1:B1')
+        
+        # Header formatting with Times New Roman
+        header_fill = PatternFill(start_color='6b46c1', end_color='6b46c1', fill_type='solid')
+        header_font = Font(name='Times New Roman', color='FFFFFF', bold=True)
+        
+        for col in ['A', 'B']:
+            cell = summary_ws[f'{col}3']
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+        
+        # Format Detailed Results sheet
+        detail_ws = writer.sheets['Detailed Results']
+        
+        # Header formatting for detailed results
+        for col_num in range(1, len(df.columns) + 1):
+            cell = detail_ws.cell(row=1, column=col_num)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+        
+        # Format Interpretation Guide sheet
+        guide_ws = writer.sheets['Interpretation Guide']
+        
+        # Header formatting for guide
+        for col_num in range(1, len(guide_df.columns) + 1):
+            cell = guide_ws.cell(row=1, column=col_num)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+        
+        # Color code the quality ratings in guide (same as individual)
+        quality_colors = {
+            'Excellent': PatternFill(start_color='d4edda', end_color='d4edda', fill_type='solid'),
+            'Good': PatternFill(start_color='cce7ff', end_color='cce7ff', fill_type='solid'),
+            'Fair': PatternFill(start_color='fff0cd', end_color='fff0cd', fill_type='solid'),
+            'Poor': PatternFill(start_color='ffe6e6', end_color='ffe6e6', fill_type='solid')
+        }
+        
+        for row_num in range(2, len(guide_df) + 2):
+            rating_cell = guide_ws.cell(row=row_num, column=2)
+            rating = rating_cell.value
+            if rating in quality_colors:
+                for col_num in range(1, len(guide_df.columns) + 1):
+                    guide_ws.cell(row=row_num, column=col_num).fill = quality_colors[rating]
+        
+        # Auto-adjust column widths and set font/alignment
+        for sheet_name in writer.sheets:
+            worksheet = writer.sheets[sheet_name]
+            for col_num in range(1, worksheet.max_column + 1):
+                max_length = 0
+                column_letter = get_column_letter(col_num)
+                
+                # Set Times New Roman font and wrap text for all cells
+                for row_num in range(1, worksheet.max_row + 1):
+                    try:
+                        cell = worksheet.cell(row=row_num, column=col_num)
+                        if cell.value:
+                            # Set Times New Roman font for all cells
+                            if row_num == 1:  # Header row
+                                cell.font = Font(name='Times New Roman', bold=True, color='FFFFFF' if cell.fill.start_color.rgb == 'FF6b46c1' else '000000')
+                            else:
+                                cell.font = Font(name='Times New Roman')
+                            
+                            # Enable text wrapping for all cells
+                            cell.alignment = Alignment(wrap_text=True, vertical='top')
+                            
+                            # Calculate max length for column width
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(str(cell.value))
+                    except:
+                        pass
+                
+                # Set column width with special handling for document name columns
+                if 'Document' in str(worksheet.cell(row=1, column=col_num).value) or 'Name' in str(worksheet.cell(row=1, column=col_num).value):
+                    adjusted_width = min(max_length + 2, 50)  # Limit document name column width
+                else:
+                    adjusted_width = min(max_length + 2, 80)
+                
+                if adjusted_width > 8:
+                    worksheet.column_dimensions[column_letter].width = adjusted_width
+                
+                # Set row height to accommodate wrapped text
+                for row_num in range(2, worksheet.max_row + 1):
+                    worksheet.row_dimensions[row_num].height = None  # Auto-adjust height
+
+# End of routes file

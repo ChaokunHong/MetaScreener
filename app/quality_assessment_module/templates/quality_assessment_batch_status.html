@@ -243,17 +243,7 @@
                         {% if batch_info.failed_filenames and batch_info.failed_filenames | length > 0 %}
                         <p class="mb-1"><strong>Failed to Upload/Queue:</strong> {{ batch_info.failed_filenames | length }}</p>
                         {% endif %}
-                        {% if batch_info.upload_mode %}
-                        <p class="mb-1"><strong>Upload Mode:</strong> 
-                            <span class="badge badge-success">
-                                {% if batch_info.upload_mode == 'ultra_quick' %}
-                                    ⚡ Ultra-Fast Mode
-                                {% else %}
-                                    {{ batch_info.upload_mode | title }}
-                                {% endif %}
-                            </span>
-                        </p>
-                        {% endif %}
+
                     </div>
                 </div>
                 

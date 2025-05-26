@@ -952,10 +952,20 @@ def screen_full_dataset(session_id):
                      'reasoning': 'The screening result for this item was not processed or found.'
                  })
 
+        # Generate a unique screening ID for results storage
+        screening_id = str(uuid.uuid4())
+        
+        # Store results for download functionality
+        store_full_screening_session(screening_id, {
+            'filename': filename, 
+            'results': results_list,
+            'filter_applied': 'all entries'
+        })
+        
         delete_test_session(session_id)
         current_year = datetime.datetime.now().year
-        app_logger.info(f"Successfully completed screening for session {session_id}. Rendering results.")
-        return render_template('results.html', results=results_list, filename=filename, current_year=current_year)
+        app_logger.info(f"Successfully completed screening for session {session_id}. Rendering results with screening_id {screening_id}.")
+        return render_template('results.html', results=results_list, filename=filename, screening_id=screening_id, current_year=current_year)
 
     except Exception as e:
         app_logger.exception(f"Critical error during full screening for session {session_id}")
@@ -3142,6 +3152,7 @@ def show_batch_pdf_results(batch_session_id):
     return render_template('batch_pdf_results.html', 
                            batch_info=batch_data, 
                            batch_id=batch_session_id,
+                           results=results,  # Add results variable for template
                            decision_counts=decision_counts, # Pass counts to template
                            current_year=datetime.datetime.now().year)
 
@@ -3233,6 +3244,83 @@ def download_batch_pdf_results(batch_session_id, format):
         flash(f"Error generating download file ({format}): {e}", "error")
         return redirect(request.referrer or url_for('full_text_screening_page'))
 # --- END NEW Batch PDF Download Route ---
+
+# --- NEW: Export PDF Results by Decision Type ---
+@app.route('/export_pdf_results/<decision>', methods=['GET'], endpoint='export_pdf_results')
+def export_pdf_results(decision):
+    """Export PDF screening results filtered by decision type"""
+    try:
+        # Get the current batch session ID from request args or session
+        batch_session_id = request.args.get('batch_id')
+        if not batch_session_id:
+            flash("No batch session ID provided for export.", "error")
+            return redirect(url_for('full_text_screening_page'))
+        
+        batch_data = full_screening_sessions.get(batch_session_id)
+        if not batch_data or not batch_data.get('is_batch_pdf_result', False):
+            flash("Batch PDF results not found for export.", "error")
+            return redirect(url_for('show_batch_pdf_results', batch_session_id=batch_session_id) if batch_session_id else url_for('full_text_screening_page'))
+        
+        results_list = batch_data.get('results', [])
+        if not results_list:
+            flash("No results found for export.", "warning")
+            return redirect(url_for('show_batch_pdf_results', batch_session_id=batch_session_id))
+        
+        # Filter results by decision type
+        valid_decisions = ['INCLUDE', 'EXCLUDE', 'MAYBE', 'ERROR', 'ALL']
+        if decision.upper() not in valid_decisions:
+            flash(f"Invalid decision filter: {decision}", "error")
+            return redirect(url_for('show_batch_pdf_results', batch_session_id=batch_session_id))
+        
+        if decision.upper() == 'ALL':
+            filtered_results = results_list
+            filter_description = "all results"
+        else:
+            filtered_results = [r for r in results_list if r.get('decision', '').upper() == decision.upper()]
+            filter_description = f"results with decision '{decision.upper()}'"
+        
+        if not filtered_results:
+            flash(f"No results found for decision type '{decision.upper()}'.", "warning")
+            return redirect(url_for('show_batch_pdf_results', batch_session_id=batch_session_id))
+        
+        # Prepare export data
+        batch_name_info = batch_data.get('filename', 'batch_pdf_screening')
+        filename_base = secure_filename(batch_name_info).replace('Batch_PDF_Results_', '').replace('_', ' ').replace('processed', '').strip().replace(' ', '_')
+        if not filename_base:
+            filename_base = "batch_pdf_results"
+        
+        # Create DataFrame for export
+        df_export_data = []
+        for item in filtered_results:
+            df_export_data.append({
+                'Filename (Original)': item.get('filename'),
+                'Display Title': item.get('title_for_display'),
+                'Decision': item.get('decision'),
+                'Reasoning': item.get('reasoning')
+            })
+        
+        df = pd.DataFrame(df_export_data)
+        
+        # Default to CSV export
+        output_buffer = io.StringIO()
+        df.to_csv(output_buffer, index=False, encoding='utf-8-sig')
+        download_filename = f"{filename_base}_{decision.lower()}_results.csv"
+        
+        bytes_buffer = io.BytesIO(output_buffer.getvalue().encode('utf-8-sig'))
+        bytes_buffer.seek(0)
+        
+        return send_file(
+            bytes_buffer,
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=download_filename
+        )
+        
+    except Exception as e:
+        app_logger.exception(f"Error exporting PDF results for decision {decision}")
+        flash(f"Error exporting results: {str(e)}", "error")
+        batch_session_id = request.args.get('batch_id')
+        return redirect(url_for('show_batch_pdf_results', batch_session_id=batch_session_id) if batch_session_id else url_for('full_text_screening_page'))
 
 # --- Scheduled Cleanup Task for Expired PDFs ---
 def cleanup_expired_pdf_files():

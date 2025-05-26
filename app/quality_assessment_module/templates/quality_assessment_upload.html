@@ -466,27 +466,7 @@
                 <i class="fas fa-tasks"></i>Assessment Configuration
             </div>
 
-                            <!-- Upload mode selection -->
-            <div class="form-group mb-3">
-                <div class="custom-select-container">
-                    <label for="upload_mode" class="custom-select-label">
-                        <i class="fas fa-rocket mr-1"></i>Upload Mode:
-                    </label>
-                    <div class="select-hint">
-                        <i class="fas fa-info-circle"></i>Choose upload processing mode
-                    </div>
-                    <div class="select-wrapper">
-                        <select class="custom-select" id="upload_mode" name="upload_mode">
-                            <option value="quick" selected>⚡ Quick Mode - Instant Response (Recommended)</option>
-                            <option value="traditional">🔄 Traditional Mode - Synchronous Processing</option>
-                        </select>
-                    </div>
-                    <small class="form-text text-muted mt-2">
-                        <strong>Quick Mode</strong>: Files are uploaded instantly and you're redirected to the progress page immediately. Text extraction and AI assessment happen in the background.<br>
-                        <strong>Traditional Mode</strong>: Text extraction occurs during upload, which may require waiting 1-3 minutes.
-                    </small>
-                </div>
-            </div>
+
 
             <div class="form-group mb-2">
                 <div class="custom-select-container">
@@ -524,7 +504,7 @@
                                                  <div>
                              <strong id="upload-status-text">Uploading files...</strong>
                              <br>
-                             <small id="upload-status-detail">Quick mode: Files will be redirected to progress page immediately after upload</small>
+                             <small id="upload-status-detail">Files are being processed and analyzed. Please wait...</small>
                          </div>
                     </div>
                 </div>
@@ -621,7 +601,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const uploadProcessing = document.getElementById('upload-processing');
     const uploadStatusText = document.getElementById('upload-status-text');
     const uploadStatusDetail = document.getElementById('upload-status-detail');
-    const uploadModeSelect = document.getElementById('upload_mode');
+
     
     if (form && submitBtn) {
         form.addEventListener('submit', function(e) {
@@ -634,7 +614,6 @@ document.addEventListener('DOMContentLoaded', function() {
              }
             
                          // Show processing status immediately
-             const selectedMode = uploadModeSelect.value;
              const fileCount = fileInput.files.length;
              
              // Disable submit button
@@ -644,13 +623,8 @@ document.addEventListener('DOMContentLoaded', function() {
              // Show processing status
              uploadProcessing.style.display = 'block';
              
-             if (selectedMode === 'quick') {
-                 uploadStatusText.textContent = `Quickly uploading ${fileCount} file(s)...`;
-                 uploadStatusDetail.textContent = 'Quick mode: Files will be redirected immediately after saving, text extraction happens in background';
-             } else {
-                 uploadStatusText.textContent = `Synchronously processing ${fileCount} file(s)...`;
-                 uploadStatusDetail.textContent = 'Traditional mode: Waiting for text extraction to complete, may take 1-3 minutes';
-             }
+             uploadStatusText.textContent = `Processing ${fileCount} file(s)...`;
+             uploadStatusDetail.textContent = 'Files are being processed and analyzed. Please wait...';
              
              // Update status text periodically
              let processingSteps = [
@@ -659,17 +633,15 @@ document.addEventListener('DOMContentLoaded', function() {
                  'Preparing redirect...'
              ];
             
-            if (selectedMode === 'quick') {
-                let stepIndex = 0;
-                const stepInterval = setInterval(() => {
-                    if (stepIndex < processingSteps.length) {
-                        uploadStatusText.textContent = processingSteps[stepIndex];
-                        stepIndex++;
-                    } else {
-                        clearInterval(stepInterval);
-                    }
-                }, 1000);
-            }
+             let stepIndex = 0;
+             const stepInterval = setInterval(() => {
+                 if (stepIndex < processingSteps.length) {
+                     uploadStatusText.textContent = processingSteps[stepIndex];
+                     stepIndex++;
+                 } else {
+                     clearInterval(stepInterval);
+                 }
+             }, 1000);
         });
     }
 });

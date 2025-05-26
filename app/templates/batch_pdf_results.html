@@ -11,6 +11,8 @@
         overflow: hidden;
         border: 1px solid #e2e8f0;
         font-size: 0.85rem;
+        table-layout: fixed; /* Fixed table layout for consistent column widths */
+        width: 100%;
     }
     
     .results-table thead th {
@@ -44,6 +46,8 @@
         border: none;
         font-size: 0.8rem;
         line-height: 1.3;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
     }
     
     /* PDF content text styling */
@@ -231,15 +235,33 @@
         color: #64748b;
     }
     
+    /* Document title styling */
+    .document-title {
+        max-height: 80px;
+        overflow-y: auto;
+    }
+    
+    /* AI reasoning scrollable area */
+    .ai-reasoning {
+        max-height: 120px;
+        overflow-y: auto;
+        font-size: 0.75rem;
+        line-height: 1.4;
+        padding: 0.5rem;
+        background: #f8fafc;
+        border-radius: 4px;
+        border-left: 3px solid #c4b5fd;
+    }
+    
     /* Responsive adjustments */
     @media (max-width: 768px) {
         .results-table {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
         }
         
         .results-table thead th,
         .results-table td {
-            padding: 0.4rem 0.3rem;
+            padding: 0.3rem 0.2rem;
         }
         
         .page-header {
@@ -252,8 +274,18 @@
         }
         
         .export-btn {
-            font-size: 0.75rem;
-            padding: 0.4rem 0.6rem;
+            font-size: 0.7rem;
+            padding: 0.3rem 0.5rem;
+        }
+        
+        .document-title {
+            max-height: 60px;
+        }
+        
+        .ai-reasoning {
+            max-height: 80px;
+            font-size: 0.7rem;
+            padding: 0.3rem;
         }
     }
 </style>
@@ -277,23 +309,23 @@
         <div class="info-text">
             <strong><i class="fas fa-info-circle mr-2"></i>Summary:</strong>
             Total PDFs processed: <strong>{{ results|length }}</strong> | 
-            Include: <span class="badge-include">{{ results|selectattr('ai_decision', 'equalto', 'INCLUDE')|list|length }}</span> | 
-            Exclude: <span class="badge-exclude">{{ results|selectattr('ai_decision', 'equalto', 'EXCLUDE')|list|length }}</span> | 
-            Maybe: <span class="badge-maybe">{{ results|selectattr('ai_decision', 'equalto', 'MAYBE')|list|length }}</span> | 
-            Errors: <span class="badge-error">{{ results|selectattr('status', 'equalto', 'error')|list|length }}</span>
+            Include: <span class="badge-include">{{ results|selectattr('decision', 'equalto', 'INCLUDE')|list|length }}</span> | 
+            Exclude: <span class="badge-exclude">{{ results|selectattr('decision', 'equalto', 'EXCLUDE')|list|length }}</span> | 
+            Maybe: <span class="badge-maybe">{{ results|selectattr('decision', 'equalto', 'MAYBE')|list|length }}</span> | 
+            Errors: <span class="badge-error">{{ results|rejectattr('decision', 'in', ['INCLUDE', 'EXCLUDE', 'MAYBE'])|list|length }}</span>
         </div>
         
         <div class="export-buttons">
-            <a href="{{ url_for('export_pdf_results', decision='INCLUDE') }}" class="export-btn">
+            <a href="{{ url_for('export_pdf_results', decision='INCLUDE', batch_id=batch_id) }}" class="export-btn">
                 <i class="fas fa-download"></i>Export INCLUDE Results
             </a>
-            <a href="{{ url_for('export_pdf_results', decision='EXCLUDE') }}" class="export-btn">
+            <a href="{{ url_for('export_pdf_results', decision='EXCLUDE', batch_id=batch_id) }}" class="export-btn">
                 <i class="fas fa-download"></i>Export EXCLUDE Results
             </a>
-            <a href="{{ url_for('export_pdf_results', decision='MAYBE') }}" class="export-btn">
+            <a href="{{ url_for('export_pdf_results', decision='MAYBE', batch_id=batch_id) }}" class="export-btn">
                 <i class="fas fa-download"></i>Export MAYBE Results
             </a>
-            <a href="{{ url_for('export_pdf_results', decision='ALL') }}" class="export-btn">
+            <a href="{{ url_for('export_pdf_results', decision='ALL', batch_id=batch_id) }}" class="export-btn">
                 <i class="fas fa-download"></i>Export ALL Results
             </a>
         </div>
@@ -302,82 +334,56 @@
             <table class="table results-table">
                 <thead>
                     <tr>
-                        <th style="width: 4%;">#</th>
-                        <th style="width: 20%;">File Name</th>
-                        <th style="width: 30%;">Content Preview</th>
-                        <th style="width: 24%;">AI Decision & Reasoning</th>
-                        <th style="width: 12%;">Processing Status</th>
-                        <th style="width: 10%;">File Info</th>
+                        <th style="width: 5%; min-width: 40px;">#</th>
+                        <th style="width: 30%; min-width: 200px; max-width: 300px;">Document Title</th>
+                        <th style="width: 15%; min-width: 100px;">AI Decision</th>
+                        <th style="width: 50%; min-width: 300px;">AI Reasoning</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in results %}
                     <tr>
-                        <td class="text-center">
+                        <td class="text-center" style="width: 5%; min-width: 40px;">
                             <span class="badge bg-light text-secondary border">{{ loop.index }}</span>
                         </td>
-                        <td>
-                            <div class="fw-bold mb-1" style="font-size: 0.8rem; color: #1e293b;">
-                                <i class="fas fa-file-pdf mr-1 text-danger"></i>{{ item.filename }}
+                        <td style="width: 30%; min-width: 200px; max-width: 300px;">
+                            <div class="document-title" style="word-wrap: break-word; overflow-wrap: break-word;">
+                                <div class="fw-bold mb-1" style="font-size: 0.8rem; color: #1e293b;">
+                                    <i class="fas fa-file-pdf mr-1 text-danger"></i>
+                                    {% if item.title_for_display and item.title_for_display != item.filename %}
+                                        {{ item.title_for_display }}
+                                    {% else %}
+                                        {{ item.filename }}
+                                    {% endif %}
+                                </div>
+                                {% if item.title_for_display and item.title_for_display != item.filename %}
+                                    <small class="text-muted" style="font-size: 0.65rem; display: block; margin-top: 0.25rem;">
+                                        File: {{ item.filename }}
+                                    </small>
+                                {% endif %}
                             </div>
-                            {% if item.title %}
-                                <small class="text-muted" style="font-size: 0.7rem;">{{ item.title }}</small>
+                        </td>
+                        <td style="width: 15%; min-width: 100px;" class="text-center">
+                            {% if item.decision == 'INCLUDE' %}
+                                <span class="badge-include">INCLUDE</span>
+                            {% elif item.decision == 'EXCLUDE' %}
+                                <span class="badge-exclude">EXCLUDE</span>
+                            {% elif item.decision == 'MAYBE' %}
+                                <span class="badge-maybe">MAYBE</span>
+                            {% else %}
+                                <span class="badge-error">{{ item.decision | upper if item.decision else 'ERROR' }}</span>
                             {% endif %}
                         </td>
-                        <td>
-                            {% if item.content and item.content|length > 0 %}
-                                <details>
-                                    <summary><i class="fas fa-eye mr-1"></i>Show Content</summary>
-                                    <div class="pdf-content">{{ item.content[:500] }}{% if item.content|length > 500 %}...{% endif %}</div>
-                                </details>
+                        <td style="width: 50%; min-width: 300px;">
+                            {% if item.reasoning %}
+                                <div class="ai-reasoning" style="max-height: 120px; overflow-y: auto; font-size: 0.75rem; line-height: 1.4;">
+                                    {{ item.reasoning }}
+                                </div>
                             {% else %}
                                 <em class="text-muted" style="font-size: 0.7rem;">
-                                    <i class="fas fa-exclamation-circle mr-1"></i>No content extracted
+                                    <i class="fas fa-exclamation-circle mr-1"></i>No reasoning provided
                                 </em>
                             {% endif %}
-                        </td>
-                        <td>
-                            <div class="mb-1">
-                                {% if item.ai_decision == 'INCLUDE' %}
-                                    <span class="badge-include">INCLUDE</span>
-                                {% elif item.ai_decision == 'EXCLUDE' %}
-                                    <span class="badge-exclude">EXCLUDE</span>
-                                {% elif item.ai_decision == 'MAYBE' %}
-                                    <span class="badge-maybe">MAYBE</span>
-                                {% else %}
-                                    <span class="badge-error">{{ item.ai_decision | upper if item.ai_decision else 'ERROR' }}</span>
-                                {% endif %}
-                            </div>
-                            {% if item.ai_reasoning %}
-                                <div class="ai-reasoning">{{ item.ai_reasoning }}</div>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if item.status == 'success' %}
-                                <span class="badge-success">SUCCESS</span>
-                            {% elif item.status == 'warning' %}
-                                <span class="badge-warning">WARNING</span>
-                            {% elif item.status == 'error' %}
-                                <span class="badge-danger">ERROR</span>
-                            {% else %}
-                                <span class="badge bg-secondary text-white">{{ item.status | upper if item.status else 'UNKNOWN' }}</span>
-                            {% endif %}
-                            {% if item.error_message %}
-                                <div class="text-muted" style="font-size: 0.65rem; margin-top: 0.25rem;">{{ item.error_message }}</div>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="file-info">
-                                {% if item.file_size %}
-                                    <div><i class="fas fa-weight-hanging mr-1"></i>{{ item.file_size }}</div>
-                                {% endif %}
-                                {% if item.pages %}
-                                    <div><i class="fas fa-file-alt mr-1"></i>{{ item.pages }} pages</div>
-                                {% endif %}
-                                {% if item.processing_time %}
-                                    <div><i class="fas fa-clock mr-1"></i>{{ item.processing_time }}s</div>
-                                {% endif %}
-                            </div>
                         </td>
                     </tr>
                     {% endfor %}
