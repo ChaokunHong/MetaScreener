@@ -125,31 +125,37 @@ def delete_test_session(session_id):
         del test_sessions[session_id]
 
 def store_full_screening_session(screening_id, data):
+    # Store in Redis first (primary storage for multi-worker)
     try:
         redis_client.set(f"full_screening:{screening_id}", pickle.dumps(data), ex=86400)
+        app_logger.info(f"Stored session {screening_id} in Redis successfully")
     except Exception as e:
-        app_logger.warning(f"Redis error in store_full_screening_session: {e}")
-    # Also store locally
+        app_logger.error(f"Redis error in store_full_screening_session: {e}")
+    
+    # Also store locally for faster access
     full_screening_sessions[screening_id] = data
+    app_logger.info(f"Stored session {screening_id} in memory")
 
 def get_full_screening_session(screening_id):
-    # First try memory storage
-    if screening_id in full_screening_sessions:
-        return full_screening_sessions[screening_id]
-    
-    # If not in memory, try Redis
+    # Always try Redis first for multi-worker compatibility
     try:
         data = redis_client.get(f"full_screening:{screening_id}")
         if data:
             session_data = pickle.loads(data)
-            # Restore to memory for faster access
+            # Also store in memory for faster access
             full_screening_sessions[screening_id] = session_data
-            app_logger.info(f"Restored session {screening_id} from Redis to memory")
+            app_logger.info(f"Retrieved session {screening_id} from Redis")
             return session_data
     except Exception as e:
         app_logger.warning(f"Redis error in get_full_screening_session: {e}")
     
+    # Fallback to memory storage (for single worker or local dev)
+    if screening_id in full_screening_sessions:
+        app_logger.info(f"Retrieved session {screening_id} from memory (fallback)")
+        return full_screening_sessions[screening_id]
+    
     # Not found in either location
+    app_logger.warning(f"Session {screening_id} not found in Redis or memory")
     return None
 
 # Initialize ThreadPoolExecutor
@@ -3135,7 +3141,9 @@ def _perform_batch_pdf_screening_for_file(item_manifest_with_path_and_index, cri
 @app.route('/show_batch_pdf_results/<batch_session_id>', methods=['GET'], endpoint='show_batch_pdf_results_placeholder')
 def show_batch_pdf_results(batch_session_id):
     app_logger.info(f"Request to show batch PDF results for ID: {batch_session_id}")
-    batch_data = full_screening_sessions.get(batch_session_id)
+    
+    # Use the unified session retrieval function
+    batch_data = get_full_screening_session(batch_session_id)
 
     if not batch_data or not batch_data.get('is_batch_pdf_result', False):
         app_logger.warning(f"Batch PDF results not found or invalid for ID: {batch_session_id}")
@@ -3171,7 +3179,9 @@ def show_batch_pdf_results(batch_session_id):
 @app.route('/download_batch_pdf_results/<batch_session_id>/<format>', methods=['GET'], endpoint='download_batch_pdf_results_placeholder')
 def download_batch_pdf_results(batch_session_id, format):
     app_logger.info(f"Request to download batch PDF results for ID: {batch_session_id}, Format: {format}")
-    batch_data = full_screening_sessions.get(batch_session_id)
+    
+    # Use the unified session retrieval function
+    batch_data = get_full_screening_session(batch_session_id)
 
     if not batch_data or not batch_data.get('is_batch_pdf_result', False):
         app_logger.warning(f"Download Batch PDF: Results not found or invalid for ID: {batch_session_id}")
