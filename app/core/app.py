@@ -133,14 +133,24 @@ def store_full_screening_session(screening_id, data):
     full_screening_sessions[screening_id] = data
 
 def get_full_screening_session(screening_id):
+    # First try memory storage
+    if screening_id in full_screening_sessions:
+        return full_screening_sessions[screening_id]
+    
+    # If not in memory, try Redis
     try:
         data = redis_client.get(f"full_screening:{screening_id}")
         if data:
-            return pickle.loads(data)
+            session_data = pickle.loads(data)
+            # Restore to memory for faster access
+            full_screening_sessions[screening_id] = session_data
+            app_logger.info(f"Restored session {screening_id} from Redis to memory")
+            return session_data
     except Exception as e:
         app_logger.warning(f"Redis error in get_full_screening_session: {e}")
-    # Fallback to in-memory storage
-    return full_screening_sessions.get(screening_id)
+    
+    # Not found in either location
+    return None
 
 # Initialize ThreadPoolExecutor
 # Adjust max_workers based on your server capacity and typical workload
