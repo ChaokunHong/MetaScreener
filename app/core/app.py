@@ -3259,67 +3259,41 @@ def download_batch_pdf_results(batch_session_id, format):
 @app.route('/export_pdf_results/<decision>', methods=['GET'], endpoint='export_pdf_results')
 def export_pdf_results(decision):
     """Export PDF screening results filtered by decision type"""
-    # 添加详细的调试日志
-    app_logger.info(f"=== EXPORT_PDF_RESULTS DEBUG START ===")
-    app_logger.info(f"Decision parameter: {decision}")
-    app_logger.info(f"Request args: {dict(request.args)}")
-    app_logger.info(f"Request method: {request.method}")
-    app_logger.info(f"Request URL: {request.url}")
-    
+    app_logger.info(f"Export PDF results called with decision: '{decision}', batch_id: '{request.args.get('batch_id')}'")
     try:
         # Get the current batch session ID from request args or session
         batch_session_id = request.args.get('batch_id')
-        app_logger.info(f"Batch session ID from args: {batch_session_id}")
-        
         if not batch_session_id:
-            app_logger.error("No batch session ID provided for export.")
             flash("No batch session ID provided for export.", "error")
             return redirect(url_for('full_text_screening_page'))
         
-        # 检查会话数据是否存在
-        app_logger.info(f"Checking full_screening_sessions keys: {list(full_screening_sessions.keys())[:10]}...")
-        batch_data = full_screening_sessions.get(batch_session_id)
-        app_logger.info(f"Batch data found in memory: {batch_data is not None}")
-        
-        if not batch_data:
-            # 尝试从Redis恢复
-            app_logger.info("Batch data not in memory, trying Redis...")
-            batch_data = get_full_screening_session(batch_session_id)
-            app_logger.info(f"Batch data found in Redis: {batch_data is not None}")
-        
+        batch_data = get_full_screening_session(batch_session_id)
         if not batch_data or not batch_data.get('is_batch_pdf_result', False):
-            app_logger.error(f"Batch PDF results not found for export. Session ID: {batch_session_id}")
-            app_logger.info(f"Batch data: {batch_data}")
             flash("Batch PDF results not found for export.", "error")
             return redirect(url_for('show_batch_pdf_results_placeholder', batch_session_id=batch_session_id) if batch_session_id else url_for('full_text_screening_page'))
         
         results_list = batch_data.get('results', [])
-        app_logger.info(f"Results list length: {len(results_list)}")
-        
         if not results_list:
-            app_logger.warning("No results found for export.")
             flash("No results found for export.", "warning")
             return redirect(url_for('show_batch_pdf_results_placeholder', batch_session_id=batch_session_id))
         
-        # Filter results by decision type
+        # Filter results by decision type - case insensitive
         valid_decisions = ['INCLUDE', 'EXCLUDE', 'MAYBE', 'ERROR', 'ALL']
-        if decision.upper() not in valid_decisions:
-            app_logger.error(f"Invalid decision filter: {decision}")
+        decision_upper = decision.upper()
+        if decision_upper not in valid_decisions:
+            app_logger.warning(f"Invalid decision filter received: '{decision}' (upper: '{decision_upper}')")
             flash(f"Invalid decision filter: {decision}", "error")
             return redirect(url_for('show_batch_pdf_results_placeholder', batch_session_id=batch_session_id))
         
-        if decision.upper() == 'ALL':
+        if decision_upper == 'ALL':
             filtered_results = results_list
             filter_description = "all results"
         else:
-            filtered_results = [r for r in results_list if r.get('decision', '').upper() == decision.upper()]
-            filter_description = f"results with decision '{decision.upper()}'"
-        
-        app_logger.info(f"Filtered results length: {len(filtered_results)}")
+            filtered_results = [r for r in results_list if r.get('decision', '').upper() == decision_upper]
+            filter_description = f"results with decision '{decision_upper}'"
         
         if not filtered_results:
-            app_logger.warning(f"No results found for decision type '{decision.upper()}'.")
-            flash(f"No results found for decision type '{decision.upper()}'.", "warning")
+            flash(f"No results found for decision type '{decision_upper}'.", "warning")
             return redirect(url_for('show_batch_pdf_results_placeholder', batch_session_id=batch_session_id))
         
         # Prepare export data
@@ -3327,8 +3301,6 @@ def export_pdf_results(decision):
         filename_base = secure_filename(batch_name_info).replace('Batch_PDF_Results_', '').replace('_', ' ').replace('processed', '').strip().replace(' ', '_')
         if not filename_base:
             filename_base = "batch_pdf_results"
-        
-        app_logger.info(f"Export filename base: {filename_base}")
         
         # Create DataFrame for export
         df_export_data = []
@@ -3341,7 +3313,6 @@ def export_pdf_results(decision):
             })
         
         df = pd.DataFrame(df_export_data)
-        app_logger.info(f"DataFrame created with {len(df)} rows")
         
         # Default to CSV export
         output_buffer = io.StringIO()
@@ -3350,8 +3321,6 @@ def export_pdf_results(decision):
         
         bytes_buffer = io.BytesIO(output_buffer.getvalue().encode('utf-8-sig'))
         bytes_buffer.seek(0)
-        
-        app_logger.info(f"=== EXPORT_PDF_RESULTS SUCCESS: {download_filename} ===")
         
         return send_file(
             bytes_buffer,
@@ -3362,7 +3331,6 @@ def export_pdf_results(decision):
         
     except Exception as e:
         app_logger.exception(f"Error exporting PDF results for decision {decision}")
-        app_logger.error(f"=== EXPORT_PDF_RESULTS ERROR: {str(e)} ===")
         flash(f"Error exporting results: {str(e)}", "error")
         batch_session_id = request.args.get('batch_id')
         return redirect(url_for('show_batch_pdf_results_placeholder', batch_session_id=batch_session_id) if batch_session_id else url_for('full_text_screening_page'))
@@ -3836,7 +3804,7 @@ def network_health_check():
     
     return jsonify(results)
 
-# Legacy URL redirect for quality assessment
+# Legacy URL redirect for quality assessment - moved to end to avoid conflicts
 @app.route('/quality/')
 @app.route('/quality/<path:path>')
 def redirect_old_quality_urls(path=None):
