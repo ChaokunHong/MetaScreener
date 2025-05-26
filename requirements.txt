@@ -67,6 +67,7 @@ urllib3==2.4.0
 Werkzeug>=2.0
 Pillow>=9.0.0
 pytesseract>=0.3.8
+reportlab>=3.6.0
 APScheduler>=3.6.0
 celery==5.4.0
 kombu==5.4.2

@@ -790,6 +790,7 @@ def process_uploaded_document(pdf_file_stream, original_filename: str, selected_
     try:
         # Make sure current_app is available here. If services.py is part of the app context, it should be.
         # Otherwise, the executor needs to be passed in or accessed differently.
+        from gevent import spawn
         spawn(run_ai_quality_assessment, assessment_id, current_app._get_current_object(), llm_config_for_task)
         print(f"AI assessment task for {assessment_id} submitted to gevent spawn.")
     except Exception as e_submit:
@@ -841,6 +842,11 @@ def get_assessment_result(assessment_id: str):
     
     # First, try to get from Redis (for multi-process environments)
     item_data = _get_assessment_from_redis(str_assessment_id)
+    
+    # If found in Redis but not in memory, sync to memory
+    if item_data is not None and str_assessment_id not in _assessments_db:
+        _assessments_db[str_assessment_id] = item_data
+        print(f"GET_RESULT_LOGIC: Synced assessment {str_assessment_id} from Redis to memory")
     
     # If not in Redis, check legacy in-memory storage
     if item_data is None:
@@ -1124,17 +1130,22 @@ def _create_fallback_response(raw_response: str, error_info: str = None) -> Dict
     }
 
 def run_ai_quality_assessment(assessment_id: str, app_context=None, llm_config=None):
-    if not llm_config or not llm_config.get("api_key"):
-        print(f"Error for {assessment_id}: LLM config missing for background task.")
+    # Validate LLM config
+    required_fields = ["api_key", "provider_name", "model_id", "base_url"]
+    if not llm_config or not all(llm_config.get(field) for field in required_fields):
+        missing_fields = [field for field in required_fields if not llm_config.get(field)] if llm_config else required_fields
+        print(f"Error for {assessment_id}: LLM config missing required fields: {missing_fields}")
         if assessment_id in _assessments_db:
             _assessments_db[assessment_id]["status"] = "error"
-            _assessments_db[assessment_id]["message"] = "LLM config not provided to worker."
-            if "progress" in _assessments_db[assessment_id]: _assessments_db[assessment_id]["progress"]["message"] = "Internal config error."
+            _assessments_db[assessment_id]["message"] = f"LLM config missing: {', '.join(missing_fields)}"
+            if "progress" in _assessments_db[assessment_id]: 
+                _assessments_db[assessment_id]["progress"]["message"] = "LLM configuration error"
             _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
         return
 
     if app_context:
-        with app_context.app_context():
+        # app_context is already an AppContext object, use it directly
+        with app_context:
             _execute_assessment_logic(assessment_id, llm_config)
     else:
         print(f"Warning for {assessment_id}: Running AI assessment without explicit app context.")
@@ -1142,14 +1153,20 @@ def run_ai_quality_assessment(assessment_id: str, app_context=None, llm_config=N
 
 def _execute_assessment_logic(assessment_id: str, llm_config: Dict):
     try:
+        # First try to get from memory, then from Redis
         assessment_data = _assessments_db.get(assessment_id)
+        if not assessment_data:
+            # Try to get from Redis and sync to memory
+            assessment_data = _get_assessment_from_redis(assessment_id)
+            if assessment_data:
+                _assessments_db[assessment_id] = assessment_data
+                print(f"EXECUTE_LOGIC: Synced assessment {assessment_id} from Redis to memory")
+            else:
+                print(f"Assessment data for {assessment_id} not found in _execute_assessment_logic.")
+                return
+        
         import time # time.sleep might be an issue with gevent if not patched, but assuming it is.
         # time.sleep(0.1) # This short sleep is likely fine, or can be gevent.sleep(0.1)
-
-        if not assessment_data:
-            print(f"Assessment data for {assessment_id} not found in _execute_assessment_logic.")
-            # current_app.logger.error(...) would be better if logger is configured and app_context is robustly handled
-            return
         
         if assessment_data.get('assessment_details') is None:
             assessment_data['assessment_details'] = []
@@ -1266,6 +1283,7 @@ def _execute_assessment_logic(assessment_id: str, llm_config: Dict):
             # assessment_data['progress']['message'] = f"Queuing criterion {i+1}/{total_criteria}: {criterion_obj['text'][:30]}..."
             # print(f"  Thread for {assessment_id}: Queuing {criterion_obj['text'][:30]}...") # Using print for now, as app_logger might not be context-safe here
             
+            from gevent import spawn
             g = spawn(assess_one_criterion_task, criterion_obj, document_text_segment, document_type,
                       provider_name, model_id, api_key, base_url)
             greenlets_criteria.append({'greenlet': g, 'original_criterion': criterion_obj, 'index': i})
@@ -1275,6 +1293,7 @@ def _execute_assessment_logic(assessment_id: str, llm_config: Dict):
         # However, we should set a reasonable timeout for all criteria processing.
         join_timeout_qa = 3500 # e.g., slightly less than Gunicorn default, or based on expected max time per document
         # print(f"QA Service {assessment_id}: Waiting for {len(greenlets_criteria)} criteria greenlets with timeout {join_timeout_qa}s.")
+        from gevent import joinall
         joinall([item['greenlet'] for item in greenlets_criteria], timeout=join_timeout_qa)
         # print(f"QA Service {assessment_id}: Criteria greenlets join completed or timed out.")
 
@@ -1438,6 +1457,10 @@ def quick_upload_document(pdf_file_stream, original_filename: str, selected_docu
         spawn_later(0.1, run_background_processing, assessment_id, None, llm_config_for_task)  # Remove app context to avoid blocking
         print(f"QUICK_UPLOAD: Background processing task for {assessment_id} scheduled")
         
+        # Also update status to indicate background processing has started
+        _assessments_db[assessment_id]["progress"]["message"] = "Background processing started..."
+        _save_assessment_to_redis(assessment_id, _assessments_db[assessment_id])
+        
     except Exception as e_bg:
         print(f"QUICK_UPLOAD_ERROR: Failed to start background processing for {assessment_id}: {e_bg}")
         _assessments_db[assessment_id]["status"] = "error"
@@ -1452,24 +1475,67 @@ def run_background_processing(assessment_id: str, app_context=None, llm_config=N
     Background processing: Text extraction + Document classification + AI quality assessment
     Performed in stages, with progress updates for each stage
     """
-    if app_context:
-        with app_context.app_context():
+    print(f"BACKGROUND_PROC: Starting background processing for assessment {assessment_id}")
+    print(f"BACKGROUND_PROC: LLM config provided: {bool(llm_config)}")
+    print(f"BACKGROUND_PROC: App context provided: {bool(app_context)}")
+    
+    try:
+        if app_context:
+            # app_context is already an AppContext object, use it directly
+            with app_context:
+                print(f"BACKGROUND_PROC: Executing with app context for {assessment_id}")
+                _execute_background_processing(assessment_id, llm_config)
+        else:
+            print(f"BACKGROUND_PROC: Warning for {assessment_id}: Running background processing without explicit app context.")
             _execute_background_processing(assessment_id, llm_config)
-    else:
-        print(f"Warning for {assessment_id}: Running background processing without explicit app context.")
-        _execute_background_processing(assessment_id, llm_config)
+        
+        print(f"BACKGROUND_PROC: Successfully completed background processing for {assessment_id}")
+        
+    except Exception as e:
+        print(f"BACKGROUND_PROC_ERROR: Critical error in run_background_processing for {assessment_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Update assessment status to error
+        try:
+            assessment_data = _assessments_db.get(assessment_id) or _get_assessment_from_redis(assessment_id)
+            if assessment_data:
+                assessment_data['status'] = 'error'
+                assessment_data['message'] = f"Background processing failed: {str(e)[:100]}"
+                assessment_data['progress'] = {"current": 100, "total": 100, "message": "Processing failed"}
+                _assessments_db[assessment_id] = assessment_data
+                _save_assessment_to_redis(assessment_id, assessment_data)
+                _save_assessments_to_file(assessment_id_to_log=assessment_id)
+                print(f"BACKGROUND_PROC_ERROR: Updated error status for {assessment_id}")
+        except Exception as save_error:
+            print(f"BACKGROUND_PROC_ERROR: Failed to save error status for {assessment_id}: {save_error}")
 
 def _execute_background_processing(assessment_id: str, llm_config: Dict):
     """Execute the specific logic for background processing"""
     try:
+        # First try to get from memory, then from Redis
         assessment_data = _assessments_db.get(assessment_id)
         if not assessment_data:
-            print(f"BACKGROUND_PROC: Assessment data for {assessment_id} not found.")
+            # Try to get from Redis and sync to memory
+            assessment_data = _get_assessment_from_redis(assessment_id)
+            if assessment_data:
+                _assessments_db[assessment_id] = assessment_data
+                print(f"BACKGROUND_PROC: Synced assessment {assessment_id} from Redis to memory")
+            else:
+                print(f"BACKGROUND_PROC: Assessment data for {assessment_id} not found in memory or Redis.")
+                return
+        
+        current_status = assessment_data.get('status')
+        if current_status not in ['pending_text_extraction', 'uploading']:
+            print(f"BACKGROUND_PROC: Assessment {assessment_id} status is {current_status}, skipping background processing.")
             return
         
-        if assessment_data.get('status') not in ['pending_text_extraction']:
-            print(f"BACKGROUND_PROC: Assessment {assessment_id} status is {assessment_data.get('status')}, skipping background processing.")
-            return
+        # Update status to pending_text_extraction if it's still uploading
+        if current_status == 'uploading':
+            assessment_data['status'] = 'pending_text_extraction'
+            assessment_data['progress'] = {"current": 10, "total": 100, "message": "Starting text extraction..."}
+            _save_assessment_to_redis(assessment_id, assessment_data)
+            print(f"BACKGROUND_PROC: Updated status from uploading to pending_text_extraction for {assessment_id}")
         
         # Stage 1: Text extraction (20-40%)
         print(f"BACKGROUND_PROC: Starting text extraction for {assessment_id}")
@@ -1477,8 +1543,40 @@ def _execute_background_processing(assessment_id: str, llm_config: Dict):
         _save_assessment_to_redis(assessment_id, assessment_data)
         
         saved_pdf_full_path = assessment_data.get('saved_pdf_full_path')
+        saved_pdf_filename = assessment_data.get('saved_pdf_filename')
+        
+        # Try multiple ways to find the PDF file
         if not saved_pdf_full_path or not os.path.exists(saved_pdf_full_path):
-            raise Exception("PDF file not found, cannot perform text extraction")
+            # Try to reconstruct path from filename
+            if saved_pdf_filename:
+                reconstructed_path = os.path.join(QA_PDF_UPLOAD_DIR, saved_pdf_filename)
+                if os.path.exists(reconstructed_path):
+                    saved_pdf_full_path = reconstructed_path
+                    assessment_data['saved_pdf_full_path'] = saved_pdf_full_path
+                    print(f"BACKGROUND_PROC: Reconstructed PDF path for {assessment_id}: {saved_pdf_full_path}")
+                else:
+                    print(f"BACKGROUND_PROC: PDF file not found at reconstructed path: {reconstructed_path}")
+            
+            # If still not found, list available files for debugging
+            if not saved_pdf_full_path or not os.path.exists(saved_pdf_full_path):
+                try:
+                    available_files = os.listdir(QA_PDF_UPLOAD_DIR)
+                    print(f"BACKGROUND_PROC: Available files in {QA_PDF_UPLOAD_DIR}: {available_files}")
+                    
+                    # Try to find file by assessment_id prefix
+                    matching_files = [f for f in available_files if f.startswith(f"{assessment_id}_")]
+                    if matching_files:
+                        found_file = matching_files[0]
+                        saved_pdf_full_path = os.path.join(QA_PDF_UPLOAD_DIR, found_file)
+                        assessment_data['saved_pdf_full_path'] = saved_pdf_full_path
+                        assessment_data['saved_pdf_filename'] = found_file
+                        print(f"BACKGROUND_PROC: Found matching file for {assessment_id}: {found_file}")
+                    else:
+                        raise Exception(f"PDF file not found for assessment {assessment_id}. Expected: {saved_pdf_filename}, Available: {available_files}")
+                except Exception as list_error:
+                    raise Exception(f"PDF file not found and cannot list directory: {list_error}")
+        
+        print(f"BACKGROUND_PROC: Using PDF file: {saved_pdf_full_path}")
         
         # Read PDF file and extract text (use gevent-friendly approach)
         from gevent import sleep

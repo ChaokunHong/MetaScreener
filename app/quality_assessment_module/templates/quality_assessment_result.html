@@ -243,6 +243,23 @@
                     <a href="{{ url_for('quality_assessment.quality_assessment_history') }}" class="btn btn-outline-light-purple btn-sm mr-2">
                         <i class="fas fa-history"></i> History
                     </a>
+                    {% if result and result.status == 'completed' %}
+                    <div class="btn-group btn-group-sm mr-2">
+                        <button type="button" class="btn btn-outline-success btn-sm dropdown-toggle" 
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                title="Download assessment package (Data + Report)">
+                            <i class="fas fa-file-download"></i> Package
+                        </button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item" href="{{ url_for('quality_assessment.download_assessment_package', assessment_id=assessment_id, format='xlsx') }}">
+                                <i class="fas fa-file-excel text-success"></i> Excel + PDF
+                            </a>
+                            <a class="dropdown-item" href="{{ url_for('quality_assessment.download_assessment_package', assessment_id=assessment_id, format='csv') }}">
+                                <i class="fas fa-file-csv text-info"></i> CSV + PDF
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
                     <a href="{{ url_for('.upload_document_for_assessment') }}" class="btn btn-secondary btn-sm">
                         <i class="fas fa-upload"></i> Upload Another
                     </a>

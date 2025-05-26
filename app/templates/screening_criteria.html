@@ -10,51 +10,829 @@
 
 {% block extra_head %}
 <style>
-    /* Basic/Advanced Toggle Styles */
-    .mode-toggle {
+    /* Tab Navigation Styles */
+    .criteria-tabs {
         background-color: #f8fafc;
         padding: 0.5rem;
-        border-radius: 4px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-        margin-bottom: 0.75rem;
-    }
-    .mode-toggle label { 
-        margin-right: 8px; 
-        font-weight: 500; 
-        cursor: pointer; 
-        padding: 0.2rem 0.4rem;
-        border-radius: 3px;
-        transition: all 0.2s ease;
-        font-size: 0.8rem;
-    }
-    .mode-toggle label:hover {
-        background-color: rgba(123, 44, 191, 0.05);
-    }
-    .mode-toggle input[type="radio"] { 
-        margin-right: 3px; 
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        margin-bottom: 2rem;
+        border: 1px solid rgba(123, 44, 191, 0.08);
     }
     
-    /* Hide advanced sections by default */
-    .advanced-settings { display: none; }
-    
-    /* Styling for prompt setting textareas */
-    .prompt-textarea { 
-        font-family: monospace; 
-        font-size: 0.8rem; 
-        min-height: 100px; 
-        background-color: #f8fafc; 
-        border: 1px solid #e2e8f0;
-        border-radius: 4px;
-        padding: 0.5rem;
-        line-height: 1.5;
-        transition: all 0.2s ease;
+    .criteria-tabs .nav-tabs {
+        border: none;
+        margin-bottom: 0;
     }
-    .prompt-textarea:focus {
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 2px rgba(123, 44, 191, 0.1);
+    
+    .criteria-tabs .nav-link {
+        border: none;
+        border-radius: 6px;
+        margin-right: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        color: #64748b;
+        background: transparent;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .criteria-tabs .nav-link:hover {
+        color: var(--primary-color);
+        background: rgba(123, 44, 191, 0.05);
         transform: translateY(-1px);
     }
     
+    .criteria-tabs .nav-link.active {
+        color: white;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        box-shadow: 0 2px 8px rgba(123, 44, 191, 0.25);
+        transform: translateY(-1px);
+    }
+    
+    .criteria-tabs .nav-link.active::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+        pointer-events: none;
+    }
+    
+    .criteria-tabs .nav-link i {
+        margin-right: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    /* Tab Content Styles */
+    .tab-content {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border: 1px solid rgba(123, 44, 191, 0.08);
+        overflow: hidden;
+    }
+    
+    .tab-pane {
+        padding: 2rem;
+        min-height: 400px;
+    }
+    
+    /* Validation and Error Styles */
+    .field-validation-error {
+        border-color: #dc3545 !important;
+        box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.1) !important;
+        background-color: rgba(220, 53, 69, 0.02) !important;
+    }
+    
+    .field-validation-warning {
+        border-color: #ffc107 !important;
+        box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.1) !important;
+        background-color: rgba(255, 193, 7, 0.02) !important;
+    }
+    
+    .field-validation-success {
+        border-color: #28a745 !important;
+        box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.1) !important;
+        background-color: rgba(40, 167, 69, 0.02) !important;
+    }
+    
+    .validation-message {
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 3px;
+        display: none;
+    }
+    
+    .validation-message.error {
+        color: #dc3545;
+        background-color: rgba(220, 53, 69, 0.1);
+        border: 1px solid rgba(220, 53, 69, 0.2);
+        display: block;
+    }
+    
+    .validation-message.warning {
+        color: #856404;
+        background-color: rgba(255, 193, 7, 0.1);
+        border: 1px solid rgba(255, 193, 7, 0.2);
+        display: block;
+    }
+    
+    .validation-message.success {
+        color: #155724;
+        background-color: rgba(40, 167, 69, 0.1);
+        border: 1px solid rgba(40, 167, 69, 0.2);
+        display: block;
+    }
+    
+    /* Elegant Quality Indicators */
+    .criteria-quality-indicator {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        cursor: help;
+        transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        opacity: 0.6;
+        box-shadow: 0 0 0 0 rgba(0,0,0,0.1);
+    }
+    
+    .criteria-quality-indicator.excellent {
+        background: #10b981;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+    }
+    
+    .criteria-quality-indicator.good {
+        background: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+    
+    .criteria-quality-indicator.fair {
+        background: #f59e0b;
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+    }
+    
+    .criteria-quality-indicator.poor {
+        background: #ef4444;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+    }
+    
+    .criteria-quality-indicator:hover {
+        opacity: 1;
+        transform: scale(1.5);
+        box-shadow: 0 0 0 6px rgba(0,0,0,0.1);
+    }
+    
+    /* Ultra Minimalist Score Display */
+    .quality-score-display {
+        position: absolute;
+        top: 0.75rem;
+        left: 0.75rem;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 8px;
+        padding: 0.2rem 0.4rem;
+        font-size: 0.6rem;
+        font-weight: 500;
+        color: #6b7280;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        cursor: help;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        opacity: 0.7;
+    }
+    
+    .quality-score-display:hover {
+        background: rgba(255, 255, 255, 0.95);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        opacity: 1;
+    }
+    
+    .quality-score-display .score-value {
+        color: #374151;
+        font-weight: 600;
+    }
+    
+    /* Apple-inspired Readiness Card */
+    .readiness-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 16px;
+        padding: 0;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+        transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        overflow: hidden;
+    }
+    
+    .readiness-header {
+        display: flex;
+        align-items: center;
+        padding: 1.5rem;
+        gap: 1rem;
+    }
+    
+    .readiness-icon-container {
+        position: relative;
+    }
+    
+    .readiness-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .readiness-icon::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 100%);
+        border-radius: 16px;
+    }
+    
+    .readiness-icon.ready {
+        background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+        color: white;
+        box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+    }
+    
+    .readiness-icon.caution {
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        color: white;
+        box-shadow: 0 4px 16px rgba(245, 158, 11, 0.3);
+    }
+    
+    .readiness-icon.not-ready {
+        background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+        color: white;
+        box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+    }
+    
+    .readiness-icon.analyzing {
+        background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
+        color: white;
+        box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+    }
+    
+    .readiness-info {
+        flex: 1;
+    }
+    
+    .readiness-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+        letter-spacing: -0.01em;
+    }
+    
+    .readiness-subtitle {
+        font-size: 0.875rem;
+        color: #6b7280;
+        font-weight: 400;
+    }
+    
+    .readiness-score-container {
+        text-align: center;
+        min-width: 80px;
+    }
+    
+    .readiness-score {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        line-height: 1;
+        letter-spacing: -0.02em;
+    }
+    
+    .readiness-score-label {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 0.25rem;
+    }
+    
+    .readiness-card.ready {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.03) 0%, rgba(5, 150, 105, 0.01) 100%);
+        border-color: rgba(16, 185, 129, 0.15);
+    }
+    
+    .readiness-card.caution {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.03) 0%, rgba(217, 119, 6, 0.01) 100%);
+        border-color: rgba(245, 158, 11, 0.15);
+    }
+    
+    .readiness-card.not-ready {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.03) 0%, rgba(220, 38, 38, 0.01) 100%);
+        border-color: rgba(239, 68, 68, 0.15);
+    }
+    
+    /* Real-time Quality Dashboard */
+    .quality-dashboard {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .dashboard-card {
+        position: relative;
+        border-radius: 16px;
+        padding: 1.25rem;
+        border: none;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        overflow: hidden;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        text-decoration: none;
+        color: inherit;
+        min-height: 120px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .card-background {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border-radius: 16px;
+        transition: all 0.4s ease;
+    }
+    
+    /* Quality Card - Dynamic gradient based on score (更透明) */
+    .quality-bg {
+        background: linear-gradient(135deg, 
+            rgba(99, 102, 241, 0.08) 0%, 
+            rgba(139, 92, 246, 0.05) 50%, 
+            rgba(168, 85, 247, 0.02) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.12);
+    }
+    
+    .quality-card.excellent .quality-bg {
+        background: linear-gradient(135deg, 
+            rgba(16, 185, 129, 0.1) 0%, 
+            rgba(5, 150, 105, 0.06) 50%, 
+            rgba(4, 120, 87, 0.03) 100%);
+        border: 1px solid rgba(16, 185, 129, 0.15);
+    }
+    
+    .quality-card.good .quality-bg {
+        background: linear-gradient(135deg, 
+            rgba(59, 130, 246, 0.1) 0%, 
+            rgba(37, 99, 235, 0.06) 50%, 
+            rgba(29, 78, 216, 0.03) 100%);
+        border: 1px solid rgba(59, 130, 246, 0.15);
+    }
+    
+    .quality-card.fair .quality-bg {
+        background: linear-gradient(135deg, 
+            rgba(245, 158, 11, 0.1) 0%, 
+            rgba(217, 119, 6, 0.06) 50%, 
+            rgba(180, 83, 9, 0.03) 100%);
+        border: 1px solid rgba(245, 158, 11, 0.15);
+    }
+    
+    .quality-card.poor .quality-bg {
+        background: linear-gradient(135deg, 
+            rgba(239, 68, 68, 0.1) 0%, 
+            rgba(220, 38, 38, 0.06) 50%, 
+            rgba(185, 28, 28, 0.03) 100%);
+        border: 1px solid rgba(239, 68, 68, 0.15);
+    }
+    
+    /* Validate Card (更透明) */
+    .validate-bg {
+        background: linear-gradient(135deg, 
+            rgba(16, 185, 129, 0.08) 0%, 
+            rgba(5, 150, 105, 0.05) 50%, 
+            rgba(4, 120, 87, 0.02) 100%);
+        border: 1px solid rgba(16, 185, 129, 0.12);
+    }
+    
+    /* Guide Card (更透明) */
+    .guide-bg {
+        background: linear-gradient(135deg, 
+            rgba(139, 92, 246, 0.08) 0%, 
+            rgba(124, 58, 237, 0.05) 50%, 
+            rgba(109, 40, 217, 0.02) 100%);
+        border: 1px solid rgba(139, 92, 246, 0.12);
+    }
+    
+    .dashboard-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+    }
+    
+    .dashboard-card:hover .card-background {
+        opacity: 1.2;
+        transform: scale(1.02);
+    }
+    
+    .card-content {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        width: 100%;
+    }
+    
+    .card-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        color: white;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        flex-shrink: 0;
+    }
+    
+    .card-info {
+        flex: 1;
+    }
+    
+    .card-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+        letter-spacing: -0.01em;
+    }
+    
+    .card-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1f2937;
+        line-height: 1;
+        margin-bottom: 0.25rem;
+        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    
+    .card-subtitle {
+        font-size: 0.75rem;
+        color: #6b7280;
+        font-weight: 500;
+    }
+    
+    /* Reset Section */
+    .reset-section {
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .reset-link {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 20px;
+        color: #6b7280;
+        text-decoration: none;
+        font-size: 0.8rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .reset-link:hover {
+        background: rgba(255, 255, 255, 0.8);
+        color: #374151;
+        text-decoration: none;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Compact Outline Primary Action Button */
+    .primary-action-section {
+        margin-top: 1rem;
+        text-align: center;
+    }
+    
+    .btn-primary-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        background: transparent;
+        border: 2px solid var(--primary-color);
+        border-radius: 8px;
+        padding: 0.6rem 1.5rem;
+        color: var(--primary-color);
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        letter-spacing: -0.01em;
+    }
+    
+    .btn-primary-action::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(123, 44, 191, 0.1), transparent);
+        transition: left 0.5s ease;
+    }
+    
+    .btn-primary-action:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(123, 44, 191, 0.25);
+        text-decoration: none;
+    }
+    
+    .btn-primary-action:hover::before {
+        left: 100%;
+    }
+    
+    .btn-primary-action:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 6px rgba(123, 44, 191, 0.3);
+    }
+    
+    .btn-content {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-arrow {
+        font-size: 0.8rem;
+        opacity: 0.7;
+        transition: transform 0.3s ease;
+    }
+    
+    .btn-primary-action:hover .btn-arrow {
+        transform: translateX(3px);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .quality-dashboard {
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+        }
+        
+        .dashboard-card {
+            padding: 1rem;
+            min-height: 100px;
+        }
+        
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1rem;
+        }
+        
+        .card-value {
+            font-size: 1.5rem;
+        }
+        
+        .btn-primary-action {
+            padding: 0.5rem 1.2rem;
+            font-size: 0.85rem;
+        }
+        
+        .btn-title {
+            font-size: 0.85rem;
+        }
+        
+        .criteria-quality-indicator {
+            width: 6px;
+            height: 6px;
+            top: 0.5rem;
+            right: 0.5rem;
+        }
+        
+        .quality-score-display {
+            top: 0.5rem;
+            left: 0.5rem;
+            font-size: 0.55rem;
+            padding: 0.15rem 0.3rem;
+        }
+    }
+    
+    /* Button disabled state */
+    .btn-primary-action:disabled {
+        background: transparent;
+        border-color: #d1d5db;
+        color: #9ca3af;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    
+    .btn-primary-action:disabled:hover {
+        background: transparent;
+        border-color: #d1d5db;
+        color: #9ca3af;
+        transform: none;
+        box-shadow: none;
+    }
+    
+    .btn-primary-action:disabled .btn-arrow {
+        opacity: 0.3;
+    }
+    
+    /* Subtle entrance animations */
+    .quality-dashboard {
+        animation: slideInUp 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    
+    .quality-dashboard .dashboard-card:nth-child(1) {
+        animation: slideInUp 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    
+    .quality-dashboard .dashboard-card:nth-child(2) {
+        animation: slideInUp 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    
+    .quality-dashboard .dashboard-card:nth-child(3) {
+        animation: slideInUp 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    
+    .primary-action-section {
+        animation: slideInUp 1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Enhanced focus states for accessibility */
+    .btn-primary-action:focus,
+    .action-card:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(123, 44, 191, 0.3);
+    }
+    
+    /* Loading state for primary button */
+    .btn-primary-action.loading {
+        pointer-events: none;
+    }
+    
+    .btn-primary-action.loading .btn-icon {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
+    }
+    
+    /* Auto-save indicator */
+    .auto-save-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(40, 167, 69, 0.9);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        z-index: 1000;
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+    }
+    
+    .auto-save-indicator.show {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    
+    .auto-save-indicator.saving {
+        background: rgba(255, 193, 7, 0.9);
+    }
+    
+    .auto-save-indicator.error {
+        background: rgba(220, 53, 69, 0.9);
+    }
+    
+    /* AI Prompt Settings Specific Styles */
+    .prompt-template-selector {
+        background: linear-gradient(to right, #f0f4ff, #f2f6fc);
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        border: 1px solid #e2e8f0;
+    }
+    
+    .prompt-textarea { 
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; 
+        font-size: 0.85rem; 
+        min-height: 120px; 
+        background-color: #f8fafc; 
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 1rem;
+        line-height: 1.6;
+        transition: all 0.2s ease;
+        resize: vertical;
+        position: relative;
+    }
+    
+    .prompt-textarea:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(123, 44, 191, 0.1);
+        transform: translateY(-1px);
+        background-color: #ffffff;
+    }
+    
+    .prompt-warning {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(217, 119, 6, 0.02) 100%);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+        border-left: 4px solid #f59e0b;
+        border-radius: 6px;
+        padding: 1rem;
+        margin-top: 1rem;
+        color: #92400e;
+    }
+    
+    .prompt-warning i {
+        color: #f59e0b;
+        margin-right: 0.5rem;
+    }
+    
+    /* Template Preview */
+    .template-preview {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 0.75rem;
+        font-family: monospace;
+        font-size: 0.8rem;
+        color: #64748b;
+        max-height: 100px;
+        overflow-y: auto;
+        margin-top: 0.5rem;
+    }
+    
+    /* Character count and validation */
+    .character-count {
+        position: absolute;
+        bottom: 0.5rem;
+        right: 0.5rem;
+        font-size: 0.7rem;
+        color: #64748b;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 0.2rem 0.4rem;
+        border-radius: 3px;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .character-count.warning {
+        color: #856404;
+        background: rgba(255, 193, 7, 0.1);
+        border-color: #ffc107;
+    }
+    
+    .character-count.error {
+        color: #dc3545;
+        background: rgba(220, 53, 69, 0.1);
+        border-color: #dc3545;
+    }
+    
+    /* Styling for prompt setting textareas */
     .advanced-warning {
         font-size: 0.8em;
         color: #dc3545; /* Bootstrap danger color */
@@ -73,6 +851,7 @@
         border-right: 0; 
         border-top: 0; 
         padding: 1rem;
+        position: relative;
     } 
     .criteria-section:first-of-type { border-top: 1px solid rgba(0,0,0,.1); }
     
@@ -83,6 +862,7 @@
         border-bottom: 1px solid rgba(123, 44, 191, 0.06);
         border-radius: 4px 4px 0 0 !important;
         transition: all 0.2s ease;
+        position: relative;
     }
     .card:hover .card-header {
         background: linear-gradient(to right, rgba(123, 44, 191, 0.04), rgba(155, 93, 229, 0.01));
@@ -94,6 +874,7 @@
         box-shadow: 0 1px 2px rgba(0,0,0,0.01);
         transition: all 0.2s ease;
         margin-bottom: 1.2rem;
+        position: relative;
     }
     .card:hover {
         box-shadow: 0 1px 3px rgba(0,0,0,0.03);
@@ -147,6 +928,7 @@
         font-size: 0.85rem;
         resize: vertical;
         min-height: 70px;
+        position: relative;
     }
     .criteria-subsection textarea:focus {
         border-color: var(--primary-color);
@@ -352,6 +1134,7 @@
     .criteria-subsection {
         margin-bottom: 0.75rem;
         transition: all 0.2s ease;
+        position: relative;
     }
     .criteria-subsection:hover label {
         color: var(--primary-color);
@@ -457,9 +1240,25 @@
     
     /* Action buttons area */
     .action-buttons-container {
-        margin-top: 1.5rem;
-        padding-top: 1rem;
-        border-top: 1px solid #e9ecef;
+        margin-top: 2.5rem;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.4) 100%);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .action-buttons-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent 0%, rgba(123, 44, 191, 0.3) 50%, transparent 100%);
     }
     
     /* Enhanced action buttons */
@@ -533,6 +1332,16 @@
             display: block;
             width: 100%;
             margin-bottom: 0.5rem;
+        }
+        
+        .criteria-tabs .nav-link {
+            padding: 0.5rem 1rem;
+            margin-right: 0.25rem;
+            font-size: 0.85rem;
+        }
+        
+        .tab-pane {
+            padding: 1rem;
         }
     }
     
@@ -680,135 +1489,152 @@
     <h2 class="mb-4">
         <i class="fas fa-filter mr-2" style="color: var(--primary-color);"></i>
         Screening Criteria & AI Settings
+        <span class="badge badge-info ml-2" style="font-size: 0.6rem;">Core System</span>
     </h2>
     
-    <!-- Mode Toggle -->
-    <div class="form-group mode-toggle mb-4">
-        <div class="d-flex align-items-center mb-2">
-            <i class="fas fa-sliders-h mr-2" style="color: var(--primary-color);"></i>
-            <strong>View Mode:</strong>
-        </div>
-        <label class="mr-3">
-            <input type="radio" name="criteria_mode" value="basic" checked> 
-            <i class="fas fa-user-check mr-1"></i> Basic Mode (Recommended)
-        </label>
-        <label>
-            <input type="radio" name="criteria_mode" value="advanced"> 
-            <i class="fas fa-tools mr-1"></i> Advanced Mode
-        </label>
-        <p class="text-muted small mt-2 mb-0">
-            <i class="fas fa-info-circle mr-1"></i> 
-            Basic mode provides guided input. Advanced mode allows customizing criteria structure and AI prompt instructions (use with caution).
-        </p>
+    <!-- Auto-save indicator -->
+    <div id="autoSaveIndicator" class="auto-save-indicator">
+        <i class="fas fa-save mr-1"></i>
+        <span id="autoSaveText">Auto-saved</span>
     </div>
-
-    <!-- AI Best Practices Tips (Collapsible) -->
-    <div class="best-practices-container" style="margin-top: 0.75rem; margin-bottom: 2.5rem;">
-        <div class="best-practices-header" id="tipHeader">
-            <button class="btn btn-link btn-sm text-left w-100 d-flex justify-content-between align-items-center collapsed" type="button" data-toggle="collapse" data-target="#bestPracticesTips" aria-expanded="false" aria-controls="bestPracticesTips">
-                <span><i class="fas fa-lightbulb mr-2" style="color: #212529;"></i>Tips for Effective Criteria</span>
-                <i class="fas fa-chevron-down toggle-icon ml-1" style="color: #212529;"></i>
-            </button>
-        </div>
-        <div id="bestPracticesTips" class="collapse" aria-labelledby="tipHeader">
-            <div class="best-practices">
-                <ul class="pl-3">
-                    <li><strong>Be Specific:</strong> Use precise terms (e.g., "patients aged 18-65" instead of "adults").</li>
-                    <li><strong>Be Clear:</strong> Use bullet points or short phrases. Define ambiguous terms if necessary.</li>
-                    <li><strong>Focus on Abstract:</strong> Write criteria based on information typically found in an abstract.</li>
-                    <li><strong>Be Consistent:</strong> Avoid contradictory statements between inclusion and exclusion fields.</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <!-- Framework Selection -->
-    <div class="framework-selection-container">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <label for="framework_select" class="mb-0">
-                <i class="fas fa-sitemap mr-2" style="color: var(--primary-color);"></i>
-                <strong>Choose Criteria Framework:</strong>
-            </label>
-            <button type="button" class="btn btn-link help-button" data-toggle="popover" data-placement="right" data-trigger="click" title="Framework Selection Guide" data-content="<strong>PICOT</strong>: Standard for clinical intervention studies. Use for treatment efficacy evaluations.<br><br><strong>PICOS</strong>: Extension of PICOT with emphasis on study design. Ideal for systematic reviews.<br><br><strong>PECO</strong>: For epidemiological/exposure studies examining risk factors without interventions.<br><br><strong>PICOC</strong>: Adds context consideration. Appropriate when setting is important to study relevance.<br><br><strong>SPIDER</strong>: Designed for qualitative research. Use when exploring experiences, views, or social phenomena.<br><br><strong>ECLIPSE</strong>: For health service/management questions. Focuses on service delivery rather than clinical outcomes.<br><br><strong>CLIP</strong>: For rehabilitation/therapy studies. Emphasizes client characteristics and professional roles.<br><br><strong>BeHEMoTh</strong>: For theory-based interventions. Use when examining behavior change models or theoretical frameworks.">
-                <i class="fas fa-question-circle"></i>
-            </button>
-        </div>
-        <select id="framework_select" name="framework_id" class="form-control" onchange="onFrameworkChange(this.value)">
-            {% if supported_frameworks is defined %}
-                {% for fw_id, fw_conf in supported_frameworks.items() %}
-                    <option value="{{ fw_id }}" {% if fw_id == current_framework_id %}selected{% endif %}>{{ fw_conf.display_name }}</option>
-                {% endfor %}
-            {% endif %}
-        </select>
+    
+    <!-- Tab Navigation -->
+    <div class="criteria-tabs">
+        <ul class="nav nav-tabs" id="criteriaTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <a class="nav-link active" id="criteria-tab" data-toggle="tab" href="#criteria-content" role="tab" aria-controls="criteria-content" aria-selected="true">
+                    <i class="fas fa-clipboard-list"></i>
+                    Screening Criteria
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" id="ai-prompts-tab" data-toggle="tab" href="#ai-prompts-content" role="tab" aria-controls="ai-prompts-content" aria-selected="false">
+                    <i class="fas fa-robot"></i>
+                    AI Prompt Settings
+                </a>
+            </li>
+        </ul>
     </div>
 
     <form method="POST" action="{{ url_for('set_criteria') }}" id="criteriaForm">
-        <!-- Saved Criteria Management -->
-        <div class="framework-selection-container" style="margin-top: 3rem;">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <label class="mb-0">
-                    <i class="fas fa-save mr-2" style="color: var(--primary-color);"></i>
-                    <strong>Manage Saved Criteria Sets</strong>
-                </label>
-            </div>
-            <div class="row align-items-end">
-                <div class="col-md-8">
-                    <div class="form-group mb-md-0">
-                        <label for="saved_criteria_select" class="sr-only">Load Saved Criteria:</label>
-                        <div class="input-group">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text">
-                                    <i class="fas fa-list"></i>
-                                </span>
-                            </div>
-                            <select id="saved_criteria_select" class="form-control" title="Select a saved criteria set to load or manage">
-                                <option value="">-- Select a saved criteria set --</option>
-                            </select>
-                            <div class="input-group-append">
-                                <button type="button" id="load_criteria_button" class="btn btn-outline-info">
-                                    <i class="fas fa-download mr-1"></i> Load
-                                </button>
-                                <button type="button" id="update_loaded_local_set_button" class="btn btn-outline-success" style="display:none;">
-                                    <i class="fas fa-sync-alt mr-1"></i> Update
-                                </button>
-                                <button type="button" id="delete_criteria_button" class="btn btn-outline-danger" style="display:none;">
-                                    <i class="fas fa-trash-alt mr-1"></i> Delete
-                                </button>
-                            </div>
+        <!-- Tab Content -->
+        <div class="tab-content" id="criteriaTabContent">
+            <!-- Screening Criteria Tab -->
+            <div class="tab-pane fade show active" id="criteria-content" role="tabpanel" aria-labelledby="criteria-tab">
+                <!-- AI Best Practices Tips (Collapsible) -->
+                <div class="best-practices-container" style="margin-bottom: 2rem;">
+                    <div class="best-practices-header" id="tipHeader">
+                        <button class="btn btn-link btn-sm text-left w-100 d-flex justify-content-between align-items-center collapsed" type="button" data-toggle="collapse" data-target="#bestPracticesTips" aria-expanded="false" aria-controls="bestPracticesTips">
+                            <span><i class="fas fa-lightbulb mr-2" style="color: #212529;"></i>Tips for Effective Criteria</span>
+                            <i class="fas fa-chevron-down toggle-icon ml-1" style="color: #212529;"></i>
+                        </button>
+                    </div>
+                    <div id="bestPracticesTips" class="collapse" aria-labelledby="tipHeader">
+                        <div class="best-practices">
+                            <ul class="pl-3">
+                                <li><strong>Be Specific:</strong> Use precise terms (e.g., "patients aged 18-65" instead of "adults").</li>
+                                <li><strong>Be Clear:</strong> Use bullet points or short phrases. Define ambiguous terms if necessary.</li>
+                                <li><strong>Focus on Abstract:</strong> Write criteria based on information typically found in an abstract.</li>
+                                <li><strong>Be Consistent:</strong> Avoid contradictory statements between inclusion and exclusion fields.</li>
+                                <li><strong>Test Thoroughly:</strong> Use the test screening feature to validate your criteria before full processing.</li>
+                                <li><strong>Version Control:</strong> Save different versions of your criteria for comparison and backup.</li>
+                            </ul>
                         </div>
-                        <small id="loaded_set_name_display" class="form-text text-muted mt-2" style="display:none;">
-                            <i class="fas fa-info-circle mr-1"></i> Form currently shows: <strong></strong> (unsaved changes unless updated/applied)
-                        </small>
                     </div>
                 </div>
-                <div class="col-md-4 text-md-right mt-3 mt-md-0">
-                     <button type="button" id="save_criteria_as_button" class="btn btn-outline-success">
-                         <i class="fas fa-save mr-1"></i> Save as New Set
-                     </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Criteria Sections -->
-        <div class="framework-selection-container" style="margin-top: 3rem;">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <label class="mb-0">
-                    <i class="fas fa-clipboard-list mr-2" style="color: var(--primary-color);"></i>
-                    <strong>
-                    {% if supported_frameworks is defined and current_framework_id in supported_frameworks %}
-                        {{ supported_frameworks[current_framework_id].display_name }}
-                    {% else %}
-                        Screening
-                    {% endif %} 
-                    Criteria
-                    </strong>
-                </label>
-            </div>
 
-            {# Macro for generating include/exclude/maybe accordions dynamically #}
-            {% macro criteria_accordion_item(field_prefix, element_label, element_desc, parent_id, is_first=false) %}
-            <div class="card mb-4">
+                <!-- Framework Selection -->
+                <div class="framework-selection-container">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <label for="framework_select" class="mb-0">
+                            <i class="fas fa-sitemap mr-2" style="color: var(--primary-color);"></i>
+                            <strong>Choose Criteria Framework:</strong>
+                        </label>
+                        <button type="button" class="btn btn-link help-button" data-toggle="popover" data-placement="right" data-trigger="click" title="Framework Selection Guide" data-content="<strong>PICOT</strong>: Standard for clinical intervention studies. Use for treatment efficacy evaluations.<br><br><strong>PICOS</strong>: Extension of PICOT with emphasis on study design. Ideal for systematic reviews.<br><br><strong>PECO</strong>: For epidemiological/exposure studies examining risk factors without interventions.<br><br><strong>PICOC</strong>: Adds context consideration. Appropriate when setting is important to study relevance.<br><br><strong>SPIDER</strong>: Designed for qualitative research. Use when exploring experiences, views, or social phenomena.<br><br><strong>ECLIPSE</strong>: For health service/management questions. Focuses on service delivery rather than clinical outcomes.<br><br><strong>CLIP</strong>: For rehabilitation/therapy studies. Emphasizes client characteristics and professional roles.<br><br><strong>BeHEMoTh</strong>: For theory-based interventions. Use when examining behavior change models or theoretical frameworks.">
+                            <i class="fas fa-question-circle"></i>
+                        </button>
+                    </div>
+                    <select id="framework_select" name="framework_id" class="form-control" onchange="onFrameworkChange(this.value)">
+                        {% if supported_frameworks is defined %}
+                            {% for fw_id, fw_conf in supported_frameworks.items() %}
+                                <option value="{{ fw_id }}" {% if fw_id == current_framework_id %}selected{% endif %}>{{ fw_conf.display_name }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+
+                <!-- Saved Criteria Management -->
+                <div class="framework-selection-container" style="margin-top: 2rem;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <label class="mb-0">
+                            <i class="fas fa-save mr-2" style="color: var(--primary-color);"></i>
+                            <strong>Manage Saved Criteria Sets</strong>
+                        </label>
+                    </div>
+                    <div class="row align-items-end">
+                        <div class="col-md-8">
+                            <div class="form-group mb-md-0">
+                                <label for="saved_criteria_select" class="sr-only">Load Saved Criteria:</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-list"></i>
+                                        </span>
+                                    </div>
+                                    <select id="saved_criteria_select" class="form-control" title="Select a saved criteria set to load or manage">
+                                        <option value="">-- Select a saved criteria set --</option>
+                                    </select>
+                                    <div class="input-group-append">
+                                        <button type="button" id="load_criteria_button" class="btn btn-outline-info">
+                                            <i class="fas fa-download mr-1"></i> Load
+                                        </button>
+                                        <button type="button" id="update_loaded_local_set_button" class="btn btn-outline-success" style="display:none;">
+                                            <i class="fas fa-sync-alt mr-1"></i> Update
+                                        </button>
+                                        <button type="button" id="delete_criteria_button" class="btn btn-outline-danger" style="display:none;">
+                                            <i class="fas fa-trash-alt mr-1"></i> Delete
+                                        </button>
+                                    </div>
+                                </div>
+                                <small id="loaded_set_name_display" class="form-text text-muted mt-2" style="display:none;">
+                                    <i class="fas fa-info-circle mr-1"></i> Form currently shows: <strong></strong> (unsaved changes unless updated/applied)
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-md-right mt-3 mt-md-0">
+                             <button type="button" id="save_criteria_as_button" class="btn btn-outline-success">
+                                 <i class="fas fa-save mr-1"></i> Save as New Set
+                             </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Criteria Sections -->
+                <div class="framework-selection-container" style="margin-top: 2rem;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <label class="mb-0">
+                            <i class="fas fa-clipboard-list mr-2" style="color: var(--primary-color);"></i>
+                            <strong>
+                            {% if supported_frameworks is defined and current_framework_id in supported_frameworks %}
+                                {{ supported_frameworks[current_framework_id].display_name }}
+                            {% else %}
+                                Screening
+                            {% endif %} 
+                            Criteria
+                            </strong>
+                        </label>
+                    </div>
+
+                    {# Macro for generating include/exclude/maybe accordions dynamically #}
+                    {% macro criteria_accordion_item(field_prefix, element_label, element_desc, parent_id, is_first=false) %}
+                                <div class="card mb-4">
                 <div class="card-header" id="heading{{ field_prefix | upper }}">
+                    <div class="quality-score-display" id="score_{{ field_prefix }}" title="Quality Score">
+                        <span class="score-value">--</span>
+                    </div>
+                    <div class="criteria-quality-indicator" id="quality_{{ field_prefix }}" title="Quality Level">
+                        --
+                    </div>
                     <h2 class="mb-0">
                         <button class="btn btn-link btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapse{{ field_prefix | upper }}" aria-expanded="false" aria-controls="collapse{{ field_prefix | upper }}">
                             <span>
@@ -818,61 +1644,79 @@
                         </button>
                     </h2>
                 </div>
-                <div id="collapse{{ field_prefix | upper }}" class="collapse" aria-labelledby="heading{{ field_prefix | upper }}" data-parent="#{{ parent_id }}">
-                    <div class="card-body criteria-section">
-                        <div class="criteria-subsection">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <label for="{{ field_prefix }}_include" class="mb-0">
-                                    <i class="fas fa-check-circle mr-1" style="color: var(--success-color);"></i>
-                                    What characteristics related to {{ element_desc.lower() }} <em>must</em> be present to INCLUDE?
-                                </label>
-                                <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click" data-placement="right" title="Include Criteria Examples & Tips" data-content="{{ default_framework_criteria.get(field_prefix ~ '_include', '') | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
-                                    <i class="fas fa-question-circle"></i>
-                                </button>
+                        <div id="collapse{{ field_prefix | upper }}" class="collapse" aria-labelledby="heading{{ field_prefix | upper }}" data-parent="#{{ parent_id }}">
+                            <div class="card-body criteria-section">
+                                <div class="criteria-subsection">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <label for="{{ field_prefix }}_include" class="mb-0">
+                                            <i class="fas fa-check-circle mr-1" style="color: var(--success-color);"></i>
+                                            What characteristics related to {{ element_desc.lower() }} <em>must</em> be present to INCLUDE?
+                                        </label>
+                                        <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click" data-placement="right" title="Include Criteria Examples & Tips" data-content="{{ default_framework_criteria.get(field_prefix ~ '_include', '') | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
+                                            <i class="fas fa-question-circle"></i>
+                                        </button>
+                                    </div>
+                                    <div style="position: relative;">
+                                        <textarea name="{{ field_prefix }}_include" id="{{ field_prefix }}_include" class="form-control criteria-field" rows="3" data-field-type="include" data-element="{{ field_prefix }}">{{ criteria.get(field_prefix ~ '_include', '') }}</textarea>
+                                        <div class="character-count" id="count_{{ field_prefix }}_include">0</div>
+                                    </div>
+                                    <div class="validation-message" id="validation_{{ field_prefix }}_include"></div>
+                                </div>
+                                <div class="criteria-subsection">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <label for="{{ field_prefix }}_exclude" class="mb-0">
+                                            <i class="fas fa-times-circle mr-1" style="color: var(--danger-color);"></i>
+                                            What characteristics related to {{ element_desc.lower() }} <em>must NOT</em> be present (EXCLUDE)?
+                                        </label>
+                                        <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click" data-placement="right" title="Exclude Criteria Examples & Tips" data-content="{{ default_framework_criteria.get(field_prefix ~ '_exclude', '') | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
+                                            <i class="fas fa-question-circle"></i>
+                                        </button>
+                                    </div>
+                                    <div style="position: relative;">
+                                        <textarea name="{{ field_prefix }}_exclude" id="{{ field_prefix }}_exclude" class="form-control criteria-field" rows="3" data-field-type="exclude" data-element="{{ field_prefix }}">{{ criteria.get(field_prefix ~ '_exclude', '') }}</textarea>
+                                        <div class="character-count" id="count_{{ field_prefix }}_exclude">0</div>
+                                    </div>
+                                    <div class="validation-message" id="validation_{{ field_prefix }}_exclude"></div>
+                                </div>
+                                <div class="criteria-subsection">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <label for="{{ field_prefix }}_maybe" class="mb-0">
+                                            <i class="fas fa-question-circle mr-1" style="color: var(--warning-color);"></i>
+                                            What missing or unclear details about {{ element_desc.lower() }} would lead to a 'MAYBE' decision?
+                                        </label>
+                                        <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click" data-placement="right" title="Maybe Criteria Examples & Tips" data-content="{{ default_framework_criteria.get(field_prefix ~ '_maybe', '') | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
+                                            <i class="fas fa-question-circle"></i>
+                                        </button>
+                                    </div>
+                                    <div style="position: relative;">
+                                        <textarea name="{{ field_prefix }}_maybe" id="{{ field_prefix }}_maybe" class="form-control criteria-field" rows="3" data-field-type="maybe" data-element="{{ field_prefix }}">{{ criteria.get(field_prefix ~ '_maybe', '') }}</textarea>
+                                        <div class="character-count" id="count_{{ field_prefix }}_maybe">0</div>
+                                    </div>
+                                    <div class="validation-message" id="validation_{{ field_prefix }}_maybe"></div>
+                                </div>
                             </div>
-                            <textarea name="{{ field_prefix }}_include" id="{{ field_prefix }}_include" class="form-control" rows="3">{{ criteria.get(field_prefix ~ '_include', '') }}</textarea>
-                        </div>
-                        <div class="criteria-subsection">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <label for="{{ field_prefix }}_exclude" class="mb-0">
-                                    <i class="fas fa-times-circle mr-1" style="color: var(--danger-color);"></i>
-                                    What characteristics related to {{ element_desc.lower() }} <em>must NOT</em> be present (EXCLUDE)?
-                                </label>
-                                <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click" data-placement="right" title="Exclude Criteria Examples & Tips" data-content="{{ default_framework_criteria.get(field_prefix ~ '_exclude', '') | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
-                                    <i class="fas fa-question-circle"></i>
-                                </button>
-                            </div>
-                            <textarea name="{{ field_prefix }}_exclude" id="{{ field_prefix }}_exclude" class="form-control" rows="3">{{ criteria.get(field_prefix ~ '_exclude', '') }}</textarea>
-                        </div>
-                        <div class="criteria-subsection">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <label for="{{ field_prefix }}_maybe" class="mb-0">
-                                    <i class="fas fa-question-circle mr-1" style="color: var(--warning-color);"></i>
-                                    What missing or unclear details about {{ element_desc.lower() }} would lead to a 'MAYBE' decision?
-                                </label>
-                                <button type="button" class="btn btn-link help-button" data-toggle="popover" data-trigger="click" data-placement="right" title="Maybe Criteria Examples & Tips" data-content="{{ default_framework_criteria.get(field_prefix ~ '_maybe', '') | replace('"', '&quot;') | replace('\n', '<br>') | safe }}">
-                                    <i class="fas fa-question-circle"></i>
-                                </button>
-                            </div>
-                            <textarea name="{{ field_prefix }}_maybe" id="{{ field_prefix }}_maybe" class="form-control" rows="3">{{ criteria.get(field_prefix ~ '_maybe', '') }}</textarea>
                         </div>
                     </div>
-                </div>
-            </div>
-            {% endmacro %}
+                    {% endmacro %}
 
-            <div class="accordion" id="criteriaAccordion">
-                {% if supported_frameworks is defined and current_framework_id in supported_frameworks %}
-                    {% for element in supported_frameworks[current_framework_id]['elements'] %}
-                        {% if element.id != 'other' %}
-                            {{ criteria_accordion_item(element.id, element.id|upper, element.name, parent_id='criteriaAccordion', is_first=false) }}
+                    <div class="accordion" id="criteriaAccordion">
+                        {% if supported_frameworks is defined and current_framework_id in supported_frameworks %}
+                            {% for element in supported_frameworks[current_framework_id]['elements'] %}
+                                {% if element.id != 'other' %}
+                                    {{ criteria_accordion_item(element.id, element.id|upper, element.name, parent_id='criteriaAccordion', is_first=false) }}
+                                {% endif %}
+                            {% endfor %}
                         {% endif %}
-                    {% endfor %}
-                {% endif %}
-                
-                <!-- Other General Criteria -->
-                <div class="card mb-4">
+                        
+                        <!-- Other General Criteria -->
+                                        <div class="card mb-4">
                     <div class="card-header" id="headingOther">
+                        <div class="quality-score-display" id="score_other" title="Quality Score">
+                            <span class="score-value">--</span>
+                        </div>
+                        <div class="criteria-quality-indicator" id="quality_other" title="Quality Level">
+                            --
+                        </div>
                         <h2 class="mb-0">
                             <button class="btn btn-link btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapseOther" aria-expanded="false" aria-controls="collapseOther">
                                 <span>
@@ -882,84 +1726,172 @@
                             </button>
                         </h2>
                     </div>
-                    <div id="collapseOther" class="collapse" aria-labelledby="headingOther" data-parent="#criteriaAccordion">
-                        <div class="card-body criteria-section">
-                            <div class="form-group criteria-subsection">
-                                <label for="other_inclusion" class="mb-2">
-                                    <i class="fas fa-check-circle mr-1" style="color: var(--success-color);"></i>
-                                    Other Specific Inclusion Criteria:
-                                </label>
-                                <textarea name="other_inclusion" id="other_inclusion" class="form-control" rows="3" placeholder="List any other essential criteria for inclusion not covered by the selected framework.">{{ criteria.other_inclusion if criteria and criteria.other_inclusion else '' }}</textarea>
-                            </div>
-                            <div class="form-group criteria-subsection">
-                                <label for="other_exclusion" class="mb-2">
-                                    <i class="fas fa-times-circle mr-1" style="color: var(--danger-color);"></i>
-                                    Other Specific Exclusion Criteria:
-                                </label>
-                                <textarea name="other_exclusion" id="other_exclusion" class="form-control" rows="3" placeholder="List any other specific criteria for exclusion not covered by the selected framework.">{{ criteria.other_exclusion if criteria and criteria.other_exclusion else '' }}</textarea>
+                            <div id="collapseOther" class="collapse" aria-labelledby="headingOther" data-parent="#criteriaAccordion">
+                                <div class="card-body criteria-section">
+                                    <div class="form-group criteria-subsection">
+                                        <label for="other_inclusion" class="mb-2">
+                                            <i class="fas fa-check-circle mr-1" style="color: var(--success-color);"></i>
+                                            Other Specific Inclusion Criteria:
+                                        </label>
+                                        <div style="position: relative;">
+                                            <textarea name="other_inclusion" id="other_inclusion" class="form-control criteria-field" rows="3" placeholder="List any other essential criteria for inclusion not covered by the selected framework.">{{ criteria.other_inclusion if criteria and criteria.other_inclusion else '' }}</textarea>
+                                            <div class="character-count" id="count_other_inclusion">0</div>
+                                        </div>
+                                        <div class="validation-message" id="validation_other_inclusion"></div>
+                                    </div>
+                                    <div class="form-group criteria-subsection">
+                                        <label for="other_exclusion" class="mb-2">
+                                            <i class="fas fa-times-circle mr-1" style="color: var(--danger-color);"></i>
+                                            Other Specific Exclusion Criteria:
+                                        </label>
+                                        <div style="position: relative;">
+                                            <textarea name="other_exclusion" id="other_exclusion" class="form-control criteria-field" rows="3" placeholder="List any other specific criteria for exclusion not covered by the selected framework.">{{ criteria.other_exclusion if criteria and criteria.other_exclusion else '' }}</textarea>
+                                            <div class="character-count" id="count_other_exclusion">0</div>
+                                        </div>
+                                        <div class="validation-message" id="validation_other_exclusion"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <!-- Advanced AI Prompt Settings Section -->
-        <div class="advanced-settings framework-selection-container" style="margin-top: 3rem; display: none;">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <label class="mb-0">
-                    <i class="fas fa-robot mr-2" style="color: var(--primary-color);"></i>
-                    <strong>Advanced AI Prompt Settings</strong>
-                </label>
-            </div>
-            <p class="text-muted mb-4">
-                <i class="fas fa-info-circle mr-1"></i>
-                Modify how the AI is instructed. Changes can significantly impact performance and reliability.
-            </p>
-            
-            <div class="form-group">
-                <label for="ai_system_prompt" class="mb-2">
-                    <i class="fas fa-cog mr-1"></i>
-                    AI System Prompt / Role:
-                </label>
-                <textarea name="ai_system_prompt" id="ai_system_prompt" class="form-control prompt-textarea criteria-field-for-placeholder" rows="4">{{ criteria.ai_system_prompt if criteria and criteria.ai_system_prompt else config_defaults.DEFAULT_SYSTEM_PROMPT }}</textarea>
-                <small class="form-text text-muted">
-                    <i class="fas fa-info-circle mr-1"></i>
-                    Define the overall role or persona for the AI assistant.
-                </small>
-            </div>
 
-            <div class="form-group">
-                <label for="ai_output_format_instructions" class="mb-2">
-                    <i class="fas fa-file-alt mr-1"></i>
-                    AI Output Format Instructions:
-                </label>
-                <textarea name="ai_output_format_instructions" id="ai_output_format_instructions" class="form-control prompt-textarea criteria-field-for-placeholder" rows="5">{{ criteria.ai_output_format_instructions if criteria and criteria.ai_output_format_instructions else config_defaults.DEFAULT_OUTPUT_INSTRUCTIONS }}</textarea>
-                <small class="form-text text-muted">
-                    <i class="fas fa-info-circle mr-1"></i>
-                    Instruct the AI on its response format. Use {abstract} placeholder.
-                </small>
-            </div>
-            
-            <div class="advanced-warning mt-4">
-                <i class="fas fa-exclamation-triangle mr-2"></i>
-                <strong>Warning:</strong> Modifying these prompts incorrectly can lead to unpredictable AI behavior, poor screening results, or errors. Proceed with caution and test thoroughly after changes.
+            <!-- AI Prompt Settings Tab -->
+            <div class="tab-pane fade" id="ai-prompts-content" role="tabpanel" aria-labelledby="ai-prompts-tab">
+                <!-- Prompt Template Selector -->
+                <div class="prompt-template-selector">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <label for="prompt_template_select" class="mb-0">
+                            <i class="fas fa-magic mr-2" style="color: var(--primary-color);"></i>
+                            <strong>Choose Prompt Template:</strong>
+                        </label>
+                        <button type="button" class="btn btn-link help-button" data-toggle="popover" data-placement="left" data-trigger="click" title="Prompt Template Guide" data-content="<strong>Standard Research:</strong> Balanced approach for most systematic reviews and meta-analyses.<br><br><strong>Conservative:</strong> More cautious screening, reduces false positives but may increase false negatives.<br><br><strong>Sensitive:</strong> More inclusive screening, reduces false negatives but may increase false positives.<br><br><strong>Clinical Focus:</strong> Optimized for clinical intervention studies.<br><br><strong>Custom:</strong> Manually configure all prompt settings.">
+                            <i class="fas fa-question-circle"></i>
+                        </button>
+                    </div>
+                    <select id="prompt_template_select" class="form-control" onchange="applyPromptTemplate(this.value)">
+                        <option value="">-- Select a template or use custom settings --</option>
+                        <option value="standard">Standard Research (Recommended)</option>
+                        <option value="conservative">Conservative Screening</option>
+                        <option value="sensitive">Sensitive Screening</option>
+                        <option value="clinical">Clinical Focus</option>
+                        <option value="custom">Custom Configuration</option>
+                    </select>
+                    <small class="text-muted mt-2">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Templates provide pre-configured prompts optimized for different research scenarios.
+                    </small>
+                </div>
+
+                <!-- AI System Prompt -->
+                <div class="form-group">
+                    <label for="ai_system_prompt" class="mb-2">
+                        <i class="fas fa-cog mr-1" style="color: var(--primary-color);"></i>
+                        <strong>AI System Prompt / Role:</strong>
+                    </label>
+                    <div style="position: relative;">
+                        <textarea name="ai_system_prompt" id="ai_system_prompt" class="form-control prompt-textarea criteria-field-for-placeholder" rows="4">{{ criteria.ai_system_prompt if criteria and criteria.ai_system_prompt else config_defaults.DEFAULT_SYSTEM_PROMPT }}</textarea>
+                        <div class="character-count" id="count_ai_system_prompt">0</div>
+                    </div>
+                    <div class="validation-message" id="validation_ai_system_prompt"></div>
+                    <small class="form-text text-muted">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Define the overall role or persona for the AI assistant. This sets the context for how the AI should approach the screening task.
+                    </small>
+                </div>
+
+                <!-- AI Output Format Instructions -->
+                <div class="form-group">
+                    <label for="ai_output_format_instructions" class="mb-2">
+                        <i class="fas fa-file-alt mr-1" style="color: var(--primary-color);"></i>
+                        <strong>AI Output Format Instructions:</strong>
+                    </label>
+                    <div style="position: relative;">
+                        <textarea name="ai_output_format_instructions" id="ai_output_format_instructions" class="form-control prompt-textarea criteria-field-for-placeholder" rows="6">{{ criteria.ai_output_format_instructions if criteria and criteria.ai_output_format_instructions else config_defaults.DEFAULT_OUTPUT_INSTRUCTIONS }}</textarea>
+                        <div class="character-count" id="count_ai_output_format_instructions">0</div>
+                    </div>
+                    <div class="validation-message" id="validation_ai_output_format_instructions"></div>
+                    <small class="form-text text-muted">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Instruct the AI on its response format. Use <code>{abstract}</code> placeholder where the abstract text should be inserted.
+                    </small>
+                </div>
+
+                <!-- Advanced Warning -->
+                <div class="prompt-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Important:</strong> Modifying these prompts can significantly impact screening accuracy and reliability. Test thoroughly with a small sample before processing large datasets. Incorrect prompts may lead to unpredictable AI behavior or poor screening results.
+                </div>
             </div>
         </div>
         
-        <!-- Main Action Buttons -->
+        <!-- Apple-inspired Action Area -->
         <div class="action-buttons-container">
-            <div class="row justify-content-center">
-                <div class="col-md-8">
-                    <div class="d-flex flex-column flex-md-row justify-content-center">
-                        <button type="submit" class="btn btn-primary btn-action" name="submit_action" value="save_and_apply">
-                            <i class="fas fa-check-circle mr-2"></i>Apply Criteria for Screening
-                        </button>
-                        <a href="{{ url_for('reset_criteria') }}" class="btn btn-outline-secondary btn-action-secondary mt-3 mt-md-0 ml-md-3">
-                            <i class="fas fa-undo mr-1"></i>Reset to Defaults
-                        </a>
+            <!-- Real-time Quality Dashboard -->
+            <div class="quality-dashboard">
+                <div class="dashboard-card quality-card" id="qualityDashboard">
+                    <div class="card-background quality-bg"></div>
+                    <div class="card-content">
+                        <div class="card-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="card-info">
+                            <div class="card-title">Quality Score</div>
+                            <div class="card-value" id="realTimeScore">--</div>
+                            <div class="card-subtitle" id="qualityStatus">Analyzing...</div>
+                        </div>
                     </div>
                 </div>
+                
+                <button type="button" class="dashboard-card validate-card" id="validateCriteriaButton">
+                    <div class="card-background validate-bg"></div>
+                    <div class="card-content">
+                        <div class="card-icon">
+                            <i class="fas fa-microscope"></i>
+                        </div>
+                        <div class="card-info">
+                            <div class="card-title">Deep Analysis</div>
+                            <div class="card-subtitle">Detailed assessment</div>
+                        </div>
+                    </div>
+                </button>
+                
+                <button type="button" class="dashboard-card guide-card" id="scoringGuideButton">
+                    <div class="card-background guide-bg"></div>
+                    <div class="card-content">
+                        <div class="card-icon">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <div class="card-info">
+                            <div class="card-title">Scoring Guide</div>
+                            <div class="card-subtitle">Learn the system</div>
+                        </div>
+                    </div>
+                </button>
+            </div>
+            
+            <!-- Compact Reset Option -->
+            <div class="reset-section">
+                <a href="{{ url_for('reset_criteria') }}" class="reset-link">
+                    <i class="fas fa-refresh mr-2"></i>
+                    Reset to Defaults
+                </a>
+            </div>
+            
+            <!-- Primary Action Section (moved to bottom) -->
+            <div class="primary-action-section">
+                <button type="submit" class="btn-primary-action" name="submit_action" value="save_and_apply" id="mainSubmitButton">
+                    <div class="btn-content">
+                        <div class="btn-title">
+                            <i class="fas fa-rocket mr-2"></i>
+                            Start AI Screening
+                        </div>
+                    </div>
+                    <div class="btn-arrow">
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                </button>
             </div>
         </div>
     </form>
@@ -982,8 +1914,677 @@
 {% block extra_js %}
 <script>
 const CRITERIA_SETS_KEY = 'metaScreenerCriteriaSets';
+const AUTO_SAVE_KEY = 'metaScreenerAutoSave';
 let currentlyLoadedSetName = null; 
 let formDirty = false; 
+let autoSaveTimer = null;
+let validationTimer = null;
+
+// Validation configuration
+const VALIDATION_CONFIG = {
+    minLength: {
+        criteria: 10,
+        system_prompt: 50,
+        output_instructions: 30
+    },
+    maxLength: {
+        criteria: 2000,
+        system_prompt: 1000,
+        output_instructions: 1500
+    },
+    warningLength: {
+        criteria: 1500,
+        system_prompt: 800,
+        output_instructions: 1200
+    }
+};
+
+// Prompt templates configuration
+const promptTemplates = {
+    standard: {
+        system_prompt: "You are an expert research assistant specializing in systematic literature reviews and meta-analyses. Your role is to carefully evaluate research abstracts against specific inclusion and exclusion criteria to determine their relevance for systematic reviews.",
+        output_instructions: "Please evaluate the following abstract against the provided screening criteria and respond with exactly one of these options: 'INCLUDE', 'EXCLUDE', or 'MAYBE'.\n\nAbstract to evaluate:\n{abstract}\n\nProvide your decision followed by a brief explanation (1-2 sentences) of your reasoning."
+    },
+    conservative: {
+        system_prompt: "You are a conservative research screening assistant. Your primary goal is to minimize false positives by being more selective in inclusion decisions. When in doubt, err on the side of exclusion unless the abstract clearly meets all inclusion criteria.",
+        output_instructions: "Evaluate this abstract with a conservative approach - only include studies that clearly and explicitly meet all inclusion criteria. Respond with 'INCLUDE', 'EXCLUDE', or 'MAYBE'.\n\nAbstract:\n{abstract}\n\nDecision and brief reasoning:"
+    },
+    sensitive: {
+        system_prompt: "You are a sensitive research screening assistant. Your primary goal is to minimize false negatives by being more inclusive in screening decisions. When in doubt, err on the side of inclusion or 'MAYBE' to ensure potentially relevant studies are not missed.",
+        output_instructions: "Evaluate this abstract with a sensitive approach - include studies that potentially meet the criteria even if some information is unclear. Respond with 'INCLUDE', 'EXCLUDE', or 'MAYBE'.\n\nAbstract:\n{abstract}\n\nDecision and brief reasoning:"
+    },
+    clinical: {
+        system_prompt: "You are a clinical research specialist with expertise in evaluating clinical trials, interventions, and patient outcomes. Focus on clinical relevance, study design quality, and patient population characteristics when screening abstracts.",
+        output_instructions: "As a clinical research expert, evaluate this abstract focusing on clinical relevance, intervention details, and patient outcomes. Respond with 'INCLUDE', 'EXCLUDE', or 'MAYBE'.\n\nAbstract:\n{abstract}\n\nClinical assessment and decision:"
+    }
+};
+
+// Simplified Intelligent Scoring Algorithm
+const SCORING_FACTORS = {
+    hasContent: 30,      // Base score for having content
+    isSpecific: 25,      // Bonus for specific terminology
+    isStructured: 20,    // Bonus for good structure
+    isComplete: 15,      // Bonus for completeness
+    isConsistent: 10     // Bonus for consistency
+};
+
+const QUALITY_THRESHOLDS = {
+    excellent: 85,  // 85-100: Excellent quality
+    good: 70,       // 70-84: Good quality - Ready for screening
+    fair: 50,       // 50-69: Fair quality - Usable with caution
+    poor: 0         // 0-49: Poor quality - Needs improvement
+};
+
+const READINESS_THRESHOLDS = {
+    ready: 70,      // 70+ Ready for screening
+    caution: 50,    // 50-69 Proceed with caution
+    notReady: 0     // <50 Not ready for screening
+};
+
+// Intelligent content-based validation that actually analyzes meaning
+function validateField(field, value) {
+    const fieldType = field.dataset.fieldType;
+    const element = field.dataset.element;
+    const validation = { 
+        isValid: true, 
+        level: 'success', 
+        message: '', 
+        score: 0
+    };
+    
+    if (value.length === 0) {
+        validation.score = 0;
+        validation.level = 'warning';
+        validation.message = 'Empty field';
+        return validation;
+    }
+    
+    // Detect meaningless content (like "sssssssss")
+    if (isGibberish(value)) {
+        validation.score = 5;
+        validation.level = 'error';
+        validation.message = 'Meaningless content detected';
+        return validation;
+    }
+    
+    // Special handling for AI prompt fields
+    if (fieldType === 'system_prompt' || fieldType === 'output_instructions') {
+        return validateAIPromptField(field, value, validation);
+    }
+    
+    // For criteria fields, analyze actual content quality
+    return validateCriteriaField(field, value, validation);
+}
+
+// Check if content is gibberish or meaningless
+function isGibberish(text) {
+    const cleanText = text.trim().toLowerCase();
+    
+    // Check for repeated characters (like "sssssss")
+    const repeatedChar = /(.)\1{4,}/.test(cleanText);
+    if (repeatedChar) return true;
+    
+    // Check for keyboard mashing patterns
+    const keyboardMash = /^[qwertyuiop]+$|^[asdfghjkl]+$|^[zxcvbnm]+$/i.test(cleanText);
+    if (keyboardMash) return true;
+    
+    // Check for very low word diversity
+    const words = cleanText.split(/\s+/);
+    const uniqueWords = new Set(words);
+    if (words.length > 5 && uniqueWords.size / words.length < 0.3) return true;
+    
+    // Check for nonsensical patterns
+    const nonsense = /^[a-z]{1,2}\1*$|^(.{1,3})\1{3,}$/i.test(cleanText);
+    if (nonsense) return true;
+    
+    return false;
+}
+
+// Validate criteria fields with semantic analysis
+function validateCriteriaField(field, value, validation) {
+    const words = value.toLowerCase();
+    let score = 30; // Base score for having real content
+    
+    // 1. Content meaningfulness (40 points max)
+    const meaningfulWords = countMeaningfulWords(words);
+    const totalWords = words.split(/\s+/).length;
+    const meaningRatio = meaningfulWords / totalWords;
+    
+    if (meaningRatio > 0.7) {
+        score += 40; // High meaning content
+    } else if (meaningRatio > 0.5) {
+        score += 25; // Moderate meaning
+    } else if (meaningRatio > 0.3) {
+        score += 15; // Some meaning
+    } else {
+        score += 5; // Low meaning
+        validation.level = 'warning';
+        validation.message = 'Content lacks specific research terminology';
+    }
+    
+    // 2. Specificity and actionability (30 points max)
+    const specificityScore = analyzeSpecificity(words);
+    score += specificityScore;
+    
+    // 3. Structure and clarity (20 points max)
+    const structureScore = analyzeStructure(value);
+    score += structureScore;
+    
+    // 4. Length appropriateness (10 points max)
+    if (value.length < 15) {
+        score -= 20;
+        validation.level = 'warning';
+        validation.message = 'Too brief - needs more detail';
+    } else if (value.length > 500) {
+        score -= 10;
+        validation.message = 'Very long - consider condensing key points';
+    } else if (value.length >= 50) {
+        score += 10; // Good length
+    }
+    
+    // 5. Check for contradictions
+    const contradictionPenalty = checkContradictions(field, value);
+    score -= contradictionPenalty;
+    if (contradictionPenalty > 0) {
+        validation.level = 'warning';
+        validation.message = 'Potential contradiction with other criteria';
+    }
+    
+    validation.score = Math.max(0, Math.min(100, score));
+    
+    // Set validation level based on actual content quality
+    if (validation.score >= 80) {
+        validation.level = validation.level === 'error' ? 'error' : 'success';
+        if (!validation.message) validation.message = 'High quality criteria';
+    } else if (validation.score >= 60) {
+        validation.level = validation.level === 'error' ? 'error' : 'success';
+        if (!validation.message) validation.message = 'Good criteria';
+    } else if (validation.score >= 40) {
+        validation.level = validation.level === 'error' ? 'error' : 'warning';
+        if (!validation.message) validation.message = 'Needs improvement';
+    } else {
+        validation.level = 'error';
+        if (!validation.message) validation.message = 'Poor quality - needs significant work';
+    }
+    
+    return validation;
+}
+
+// Count meaningful research-related words
+function countMeaningfulWords(text) {
+    const researchTerms = [
+        // Population terms
+        'patients', 'participants', 'subjects', 'adults', 'children', 'elderly', 'population', 'cohort',
+        // Study terms  
+        'study', 'trial', 'research', 'investigation', 'analysis', 'review', 'meta-analysis', 'systematic',
+        // Intervention terms
+        'treatment', 'intervention', 'therapy', 'drug', 'medication', 'procedure', 'surgery', 'protocol',
+        // Outcome terms
+        'outcome', 'result', 'effect', 'efficacy', 'safety', 'mortality', 'morbidity', 'quality',
+        // Methodology terms
+        'randomized', 'controlled', 'blinded', 'placebo', 'crossover', 'longitudinal', 'prospective',
+        // Criteria terms
+        'include', 'exclude', 'criteria', 'eligible', 'diagnosis', 'condition', 'disease'
+    ];
+    
+    const words = text.split(/\s+/);
+    let meaningfulCount = 0;
+    
+    words.forEach(word => {
+        const cleanWord = word.replace(/[^\w]/g, '').toLowerCase();
+        if (researchTerms.includes(cleanWord) || cleanWord.length > 6) {
+            meaningfulCount++;
+        }
+    });
+    
+    return meaningfulCount;
+}
+
+// Analyze specificity and actionability
+function analyzeSpecificity(text) {
+    let score = 0;
+    
+    // High-value specific terms
+    const highSpecific = ['specifically', 'explicitly', 'must include', 'must exclude', 'required', 'mandatory', 'defined as'];
+    highSpecific.forEach(term => {
+        if (text.includes(term)) score += 8;
+    });
+    
+    // Medium-value terms
+    const mediumSpecific = ['include', 'exclude', 'should', 'must', 'criteria', 'only', 'exactly'];
+    mediumSpecific.forEach(term => {
+        if (text.includes(term)) score += 4;
+    });
+    
+    // Numbers and ranges (indicate specificity)
+    const hasNumbers = /\d+/.test(text);
+    if (hasNumbers) score += 6;
+    
+    // Age ranges, dates, measurements
+    const hasRanges = /\d+[-–]\d+|>\s*\d+|<\s*\d+|≥\s*\d+|≤\s*\d+/.test(text);
+    if (hasRanges) score += 8;
+    
+    return Math.min(30, score);
+}
+
+// Analyze structure and clarity
+function analyzeStructure(text) {
+    let score = 0;
+    
+    // Bullet points or lists
+    if (/[•\-\*]/.test(text) || text.includes('\n-') || text.includes('\n•')) {
+        score += 8;
+    }
+    
+    // Multiple sentences (indicates structured thinking)
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    if (sentences.length >= 2) score += 6;
+    if (sentences.length >= 3) score += 2;
+    
+    // Logical connectors
+    const connectors = ['and', 'or', 'but', 'however', 'including', 'excluding', 'such as'];
+    const hasConnectors = connectors.some(conn => text.toLowerCase().includes(conn));
+    if (hasConnectors) score += 4;
+    
+    return Math.min(20, score);
+}
+
+// Check for contradictions with other fields
+function checkContradictions(field, value) {
+    const fieldType = field.dataset.fieldType;
+    const element = field.dataset.element;
+    
+    if (fieldType === 'include' || fieldType === 'exclude') {
+        const otherType = fieldType === 'include' ? 'exclude' : 'include';
+        const otherField = document.getElementById(`${element}_${otherType}`);
+        
+        if (otherField && otherField.value) {
+            const overlap = checkContentOverlap(value, otherField.value);
+            if (overlap > 0.4) {
+                return 25; // Heavy penalty for contradictions
+            } else if (overlap > 0.2) {
+                return 10; // Light penalty for potential overlap
+            }
+        }
+    }
+    
+    return 0;
+}
+
+// Specialized validation for AI prompt fields
+function validateAIPromptField(field, value, validation) {
+    const fieldType = field.dataset.fieldType;
+    let score = 50; // Start with moderate baseline
+    
+    if (fieldType === 'system_prompt') {
+        // Analyze system prompt quality
+        const words = value.toLowerCase();
+        
+        // Check for role definition
+        if (words.includes('expert') || words.includes('assistant') || words.includes('specialist')) {
+            score += 15;
+        }
+        
+        // Check for domain expertise
+        if (words.includes('research') || words.includes('literature') || words.includes('systematic')) {
+            score += 15;
+        }
+        
+        // Check for task context
+        if (words.includes('screening') || words.includes('review') || words.includes('evaluate')) {
+            score += 15;
+        }
+        
+        // Penalty for generic or vague prompts
+        if (words.length < 10 || isGibberish(value)) {
+            score = 20;
+            validation.level = 'error';
+            validation.message = 'System prompt too generic or unclear';
+        } else {
+            validation.message = score >= 70 ? 'Good system prompt' : 'System prompt could be more specific';
+        }
+    }
+    
+    if (fieldType === 'output_instructions') {
+        // Critical requirements
+        if (!value.includes('{abstract}')) {
+            validation.isValid = false;
+            validation.level = 'error';
+            validation.message = 'Missing required {abstract} placeholder';
+            validation.score = 15;
+            return validation;
+        }
+        
+        score += 20; // Base for having {abstract}
+        
+        // Check for decision options
+        const hasInclude = value.includes('INCLUDE');
+        const hasExclude = value.includes('EXCLUDE');
+        const hasMaybe = value.includes('MAYBE');
+        
+        if (hasInclude && hasExclude && hasMaybe) {
+            score += 25;
+        } else if (hasInclude && hasExclude) {
+            score += 15;
+        } else {
+            score += 5;
+            validation.level = 'warning';
+            validation.message = 'Should specify INCLUDE/EXCLUDE/MAYBE options clearly';
+        }
+        
+        // Check for clear instructions
+        const hasInstructions = value.toLowerCase().includes('evaluate') || 
+                               value.toLowerCase().includes('assess') ||
+                               value.toLowerCase().includes('determine');
+        if (hasInstructions) score += 10;
+        
+        validation.message = score >= 70 ? 'Complete output instructions' : 'Output instructions need improvement';
+    }
+    
+    validation.score = Math.max(0, Math.min(100, score));
+    
+    // Set validation level
+    if (validation.score >= 75) {
+        validation.level = validation.level === 'error' ? 'error' : 'success';
+    } else if (validation.score >= 50) {
+        validation.level = validation.level === 'error' ? 'error' : 'warning';
+    } else {
+        validation.level = 'error';
+    }
+    
+    return validation;
+}
+
+function checkContentOverlap(text1, text2) {
+    const words1 = new Set(text1.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+    const words2 = new Set(text2.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+    const intersection = new Set([...words1].filter(x => words2.has(x)));
+    return intersection.size / Math.min(words1.size, words2.size);
+}
+
+function updateFieldValidation(field) {
+    const value = field.value.trim();
+    const fieldId = field.id;
+    const validation = validateField(field, value);
+    
+    // Update field styling
+    field.classList.remove('field-validation-error', 'field-validation-warning', 'field-validation-success');
+    if (!validation.isValid) {
+        field.classList.add(`field-validation-${validation.level}`);
+    } else {
+        field.classList.add('field-validation-success');
+    }
+    
+    // Update validation message
+    const messageEl = document.getElementById(`validation_${fieldId}`);
+    if (messageEl) {
+        messageEl.className = `validation-message ${validation.level}`;
+        messageEl.textContent = validation.message;
+        messageEl.style.display = validation.message ? 'block' : 'none';
+    }
+    
+    // Update character count
+    const countEl = document.getElementById(`count_${fieldId}`);
+    if (countEl) {
+        countEl.textContent = `${value.length}`;
+        countEl.className = 'character-count';
+        if (validation.level === 'error') {
+            countEl.classList.add('error');
+        } else if (validation.level === 'warning') {
+            countEl.classList.add('warning');
+        }
+    }
+    
+    // Update quality indicator for criteria sections
+    const element = field.dataset.element;
+    if (element) {
+        updateElementQualityIndicator(element);
+    }
+    
+    return validation;
+}
+
+function updateElementQualityIndicator(element) {
+    const qualityEl = document.getElementById(`quality_${element}`);
+    const scoreEl = document.getElementById(`score_${element}`);
+    if (!qualityEl || !scoreEl) return;
+    
+    const fields = document.querySelectorAll(`[data-element="${element}"]`);
+    let totalScore = 0;
+    let fieldCount = 0;
+    let hasContent = false;
+    let criticalIssues = [];
+    
+    fields.forEach(field => {
+        const value = field.value.trim();
+        if (value) {
+            hasContent = true;
+            const validation = validateField(field, value);
+            totalScore += validation.score;
+            fieldCount++;
+            
+            // Track critical issues
+            if (validation.level === 'error') {
+                criticalIssues.push(validation.message);
+            }
+        }
+    });
+    
+    // Calculate weighted score with penalties for missing content
+    let finalScore = 0;
+    if (hasContent) {
+        finalScore = fieldCount > 0 ? Math.round(totalScore / fieldCount) : 0;
+        
+        // Apply penalties for incomplete sections
+        const expectedFields = fields.length;
+        const completionRatio = fieldCount / expectedFields;
+        if (completionRatio < 0.5) {
+            finalScore = Math.round(finalScore * 0.6); // 40% penalty for <50% completion
+        } else if (completionRatio < 0.8) {
+            finalScore = Math.round(finalScore * 0.8); // 20% penalty for <80% completion
+        }
+        
+        // Critical issues override score
+        if (criticalIssues.length > 0) {
+            finalScore = Math.min(finalScore, 45); // Cap at 45 for critical issues
+        }
+    }
+    
+    // Update score display
+    const scoreValue = scoreEl.querySelector('.score-value');
+    if (scoreValue) {
+        scoreValue.textContent = hasContent ? finalScore : '--';
+    }
+    
+    // Update quality indicator with elegant color dots
+    qualityEl.className = 'criteria-quality-indicator';
+    
+    let qualityLevel, readinessStatus;
+    
+    if (!hasContent) {
+        qualityLevel = 'poor';
+        readinessStatus = 'No content';
+        qualityEl.style.display = 'none'; // Hide indicator when no content
+    } else if (criticalIssues.length > 0) {
+        qualityLevel = 'poor';
+        readinessStatus = 'Critical issues detected';
+        qualityEl.style.display = 'block';
+    } else if (finalScore >= QUALITY_THRESHOLDS.excellent) {
+        qualityLevel = 'excellent';
+        readinessStatus = 'Publication ready';
+        qualityEl.style.display = 'block';
+    } else if (finalScore >= QUALITY_THRESHOLDS.good) {
+        qualityLevel = 'good';
+        readinessStatus = 'Ready for screening';
+        qualityEl.style.display = 'block';
+    } else if (finalScore >= QUALITY_THRESHOLDS.fair) {
+        qualityLevel = 'fair';
+        readinessStatus = 'Needs improvement';
+        qualityEl.style.display = 'block';
+    } else {
+        qualityLevel = 'poor';
+        readinessStatus = 'Major revision required';
+        qualityEl.style.display = 'block';
+    }
+    
+    qualityEl.classList.add(qualityLevel);
+    // Remove text content - just show colored dot
+    
+    // Create intelligent tooltip
+    const tooltip = hasContent ? 
+        `${element.toUpperCase()} Quality: ${finalScore}/100
+Status: ${readinessStatus}
+Fields completed: ${fieldCount}/${fields.length}
+${criticalIssues.length > 0 ? '\n⚠️ Critical Issues:\n' + criticalIssues.join('\n') : ''}` :
+        `${element.toUpperCase()} Section
+No content provided yet
+Complete at least one field to see quality assessment`;
+    
+    qualityEl.title = tooltip;
+    scoreEl.title = tooltip;
+}
+
+function updateSmartReadinessIndicator() {
+    updateRealTimeQualityDashboard();
+}
+
+function updateRealTimeQualityDashboard() {
+    const qualityCard = document.getElementById('qualityDashboard');
+    const scoreElement = document.getElementById('realTimeScore');
+    const statusElement = document.getElementById('qualityStatus');
+    
+    if (!qualityCard || !scoreElement || !statusElement) return;
+    
+    // Quick validation
+    const results = validateAllCriteria();
+    
+    // Reset quality card classes
+    qualityCard.className = 'dashboard-card quality-card';
+    
+    if (results.fieldCount === 0) {
+        // No content yet
+        scoreElement.textContent = '--';
+        statusElement.textContent = 'No content yet';
+        return;
+    }
+    
+    // Update score display
+    scoreElement.textContent = results.score;
+    
+    // Determine quality level and update card appearance
+    let qualityLevel, statusText;
+    
+    if (results.score >= QUALITY_THRESHOLDS.excellent) {
+        qualityLevel = 'excellent';
+        statusText = `Excellent • ${results.sectionsWithContent} sections`;
+    } else if (results.score >= QUALITY_THRESHOLDS.good) {
+        qualityLevel = 'good';
+        statusText = `Good quality • ${results.sectionsWithContent} sections`;
+    } else if (results.score >= QUALITY_THRESHOLDS.fair) {
+        qualityLevel = 'fair';
+        statusText = `Fair quality • ${results.sectionsWithContent} sections`;
+    } else {
+        qualityLevel = 'poor';
+        statusText = results.readinessMessage || 'Needs improvement';
+    }
+    
+    // Apply quality level class for dynamic styling
+    qualityCard.classList.add(qualityLevel);
+    statusElement.textContent = statusText;
+    
+    // Add subtle animation when score changes
+    scoreElement.style.transform = 'scale(1.1)';
+    setTimeout(() => {
+        scoreElement.style.transform = 'scale(1)';
+    }, 200);
+}
+
+// Auto-save functionality
+function showAutoSaveIndicator(status, message) {
+    const indicator = document.getElementById('autoSaveIndicator');
+    const text = document.getElementById('autoSaveText');
+    
+    if (indicator && text) {
+        indicator.className = 'auto-save-indicator show';
+        text.textContent = message;
+        
+        if (status === 'saving') {
+            indicator.classList.add('saving');
+        } else if (status === 'error') {
+            indicator.classList.add('error');
+        }
+        
+        setTimeout(() => {
+            indicator.classList.remove('show', 'saving', 'error');
+        }, 3000);
+    }
+}
+
+function autoSaveCriteria() {
+    try {
+        const currentCriteria = {};
+        getAllCriteriaFieldIds().forEach(id => {
+            const element = document.getElementById(id);
+            if (element) currentCriteria[id] = element.value;
+        });
+        
+        currentCriteria.autoSavedAt = new Date().toISOString();
+        currentCriteria.framework = document.getElementById('framework_select')?.value;
+        
+        localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(currentCriteria));
+        showAutoSaveIndicator('success', 'Auto-saved');
+    } catch (error) {
+        console.error('Auto-save failed:', error);
+        showAutoSaveIndicator('error', 'Auto-save failed');
+    }
+}
+
+function loadAutoSavedCriteria() {
+    try {
+        const autoSaved = localStorage.getItem(AUTO_SAVE_KEY);
+        if (autoSaved) {
+            const data = JSON.parse(autoSaved);
+            const savedTime = new Date(data.autoSavedAt);
+            const timeDiff = Date.now() - savedTime.getTime();
+            
+            // Only load if saved within last 24 hours
+            if (timeDiff < 24 * 60 * 60 * 1000) {
+                const shouldLoad = confirm(`Found auto-saved criteria from ${savedTime.toLocaleString()}. Load them?`);
+                if (shouldLoad) {
+                    getAllCriteriaFieldIds().forEach(id => {
+                        const element = document.getElementById(id);
+                        if (element && data[id] !== undefined) {
+                            element.value = data[id];
+                        }
+                    });
+                    showToast('Auto-saved criteria loaded successfully!', 'info');
+                    setFormDirty(true);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load auto-saved criteria:', error);
+    }
+}
+
+// Apply prompt template
+function applyPromptTemplate(templateName) {
+    if (!templateName || templateName === 'custom') return;
+    
+    const template = promptTemplates[templateName];
+    if (template) {
+        document.getElementById('ai_system_prompt').value = template.system_prompt;
+        document.getElementById('ai_output_format_instructions').value = template.output_instructions;
+        setFormDirty(true);
+        
+        // Trigger validation
+        updateFieldValidation(document.getElementById('ai_system_prompt'));
+        updateFieldValidation(document.getElementById('ai_output_format_instructions'));
+        
+        // Show feedback
+        showToast(`Applied "${templateName}" prompt template successfully!`, 'success');
+    }
+}
 
 // Enhanced smooth page transition when redirecting
 function smoothRedirect(url, delay = 800) {
@@ -1027,6 +2628,7 @@ function onFrameworkChange(newFw){
     url.searchParams.set('framework_id', newFw);
     window.location.href = url.toString();
 }
+
 // Prepare dynamic prefixes list from server-side
 const elementPrefixes = JSON.parse('{{ (element_prefixes if element_prefixes is defined else []) | tojson | safe }}');
 function getAllCriteriaFieldIds() {
@@ -1066,15 +2668,35 @@ allCriteriaFields.forEach(field => {
     if(field) {
         field.addEventListener('input', () => {
             setFormDirty(true);
+            
+            // Debounced validation
+            if (validationTimer) {
+                clearTimeout(validationTimer);
+            }
+            validationTimer = setTimeout(() => {
+                updateFieldValidation(field);
+                updateSmartReadinessIndicator();
+            }, 500);
+        });
+        
+        field.addEventListener('blur', () => {
+            updateFieldValidation(field);
+            updateSmartReadinessIndicator();
         });
         
         // Add visual feedback when field is focused
         field.addEventListener('focus', () => {
-            field.closest('.criteria-subsection').classList.add('active-subsection');
+            const subsection = field.closest('.criteria-subsection');
+            if (subsection) {
+                subsection.classList.add('active-subsection');
+            }
         });
         
         field.addEventListener('blur', () => {
-            field.closest('.criteria-subsection').classList.remove('active-subsection');
+            const subsection = field.closest('.criteria-subsection');
+            if (subsection) {
+                subsection.classList.remove('active-subsection');
+            }
         });
     }
 });
@@ -1157,8 +2779,10 @@ function saveCriteriaToLocalStorage(setName, showOverwriteConfirm = true) {
         if (element) currentCriteria[id] = element.value;
     });
     
-    // Add timestamp for sorting and display
+    // Add metadata
     currentCriteria.savedAt = new Date().toISOString();
+    currentCriteria.framework = document.getElementById('framework_select')?.value;
+    currentCriteria.version = '2.0'; // Version for future compatibility
     
     criteriaSets[setName] = currentCriteria;
     localStorage.setItem(CRITERIA_SETS_KEY, JSON.stringify(criteriaSets));
@@ -1227,8 +2851,131 @@ function showToast(message, type = 'success') {
     }, 5000);
 }
 
+// Intelligent comprehensive validation function
+function validateAllCriteria() {
+    const results = {
+        isValid: false,
+        errors: [],
+        warnings: [],
+        score: 0,
+        fieldCount: 0,
+        readinessLevel: 'not_ready',
+        readinessMessage: '',
+        sectionsAnalyzed: 0,
+        sectionsComplete: 0
+    };
+    
+    const allFields = document.querySelectorAll('.criteria-field');
+    const sections = new Set();
+    let totalScore = 0;
+    let criticalErrors = 0;
+    let sectionsWithContent = 0;
+    
+    // Group fields by section
+    const sectionData = {};
+    allFields.forEach(field => {
+        const element = field.dataset.element;
+        if (element) {
+            sections.add(element);
+            if (!sectionData[element]) {
+                sectionData[element] = { fields: [], scores: [], hasContent: false };
+            }
+            sectionData[element].fields.push(field);
+        }
+    });
+    
+    // Analyze each section
+    sections.forEach(element => {
+        const section = sectionData[element];
+        let sectionScore = 0;
+        let sectionFieldCount = 0;
+        let sectionHasContent = false;
+        
+        section.fields.forEach(field => {
+            const value = field.value.trim();
+            if (value) {
+                sectionHasContent = true;
+                const validation = validateField(field, value);
+                sectionScore += validation.score;
+                sectionFieldCount++;
+                results.fieldCount++;
+                
+                if (validation.level === 'error') {
+                    criticalErrors++;
+                    results.errors.push(`${element.toUpperCase()}: ${validation.message}`);
+                } else if (validation.level === 'warning') {
+                    results.warnings.push(`${element.toUpperCase()}: ${validation.message}`);
+                }
+            }
+        });
+        
+        if (sectionHasContent) {
+            sectionsWithContent++;
+            section.hasContent = true;
+            const avgSectionScore = sectionFieldCount > 0 ? sectionScore / sectionFieldCount : 0;
+            section.avgScore = avgSectionScore;
+            totalScore += avgSectionScore;
+            
+            // Check section completion
+            const completionRatio = sectionFieldCount / section.fields.length;
+            if (completionRatio >= 0.6) { // At least 60% of fields filled
+                results.sectionsComplete++;
+            }
+        }
+        
+        results.sectionsAnalyzed++;
+    });
+    
+    // Calculate overall score with intelligent weighting
+    if (sectionsWithContent > 0) {
+        results.score = Math.round(totalScore / sectionsWithContent);
+        
+        // Apply penalties for incomplete coverage
+        const coverageRatio = sectionsWithContent / sections.size;
+        if (coverageRatio < 0.5) {
+            results.score = Math.round(results.score * 0.5); // 50% penalty for <50% section coverage
+        } else if (coverageRatio < 0.8) {
+            results.score = Math.round(results.score * 0.75); // 25% penalty for <80% section coverage
+        }
+        
+        // Critical errors cap the score
+        if (criticalErrors > 0) {
+            results.score = Math.min(results.score, 40);
+        }
+    }
+    
+    // Practical readiness assessment - more lenient and user-friendly
+    const minSectionsRequired = Math.max(1, Math.ceil(sections.size * 0.4)); // At least 40% of sections
+    const hasMinimumContent = sectionsWithContent >= minSectionsRequired;
+    const hasDecentQuality = results.score >= READINESS_THRESHOLDS.ready;
+    const hasNoCriticalErrors = criticalErrors === 0;
+    
+    if (hasMinimumContent && hasDecentQuality && hasNoCriticalErrors) {
+        results.isValid = true;
+        results.readinessLevel = 'ready';
+        results.readinessMessage = 'Ready for AI screening';
+    } else if (hasMinimumContent && results.score >= READINESS_THRESHOLDS.caution && criticalErrors <= 2) {
+        results.isValid = true; // Allow with caution
+        results.readinessLevel = 'caution';
+        results.readinessMessage = 'Usable for screening - consider improvements for better results';
+    } else {
+        results.isValid = false;
+        results.readinessLevel = 'not_ready';
+        
+        if (!hasMinimumContent) {
+            results.readinessMessage = `Add content to at least ${minSectionsRequired} more section(s)`;
+        } else if (criticalErrors > 2) {
+            results.readinessMessage = `Fix ${criticalErrors} critical errors first`;
+        } else {
+            results.readinessMessage = `Improve quality (current: ${results.score}/100, need: ${READINESS_THRESHOLDS.caution}+)`;
+        }
+    }
+    
+    return results;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-            // Add styles for toast notifications
+    // Add comprehensive styles for enhanced functionality
     const styleElement = document.createElement('style');
     styleElement.textContent = `
         .toast-container {
@@ -1343,8 +3090,57 @@ document.addEventListener('DOMContentLoaded', function() {
             background-color: #f0f9ff;
             border-color: #7B2CBF;
         }
+        
+        /* Validation modal styles */
+        .validation-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+        
+        .validation-modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        
+        .validation-score {
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 1rem 0;
+        }
+        
+        .validation-score.excellent { color: #059669; }
+        .validation-score.good { color: #0891b2; }
+        .validation-score.fair { color: #d97706; }
+        .validation-score.poor { color: #dc2626; }
     `;
     document.head.appendChild(styleElement);
+    
+    // Load auto-saved criteria on page load
+    loadAutoSavedCriteria();
+    
+    // Initialize validation for all fields
+    setTimeout(() => {
+        allCriteriaFields.forEach(field => {
+            if (field) {
+                updateFieldValidation(field);
+            }
+        });
+        updateSmartReadinessIndicator();
+    }, 100);
     
     const saveBtn = document.getElementById('save_criteria_as_button');
     if(saveBtn) {
@@ -1379,8 +3175,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const selectedCriteria = criteriaSets[setName];
             if (selectedCriteria) {
                 // Add a subtle loading effect
-                document.querySelectorAll('.section-container').forEach(container => {
-                    container.style.opacity = '0.7';
+                document.querySelectorAll('.tab-pane').forEach(pane => {
+                    pane.style.opacity = '0.7';
                 });
                 
                 setTimeout(() => {
@@ -1389,8 +3185,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (element && selectedCriteria[id] !== undefined) {
                             element.value = selectedCriteria[id];
                             
-                            // Add highlight animation
+                            // Add highlight animation and update validation
                             element.classList.add('highlight-field');
+                            updateFieldValidation(element);
                             setTimeout(() => {
                                 element.classList.remove('highlight-field');
                             }, 1000);
@@ -1398,13 +3195,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     
                     // Restore opacity
-                    document.querySelectorAll('.section-container').forEach(container => {
-                        container.style.opacity = '1';
+                    document.querySelectorAll('.tab-pane').forEach(pane => {
+                        pane.style.opacity = '1';
                     });
                     
                     currentlyLoadedSetName = setName;
                     setFormDirty(false); 
                     updateButtonStates();
+                    updateSmartReadinessIndicator();
                     
                     showToast(`Criteria set '${setName}' loaded into the form. Click 'Apply Criteria for Screening' to use for screening.`, "info");
                     
@@ -1463,39 +3261,241 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    const modeRadios = document.querySelectorAll('input[name="criteria_mode"]');
-    const advancedSettingsDiv = document.querySelector('.advanced-settings');
-
-    function toggleAdvancedSettings() {
-        if(document.querySelector('input[name="criteria_mode"]:checked') && advancedSettingsDiv){
-            if (document.querySelector('input[name="criteria_mode"]:checked').value === 'advanced') {
-                // Use a slide-down effect
-                advancedSettingsDiv.style.maxHeight = '0';
-                advancedSettingsDiv.style.display = 'block';
-                setTimeout(() => {
-                    advancedSettingsDiv.style.maxHeight = advancedSettingsDiv.scrollHeight + 'px';
-                    advancedSettingsDiv.style.opacity = '1';
-                }, 10);
+    // Validate criteria button
+    const validateBtn = document.getElementById('validateCriteriaButton');
+    if (validateBtn) {
+        validateBtn.addEventListener('click', function() {
+            const results = validateAllCriteria();
+            
+            // Create validation modal
+            const modal = document.createElement('div');
+            modal.className = 'validation-modal';
+            
+            let scoreClass = 'poor';
+            if (results.score >= QUALITY_THRESHOLDS.excellent) scoreClass = 'excellent';
+            else if (results.score >= QUALITY_THRESHOLDS.good) scoreClass = 'good';
+            else if (results.score >= QUALITY_THRESHOLDS.fair) scoreClass = 'fair';
+            
+            // Determine readiness status styling
+            let readinessClass, readinessIcon;
+            if (results.readinessLevel === 'ready') {
+                readinessClass = 'success';
+                readinessIcon = 'check-circle';
+            } else if (results.readinessLevel === 'caution') {
+                readinessClass = 'warning';
+                readinessIcon = 'exclamation-triangle';
             } else {
-                // Use a slide-up effect
-                advancedSettingsDiv.style.maxHeight = '0';
-                advancedSettingsDiv.style.opacity = '0';
-                setTimeout(() => {
-                    advancedSettingsDiv.style.display = 'none';
-                }, 300); // Match the transition duration
+                readinessClass = 'danger';
+                readinessIcon = 'times-circle';
             }
-        }
+            
+            modal.innerHTML = `
+                <div class="validation-modal-content">
+                    <h3><i class="fas fa-clipboard-check mr-2"></i>Screening Readiness Assessment</h3>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-4 text-center">
+                            <div class="validation-score ${scoreClass}">${results.score}</div>
+                            <small class="text-muted">Quality Score</small>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="h2 text-primary">${results.sectionsWithContent || 0}/${results.sectionsAnalyzed}</div>
+                            <small class="text-muted">Sections with Content</small>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="h2 text-info">${results.fieldCount}</div>
+                            <small class="text-muted">Fields Completed</small>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-${readinessClass} text-center">
+                        <i class="fas fa-${readinessIcon} mr-2"></i>
+                        <strong>${results.readinessMessage}</strong>
+                    </div>
+                    
+                    ${results.errors.length > 0 ? `
+                        <div class="mt-3">
+                            <h6 class="text-danger"><i class="fas fa-exclamation-circle mr-1"></i>Critical Issues (${results.errors.length})</h6>
+                            <div class="bg-light p-2 rounded">
+                                ${results.errors.map(error => `<div class="small text-danger">• ${error}</div>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    ${results.warnings.length > 0 ? `
+                        <div class="mt-3">
+                            <h6 class="text-warning"><i class="fas fa-exclamation-triangle mr-1"></i>Recommendations (${results.warnings.length})</h6>
+                            <div class="bg-light p-2 rounded">
+                                ${results.warnings.map(warning => `<div class="small text-warning">• ${warning}</div>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="mt-3">
+                        <h6><i class="fas fa-lightbulb mr-1"></i>Next Steps</h6>
+                        <div class="bg-light p-2 rounded">
+                            ${results.readinessLevel === 'ready' ? 
+                                '<div class="small text-success">✓ Your criteria are ready! Click "Apply Criteria for Screening" to proceed.</div>' :
+                                results.readinessLevel === 'caution' ?
+                                '<div class="small text-warning">⚠️ Consider addressing the recommendations above for better results, but you may proceed if needed.</div>' :
+                                '<div class="small text-danger">✗ Please address the critical issues before proceeding with AI screening.</div>'
+                            }
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button class="btn btn-primary" onclick="this.closest('.validation-modal').remove()">
+                            <i class="fas fa-times mr-1"></i> Close Assessment
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Close modal when clicking outside
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        });
     }
-    
-    if(modeRadios.length > 0 && advancedSettingsDiv){
-        // Add transition styles
-        advancedSettingsDiv.style.transition = 'max-height 0.3s ease-out, opacity 0.3s ease-out';
-        advancedSettingsDiv.style.overflow = 'hidden';
-        advancedSettingsDiv.style.opacity = '0';
-        advancedSettingsDiv.style.maxHeight = '0';
-        
-        modeRadios.forEach(radio => radio.addEventListener('change', toggleAdvancedSettings));
-        toggleAdvancedSettings(); 
+
+    // Scoring Guide button
+    const scoringGuideBtn = document.getElementById('scoringGuideButton');
+    if (scoringGuideBtn) {
+        scoringGuideBtn.addEventListener('click', function() {
+            const modal = document.createElement('div');
+            modal.className = 'validation-modal';
+            
+            modal.innerHTML = `
+                <div class="validation-modal-content" style="max-width: 800px;">
+                    <h3><i class="fas fa-info-circle mr-2"></i>Scientific Quality Scoring System</h3>
+                    
+                                         <div class="alert alert-success">
+                         <strong>🧠 Intelligent Content Analysis - No more fooling the system with gibberish!</strong>
+                     </div>
+                     
+                     <h4>How Smart Scoring Actually Works</h4>
+                     <div class="row">
+                         <div class="col-md-6">
+                             <div class="card mb-3">
+                                 <div class="card-body">
+                                     <h6><i class="fas fa-search mr-1 text-primary"></i> Content Meaningfulness (40 pts)</h6>
+                                     <ul class="small mb-0">
+                                         <li><strong>Research terminology:</strong> patients, study, intervention, etc.</li>
+                                         <li><strong>Domain relevance:</strong> Actual medical/research terms</li>
+                                         <li><strong>Word diversity:</strong> Not just repeated nonsense</li>
+                                         <li><strong>Gibberish detection:</strong> "sssssss" = 5 points only!</li>
+                                     </ul>
+                                 </div>
+                             </div>
+                         </div>
+                         
+                         <div class="col-md-6">
+                             <div class="card mb-3">
+                                 <div class="card-body">
+                                     <h6><i class="fas fa-crosshairs mr-1 text-success"></i> Specificity Analysis (30 pts)</h6>
+                                     <ul class="small mb-0">
+                                         <li><strong>Precise terms:</strong> "specifically", "must include" (+8 each)</li>
+                                         <li><strong>Action words:</strong> "include", "exclude", "must" (+4 each)</li>
+                                         <li><strong>Numbers/ranges:</strong> Ages, dates, measurements (+6-8)</li>
+                                         <li><strong>Clear criteria:</strong> Actionable, not vague</li>
+                                     </ul>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+                     
+                     <div class="row">
+                         <div class="col-md-6">
+                             <div class="card mb-3">
+                                 <div class="card-body">
+                                     <h6><i class="fas fa-list mr-1 text-info"></i> Structure & Clarity (20 pts)</h6>
+                                     <ul class="small mb-0">
+                                         <li><strong>Organization:</strong> Bullet points, lists (+8)</li>
+                                         <li><strong>Multiple points:</strong> 2+ sentences (+6)</li>
+                                         <li><strong>Logical flow:</strong> Connectors like "and", "or" (+4)</li>
+                                     </ul>
+                                 </div>
+                             </div>
+                         </div>
+                         
+                         <div class="col-md-6">
+                             <div class="card mb-3">
+                                 <div class="card-body">
+                                     <h6><i class="fas fa-exclamation-triangle mr-1 text-warning"></i> Smart Penalties</h6>
+                                     <ul class="small mb-0">
+                                         <li><strong>Too brief:</strong> <15 chars (-20 pts)</li>
+                                         <li><strong>Contradictions:</strong> Include/exclude overlap (-25 pts)</li>
+                                         <li><strong>Missing {abstract}:</strong> AI prompt error (15 pts max)</li>
+                                         <li><strong>Meaningless content:</strong> Gibberish (5 pts max)</li>
+                                     </ul>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+                    
+                                         <h4>Practical Quality Thresholds</h4>
+                     <div class="row">
+                         <div class="col-md-3">
+                             <div class="text-center p-3 border rounded" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(21, 128, 61, 0.05));">
+                                 <div class="h5 text-success">85-100</div>
+                                 <div class="small"><strong>Excellent ★</strong><br>High quality</div>
+                             </div>
+                         </div>
+                         <div class="col-md-3">
+                             <div class="text-center p-3 border rounded" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(29, 78, 216, 0.05));">
+                                 <div class="h5 text-primary">70-84</div>
+                                 <div class="small"><strong>Good ✓</strong><br>Ready for screening</div>
+                             </div>
+                         </div>
+                         <div class="col-md-3">
+                             <div class="text-center p-3 border rounded" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05));">
+                                 <div class="h5 text-warning">50-69</div>
+                                 <div class="small"><strong>Fair !</strong><br>Usable with caution</div>
+                             </div>
+                         </div>
+                         <div class="col-md-3">
+                             <div class="text-center p-3 border rounded" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(185, 28, 28, 0.05));">
+                                 <div class="h5 text-danger">0-49</div>
+                                 <div class="small"><strong>Poor ✗</strong><br>Needs improvement</div>
+                             </div>
+                         </div>
+                     </div>
+                     
+                     <div class="alert alert-success mt-3">
+                         <h6><i class="fas fa-rocket mr-1"></i> Lenient Screening Readiness</h6>
+                         <ul class="small mb-0">
+                             <li><strong>Ready (70+):</strong> Good quality + No critical errors + 40%+ sections</li>
+                             <li><strong>Caution (50+):</strong> Fair quality + ≤2 critical errors + Some content</li>
+                             <li><strong>Not Ready (<50):</strong> Poor quality OR many errors OR no content</li>
+                         </ul>
+                     </div>
+                    
+                    <div class="alert alert-light mt-3">
+                        <h6><i class="fas fa-graduation-cap mr-1"></i> Scientific Basis</h6>
+                        <p class="small mb-0">This scoring system is based on established systematic review guidelines (PRISMA, Cochrane Handbook) and natural language processing research on criteria quality assessment. The weighted approach prioritizes specificity and clarity as the most critical factors for AI-assisted screening accuracy.</p>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button class="btn btn-primary" onclick="this.closest('.validation-modal').remove()">
+                            <i class="fas fa-times mr-1"></i> Close Guide
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Close modal when clicking outside
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        });
     }
 
     populateSavedCriteriaDropdown();
@@ -1513,20 +3513,44 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
     document.head.appendChild(styleEl);
     
-    // Add form AJAX submission handling
+    // Enhanced form AJAX submission handling with comprehensive error recovery
     const criteriaForm = document.getElementById('criteriaForm');
     if (criteriaForm) {
         criteriaForm.addEventListener('submit', function(event) {
             event.preventDefault();
             
+            // Pre-submission validation
+            const validation = validateAllCriteria();
+            if (!validation.isValid && validation.errors.length > 0) {
+                showToast('Please fix validation errors before submitting.', 'error');
+                return;
+            }
+            
             const formData = new FormData(this);
             const submitButton = criteriaForm.querySelector('button[type="submit"]');
             const originalButtonText = submitButton.innerHTML;
             submitButton.disabled = true;
-            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
+            submitButton.classList.add('loading');
+            
+            // Update button content for loading state
+            const btnTitle = submitButton.querySelector('.btn-title');
+            const btnSubtitle = submitButton.querySelector('.btn-subtitle');
+            const btnIcon = submitButton.querySelector('.btn-icon i');
+            
+            if (btnTitle) btnTitle.textContent = 'Saving Criteria...';
+            if (btnSubtitle) btnSubtitle.textContent = 'Please wait while we process';
+            if (btnIcon) btnIcon.className = 'fas fa-spinner fa-spin';
             
             // Add visual feedback that submission is in progress
             document.body.classList.add('form-submitting');
+            
+            // Create backup before submission
+            const backupData = {};
+            getAllCriteriaFieldIds().forEach(id => {
+                const element = document.getElementById(id);
+                if (element) backupData[id] = element.value;
+            });
+            localStorage.setItem('metaScreenerSubmissionBackup', JSON.stringify(backupData));
             
             fetch('{{ url_for("set_criteria") }}', {
                 method: 'POST',
@@ -1542,6 +3566,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = result.data;
                 
                 if (result.ok && data.status === 'success') {
+                    // Clear backup on successful submission
+                    localStorage.removeItem('metaScreenerSubmissionBackup');
+                    localStorage.removeItem(AUTO_SAVE_KEY);
+                    
                     if (data.redirect_url) {
                         smoothRedirect(data.redirect_url);
                     } else {
@@ -1553,20 +3581,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     showToast(data.message || 'An unexpected error occurred.', 'error');
                     submitButton.disabled = false;
+                    submitButton.classList.remove('loading');
                     submitButton.innerHTML = originalButtonText;
                     document.body.classList.remove('form-submitting');
                 }
             })
             .catch(error => {
                 console.error('Error submitting criteria:', error);
-                showToast('A network error occurred. Please try again.', 'error');
+                showToast('A network error occurred. Your data has been backed up locally. Please try again.', 'error');
                 submitButton.disabled = false;
+                submitButton.classList.remove('loading');
                 submitButton.innerHTML = originalButtonText;
                 document.body.classList.remove('form-submitting');
             });
         });
     }
 
+    // Initialize Bootstrap popovers with enhanced error handling
     if (typeof $ !== 'undefined' && typeof $.fn.popover !== 'undefined') {
         try {
             $('[data-toggle="popover"]').popover({
@@ -1598,12 +3629,65 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add style for form submission state
     const formSubmitStyle = document.createElement('style');
     formSubmitStyle.textContent = `
-        .form-submitting .section-container {
+        .form-submitting .tab-content {
             opacity: 0.7;
             pointer-events: none;
         }
     `;
     document.head.appendChild(formSubmitStyle);
+    
+    // Add keyboard shortcuts for power users
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+S to save criteria
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            if (formDirty) {
+                autoSaveCriteria();
+                showToast('Criteria auto-saved!', 'success');
+            }
+        }
+        
+        // Ctrl+Enter to submit form
+        if (e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            const submitButton = document.getElementById('mainSubmitButton');
+            if (submitButton && !submitButton.disabled) {
+                submitButton.click();
+            }
+        }
+        
+        // Ctrl+Shift+V to validate
+        if (e.ctrlKey && e.shiftKey && e.key === 'V') {
+            e.preventDefault();
+            const validateButton = document.getElementById('validateCriteriaButton');
+            if (validateButton) {
+                validateButton.click();
+            }
+        }
+    });
+    
+    // Add recovery mechanism for failed submissions
+    const submissionBackup = localStorage.getItem('metaScreenerSubmissionBackup');
+    if (submissionBackup) {
+        try {
+            const backupData = JSON.parse(submissionBackup);
+            const shouldRestore = confirm('Found unsaved criteria from a previous session. Would you like to restore them?');
+            if (shouldRestore) {
+                getAllCriteriaFieldIds().forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element && backupData[id] !== undefined) {
+                        element.value = backupData[id];
+                        updateFieldValidation(element);
+                    }
+                });
+                setFormDirty(true);
+                showToast('Previous session data restored successfully!', 'info');
+            }
+            localStorage.removeItem('metaScreenerSubmissionBackup');
+        } catch (error) {
+            console.error('Failed to restore backup data:', error);
+        }
+    }
 });
 </script>
-{% endblock %} 
+{% endblock %}
