@@ -11,6 +11,12 @@ build/
 htmlcov/
 *.db
 *.sqlite
+.env
+.env.*
+!.env.example
+*.key
+configs/secrets.yaml
+configs/api_keys.yaml
 validation/results/*
 !validation/results/.gitkeep
 paper/figures/*
@@ -18,6 +24,8 @@ paper/figures/*
 validation/datasets/*.ris
 validation/datasets/*.csv
 validation/datasets/*.json
+validation/datasets/*.xml
+validation/datasets/*.bib
 backend/
 frontend/
 screen_webapp.db
