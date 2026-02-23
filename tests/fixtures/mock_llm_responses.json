@@ -1,0 +1,50 @@
+{
+  "screening_include_high_conf": {
+    "decision": "INCLUDE",
+    "confidence": 0.95,
+    "score": 0.92,
+    "pico_assessment": {
+      "population": {"match": true, "evidence": "adult ICU patients"},
+      "intervention": {"match": true, "evidence": "antimicrobial stewardship program"},
+      "comparison": {"match": true, "evidence": "standard care"},
+      "outcome": {"match": true, "evidence": "30-day mortality"},
+      "study_design": {"match": true, "evidence": "randomized controlled trial"}
+    },
+    "rationale": "Study matches all PICO elements with high confidence."
+  },
+  "screening_exclude_high_conf": {
+    "decision": "EXCLUDE",
+    "confidence": 0.93,
+    "score": 0.08,
+    "pico_assessment": {
+      "population": {"match": false, "evidence": "pediatric patients only"},
+      "intervention": {"match": false, "evidence": "surgical intervention"},
+      "comparison": {"match": false, "evidence": "not reported"},
+      "outcome": {"match": false, "evidence": "different primary outcome"},
+      "study_design": {"match": false, "evidence": "case report"}
+    },
+    "rationale": "Population, intervention, and study design do not match criteria."
+  },
+  "screening_include_low_conf": {
+    "decision": "INCLUDE",
+    "confidence": 0.52,
+    "score": 0.61,
+    "pico_assessment": {
+      "population": {"match": true, "evidence": "ICU patients (age unclear)"},
+      "intervention": {"match": true, "evidence": "antibiotic protocol"},
+      "comparison": {"match": null, "evidence": "comparison not described"},
+      "outcome": {"match": true, "evidence": "mortality mentioned"},
+      "study_design": {"match": null, "evidence": "study design unclear"}
+    },
+    "rationale": "Possible match but several elements unclear in abstract."
+  },
+  "screening_malformed": "this is not valid json {broken",
+  "extraction_sample": {
+    "n_total": 234,
+    "n_intervention": 117,
+    "n_control": 117,
+    "mortality_30d": 0.152,
+    "followup_duration": "30 days",
+    "intervention_description": "Antimicrobial stewardship program with daily review"
+  }
+}
