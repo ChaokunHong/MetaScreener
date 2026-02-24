@@ -1,4 +1,6 @@
 """Module 3: Quality / Risk of Bias Assessment — multi-LLM consensus."""
+from __future__ import annotations
+
 from metascreener.module3_quality.assessor import RoBAssessor
 from metascreener.module3_quality.tools import get_tool_for_study_type, get_tool_schema
 from metascreener.module3_quality.tools.base import (
