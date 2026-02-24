@@ -57,6 +57,10 @@ src = ["src"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "ANN", "B", "C4", "PT"]
 
+[tool.ruff.lint.per-file-ignores]
+# Streamlit pages use numeric prefixes for ordering (e.g., 00_criteria.py)
+"src/metascreener/app/pages/*" = ["N999"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true
