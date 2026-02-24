@@ -19,7 +19,7 @@ from metascreener.core.models import QualityScore, ReviewCriteria
 from metascreener.criteria.prompts.validate_quality_v1 import (
     build_validate_quality_prompt,
 )
-from metascreener.llm.base import LLMBackend, hash_prompt
+from metascreener.llm.base import LLMBackend, hash_prompt, strip_code_fences
 
 logger = structlog.get_logger(__name__)
 
@@ -157,8 +157,40 @@ class CriteriaValidator:
         prompt = build_validate_quality_prompt(criteria_json)
         prompt_hash = hash_prompt(prompt)
 
-        raw = await backend._call_api(prompt, seed)
-        parsed = json.loads(raw)
+        try:
+            raw = await backend.complete(prompt, seed)
+            cleaned = strip_code_fences(raw)
+            parsed = json.loads(cleaned)
+        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+            logger.warning(
+                "quality_validation_parse_error",
+                prompt_hash=prompt_hash,
+                error=str(exc),
+            )
+            return QualityScore(
+                total=0,
+                completeness=0,
+                precision=0,
+                consistency=0,
+                actionability=0,
+                suggestions=[
+                    "Quality assessment failed: could not parse LLM response."
+                ],
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "quality_validation_llm_error",
+                prompt_hash=prompt_hash,
+                error=str(exc),
+            )
+            return QualityScore(
+                total=0,
+                completeness=0,
+                precision=0,
+                consistency=0,
+                actionability=0,
+                suggestions=[f"Quality assessment failed: {exc}"],
+            )
 
         logger.info(
             "quality_validated",

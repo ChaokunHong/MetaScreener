@@ -1,16 +1,13 @@
 """Tests for the custom exception hierarchy."""
+from __future__ import annotations
+
 from metascreener.core.exceptions import (
-    MetaScreenerError,
-    LLMError,
-    LLMTimeoutError,
-    LLMRateLimitError,
-    LLMParseError,
-    IOError as MSIOError,
-    UnsupportedFormatError,
-    PDFParseError,
-    CriteriaError,
     CalibrationError,
-    ValidationError,
+    LLMError,
+    LLMParseError,
+    LLMTimeoutError,
+    MetaScreenerError,
+    UnsupportedFormatError,
 )
 
 

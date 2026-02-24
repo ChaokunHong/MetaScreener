@@ -8,6 +8,7 @@ import structlog
 
 from metascreener.core.enums import CriteriaFramework
 from metascreener.core.models import CriteriaElement, ReviewCriteria
+from metascreener.criteria.frameworks import FRAMEWORK_ELEMENTS
 
 logger = structlog.get_logger(__name__)
 
@@ -64,6 +65,8 @@ class ConsensusMerger:
         # Take research question from first model
         research_question = model_outputs[0].get("research_question", "")
 
+        required = ConsensusMerger._required_elements(framework, merged_elements)
+
         logger.info(
             "consensus_merged",
             n_models=n_models,
@@ -74,6 +77,7 @@ class ConsensusMerger:
             framework=framework,
             research_question=research_question,
             elements=merged_elements,
+            required_elements=required,
             study_design_include=merged_sd_include,
             study_design_exclude=merged_sd_exclude,
         )
@@ -167,11 +171,38 @@ class ConsensusMerger:
                     exclude=elem_data.get("exclude", []),
                 )
 
+        required = ConsensusMerger._required_elements(framework, elements)
+
         logger.info("single_model_result", n_elements=len(elements))
         return ReviewCriteria(
             framework=framework,
             research_question=output.get("research_question", ""),
             elements=elements,
+            required_elements=required,
             study_design_include=output.get("study_design_include", []),
             study_design_exclude=output.get("study_design_exclude", []),
         )
+
+    @staticmethod
+    def _required_elements(
+        framework: CriteriaFramework,
+        elements: dict[str, CriteriaElement],
+    ) -> list[str]:
+        """Derive required_elements from the framework definition.
+
+        Returns the intersection of framework-required keys and actually
+        present element keys.
+
+        Args:
+            framework: The criteria framework.
+            elements: The merged element dict.
+
+        Returns:
+            List of required element keys present in elements.
+        """
+        defn = FRAMEWORK_ELEMENTS.get(framework)
+        if defn is None:
+            return list(elements.keys())
+        fw_required = defn.get("required", [])
+        # Only include keys that are actually present
+        return [k for k in fw_required if k in elements]

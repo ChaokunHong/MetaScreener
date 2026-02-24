@@ -1,8 +1,11 @@
 """Tests for LLMBackend abstract base class."""
+from __future__ import annotations
+
 import pytest
-from metascreener.llm.base import LLMBackend
-from metascreener.core.models import Record, PICOCriteria, ModelOutput
+
 from metascreener.core.enums import Decision
+from metascreener.core.models import ModelOutput, PICOCriteria, Record
+from metascreener.llm.base import LLMBackend, build_screening_prompt, strip_code_fences
 
 
 class ConcreteBackend(LLMBackend):
@@ -78,3 +81,116 @@ async def test_screen_uses_temperature_zero(
 
 def test_model_id_is_set(backend: ConcreteBackend) -> None:
     assert backend.model_id == "test-model-v1"
+
+
+@pytest.mark.asyncio
+async def test_complete_returns_raw_response(backend: ConcreteBackend) -> None:
+    """complete() should return the raw LLM response string."""
+    result = await backend.complete("Generate criteria for AMR", seed=42)
+    assert isinstance(result, str)
+    assert "INCLUDE" in result
+
+
+@pytest.mark.asyncio
+async def test_complete_default_seed(backend: ConcreteBackend) -> None:
+    """complete() should use default seed=42."""
+    result = await backend.complete("test prompt")
+    assert isinstance(result, str)
+
+
+class TestStripCodeFences:
+    """Tests for strip_code_fences utility."""
+
+    def test_no_fences(self) -> None:
+        """Text without fences is returned unchanged."""
+        text = '{"key": "value"}'
+        assert strip_code_fences(text) == text
+
+    def test_complete_fences(self) -> None:
+        """Complete fences (opening + closing) are stripped."""
+        text = '```json\n{"key": "value"}\n```'
+        assert strip_code_fences(text) == '{"key": "value"}'
+
+    def test_unclosed_fence(self) -> None:
+        """Unclosed fence (no closing ```) is handled gracefully."""
+        text = '```json\n{"key": "value"}'
+        assert strip_code_fences(text) == '{"key": "value"}'
+
+    def test_fence_without_language_tag(self) -> None:
+        """Fence without language tag (just ```) is stripped."""
+        text = '```\n{"key": "value"}\n```'
+        assert strip_code_fences(text) == '{"key": "value"}'
+
+    def test_multiline_content(self) -> None:
+        """Multi-line content within fences is preserved."""
+        text = '```json\n{\n  "a": 1,\n  "b": 2\n}\n```'
+        result = strip_code_fences(text)
+        assert '"a": 1' in result
+        assert '"b": 2' in result
+
+    def test_whitespace_around_fences(self) -> None:
+        """Leading/trailing whitespace is handled."""
+        text = '  ```json\n{"key": "value"}\n```  '
+        assert strip_code_fences(text) == '{"key": "value"}'
+
+
+class TestBuildScreeningPrompt:
+    """Tests for build_screening_prompt with all PICOCriteria fields."""
+
+    def test_includes_intervention_exclude(self) -> None:
+        """intervention_exclude should appear in the prompt."""
+        record = Record(title="Test", abstract="Test abstract")
+        criteria = PICOCriteria(
+            intervention_include=["drug A"],
+            intervention_exclude=["surgery"],
+        )
+        prompt = build_screening_prompt(record, criteria)
+        assert "INTERVENTION (exclude)" in prompt
+        assert "surgery" in prompt
+
+    def test_includes_comparison(self) -> None:
+        """comparison_include should appear in the prompt."""
+        record = Record(title="Test", abstract="Test abstract")
+        criteria = PICOCriteria(
+            comparison_include=["placebo", "standard care"],
+        )
+        prompt = build_screening_prompt(record, criteria)
+        assert "COMPARISON (include)" in prompt
+        assert "placebo" in prompt
+
+    def test_includes_outcome_secondary(self) -> None:
+        """outcome_secondary should appear in the prompt."""
+        record = Record(title="Test", abstract="Test abstract")
+        criteria = PICOCriteria(
+            outcome_primary=["mortality"],
+            outcome_secondary=["length of stay"],
+        )
+        prompt = build_screening_prompt(record, criteria)
+        assert "OUTCOMES (primary)" in prompt
+        assert "OUTCOMES (secondary)" in prompt
+        assert "length of stay" in prompt
+
+    def test_all_fields_present(self) -> None:
+        """All PICOCriteria fields should be rendered when populated."""
+        record = Record(title="Test", abstract="Test abstract")
+        criteria = PICOCriteria(
+            population_include=["adults"],
+            population_exclude=["children"],
+            intervention_include=["drug A"],
+            intervention_exclude=["surgery"],
+            comparison_include=["placebo"],
+            outcome_primary=["mortality"],
+            outcome_secondary=["readmission"],
+            study_design_include=["RCT"],
+            study_design_exclude=["case report"],
+        )
+        prompt = build_screening_prompt(record, criteria)
+        assert "POPULATION (include)" in prompt
+        assert "POPULATION (exclude)" in prompt
+        assert "INTERVENTION (include)" in prompt
+        assert "INTERVENTION (exclude)" in prompt
+        assert "COMPARISON (include)" in prompt
+        assert "OUTCOMES (primary)" in prompt
+        assert "OUTCOMES (secondary)" in prompt
+        assert "STUDY DESIGN (include)" in prompt
+        assert "STUDY DESIGN (exclude)" in prompt

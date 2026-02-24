@@ -1,14 +1,12 @@
 """Tests for core enums."""
+from __future__ import annotations
+
 from metascreener.core.enums import (
-    ConfidenceLevel,
     CriteriaFramework,
     CriteriaInputMode,
     Decision,
-    ExtractionFieldType,
-    RoBDomain,
     RoBJudgement,
     ScreeningStage,
-    StudyType,
     Tier,
     WizardMode,
 )

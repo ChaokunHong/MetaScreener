@@ -220,3 +220,78 @@ def test_exclude_terms_agreement() -> None:
     assert votes is not None
     assert votes["exclude:children"] == 1.0  # in both
     assert votes["exclude:neonates"] == 0.5  # in 1 of 2
+
+
+def test_required_elements_populated_from_framework() -> None:
+    """Merged result should have required_elements from framework definition."""
+    outputs = [
+        {
+            "research_question": "Q",
+            "elements": {
+                "population": {
+                    "name": "Population",
+                    "include": ["adults"],
+                    "exclude": [],
+                },
+                "intervention": {
+                    "name": "Intervention",
+                    "include": ["drug X"],
+                    "exclude": [],
+                },
+            },
+            "study_design_include": [],
+            "study_design_exclude": [],
+        },
+    ]
+    result = ConsensusMerger.merge(outputs, framework=CriteriaFramework.PICO)
+    # PICO framework requires "population" and "intervention"
+    assert "population" in result.required_elements
+    assert "intervention" in result.required_elements
+
+
+def test_required_elements_only_present_keys() -> None:
+    """required_elements should only include keys actually present in elements."""
+    outputs = [
+        {
+            "research_question": "Q",
+            "elements": {
+                "population": {
+                    "name": "Population",
+                    "include": ["adults"],
+                    "exclude": [],
+                },
+            },
+            "study_design_include": [],
+            "study_design_exclude": [],
+        },
+    ]
+    result = ConsensusMerger.merge(outputs, framework=CriteriaFramework.PICO)
+    # "intervention" is required by PICO but not present in elements
+    assert "population" in result.required_elements
+    assert "intervention" not in result.required_elements
+
+
+def test_required_elements_multi_model() -> None:
+    """Multi-model merge should also populate required_elements."""
+    outputs = [
+        {
+            "research_question": "Q",
+            "elements": {
+                "population": {"name": "Pop", "include": ["a"], "exclude": []},
+                "intervention": {"name": "Int", "include": ["b"], "exclude": []},
+            },
+            "study_design_include": [],
+            "study_design_exclude": [],
+        },
+        {
+            "research_question": "Q",
+            "elements": {
+                "population": {"name": "Pop", "include": ["c"], "exclude": []},
+            },
+            "study_design_include": [],
+            "study_design_exclude": [],
+        },
+    ]
+    result = ConsensusMerger.merge(outputs, framework=CriteriaFramework.PICO)
+    assert "population" in result.required_elements
+    assert "intervention" in result.required_elements

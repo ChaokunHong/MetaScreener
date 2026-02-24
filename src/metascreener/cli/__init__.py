@@ -1,4 +1,6 @@
 """MetaScreener 2.0 CLI — Typer application."""
+from __future__ import annotations
+
 import typer
 
 from metascreener.cli.assess_cmd import assess_app
