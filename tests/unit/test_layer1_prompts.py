@@ -18,7 +18,6 @@ from metascreener.module1_screening.layer1.prompts.ta_peo_v1 import PEOPrompt
 from metascreener.module1_screening.layer1.prompts.ta_pico_v1 import PICOPrompt
 from metascreener.module1_screening.layer1.prompts.ta_spider_v1 import SPIDERPrompt
 
-
 # --- Base + Common ---
 
 

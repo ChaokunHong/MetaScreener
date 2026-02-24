@@ -3,28 +3,25 @@ from __future__ import annotations
 
 from metascreener.core.enums import Decision, StudyType
 from metascreener.core.models import (
-    CriteriaElement,
     ModelOutput,
     PICOAssessment,
     Record,
     ReviewCriteria,
 )
-from metascreener.module1_screening.layer2.rules.base import Rule
-from metascreener.module1_screening.layer2.rules.language import LanguageRule
-from metascreener.module1_screening.layer2.rules.publication_type import (
-    PublicationTypeRule,
-)
 from metascreener.module1_screening.layer2.rules.intervention import (
     AmbiguousInterventionRule,
 )
+from metascreener.module1_screening.layer2.rules.language import LanguageRule
 from metascreener.module1_screening.layer2.rules.outcome import (
     OutcomePartialMatchRule,
 )
 from metascreener.module1_screening.layer2.rules.population import (
     PopulationPartialMatchRule,
 )
+from metascreener.module1_screening.layer2.rules.publication_type import (
+    PublicationTypeRule,
+)
 from metascreener.module1_screening.layer2.rules.study_design import StudyDesignRule
-
 
 # --- Helper factories ---
 
