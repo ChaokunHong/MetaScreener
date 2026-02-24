@@ -10,7 +10,8 @@ from metascreener.module3_quality.assessor import RoBAssessor
 
 @pytest.mark.asyncio
 async def test_rob2_full_pipeline(
-    mock_responses, sample_pdf_text
+    mock_responses: dict,  # type: ignore[type-arg]
+    sample_pdf_text: str,
 ) -> None:
     """End-to-end: RoB 2 assessment with all LOW -> overall LOW.
 
@@ -38,7 +39,8 @@ async def test_rob2_full_pipeline(
 
 @pytest.mark.asyncio
 async def test_robins_i_full_pipeline(
-    mock_rob_robins_adapter, sample_pdf_text
+    mock_rob_robins_adapter: MockLLMAdapter,
+    sample_pdf_text: str,
 ) -> None:
     """End-to-end: ROBINS-I assessment with moderate confounding."""
     assessor = RoBAssessor(backends=[mock_rob_robins_adapter])
@@ -55,7 +57,8 @@ async def test_robins_i_full_pipeline(
 
 @pytest.mark.asyncio
 async def test_quadas2_full_pipeline(
-    mock_rob_quadas_adapter, sample_pdf_text
+    mock_rob_quadas_adapter: MockLLMAdapter,
+    sample_pdf_text: str,
 ) -> None:
     """End-to-end: QUADAS-2 assessment with UNCLEAR index test."""
     assessor = RoBAssessor(backends=[mock_rob_quadas_adapter])
