@@ -1,0 +1,26 @@
+template_id: "scoping-review"
+name: "Scoping Review"
+description: "Template for scoping reviews mapping a broad research area"
+framework: "pcc"
+tags:
+  - scoping
+  - mapping
+  - broad
+elements:
+  population:
+    name: "Population"
+    include:
+      - "Broad population group"
+    exclude: []
+  concept:
+    name: "Concept"
+    include:
+      - "Core concept or topic area"
+    exclude: []
+  context:
+    name: "Context"
+    include:
+      - "Setting or context of interest"
+    exclude: []
+study_design_include:
+  - "Any study design"

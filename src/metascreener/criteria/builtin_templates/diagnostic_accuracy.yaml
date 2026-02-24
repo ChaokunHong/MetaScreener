@@ -1,0 +1,33 @@
+template_id: "diagnostic-accuracy"
+name: "Diagnostic Accuracy Study"
+description: "Template for diagnostic accuracy studies using PIRD framework"
+framework: "pird"
+tags:
+  - diagnostic
+  - sensitivity
+  - specificity
+elements:
+  population:
+    name: "Population"
+    include:
+      - "Patients suspected of target condition"
+    exclude:
+      - "Healthy volunteers"
+  index_test:
+    name: "Index Test"
+    include:
+      - "Diagnostic test under evaluation"
+    exclude: []
+  reference_standard:
+    name: "Reference Standard"
+    include:
+      - "Gold standard diagnostic method"
+    exclude: []
+  diagnosis:
+    name: "Diagnosis"
+    include:
+      - "Target condition"
+    exclude: []
+study_design_include:
+  - "Cross-sectional diagnostic accuracy study"
+  - "Cohort study with diagnostic evaluation"
