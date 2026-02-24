@@ -2,7 +2,11 @@
 
 Implements the CCA formula from the MetaScreener architecture:
     S_final = Σ(w_i × s_i × c_i × φ_i) / Σ(w_i × c_i × φ_i)
-    C_ensemble = 1 - H(p₁,...,pₙ) / log(n)
+    C_ensemble = 1 - H(p_inc, p_exc) / log(2)
+
+Note: Ensemble confidence uses binary Shannon entropy (INCLUDE vs EXCLUDE)
+normalized by log(2), since the decision space is always binary regardless
+of the number of models.
 """
 from __future__ import annotations
 

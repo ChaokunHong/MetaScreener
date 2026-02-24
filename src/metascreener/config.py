@@ -38,11 +38,14 @@ class ThresholdConfig(BaseModel):
         tau_high: Confidence threshold for Tier 1 (unanimous).
         tau_mid: Confidence threshold for Tier 2 (majority).
         tau_low: Confidence floor below which → Tier 3.
+        target_sensitivity: Minimum sensitivity constraint for
+            threshold optimization (default 0.98 per Lancet target).
     """
 
     tau_high: float = 0.85
     tau_mid: float = 0.65
     tau_low: float = 0.45
+    target_sensitivity: float = 0.98
 
 
 class InferenceConfig(BaseModel):

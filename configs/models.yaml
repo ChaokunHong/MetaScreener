@@ -20,16 +20,17 @@ models:
     model_id: "meta-llama/llama-4-scout"
     license: "Llama"
   mistral:
-    name: "Mistral Small 3 24B"
-    version: "2025-01-29"
+    name: "Mistral Small 3.1 24B Instruct"
+    version: "2025-03-20"
     provider: "openrouter"
-    model_id: "mistralai/mistral-small-3-24b"
+    model_id: "mistralai/mistral-small-3.1-24b-instruct"
     license: "Apache-2.0"
 
 thresholds:
   tau_high: 0.85
   tau_mid: 0.65
   tau_low: 0.45
+  target_sensitivity: 0.98
 
 inference:
   temperature: 0.0

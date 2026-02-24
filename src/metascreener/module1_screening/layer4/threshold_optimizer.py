@@ -59,7 +59,7 @@ class ThresholdOptimizer:
         ],
         labels: list[int],
         seed: int = 42,
-        min_sensitivity: float = 0.95,
+        min_sensitivity: float = 0.98,
     ) -> Thresholds:
         """Optimize thresholds via grid search.
 
