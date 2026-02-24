@@ -78,6 +78,22 @@ def validate_extraction(
             )
             continue  # Skip range check if type is wrong
 
+        # Categorical options validation
+        if (
+            field_def.type == ExtractionFieldType.CATEGORICAL
+            and field_def.options
+            and value not in field_def.options
+        ):
+            warnings.append(
+                ValidationWarning(
+                    field_name=field_name,
+                    message=(
+                        f"Value '{value}' for '{field_name}' is "
+                        f"not in allowed options: {field_def.options}."
+                    ),
+                )
+            )
+
         # Range validation
         if field_def.validation and field_def.type in (
             ExtractionFieldType.INTEGER,
