@@ -151,6 +151,42 @@ def mock_extraction_disagree_adapter(mock_responses: dict) -> MockLLMAdapter:  #
 
 
 @pytest.fixture
+def mock_rob_low_adapter(mock_responses: dict) -> MockLLMAdapter:  # type: ignore[type-arg]
+    """Mock adapter returning all-low RoB 2 assessment."""
+    return MockLLMAdapter(
+        model_id="mock-rob-low",
+        response_json=mock_responses["rob_assessment_low"],
+    )
+
+
+@pytest.fixture
+def mock_rob_mixed_adapter(mock_responses: dict) -> MockLLMAdapter:  # type: ignore[type-arg]
+    """Mock adapter returning mixed RoB 2 assessment (low, some_concerns, high)."""
+    return MockLLMAdapter(
+        model_id="mock-rob-mixed",
+        response_json=mock_responses["rob_assessment_mixed"],
+    )
+
+
+@pytest.fixture
+def mock_rob_robins_adapter(mock_responses: dict) -> MockLLMAdapter:  # type: ignore[type-arg]
+    """Mock adapter returning ROBINS-I assessment with moderate confounding."""
+    return MockLLMAdapter(
+        model_id="mock-rob-robins",
+        response_json=mock_responses["rob_assessment_robins_i"],
+    )
+
+
+@pytest.fixture
+def mock_rob_quadas_adapter(mock_responses: dict) -> MockLLMAdapter:  # type: ignore[type-arg]
+    """Mock adapter returning QUADAS-2 assessment with unclear index test."""
+    return MockLLMAdapter(
+        model_id="mock-rob-quadas",
+        response_json=mock_responses["rob_assessment_quadas2"],
+    )
+
+
+@pytest.fixture
 def sample_pdf_text() -> str:
     """Sample full-text PDF content for extraction tests."""
     return (
