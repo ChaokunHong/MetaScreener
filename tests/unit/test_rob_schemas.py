@@ -9,6 +9,7 @@ from metascreener.module3_quality.tools.base import (
     RoBToolSchema,
     SignalingQuestion,
 )
+from metascreener.module3_quality.tools.quadas2 import QUADAS2Schema
 from metascreener.module3_quality.tools.rob2 import RoB2Schema
 from metascreener.module3_quality.tools.robins_i import ROBINSISchema
 
@@ -209,3 +210,50 @@ class TestROBINSISchema:
         assert schema.get_severity_rank(RoBJudgement.UNCLEAR) == schema.get_severity_rank(
             RoBJudgement.MODERATE
         )
+
+
+# ---------------------------------------------------------------------------
+# QUADAS-2 Schema Tests
+# ---------------------------------------------------------------------------
+
+
+class TestQUADAS2Schema:
+    """Tests for QUADAS-2 (diagnostic accuracy studies) schema."""
+
+    def test_tool_name(self) -> None:
+        assert QUADAS2Schema().tool_name == "quadas2"
+
+    def test_has_four_domains(self) -> None:
+        assert len(QUADAS2Schema().domains) == 4
+
+    def test_domain_enum_values(self) -> None:
+        domain_enums = [d.domain for d in QUADAS2Schema().domains]
+        assert RoBDomain.QUADAS_PATIENT_SELECTION in domain_enums
+        assert RoBDomain.QUADAS_INDEX_TEST in domain_enums
+        assert RoBDomain.QUADAS_REFERENCE_STANDARD in domain_enums
+        assert RoBDomain.QUADAS_FLOW_TIMING in domain_enums
+
+    def test_total_signaling_questions(self) -> None:
+        total = sum(len(d.signaling_questions) for d in QUADAS2Schema().domains)
+        assert total >= 10  # ~11 signaling questions
+
+    def test_judgement_options(self) -> None:
+        for domain in QUADAS2Schema().domains:
+            assert RoBJudgement.LOW in domain.judgement_options
+            assert RoBJudgement.HIGH in domain.judgement_options
+            assert RoBJudgement.UNCLEAR in domain.judgement_options
+
+    def test_overall_all_low(self) -> None:
+        assert QUADAS2Schema().get_overall_judgement([RoBJudgement.LOW] * 4) == RoBJudgement.LOW
+
+    def test_overall_any_high(self) -> None:
+        judgements = [RoBJudgement.LOW, RoBJudgement.HIGH, RoBJudgement.LOW, RoBJudgement.LOW]
+        assert QUADAS2Schema().get_overall_judgement(judgements) == RoBJudgement.HIGH
+
+    def test_overall_unclear_when_no_high(self) -> None:
+        judgements = [RoBJudgement.LOW, RoBJudgement.UNCLEAR, RoBJudgement.LOW, RoBJudgement.LOW]
+        assert QUADAS2Schema().get_overall_judgement(judgements) == RoBJudgement.UNCLEAR
+
+    def test_overall_high_overrides_unclear(self) -> None:
+        judgements = [RoBJudgement.UNCLEAR, RoBJudgement.HIGH, RoBJudgement.LOW, RoBJudgement.LOW]
+        assert QUADAS2Schema().get_overall_judgement(judgements) == RoBJudgement.HIGH
