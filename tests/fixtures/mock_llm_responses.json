@@ -46,5 +46,37 @@
     "mortality_30d": 0.152,
     "followup_duration": "30 days",
     "intervention_description": "Antimicrobial stewardship program with daily review"
+  },
+  "criteria_generation_pico": {
+    "research_question": "Effect of antimicrobial stewardship on ICU outcomes",
+    "elements": {
+      "population": {"name": "Population", "include": ["adult ICU patients", "≥18 years"], "exclude": ["pediatric", "neonatal"]},
+      "intervention": {"name": "Intervention", "include": ["antimicrobial stewardship programs"], "exclude": []},
+      "comparison": {"name": "Comparison", "include": ["standard care", "no intervention"], "exclude": []},
+      "outcome": {"name": "Outcome", "include": ["mortality", "length of stay", "antibiotic consumption"], "exclude": []}
+    },
+    "study_design_include": ["RCT", "quasi-experimental"],
+    "study_design_exclude": ["case reports", "reviews"],
+    "ambiguities": []
+  },
+  "criteria_generation_pico_alt": {
+    "research_question": "Effect of antimicrobial stewardship on ICU outcomes",
+    "elements": {
+      "population": {"name": "Population", "include": ["adult patients in intensive care"], "exclude": ["children"]},
+      "intervention": {"name": "Intervention", "include": ["antibiotic stewardship"], "exclude": []},
+      "comparison": {"name": "Comparison", "include": ["usual care"], "exclude": []},
+      "outcome": {"name": "Outcome", "include": ["all-cause mortality", "hospital stay"], "exclude": []}
+    },
+    "study_design_include": ["randomized controlled trial"],
+    "study_design_exclude": ["editorials"],
+    "ambiguities": ["Consider specifying age threshold"]
+  },
+  "criteria_quality_score": {
+    "total": 78,
+    "completeness": 85,
+    "precision": 60,
+    "consistency": 90,
+    "actionability": 75,
+    "suggestions": ["Define age threshold for 'older adults'"]
   }
 }
