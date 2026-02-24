@@ -1,0 +1,28 @@
+template_id: "observational-exposure"
+name: "Observational Exposure Study"
+description: "Template for observational studies examining exposure-outcome relationships"
+framework: "peo"
+tags:
+  - observational
+  - exposure
+  - cohort
+elements:
+  population:
+    name: "Population"
+    include:
+      - "Target population"
+    exclude: []
+  exposure:
+    name: "Exposure"
+    include:
+      - "Exposure of interest"
+    exclude: []
+  outcome:
+    name: "Outcome"
+    include:
+      - "Health outcome"
+    exclude: []
+study_design_include:
+  - "Cohort study"
+  - "Case-control study"
+  - "Cross-sectional study"

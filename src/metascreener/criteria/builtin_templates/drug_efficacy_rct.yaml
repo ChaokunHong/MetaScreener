@@ -1,0 +1,37 @@
+template_id: "drug-efficacy-rct"
+name: "Drug Efficacy RCT"
+description: "Template for randomized controlled trials evaluating drug efficacy"
+framework: "pico"
+tags:
+  - pharmacology
+  - RCT
+  - efficacy
+elements:
+  population:
+    name: "Population"
+    include:
+      - "Adults (≥18 years)"
+    exclude:
+      - "Pediatric patients"
+      - "Pregnant women"
+  intervention:
+    name: "Intervention"
+    include:
+      - "Drug/pharmacological intervention"
+    exclude:
+      - "Non-pharmacological interventions"
+  comparison:
+    name: "Comparison"
+    include:
+      - "Placebo"
+      - "Standard of care"
+    exclude: []
+  outcome:
+    name: "Outcome"
+    include:
+      - "Primary efficacy endpoint"
+      - "Adverse events"
+    exclude: []
+study_design_include:
+  - "Randomized controlled trial"
+  - "Double-blind RCT"

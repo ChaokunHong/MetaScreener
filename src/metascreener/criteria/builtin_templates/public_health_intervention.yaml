@@ -1,0 +1,38 @@
+template_id: "public-health-intervention"
+name: "Public Health Intervention"
+description: "Template for public health intervention studies"
+framework: "pico"
+tags:
+  - public-health
+  - prevention
+  - intervention
+elements:
+  population:
+    name: "Population"
+    include:
+      - "Community or population group"
+    exclude:
+      - "Individual clinical patients"
+  intervention:
+    name: "Intervention"
+    include:
+      - "Public health program or policy"
+    exclude:
+      - "Individual-level clinical treatment"
+  comparison:
+    name: "Comparison"
+    include:
+      - "No intervention"
+      - "Usual practice"
+    exclude: []
+  outcome:
+    name: "Outcome"
+    include:
+      - "Health outcome at population level"
+      - "Behavioral change"
+    exclude: []
+study_design_include:
+  - "Randomized controlled trial"
+  - "Quasi-experimental"
+  - "Interrupted time series"
+  - "Controlled before-after"

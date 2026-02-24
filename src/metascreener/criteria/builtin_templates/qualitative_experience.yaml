@@ -1,0 +1,43 @@
+template_id: "qualitative-experience"
+name: "Qualitative Experience Study"
+description: "Template for qualitative studies exploring lived experiences"
+framework: "spider"
+tags:
+  - qualitative
+  - experience
+  - interview
+elements:
+  sample:
+    name: "Sample"
+    include:
+      - "Participants with relevant experience"
+    exclude: []
+  phenomenon_of_interest:
+    name: "Phenomenon of Interest"
+    include:
+      - "Lived experience or phenomenon under study"
+    exclude: []
+  design:
+    name: "Design"
+    include:
+      - "Qualitative design"
+    exclude: []
+  evaluation:
+    name: "Evaluation"
+    include:
+      - "Themes"
+      - "Experiences"
+      - "Perspectives"
+    exclude: []
+  research_type:
+    name: "Research Type"
+    include:
+      - "Qualitative"
+      - "Mixed methods"
+    exclude:
+      - "Purely quantitative"
+study_design_include:
+  - "Phenomenology"
+  - "Grounded theory"
+  - "Ethnography"
+  - "Qualitative descriptive"
