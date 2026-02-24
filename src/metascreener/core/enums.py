@@ -77,9 +77,12 @@ class RoBJudgement(StrEnum):
     """Risk of Bias judgement for a single domain."""
 
     LOW = "low"
-    HIGH = "high"
-    UNCLEAR = "unclear"
     SOME_CONCERNS = "some_concerns"  # RoB 2 specific
+    MODERATE = "moderate"            # ROBINS-I specific
+    HIGH = "high"
+    SERIOUS = "serious"              # ROBINS-I specific
+    CRITICAL = "critical"            # ROBINS-I specific
+    UNCLEAR = "unclear"
 
 
 class ExtractionFieldType(StrEnum):

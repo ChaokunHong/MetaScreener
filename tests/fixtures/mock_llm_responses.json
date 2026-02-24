@@ -189,5 +189,130 @@
         "description": "Was this an RCT?"
       }
     }
+  },
+  "rob_assessment_low": {
+    "overall_judgement": "low",
+    "domains": {
+      "rob2_d1_randomization": {
+        "judgement": "low",
+        "rationale": "Adequate random sequence generation using computer-generated random numbers. Allocation concealment maintained through sealed opaque envelopes.",
+        "supporting_quotes": ["Participants were randomly assigned using a computer-generated sequence"]
+      },
+      "rob2_d2_deviations": {
+        "judgement": "low",
+        "rationale": "Double-blind design with identical placebo. No protocol deviations reported.",
+        "supporting_quotes": ["Neither participants nor investigators were aware of group assignment"]
+      },
+      "rob2_d3_missing_data": {
+        "judgement": "low",
+        "rationale": "Less than 5% missing data. Intention-to-treat analysis performed with multiple imputation for missing values.",
+        "supporting_quotes": ["Follow-up was complete for 96% of participants"]
+      },
+      "rob2_d4_measurement": {
+        "judgement": "low",
+        "rationale": "Primary outcome (30-day mortality) is objective and ascertained from hospital records. Outcome assessors were blinded.",
+        "supporting_quotes": ["Mortality data were extracted from electronic health records by blinded assessors"]
+      },
+      "rob2_d5_reporting": {
+        "judgement": "low",
+        "rationale": "Study protocol was pre-registered. All pre-specified outcomes were reported. Statistical analysis plan was published before unblinding.",
+        "supporting_quotes": ["The trial was registered at ClinicalTrials.gov (NCT01234567) before enrollment"]
+      }
+    }
+  },
+  "rob_assessment_mixed": {
+    "overall_judgement": "some_concerns",
+    "domains": {
+      "rob2_d1_randomization": {
+        "judgement": "low",
+        "rationale": "Computer-generated randomization with adequate allocation concealment.",
+        "supporting_quotes": ["Randomization was performed using a central web-based system"]
+      },
+      "rob2_d2_deviations": {
+        "judgement": "some_concerns",
+        "rationale": "Open-label design. Some participants in the control group received the intervention outside the study protocol.",
+        "supporting_quotes": ["Due to the nature of the intervention, blinding was not possible", "12 control participants received stewardship consultation"]
+      },
+      "rob2_d3_missing_data": {
+        "judgement": "low",
+        "rationale": "Complete follow-up for 94% of participants. Sensitivity analysis showed results were robust to missing data assumptions.",
+        "supporting_quotes": ["Sensitivity analyses using worst-case scenarios confirmed the primary findings"]
+      },
+      "rob2_d4_measurement": {
+        "judgement": "high",
+        "rationale": "Outcome assessment was not blinded. Subjective secondary outcomes (clinical improvement) may have been influenced by knowledge of group assignment.",
+        "supporting_quotes": ["Clinical improvement was assessed by treating physicians who were aware of the treatment allocation"]
+      },
+      "rob2_d5_reporting": {
+        "judgement": "low",
+        "rationale": "Pre-registered protocol with all outcomes reported as specified.",
+        "supporting_quotes": ["All outcomes listed in the protocol were reported in the manuscript"]
+      }
+    }
+  },
+  "rob_assessment_robins_i": {
+    "overall_judgement": "moderate",
+    "domains": {
+      "robins_d1_confounding": {
+        "judgement": "moderate",
+        "rationale": "Key confounders (age, severity, comorbidities) were controlled through multivariable regression, but residual confounding from unmeasured variables (e.g., physician experience) cannot be excluded.",
+        "supporting_quotes": ["Multivariable logistic regression adjusted for age, APACHE II score, and Charlson comorbidity index"]
+      },
+      "robins_d2_selection": {
+        "judgement": "low",
+        "rationale": "All eligible patients during the study period were included. Start of follow-up and start of intervention were well-defined and aligned.",
+        "supporting_quotes": ["All consecutive admissions to the ICU during the study period were screened for eligibility"]
+      },
+      "robins_d3_classification": {
+        "judgement": "low",
+        "rationale": "Intervention status was determined by the implementation date of the stewardship program and was not affected by participant characteristics.",
+        "supporting_quotes": ["The stewardship program was implemented hospital-wide on January 1, 2023"]
+      },
+      "robins_d4_deviations": {
+        "judgement": "low",
+        "rationale": "No systematic deviations from intended interventions. Co-interventions were balanced between groups.",
+        "supporting_quotes": ["No significant differences in co-interventions were observed between the pre- and post-implementation periods"]
+      },
+      "robins_d5_missing_data": {
+        "judgement": "moderate",
+        "rationale": "Outcome data were available for 88% of participants. Missing data were handled with multiple imputation, but the proportion of missing data was higher in the pre-implementation group.",
+        "supporting_quotes": ["Outcome data were missing for 12% of participants, predominantly in the pre-implementation cohort"]
+      },
+      "robins_d6_measurement": {
+        "judgement": "low",
+        "rationale": "Primary outcome (30-day mortality) was obtained from hospital electronic records and is not subject to measurement error.",
+        "supporting_quotes": ["Mortality was ascertained from the hospital information system and verified against national death records"]
+      },
+      "robins_d7_reporting": {
+        "judgement": "low",
+        "rationale": "Study protocol was published before data analysis. All pre-specified outcomes were reported.",
+        "supporting_quotes": ["The study protocol was published in BMJ Open prior to data collection"]
+      }
+    }
+  },
+  "rob_assessment_quadas2": {
+    "overall_judgement": "low",
+    "domains": {
+      "quadas_d1_patient_selection": {
+        "judgement": "low",
+        "rationale": "Consecutive patients with suspected infection were enrolled. No inappropriate exclusions. Case-control design was avoided.",
+        "supporting_quotes": ["All consecutive patients presenting with suspected bloodstream infection were prospectively enrolled"]
+      },
+      "quadas_d2_index_test": {
+        "judgement": "unclear",
+        "rationale": "The threshold for the index test was pre-specified, but it is unclear whether the test was interpreted without knowledge of the reference standard results.",
+        "supporting_quotes": ["A procalcitonin threshold of 0.5 ng/mL was used as the cut-off for positivity"]
+      },
+      "quadas_d3_reference_standard": {
+        "judgement": "low",
+        "rationale": "Blood culture (reference standard) was performed for all patients. Results were interpreted by clinical microbiologists blinded to the index test results.",
+        "supporting_quotes": ["Blood cultures were processed in an accredited laboratory by microbiologists blinded to procalcitonin results"]
+      },
+      "quadas_d4_flow_timing": {
+        "judgement": "low",
+        "rationale": "All patients received both the index test and reference standard within 24 hours. No patients were excluded from the analysis.",
+        "supporting_quotes": ["Blood cultures and procalcitonin measurements were obtained simultaneously at presentation", "All enrolled patients were included in the final analysis"]
+      }
+    }
   }
 }
