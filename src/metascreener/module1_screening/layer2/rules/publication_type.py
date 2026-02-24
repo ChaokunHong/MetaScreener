@@ -18,6 +18,7 @@ _EXCLUDED_TYPES: frozenset[StudyType] = frozenset({
 _EXCLUDED_TITLE_KEYWORDS: tuple[str, ...] = (
     "systematic review",
     "meta-analysis",
+    "meta analysis",
     "editorial",
     "letter to the editor",
     "erratum",

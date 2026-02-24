@@ -20,6 +20,7 @@ class ModelEntry(BaseModel):
         provider: API provider (e.g., "openrouter").
         model_id: Provider-specific model identifier.
         license_: Model license (e.g., "Apache-2.0").
+        huggingface_url: HuggingFace model page URL for reproducibility.
     """
 
     name: str
@@ -27,6 +28,7 @@ class ModelEntry(BaseModel):
     provider: str
     model_id: str
     license_: str = Field(alias="license")
+    huggingface_url: str | None = None
 
     model_config = {"populate_by_name": True}
 

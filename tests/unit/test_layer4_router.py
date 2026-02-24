@@ -157,3 +157,41 @@ class TestDecisionRouter:
         decision, tier = router.route(outputs, _clean_rules(), 0.9, 1.0)
         assert decision == Decision.INCLUDE
         assert tier == Tier.ONE
+
+    def test_tier3_below_tau_low_floor(self) -> None:
+        """Confidence below tau_low → Tier 3 regardless of majority."""
+        router = DecisionRouter(tau_low=0.45)
+        outputs = [
+            _make_output(Decision.INCLUDE, 0.8, 0.8, "m1"),
+            _make_output(Decision.INCLUDE, 0.7, 0.7, "m2"),
+            _make_output(Decision.EXCLUDE, 0.3, 0.6, "m3"),
+        ]
+        # Majority INCLUDE, but confidence below tau_low floor
+        decision, tier = router.route(outputs, _clean_rules(), 0.7, 0.40)
+        assert decision == Decision.HUMAN_REVIEW
+        assert tier == Tier.THREE
+
+    def test_all_error_outputs_tier3(self) -> None:
+        """All model outputs have errors → HUMAN_REVIEW at Tier 3."""
+        router = DecisionRouter()
+        outputs = [
+            ModelOutput(
+                model_id="m1",
+                decision=Decision.INCLUDE,
+                score=0.5,
+                confidence=0.0,
+                rationale="timeout",
+                error="Timeout after 120s",
+            ),
+            ModelOutput(
+                model_id="m2",
+                decision=Decision.INCLUDE,
+                score=0.5,
+                confidence=0.0,
+                rationale="api error",
+                error="Connection refused",
+            ),
+        ]
+        decision, tier = router.route(outputs, _clean_rules(), 0.5, 0.0)
+        assert decision == Decision.HUMAN_REVIEW
+        assert tier == Tier.THREE

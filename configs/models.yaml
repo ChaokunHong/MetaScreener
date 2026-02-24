@@ -7,24 +7,28 @@ models:
     provider: "openrouter"
     model_id: "qwen/qwen3-235b-a22b"
     license: "Apache-2.0"
+    huggingface_url: "https://huggingface.co/Qwen/Qwen3-235B-A22B-Instruct"
   deepseek:
     name: "DeepSeek-V3.2"
     version: "2025-05-15"
     provider: "openrouter"
-    model_id: "deepseek/deepseek-v3.2"
+    model_id: "deepseek/deepseek-chat-v3-0324"
     license: "MIT"
+    huggingface_url: "https://huggingface.co/deepseek-ai/DeepSeek-V3-0324"
   llama:
     name: "Llama 4 Scout"
     version: "2025-04-05"
     provider: "openrouter"
     model_id: "meta-llama/llama-4-scout"
     license: "Llama"
+    huggingface_url: "https://huggingface.co/meta-llama/Llama-4-Scout-17B-16E-Instruct"
   mistral:
     name: "Mistral Small 3.1 24B Instruct"
     version: "2025-03-20"
     provider: "openrouter"
     model_id: "mistralai/mistral-small-3.1-24b-instruct"
     license: "Apache-2.0"
+    huggingface_url: "https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503"
 
 thresholds:
   tau_high: 0.85
