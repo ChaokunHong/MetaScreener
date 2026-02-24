@@ -122,12 +122,13 @@ class TestCriteriaElement:
             exclude=["placebo only"],
             ambiguity_flags=["drug Y may overlap with drug Z"],
             element_quality=85,
-            model_votes={"qwen3": ["drug X"], "deepseek": ["drug X", "drug Y"]},
+            model_votes={"drug X": 1.0, "drug Y": 0.5},
         )
         assert elem.name == "Intervention"
         assert len(elem.include) == 2
         assert elem.element_quality == 85
-        assert "qwen3" in elem.model_votes
+        assert elem.model_votes is not None
+        assert elem.model_votes["drug X"] == 1.0
 
 
 class TestQualityScore:
@@ -251,6 +252,7 @@ class TestReviewCriteria:
             population_exclude=["children"],
             intervention_include=["drug X"],
             outcome_primary=["mortality"],
+            outcome_secondary=["length of stay"],
             study_design_include=["RCT"],
         )
         rc = ReviewCriteria.from_pico_criteria(pico)
@@ -258,7 +260,8 @@ class TestReviewCriteria:
         assert rc.elements["population"].include == ["adults"]
         assert rc.elements["population"].exclude == ["children"]
         assert rc.elements["intervention"].include == ["drug X"]
-        assert rc.elements["outcome"].include == ["mortality"]
+        assert rc.elements["outcome"].include == ["mortality", "length of stay"]
+        assert rc.elements["outcome"].exclude == []
         assert rc.study_design_include == ["RCT"]
 
     def test_review_criteria_from_pico_preserves_metadata(self) -> None:

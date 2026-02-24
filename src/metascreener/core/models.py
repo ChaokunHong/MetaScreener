@@ -326,7 +326,9 @@ class CriteriaElement(BaseModel):
         exclude: Terms that trigger exclusion for this element.
         ambiguity_flags: Terms flagged as ambiguous during generation.
         element_quality: Quality score for this element (0-100), or None.
-        model_votes: Per-model voted terms (model_id -> list of terms).
+        model_votes: Per-term agreement scores (term -> agreement ratio 0.0-1.0).
+            Populated by the consensus merger. Include terms are keyed by
+            the term string; exclude terms are keyed as ``"exclude:<term>"``.
     """
 
     name: str
@@ -334,7 +336,7 @@ class CriteriaElement(BaseModel):
     exclude: list[str] = Field(default_factory=list)
     ambiguity_flags: list[str] = Field(default_factory=list)
     element_quality: int | None = None
-    model_votes: dict[str, list[str]] | None = None
+    model_votes: dict[str, float] | None = None
 
 
 class QualityScore(BaseModel):
@@ -464,8 +466,7 @@ class ReviewCriteria(BaseModel):
         if pico.outcome_primary or pico.outcome_secondary:
             elements["outcome"] = CriteriaElement(
                 name="Outcome",
-                include=list(pico.outcome_primary),
-                exclude=list(pico.outcome_secondary),
+                include=list(pico.outcome_primary) + list(pico.outcome_secondary),
             )
 
         return cls(
