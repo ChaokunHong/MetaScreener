@@ -24,7 +24,7 @@ from metascreener.criteria.prompts.generate_from_topic_v1 import (
     build_generate_from_topic_prompt,
 )
 from metascreener.criteria.prompts.parse_text_v1 import build_parse_text_prompt
-from metascreener.llm.base import LLMBackend, hash_prompt
+from metascreener.llm.base import LLMBackend, hash_prompt, strip_code_fences
 
 logger = structlog.get_logger(__name__)
 
@@ -166,8 +166,9 @@ class CriteriaGenerator:
             Parsed dict or ``None`` on failure.
         """
         try:
-            raw = await backend._call_api(prompt, seed)
-            parsed = json.loads(raw)
+            raw = await backend.complete(prompt, seed)
+            cleaned = strip_code_fences(raw)
+            parsed = json.loads(cleaned)
             # Validate minimum expected structure
             if "elements" not in parsed:
                 logger.warning("missing_elements_key", backend=backend.model_id)

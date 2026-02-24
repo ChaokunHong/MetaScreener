@@ -1,4 +1,6 @@
 """metascreener assess-rob — Risk of Bias assessment command."""
+from __future__ import annotations
+
 from enum import StrEnum
 from pathlib import Path
 

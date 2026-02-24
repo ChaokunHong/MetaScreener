@@ -63,3 +63,44 @@ def test_load_legacy_pico_yaml(tmp_path: Path) -> None:
     assert isinstance(loaded, ReviewCriteria)
     assert loaded.framework == CriteriaFramework.PICO
     assert loaded.elements["population"].include == ["adults"]
+
+
+def test_load_from_string_basic() -> None:
+    """load_from_string should parse a valid YAML string."""
+    yaml_text = (
+        "framework: pico\n"
+        "research_question: Test question\n"
+        "elements:\n"
+        "  population:\n"
+        "    name: Population\n"
+        "    include:\n"
+        "      - adults\n"
+        "    exclude: []\n"
+    )
+    result = CriteriaSchema.load_from_string(yaml_text, CriteriaFramework.PICO)
+    assert result.framework == CriteriaFramework.PICO
+    assert result.elements["population"].include == ["adults"]
+
+
+def test_load_from_string_uses_fallback_framework() -> None:
+    """load_from_string should use fallback framework when not in YAML."""
+    yaml_text = (
+        "research_question: Test\n"
+        "elements:\n"
+        "  population:\n"
+        "    name: Population\n"
+        "    include:\n"
+        "      - adults\n"
+    )
+    result = CriteriaSchema.load_from_string(yaml_text, CriteriaFramework.PEO)
+    assert result.framework == CriteriaFramework.PEO
+
+
+def test_load_from_string_invalid_yaml() -> None:
+    """load_from_string should raise CriteriaError on invalid YAML."""
+    import pytest
+
+    from metascreener.core.exceptions import CriteriaError
+
+    with pytest.raises(CriteriaError, match="Invalid YAML"):
+        CriteriaSchema.load_from_string("{{invalid:", CriteriaFramework.PICO)

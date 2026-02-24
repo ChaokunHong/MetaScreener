@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from metascreener.core.enums import CriteriaFramework, CriteriaInputMode, WizardMode
-from metascreener.core.models import ReviewCriteria
+from metascreener.core.models import CriteriaElement, ReviewCriteria
 from metascreener.criteria.wizard import CriteriaWizard
 from metascreener.llm.adapters.mock import MockLLMAdapter
 
@@ -93,6 +93,7 @@ class TestCriteriaWizard:
             detector_backend=detector_adapter,
             quality_backend=quality_adapter,
             output_dir=tmp_path,
+            sessions_dir=tmp_path / "sessions",
         )
 
         result = await wizard.run(
@@ -135,6 +136,7 @@ class TestCriteriaWizard:
             detector_backend=detector_adapter,
             quality_backend=quality_adapter,
             output_dir=tmp_path,
+            sessions_dir=tmp_path / "sessions",
         )
 
         result = await wizard.run(
@@ -172,6 +174,7 @@ class TestCriteriaWizard:
             detector_backend=detector_adapter,
             quality_backend=None,
             output_dir=tmp_path,
+            sessions_dir=tmp_path / "sessions",
         )
 
         result = await wizard.run(
@@ -209,6 +212,7 @@ class TestCriteriaWizard:
             detector_backend=detector_adapter,
             quality_backend=None,
             output_dir=tmp_path,
+            sessions_dir=tmp_path / "sessions",
         )
 
         result = await wizard.run(
@@ -245,6 +249,7 @@ class TestCriteriaWizard:
             detector_backend=detector_adapter,
             quality_backend=None,
             output_dir=tmp_path,
+            sessions_dir=tmp_path / "sessions",
         )
 
         result = await wizard.run(
@@ -281,6 +286,7 @@ class TestCriteriaWizard:
             detector_backend=detector_adapter,
             quality_backend=quality_adapter,
             output_dir=tmp_path,
+            sessions_dir=tmp_path / "sessions",
         )
 
         result = await wizard.run(
@@ -315,6 +321,7 @@ class TestCriteriaWizard:
             detector_backend=detector_adapter,
             quality_backend=None,
             output_dir=tmp_path,
+            sessions_dir=tmp_path / "sessions",
         )
 
         result = await wizard.run(
@@ -369,6 +376,7 @@ class TestCriteriaWizard:
             detector_backend=detector_adapter,
             quality_backend=None,
             output_dir=tmp_path,
+            sessions_dir=tmp_path / "sessions",
         )
 
         result = await wizard.run(
@@ -407,6 +415,7 @@ class TestCriteriaWizard:
             detector_backend=detector_adapter,
             quality_backend=None,
             output_dir=nested_dir,
+            sessions_dir=tmp_path / "sessions",
         )
 
         await wizard.run(
@@ -420,3 +429,376 @@ class TestCriteriaWizard:
 
         assert nested_dir.exists()
         assert (nested_dir / "criteria.yaml").exists()
+
+    @pytest.mark.asyncio
+    async def test_session_persisted(self, tmp_path: Path) -> None:
+        """Session files should be created during wizard run."""
+        gen_adapter = _make_mock_adapter()
+        detector_adapter = _make_detector_adapter()
+        sessions_dir = tmp_path / "sessions"
+
+        async def mock_ask(question: str) -> str:
+            return "yes"
+
+        async def mock_status(msg: str) -> None:
+            pass
+
+        async def mock_confirm(msg: str) -> bool:
+            return True
+
+        wizard = CriteriaWizard(
+            generation_backends=[gen_adapter],
+            detector_backend=detector_adapter,
+            quality_backend=None,
+            output_dir=tmp_path,
+            sessions_dir=sessions_dir,
+        )
+
+        await wizard.run(
+            input_mode=CriteriaInputMode.TOPIC,
+            wizard_mode=WizardMode.SMART,
+            raw_input="test topic",
+            ask_user=mock_ask,
+            show_status=mock_status,
+            confirm=mock_confirm,
+        )
+
+        # Sessions directory should be created and have session files
+        assert sessions_dir.exists()
+        session_files = list(sessions_dir.glob("*.json"))
+        assert len(session_files) > 0
+
+
+class TestApplyUserFeedback:
+    """Tests for _apply_user_feedback static method."""
+
+    def test_add_with_plus(self) -> None:
+        """'+term' should add to include list."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.PICO,
+            elements={
+                "population": CriteriaElement(
+                    name="Population", include=["adults"]
+                ),
+            },
+        )
+        CriteriaWizard._apply_user_feedback(criteria, "population", "+elderly")
+        assert "elderly" in criteria.elements["population"].include
+
+    def test_remove_with_minus(self) -> None:
+        """'-term' should remove from include or exclude list."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.PICO,
+            elements={
+                "population": CriteriaElement(
+                    name="Population",
+                    include=["adults", "elderly"],
+                    exclude=["children"],
+                ),
+            },
+        )
+        CriteriaWizard._apply_user_feedback(criteria, "population", "-elderly")
+        assert "elderly" not in criteria.elements["population"].include
+        assert "adults" in criteria.elements["population"].include
+
+    def test_add_colon_syntax(self) -> None:
+        """'add: term' should add to include list."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.PICO,
+            elements={
+                "intervention": CriteriaElement(
+                    name="Intervention", include=["drug A"]
+                ),
+            },
+        )
+        CriteriaWizard._apply_user_feedback(
+            criteria, "intervention", "add: drug B"
+        )
+        assert "drug B" in criteria.elements["intervention"].include
+
+    def test_remove_colon_syntax(self) -> None:
+        """'remove: term' should remove from lists."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.PICO,
+            elements={
+                "intervention": CriteriaElement(
+                    name="Intervention",
+                    include=["drug A", "drug B"],
+                ),
+            },
+        )
+        CriteriaWizard._apply_user_feedback(
+            criteria, "intervention", "remove: drug B"
+        )
+        assert "drug B" not in criteria.elements["intervention"].include
+
+    def test_exclude_colon_syntax(self) -> None:
+        """'exclude: term' should add to exclude list."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.PICO,
+            elements={
+                "population": CriteriaElement(
+                    name="Population", include=["adults"]
+                ),
+            },
+        )
+        CriteriaWizard._apply_user_feedback(
+            criteria, "population", "exclude: neonates"
+        )
+        assert "neonates" in criteria.elements["population"].exclude
+
+    def test_free_text_stored_as_notes(self) -> None:
+        """Unstructured feedback should be stored as element notes."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.PICO,
+            elements={
+                "population": CriteriaElement(
+                    name="Population", include=["adults"]
+                ),
+            },
+        )
+        CriteriaWizard._apply_user_feedback(
+            criteria, "population", "Consider adding age range 18-65"
+        )
+        assert criteria.elements["population"].notes is not None
+        assert "age range" in criteria.elements["population"].notes
+
+    def test_multiline_feedback(self) -> None:
+        """Multiline feedback with mixed commands should all be applied."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.PICO,
+            elements={
+                "population": CriteriaElement(
+                    name="Population", include=["adults"]
+                ),
+            },
+        )
+        CriteriaWizard._apply_user_feedback(
+            criteria,
+            "population",
+            "+elderly\n-adults\nexclude: neonates",
+        )
+        assert "elderly" in criteria.elements["population"].include
+        assert "adults" not in criteria.elements["population"].include
+        assert "neonates" in criteria.elements["population"].exclude
+
+    def test_missing_element_no_crash(self) -> None:
+        """Feedback for a nonexistent element should be a no-op."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.PICO,
+            elements={},
+        )
+        # Should not raise
+        CriteriaWizard._apply_user_feedback(
+            criteria, "nonexistent", "+some term"
+        )
+
+    def test_duplicate_add_ignored(self) -> None:
+        """Adding a term that already exists should not duplicate it."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.PICO,
+            elements={
+                "population": CriteriaElement(
+                    name="Population", include=["adults"]
+                ),
+            },
+        )
+        CriteriaWizard._apply_user_feedback(criteria, "population", "+adults")
+        assert criteria.elements["population"].include.count("adults") == 1
+
+
+class TestWizardGenerationAudit:
+    """Tests for GenerationAudit population (TRIPOD-LLM compliance)."""
+
+    @pytest.mark.asyncio
+    async def test_generation_audit_populated_for_topic(
+        self, tmp_path: Path
+    ) -> None:
+        """Topic mode should populate generation_audit with models used."""
+        gen_adapter = _make_mock_adapter()
+        detector_adapter = _make_detector_adapter()
+
+        async def mock_ask(q: str) -> str:
+            return "yes"
+
+        async def mock_status(msg: str) -> None:
+            pass
+
+        async def mock_confirm(msg: str) -> bool:
+            return True
+
+        wizard = CriteriaWizard(
+            generation_backends=[gen_adapter],
+            detector_backend=detector_adapter,
+            quality_backend=None,
+            output_dir=tmp_path,
+            sessions_dir=tmp_path / "sessions",
+        )
+
+        result = await wizard.run(
+            input_mode=CriteriaInputMode.TOPIC,
+            wizard_mode=WizardMode.SMART,
+            raw_input="AMR in ICU",
+            ask_user=mock_ask,
+            show_status=mock_status,
+            confirm=mock_confirm,
+        )
+
+        assert result.generation_audit is not None
+        assert result.generation_audit.input_mode == CriteriaInputMode.TOPIC
+        assert "mock-wizard" in result.generation_audit.models_used
+        assert result.generation_audit.consensus_method == "single_model"
+
+
+class TestWizardSessionContinuity:
+    """Tests for session ID reuse across saves."""
+
+    @pytest.mark.asyncio
+    async def test_single_session_file(self, tmp_path: Path) -> None:
+        """Wizard should create only one session file (same ID for both saves)."""
+        gen_adapter = _make_mock_adapter()
+        detector_adapter = _make_detector_adapter()
+        sessions_dir = tmp_path / "sessions"
+
+        async def mock_ask(q: str) -> str:
+            return "yes"
+
+        async def mock_status(msg: str) -> None:
+            pass
+
+        async def mock_confirm(msg: str) -> bool:
+            return True
+
+        wizard = CriteriaWizard(
+            generation_backends=[gen_adapter],
+            detector_backend=detector_adapter,
+            quality_backend=None,
+            output_dir=tmp_path,
+            sessions_dir=sessions_dir,
+        )
+
+        await wizard.run(
+            input_mode=CriteriaInputMode.TOPIC,
+            wizard_mode=WizardMode.SMART,
+            raw_input="test topic",
+            ask_user=mock_ask,
+            show_status=mock_status,
+            confirm=mock_confirm,
+        )
+
+        # Should have exactly 1 session file (same ID reused)
+        session_files = list(sessions_dir.glob("*.json"))
+        assert len(session_files) == 1
+
+
+class TestSmartRefinementGlobalIssues:
+    """Tests for smart refinement reporting global validation issues."""
+
+    @pytest.mark.asyncio
+    async def test_global_issues_shown_to_user(self, tmp_path: Path) -> None:
+        """Global validation issues (element=None) should be shown via show_status."""
+        # Create criteria that trigger "too broad" (global) and overlap (element)
+        gen_adapter = MockLLMAdapter(
+            model_id="mock-wizard",
+            response_json={
+                "research_question": "Q",
+                "elements": {
+                    "population": {
+                        "name": "Population",
+                        "include": ["adults"],
+                        "exclude": ["adults"],
+                    },
+                },
+                "study_design_include": [],
+                "study_design_exclude": [],
+            },
+        )
+        detector_adapter = _make_detector_adapter()
+        status_messages: list[str] = []
+
+        async def mock_ask(q: str) -> str:
+            return "yes"
+
+        async def mock_status(msg: str) -> None:
+            status_messages.append(msg)
+
+        async def mock_confirm(msg: str) -> bool:
+            return True
+
+        wizard = CriteriaWizard(
+            generation_backends=[gen_adapter],
+            detector_backend=detector_adapter,
+            quality_backend=None,
+            output_dir=tmp_path,
+            sessions_dir=tmp_path / "sessions",
+        )
+
+        result = await wizard.run(
+            input_mode=CriteriaInputMode.TOPIC,
+            wizard_mode=WizardMode.SMART,
+            raw_input="test",
+            ask_user=mock_ask,
+            show_status=mock_status,
+            confirm=mock_confirm,
+        )
+
+        assert isinstance(result, ReviewCriteria)
+        # Overlap auto-fix should have been applied
+        assert "adults" not in result.elements["population"].exclude
+
+
+class TestSmartRefinementOverlapAutoFix:
+    """Tests for smart refinement overlap auto-fix."""
+
+    @pytest.mark.asyncio
+    async def test_overlap_auto_fixed(self, tmp_path: Path) -> None:
+        """Include/exclude overlap should be auto-fixed by removing from exclude."""
+        gen_adapter = MockLLMAdapter(
+            model_id="mock-wizard",
+            response_json={
+                "research_question": "Q",
+                "elements": {
+                    "population": {
+                        "name": "Population",
+                        "include": ["adults", "elderly"],
+                        "exclude": ["adults"],
+                    },
+                },
+                "study_design_include": [],
+                "study_design_exclude": [],
+            },
+        )
+        detector_adapter = _make_detector_adapter()
+
+        async def mock_ask(q: str) -> str:
+            return "yes"
+
+        async def mock_status(msg: str) -> None:
+            pass
+
+        async def mock_confirm(msg: str) -> bool:
+            return True
+
+        wizard = CriteriaWizard(
+            generation_backends=[gen_adapter],
+            detector_backend=detector_adapter,
+            quality_backend=None,
+            output_dir=tmp_path,
+            sessions_dir=tmp_path / "sessions",
+        )
+
+        result = await wizard.run(
+            input_mode=CriteriaInputMode.TOPIC,
+            wizard_mode=WizardMode.SMART,
+            raw_input="test",
+            ask_user=mock_ask,
+            show_status=mock_status,
+            confirm=mock_confirm,
+        )
+
+        pop = result.elements["population"]
+        # Overlap term should be removed from exclude
+        assert "adults" not in pop.exclude
+        # Include list should be unchanged
+        assert "adults" in pop.include
+        assert "elderly" in pop.include

@@ -1,4 +1,6 @@
 """metascreener evaluate — Evaluation and calibration command."""
+from __future__ import annotations
+
 from pathlib import Path
 
 import typer

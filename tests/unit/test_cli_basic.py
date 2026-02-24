@@ -1,4 +1,6 @@
 """Tests for basic CLI structure."""
+from __future__ import annotations
+
 from typer.testing import CliRunner
 
 from metascreener.cli import app

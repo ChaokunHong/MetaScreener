@@ -110,7 +110,11 @@ class OpenRouterAdapter(LLMBackend):
                 )
                 return content
 
-            except (httpx.TimeoutException, httpx.ConnectError) as e:
+            except (
+                httpx.TimeoutException,
+                httpx.ConnectError,
+                LLMRateLimitError,
+            ) as e:
                 last_exc = e
                 delay = RETRY_BASE_DELAY_S * (2**attempt)
                 logger.warning(
@@ -119,9 +123,16 @@ class OpenRouterAdapter(LLMBackend):
                     attempt=attempt + 1,
                     delay_s=delay,
                     error=str(e),
+                    is_rate_limit=isinstance(e, LLMRateLimitError),
                 )
                 if attempt < self._max_retries - 1:
                     await asyncio.sleep(delay)
+
+        if isinstance(last_exc, LLMRateLimitError):
+            raise LLMRateLimitError(
+                f"Rate limit exceeded after {self._max_retries} attempts",
+                model_id=self.model_id,
+            ) from last_exc
 
         raise LLMTimeoutError(
             f"OpenRouter call failed after {self._max_retries} attempts",

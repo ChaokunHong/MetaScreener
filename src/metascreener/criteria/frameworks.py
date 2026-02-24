@@ -2,6 +2,7 @@
 
 Each framework specifies required/optional elements and human-readable labels.
 """
+from __future__ import annotations
 
 from metascreener.core.enums import CriteriaFramework
 
@@ -73,5 +74,10 @@ FRAMEWORK_ELEMENTS: dict[CriteriaFramework, dict[str, list[str] | dict[str, str]
             "comparator": "Comparator",
             "outcome": "Outcome",
         },
+    },
+    CriteriaFramework.CUSTOM: {
+        "required": [],
+        "optional": [],
+        "labels": {},
     },
 }

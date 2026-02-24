@@ -1,18 +1,21 @@
 """Tests for the async parallel LLM runner."""
+from __future__ import annotations
+
 import asyncio
 import time
 
 import pytest
 
-from metascreener.core.enums import Decision
+from metascreener.core.models import PICOCriteria, Record
+from metascreener.llm.adapters.mock import MockLLMAdapter
 from metascreener.llm.parallel_runner import ParallelRunner
 
 
 @pytest.mark.asyncio
 async def test_runs_all_backends(
-    sample_record_include,
-    amr_criteria,
-    mock_include_adapter,
+    sample_record_include: Record,
+    amr_criteria: PICOCriteria,
+    mock_include_adapter: MockLLMAdapter,
 ) -> None:
     """Runner calls all backends and returns one output per backend."""
     runner = ParallelRunner(backends=[mock_include_adapter, mock_include_adapter])
@@ -21,18 +24,19 @@ async def test_runs_all_backends(
 
 
 @pytest.mark.asyncio
-async def test_runs_in_parallel(sample_record_include, amr_criteria) -> None:
+async def test_runs_in_parallel(
+    sample_record_include: Record,
+    amr_criteria: PICOCriteria,
+) -> None:
     """Runner uses asyncio parallelism (not sequential)."""
-    from metascreener.llm.adapters.mock import MockLLMAdapter
-
-    DELAY = 0.1  # 100ms simulated latency per model
+    delay = 0.1  # 100ms simulated latency per model
 
     slow_adapter = MockLLMAdapter(model_id="slow-model")
 
     original_call = slow_adapter._call_api
 
     async def slow_call(prompt: str, seed: int) -> str:
-        await asyncio.sleep(DELAY)
+        await asyncio.sleep(delay)
         return await original_call(prompt, seed)
 
     slow_adapter._call_api = slow_call  # type: ignore[method-assign]
@@ -50,13 +54,12 @@ async def test_runs_in_parallel(sample_record_include, amr_criteria) -> None:
 
 @pytest.mark.asyncio
 async def test_handles_individual_failure_gracefully(
-    sample_record_include,
-    amr_criteria,
-    mock_include_adapter,
+    sample_record_include: Record,
+    amr_criteria: PICOCriteria,
+    mock_include_adapter: MockLLMAdapter,
 ) -> None:
     """If one backend fails, others still return results."""
     from metascreener.core.exceptions import LLMError
-    from metascreener.llm.adapters.mock import MockLLMAdapter
 
     failing_adapter = MockLLMAdapter(model_id="failing-model")
 

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 import structlog
 
 from metascreener.core.enums import CriteriaFramework
-from metascreener.llm.base import LLMBackend, hash_prompt
+from metascreener.llm.base import LLMBackend, hash_prompt, strip_code_fences
 
 logger = structlog.get_logger(__name__)
 
@@ -78,7 +78,7 @@ class FrameworkDetector:
         prompt = self._build_prompt(user_input)
         prompt_hash = hash_prompt(prompt)
 
-        raw_response = await self._backend._call_api(prompt, seed)
+        raw_response = await self._backend.complete(prompt, seed)
 
         return self._parse_response(raw_response, prompt_hash)
 
@@ -104,7 +104,8 @@ class FrameworkDetector:
             Detection result (always succeeds; never raises).
         """
         try:
-            parsed = json.loads(raw_response)
+            cleaned = strip_code_fences(raw_response)
+            parsed = json.loads(cleaned)
 
             framework_str = parsed.get("recommended_framework", "")
             if not isinstance(framework_str, str):

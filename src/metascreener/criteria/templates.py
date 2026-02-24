@@ -56,8 +56,10 @@ class TemplateLibrary:
                     tags=raw.get("tags", []),
                 )
                 self._templates.append(template)
-            except Exception:
-                logger.warning("template_load_error", path=str(path), exc_info=True)
+            except (yaml.YAMLError, KeyError, ValueError, TypeError, OSError) as exc:
+                logger.warning(
+                    "template_load_error", path=str(path), error=str(exc)
+                )
 
         logger.info("templates_loaded", count=len(self._templates))
 

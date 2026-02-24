@@ -107,6 +107,46 @@ class TestLLMValidation:
         assert score.completeness == 85
         assert len(score.suggestions) == 1
 
+    @pytest.mark.asyncio
+    async def test_validate_quality_handles_invalid_json(self) -> None:
+        """Invalid JSON from LLM should return a zero-score QualityScore."""
+        adapter = MockLLMAdapter(
+            model_id="mock-bad",
+            response_json="this is not valid JSON for quality",  # type: ignore[arg-type]
+        )
+        # Override _call_api to return invalid JSON string
+        adapter._response = "not a json string {{"  # type: ignore[assignment]
+
+        async def bad_complete(prompt: str, seed: int = 42) -> str:
+            return "not valid json {{"
+
+        adapter.complete = bad_complete  # type: ignore[assignment]
+
+        criteria = _make_criteria()
+        score = await CriteriaValidator.validate_quality(criteria, adapter)
+        assert isinstance(score, QualityScore)
+        assert score.total == 0
+        assert len(score.suggestions) == 1
+        assert "failed" in score.suggestions[0].lower()
+
+    @pytest.mark.asyncio
+    async def test_validate_quality_handles_llm_error(self) -> None:
+        """LLM call failure should return a zero-score QualityScore."""
+        adapter = MockLLMAdapter(model_id="mock-error")
+
+        async def error_complete(prompt: str, seed: int = 42) -> str:
+            msg = "Connection refused"
+            raise ConnectionError(msg)
+
+        adapter.complete = error_complete  # type: ignore[assignment]
+
+        criteria = _make_criteria()
+        score = await CriteriaValidator.validate_quality(criteria, adapter)
+        assert isinstance(score, QualityScore)
+        assert score.total == 0
+        assert len(score.suggestions) == 1
+        assert "failed" in score.suggestions[0].lower()
+
 
 class TestFullValidation:
     """Tests for the combined validate() method."""
