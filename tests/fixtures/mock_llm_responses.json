@@ -78,5 +78,39 @@
     "consistency": 90,
     "actionability": 75,
     "suggestions": ["Define age threshold for 'older adults'"]
+  },
+  "screening_include_element_assessment": {
+    "decision": "INCLUDE",
+    "confidence": 0.95,
+    "score": 0.92,
+    "element_assessment": {
+      "population": {"match": true, "evidence": "adult ICU patients"},
+      "intervention": {"match": true, "evidence": "antimicrobial stewardship"},
+      "comparison": {"match": true, "evidence": "standard care"},
+      "outcome": {"match": true, "evidence": "mortality"}
+    },
+    "rationale": "All elements match."
+  },
+  "screening_population_mismatch": {
+    "decision": "EXCLUDE",
+    "confidence": 0.88,
+    "score": 0.15,
+    "element_assessment": {
+      "population": {"match": false, "evidence": "pediatric only"},
+      "intervention": {"match": true, "evidence": "stewardship"},
+      "outcome": {"match": true, "evidence": "mortality"}
+    },
+    "rationale": "Population mismatch."
+  },
+  "screening_intervention_ambiguous": {
+    "decision": "INCLUDE",
+    "confidence": 0.55,
+    "score": 0.60,
+    "element_assessment": {
+      "population": {"match": true, "evidence": "adult ICU"},
+      "intervention": {"match": null, "evidence": "unclear intervention"},
+      "outcome": {"match": true, "evidence": "length of stay"}
+    },
+    "rationale": "Intervention unclear."
   }
 }
