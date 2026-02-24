@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import pytest
 
-from metascreener.core.enums import RoBDomain, RoBJudgement
+from metascreener.core.enums import RoBDomain, RoBJudgement, StudyType
 from metascreener.module3_quality.tools.base import (
     DomainSchema,
     RoBToolSchema,
     SignalingQuestion,
 )
+from metascreener.module3_quality.tools import get_tool_for_study_type, get_tool_schema
 from metascreener.module3_quality.tools.quadas2 import QUADAS2Schema
 from metascreener.module3_quality.tools.rob2 import RoB2Schema
 from metascreener.module3_quality.tools.robins_i import ROBINSISchema
@@ -257,3 +258,44 @@ class TestQUADAS2Schema:
     def test_overall_high_overrides_unclear(self) -> None:
         judgements = [RoBJudgement.UNCLEAR, RoBJudgement.HIGH, RoBJudgement.LOW, RoBJudgement.LOW]
         assert QUADAS2Schema().get_overall_judgement(judgements) == RoBJudgement.HIGH
+
+
+# ---------------------------------------------------------------------------
+# Tool Registry Tests
+# ---------------------------------------------------------------------------
+
+
+class TestToolRegistry:
+    """Tests for tool schema factory and auto-selection."""
+
+    def test_get_rob2(self) -> None:
+        schema = get_tool_schema("rob2")
+        assert schema.tool_name == "rob2"
+
+    def test_get_robins_i(self) -> None:
+        schema = get_tool_schema("robins_i")
+        assert schema.tool_name == "robins_i"
+
+    def test_get_quadas2(self) -> None:
+        schema = get_tool_schema("quadas2")
+        assert schema.tool_name == "quadas2"
+
+    def test_unknown_tool_raises(self) -> None:
+        with pytest.raises(ValueError, match="Unknown"):
+            get_tool_schema("unknown_tool")
+
+    def test_auto_select_rct(self) -> None:
+        schema = get_tool_for_study_type(StudyType.RCT)
+        assert schema.tool_name == "rob2"
+
+    def test_auto_select_observational(self) -> None:
+        schema = get_tool_for_study_type(StudyType.OBSERVATIONAL)
+        assert schema.tool_name == "robins_i"
+
+    def test_auto_select_diagnostic(self) -> None:
+        schema = get_tool_for_study_type(StudyType.DIAGNOSTIC)
+        assert schema.tool_name == "quadas2"
+
+    def test_auto_select_unknown_raises(self) -> None:
+        with pytest.raises(ValueError, match="No RoB tool"):
+            get_tool_for_study_type(StudyType.UNKNOWN)
