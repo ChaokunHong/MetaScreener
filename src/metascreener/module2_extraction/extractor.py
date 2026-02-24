@@ -328,14 +328,18 @@ class ExtractionEngine:
         # Normalize values for comparison
         normalized: list[str] = []
         for v in values:
-            if isinstance(v, str):
+            if isinstance(v, bool):
+                # Must check bool before int (bool is subclass of int)
+                normalized.append(str(v))
+            elif isinstance(v, str):
                 normalized.append(v.strip().lower())
             elif isinstance(v, list):
                 normalized.append(
                     str(tuple(sorted(str(x).strip().lower() for x in v)))
                 )
-            elif isinstance(v, float):
-                normalized.append(str(round(v, 6)))
+            elif isinstance(v, (int, float)):
+                # Normalize int/float to same representation (234 == 234.0)
+                normalized.append(str(round(float(v), 6)))
             else:
                 normalized.append(str(v))
 

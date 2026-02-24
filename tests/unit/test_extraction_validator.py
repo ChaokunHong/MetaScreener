@@ -56,6 +56,53 @@ class TestTypeValidation:
         warnings = validate_extraction({"flag": True}, form)
         assert not warnings
 
+    def test_date_field_accepts_iso_string(self) -> None:
+        """DATE field accepts ISO-format date string."""
+        form = _make_form(
+            pub_date=FieldDefinition(
+                type=ExtractionFieldType.DATE, description="publication date"
+            )
+        )
+        warnings = validate_extraction({"pub_date": "2024-01-15"}, form)
+        assert not warnings
+
+    def test_date_field_rejects_integer(self) -> None:
+        """DATE field rejects non-string values."""
+        form = _make_form(
+            pub_date=FieldDefinition(
+                type=ExtractionFieldType.DATE, description="publication date"
+            )
+        )
+        warnings = validate_extraction({"pub_date": 2024}, form)
+        assert any(w.field_name == "pub_date" for w in warnings)
+
+    def test_categorical_field_valid_option(self) -> None:
+        """CATEGORICAL field with value in options list passes."""
+        form = _make_form(
+            design=FieldDefinition(
+                type=ExtractionFieldType.CATEGORICAL,
+                description="study design",
+                options=["RCT", "cohort", "case-control"],
+            )
+        )
+        warnings = validate_extraction({"design": "RCT"}, form)
+        assert not warnings
+
+    def test_categorical_field_invalid_option(self) -> None:
+        """CATEGORICAL field with value not in options list warns."""
+        form = _make_form(
+            design=FieldDefinition(
+                type=ExtractionFieldType.CATEGORICAL,
+                description="study design",
+                options=["RCT", "cohort", "case-control"],
+            )
+        )
+        warnings = validate_extraction({"design": "ecological"}, form)
+        assert any(
+            w.field_name == "design" and "not in allowed options" in w.message
+            for w in warnings
+        )
+
 
 class TestRangeValidation:
     """Tests for min/max range checking."""
