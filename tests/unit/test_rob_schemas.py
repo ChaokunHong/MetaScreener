@@ -4,12 +4,12 @@ from __future__ import annotations
 import pytest
 
 from metascreener.core.enums import RoBDomain, RoBJudgement, StudyType
+from metascreener.module3_quality.tools import get_tool_for_study_type, get_tool_schema
 from metascreener.module3_quality.tools.base import (
     DomainSchema,
     RoBToolSchema,
     SignalingQuestion,
 )
-from metascreener.module3_quality.tools import get_tool_for_study_type, get_tool_schema
 from metascreener.module3_quality.tools.quadas2 import QUADAS2Schema
 from metascreener.module3_quality.tools.rob2 import RoB2Schema
 from metascreener.module3_quality.tools.robins_i import ROBINSISchema
