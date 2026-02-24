@@ -10,8 +10,8 @@ import json
 from pathlib import Path
 
 import numpy as np
-from sklearn.isotonic import IsotonicRegression
-from sklearn.linear_model import LogisticRegression
+from sklearn.isotonic import IsotonicRegression  # type: ignore[import-untyped]
+from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
 
 
 class PlattCalibrator:

@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import minimize  # type: ignore[import-untyped]
 
 from metascreener.core.models import ModelOutput
 
@@ -48,7 +49,7 @@ class WeightOptimizer:
                 for mid in model_ids
             }
         n = len(model_ids)
-        return {mid: 1.0 / n for mid in model_ids}
+        return dict.fromkeys(model_ids, 1.0 / n)
 
     def fit(
         self,
@@ -94,7 +95,7 @@ class WeightOptimizer:
         y = np.array(labels, dtype=float)
         eps = 1e-10
 
-        def objective(w: np.ndarray) -> float:
+        def objective(w: np.ndarray[Any, np.dtype[Any]]) -> float:
             """Binary cross-entropy loss."""
             pred = np.clip(scores @ w, eps, 1.0 - eps)
             return float(
@@ -102,10 +103,12 @@ class WeightOptimizer:
             )
 
         # Initial weights: equal + small noise for symmetry breaking
-        w0 = np.full(n_models, 1.0 / n_models)
-        w0 += rng.uniform(-0.01, 0.01, n_models)
+        w0: np.ndarray[Any, np.dtype[Any]] = np.full(
+            n_models, 1.0 / n_models
+        )
+        w0 = w0 + rng.uniform(-0.01, 0.01, n_models)
         w0 = np.clip(w0, eps, None)
-        w0 /= w0.sum()
+        w0 = w0 / w0.sum()
 
         # Constraints: sum to 1, each > 0
         constraints = {"type": "eq", "fun": lambda w: np.sum(w) - 1.0}
