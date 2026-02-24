@@ -1,10 +1,13 @@
 """Shared pytest fixtures for MetaScreener 2.0 tests."""
+from __future__ import annotations
+
 import json
 from pathlib import Path
 
 import pytest
 
-from metascreener.core.models import PICOCriteria, Record
+from metascreener.core.enums import CriteriaFramework
+from metascreener.core.models import CriteriaElement, PICOCriteria, Record, ReviewCriteria
 from metascreener.llm.adapters.mock import MockLLMAdapter
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -94,4 +97,36 @@ def mock_uncertain_adapter(mock_responses: dict) -> MockLLMAdapter:  # type: ign
     return MockLLMAdapter(
         model_id="mock-uncertain",
         response_json=mock_responses["screening_include_low_conf"],
+    )
+
+
+@pytest.fixture
+def amr_review_criteria(amr_criteria: PICOCriteria) -> ReviewCriteria:
+    """ReviewCriteria converted from AMR PICOCriteria for framework-agnostic tests."""
+    return ReviewCriteria.from_pico_criteria(amr_criteria)
+
+
+@pytest.fixture
+def peo_review_criteria() -> ReviewCriteria:
+    """PEO framework criteria for testing non-PICO prompts."""
+    return ReviewCriteria(
+        framework=CriteriaFramework.PEO,
+        research_question="Effect of smoking on lung cancer risk",
+        elements={
+            "population": CriteriaElement(
+                name="Population",
+                include=["adults", "\u226518 years"],
+                exclude=["children"],
+            ),
+            "exposure": CriteriaElement(
+                name="Exposure",
+                include=["tobacco smoking", "cigarette use"],
+            ),
+            "outcome": CriteriaElement(
+                name="Outcome",
+                include=["lung cancer incidence", "mortality"],
+            ),
+        },
+        required_elements=["population", "exposure", "outcome"],
+        study_design_include=["cohort", "case-control"],
     )
