@@ -130,3 +130,87 @@ def peo_review_criteria() -> ReviewCriteria:
         required_elements=["population", "exposure", "outcome"],
         study_design_include=["cohort", "case-control"],
     )
+
+
+@pytest.fixture
+def mock_extraction_adapter(mock_responses: dict) -> MockLLMAdapter:  # type: ignore[type-arg]
+    """Mock adapter returning full extraction data."""
+    return MockLLMAdapter(
+        model_id="mock-extract",
+        response_json=mock_responses["extraction_full"],
+    )
+
+
+@pytest.fixture
+def mock_extraction_disagree_adapter(mock_responses: dict) -> MockLLMAdapter:  # type: ignore[type-arg]
+    """Mock adapter returning slightly different extraction data."""
+    return MockLLMAdapter(
+        model_id="mock-extract-disagree",
+        response_json=mock_responses["extraction_partial_disagree"],
+    )
+
+
+@pytest.fixture
+def sample_pdf_text() -> str:
+    """Sample full-text PDF content for extraction tests."""
+    return (
+        "Title: Effect of antimicrobial stewardship on mortality in adult ICU patients\n\n"
+        "Authors: Smith J, Jones A, Brown B\n\n"
+        "Abstract\n"
+        "Background: Antimicrobial stewardship programs (ASP) may reduce mortality.\n\n"
+        "Methods\n"
+        "We conducted a randomized controlled trial in adult ICU patients. "
+        "A total of 234 patients were enrolled: 117 randomized to the intervention "
+        "(daily audit and feedback of antimicrobial prescriptions) and 117 to standard care.\n\n"
+        "Results\n"
+        "30-day mortality was 15.2% in the intervention group vs 18.0% in the control "
+        "group (p=0.03). Length of stay was reduced by 2.3 days. "
+        "Antibiotic consumption decreased by 22%.\n\n"
+        "Conclusion\n"
+        "Antimicrobial stewardship significantly reduced mortality in ICU patients."
+    )
+
+
+@pytest.fixture
+def sample_extraction_form_yaml(tmp_path: Path) -> Path:
+    """Write a sample extraction form YAML and return its path."""
+    form_content = (
+        "form_name: Test Extraction Form\n"
+        "form_version: '1.0'\n"
+        "fields:\n"
+        "  study_id:\n"
+        "    type: text\n"
+        "    description: First author and year\n"
+        "    required: true\n"
+        "  n_total:\n"
+        "    type: integer\n"
+        "    description: Total sample size\n"
+        "    required: true\n"
+        "    validation:\n"
+        "      min: 1\n"
+        "      max: 1000000\n"
+        "  mortality_rate:\n"
+        "    type: float\n"
+        "    description: 30-day mortality rate\n"
+        "    unit: proportion\n"
+        "    validation:\n"
+        "      min: 0.0\n"
+        "      max: 1.0\n"
+        "  is_rct:\n"
+        "    type: boolean\n"
+        "    description: Was this an RCT?\n"
+        "  outcomes_reported:\n"
+        "    type: list\n"
+        "    description: Outcomes reported\n"
+        "  intervention_type:\n"
+        "    type: categorical\n"
+        "    description: Type of intervention\n"
+        "    options:\n"
+        "      - audit and feedback\n"
+        "      - restrictive\n"
+        "      - educational\n"
+        "      - mixed\n"
+    )
+    form_path = tmp_path / "extraction_form.yaml"
+    form_path.write_text(form_content)
+    return form_path

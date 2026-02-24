@@ -1,4 +1,6 @@
 """Core enumerations for MetaScreener 2.0."""
+from __future__ import annotations
+
 from enum import IntEnum, StrEnum
 
 
@@ -89,6 +91,7 @@ class ExtractionFieldType(StrEnum):
     BOOLEAN = "boolean"
     DATE = "date"
     LIST = "list"
+    CATEGORICAL = "categorical"
 
 
 class ScreeningStage(StrEnum):

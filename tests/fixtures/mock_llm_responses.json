@@ -112,5 +112,82 @@
       "outcome": {"match": true, "evidence": "length of stay"}
     },
     "rationale": "Intervention unclear."
+  },
+  "extraction_full": {
+    "extracted_fields": {
+      "study_id": "Smith 2024",
+      "n_total": 234,
+      "n_intervention": 117,
+      "n_control": 117,
+      "mortality_rate": 0.152,
+      "is_rct": true,
+      "outcomes_reported": ["mortality", "length of stay", "antibiotic consumption"],
+      "intervention_type": "audit and feedback"
+    },
+    "evidence": {
+      "study_id": "Smith et al. (2024) conducted...",
+      "n_total": "234 patients were enrolled",
+      "n_intervention": "117 patients randomized to intervention",
+      "n_control": "117 patients in control group",
+      "mortality_rate": "30-day mortality was 15.2%",
+      "is_rct": "randomized controlled trial",
+      "outcomes_reported": "Primary outcome was 30-day mortality; secondary outcomes included length of stay and antibiotic consumption",
+      "intervention_type": "daily audit and feedback of antimicrobial prescriptions"
+    }
+  },
+  "extraction_partial_disagree": {
+    "extracted_fields": {
+      "study_id": "Smith 2024",
+      "n_total": 230,
+      "n_intervention": 115,
+      "n_control": 115,
+      "mortality_rate": 0.148,
+      "is_rct": true,
+      "outcomes_reported": ["mortality", "length of stay"],
+      "intervention_type": "audit and feedback"
+    },
+    "evidence": {
+      "study_id": "Smith et al., 2024",
+      "n_total": "A total of 230 patients",
+      "mortality_rate": "Mortality rate of 14.8%"
+    }
+  },
+  "extraction_missing_fields": {
+    "extracted_fields": {
+      "study_id": "Smith 2024",
+      "n_total": 234,
+      "mortality_rate": 0.152
+    },
+    "evidence": {
+      "study_id": "Smith et al. 2024",
+      "n_total": "234 patients enrolled"
+    }
+  },
+  "extraction_form_generation": {
+    "form_name": "AMR Stewardship Extraction",
+    "form_version": "1.0",
+    "fields": {
+      "study_id": {
+        "type": "text",
+        "description": "First author and year",
+        "required": true
+      },
+      "n_total": {
+        "type": "integer",
+        "description": "Total sample size",
+        "required": true,
+        "validation": {"min": 1, "max": 1000000}
+      },
+      "mortality_rate": {
+        "type": "float",
+        "description": "30-day mortality rate",
+        "unit": "proportion",
+        "validation": {"min": 0.0, "max": 1.0}
+      },
+      "is_rct": {
+        "type": "boolean",
+        "description": "Was this an RCT?"
+      }
+    }
   }
 }
