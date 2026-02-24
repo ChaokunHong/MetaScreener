@@ -63,6 +63,74 @@ class ParallelRunner:
         outputs: list[ModelOutput] = await asyncio.gather(*tasks)
         return outputs
 
+    async def run_with_prompt(
+        self,
+        prompt: str,
+        seed: int = 42,
+    ) -> list[ModelOutput]:
+        """Run all backends with a pre-built prompt (framework-specific).
+
+        Reuses the same timeout + error handling as ``run()``.
+
+        Args:
+            prompt: The complete prompt string (already built by PromptRouter).
+            seed: Reproducibility seed.
+
+        Returns:
+            List of ModelOutput (one per backend).
+        """
+        tasks = [
+            self._run_single_with_prompt(backend, prompt, seed)
+            for backend in self._backends
+        ]
+        outputs: list[ModelOutput] = await asyncio.gather(*tasks)
+        return outputs
+
+    async def _run_single_with_prompt(
+        self,
+        backend: LLMBackend,
+        prompt: str,
+        seed: int,
+    ) -> ModelOutput:
+        """Run a single backend with a pre-built prompt + error handling.
+
+        On failure, returns a ModelOutput with decision=INCLUDE (conservative)
+        and the error message recorded for the audit trail.
+        """
+        try:
+            return await asyncio.wait_for(
+                backend.call_with_prompt(prompt, seed=seed),
+                timeout=self._timeout_s,
+            )
+        except TimeoutError:
+            logger.warning(
+                "backend_timeout",
+                model_id=backend.model_id,
+                timeout_s=self._timeout_s,
+            )
+            return ModelOutput(
+                model_id=backend.model_id,
+                decision=Decision.INCLUDE,
+                score=0.5,
+                confidence=0.0,
+                rationale="Timeout — defaulting to INCLUDE.",
+                error=f"Timeout after {self._timeout_s}s",
+            )
+        except LLMError as e:
+            logger.error(
+                "backend_error",
+                model_id=backend.model_id,
+                error=str(e),
+            )
+            return ModelOutput(
+                model_id=backend.model_id,
+                decision=Decision.INCLUDE,
+                score=0.5,
+                confidence=0.0,
+                rationale="API error — defaulting to INCLUDE.",
+                error=str(e),
+            )
+
     async def _run_single(
         self,
         backend: LLMBackend,
