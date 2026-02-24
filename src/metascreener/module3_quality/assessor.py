@@ -58,6 +58,7 @@ class RoBAssessor:
         self,
         text: str,
         tool_name: str,
+        record_id: str = "",
         seed: int = 42,
     ) -> RoBResult:
         """Assess risk of bias using a specified tool.
@@ -65,18 +66,20 @@ class RoBAssessor:
         Args:
             text: Full text of the paper.
             tool_name: Tool identifier ('rob2', 'robins_i', 'quadas2').
+            record_id: Identifier for the record being assessed.
             seed: Reproducibility seed.
 
         Returns:
             RoBResult with per-domain judgements and overall assessment.
         """
         tool_schema = get_tool_schema(tool_name)
-        return await self._run_pipeline(text, tool_schema, seed)
+        return await self._run_pipeline(text, tool_schema, record_id, seed)
 
     async def assess_auto(
         self,
         text: str,
         study_type: StudyType,
+        record_id: str = "",
         seed: int = 42,
     ) -> RoBResult:
         """Assess risk of bias with auto-selected tool based on study type.
@@ -84,18 +87,20 @@ class RoBAssessor:
         Args:
             text: Full text of the paper.
             study_type: Study design classification.
+            record_id: Identifier for the record being assessed.
             seed: Reproducibility seed.
 
         Returns:
             RoBResult with per-domain judgements and overall assessment.
         """
         tool_schema = get_tool_for_study_type(study_type)
-        return await self._run_pipeline(text, tool_schema, seed)
+        return await self._run_pipeline(text, tool_schema, record_id, seed)
 
     async def _run_pipeline(
         self,
         text: str,
         tool_schema: RoBToolSchema,
+        record_id: str,
         seed: int,
     ) -> RoBResult:
         """Execute the full assessment pipeline.
@@ -103,6 +108,7 @@ class RoBAssessor:
         Args:
             text: Full paper text.
             tool_schema: The RoB tool schema to use.
+            record_id: Identifier for the record being assessed.
             seed: Reproducibility seed.
 
         Returns:
@@ -151,7 +157,7 @@ class RoBAssessor:
         )
 
         return RoBResult(
-            record_id="",  # Caller sets this
+            record_id=record_id,
             tool=tool_schema.tool_name,
             domains=domain_results,
             overall_judgement=overall,
