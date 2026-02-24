@@ -1,13 +1,16 @@
 """Tests for core enums."""
 from metascreener.core.enums import (
-    Decision,
     ConfidenceLevel,
-    Tier,
-    StudyType,
+    CriteriaFramework,
+    CriteriaInputMode,
+    Decision,
+    ExtractionFieldType,
     RoBDomain,
     RoBJudgement,
-    ExtractionFieldType,
     ScreeningStage,
+    StudyType,
+    Tier,
+    WizardMode,
 )
 
 
@@ -34,3 +37,29 @@ def test_rob_judgement_values() -> None:
 def test_screening_stage_values() -> None:
     assert ScreeningStage.TITLE_ABSTRACT == "ta"
     assert ScreeningStage.FULL_TEXT == "ft"
+
+
+def test_criteria_framework_values() -> None:
+    """All 8 SR framework types have correct string values."""
+    assert CriteriaFramework.PICO == "pico"
+    assert CriteriaFramework.PEO == "peo"
+    assert CriteriaFramework.SPIDER == "spider"
+    assert CriteriaFramework.PCC == "pcc"
+    assert CriteriaFramework.PIRD == "pird"
+    assert CriteriaFramework.PIF == "pif"
+    assert CriteriaFramework.PECO == "peco"
+    assert CriteriaFramework.CUSTOM == "custom"
+
+
+def test_wizard_mode_values() -> None:
+    """Wizard interaction modes."""
+    assert WizardMode.SMART == "smart"
+    assert WizardMode.GUIDED == "guided"
+
+
+def test_criteria_input_mode_values() -> None:
+    """Criteria input source modes."""
+    assert CriteriaInputMode.TEXT == "text"
+    assert CriteriaInputMode.TOPIC == "topic"
+    assert CriteriaInputMode.YAML == "yaml"
+    assert CriteriaInputMode.EXAMPLES == "examples"

@@ -96,3 +96,32 @@ class ScreeningStage(StrEnum):
 
     TITLE_ABSTRACT = "ta"
     FULL_TEXT = "ft"
+
+
+class CriteriaFramework(StrEnum):
+    """Systematic review criteria framework type."""
+
+    PICO = "pico"
+    PEO = "peo"
+    SPIDER = "spider"
+    PCC = "pcc"
+    PIRD = "pird"
+    PIF = "pif"
+    PECO = "peco"
+    CUSTOM = "custom"
+
+
+class WizardMode(StrEnum):
+    """Criteria wizard interaction mode."""
+
+    SMART = "smart"
+    GUIDED = "guided"
+
+
+class CriteriaInputMode(StrEnum):
+    """How criteria input is provided."""
+
+    TEXT = "text"
+    TOPIC = "topic"
+    YAML = "yaml"
+    EXAMPLES = "examples"
