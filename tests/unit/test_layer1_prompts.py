@@ -236,3 +236,87 @@ class TestGenericPrompt:
         )
         section = GenericPrompt().build_criteria_section(criteria)
         assert "CRITERIA" in section
+
+    def test_renders_study_design_restrictions(self) -> None:
+        """Generic prompt renders study design include/exclude."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.CUSTOM,
+            research_question="Custom review",
+            elements={
+                "focus": CriteriaElement(name="Focus", include=["safety"]),
+            },
+            study_design_include=["RCT"],
+            study_design_exclude=["case report"],
+        )
+        section = GenericPrompt().build_criteria_section(criteria)
+        assert "RCT" in section
+        assert "case report" in section
+
+
+# --- Study Design Coverage for SPIDER/PCC ---
+
+
+class TestPromptStudyDesignPaths:
+    """Test study_design rendering paths for all prompts."""
+
+    def test_spider_study_design_restrictions(self) -> None:
+        """SPIDER renders study design include and exclude."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.SPIDER,
+            research_question="Nurse burnout",
+            elements={
+                "sample": CriteriaElement(name="Sample", include=["nurses"]),
+            },
+            required_elements=["sample"],
+            study_design_include=["qualitative"],
+            study_design_exclude=["survey"],
+        )
+        section = SPIDERPrompt().build_criteria_section(criteria)
+        assert "qualitative" in section
+        assert "survey" in section
+
+    def test_pcc_study_design_restrictions(self) -> None:
+        """PCC renders study design include and exclude."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.PCC,
+            research_question="Telehealth",
+            elements={
+                "concept": CriteriaElement(name="Concept", include=["telehealth"]),
+            },
+            required_elements=["concept"],
+            study_design_include=["scoping review"],
+            study_design_exclude=["commentary"],
+        )
+        section = PCCPrompt().build_criteria_section(criteria)
+        assert "scoping review" in section
+        assert "commentary" in section
+
+    def test_peo_study_design_restrictions(self) -> None:
+        """PEO renders study design include and exclude."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.PEO,
+            research_question="Smoking risk",
+            elements={
+                "population": CriteriaElement(name="Population", include=["adults"]),
+            },
+            required_elements=["population"],
+            study_design_include=["cohort"],
+            study_design_exclude=["case series"],
+        )
+        section = PEOPrompt().build_criteria_section(criteria)
+        assert "cohort" in section
+        assert "case series" in section
+
+    def test_render_element_empty_include_exclude(self) -> None:
+        """Element with empty include/exclude lists renders fallback."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.CUSTOM,
+            research_question="Test",
+            elements={
+                "domain": CriteriaElement(
+                    name="Domain", include=[], exclude=[]
+                ),
+            },
+        )
+        section = GenericPrompt().build_criteria_section(criteria)
+        assert "No specific terms defined" in section

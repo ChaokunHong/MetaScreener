@@ -37,6 +37,11 @@ class ParallelRunner:
         self._backends = list(backends)
         self._timeout_s = timeout_s
 
+    @property
+    def backend_count(self) -> int:
+        """Number of LLM backends configured."""
+        return len(self._backends)
+
     async def run(
         self,
         record: Record,
@@ -130,6 +135,21 @@ class ParallelRunner:
                 rationale="API error — defaulting to INCLUDE.",
                 error=str(e),
             )
+        except Exception as e:
+            logger.error(
+                "backend_unexpected_error",
+                model_id=backend.model_id,
+                error_type=type(e).__name__,
+                error=str(e),
+            )
+            return ModelOutput(
+                model_id=backend.model_id,
+                decision=Decision.INCLUDE,
+                score=0.5,
+                confidence=0.0,
+                rationale="Unexpected error — defaulting to INCLUDE.",
+                error=f"{type(e).__name__}: {e}",
+            )
 
     async def _run_single(
         self,
@@ -178,4 +198,20 @@ class ParallelRunner:
                 confidence=0.0,
                 rationale="API error — defaulting to INCLUDE.",
                 error=str(e),
+            )
+        except Exception as e:
+            logger.error(
+                "backend_unexpected_error",
+                model_id=backend.model_id,
+                record_id=record.record_id,
+                error_type=type(e).__name__,
+                error=str(e),
+            )
+            return ModelOutput(
+                model_id=backend.model_id,
+                decision=Decision.INCLUDE,  # safe default
+                score=0.5,
+                confidence=0.0,
+                rationale="Unexpected error — defaulting to INCLUDE.",
+                error=f"{type(e).__name__}: {e}",
             )

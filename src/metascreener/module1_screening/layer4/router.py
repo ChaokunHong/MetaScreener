@@ -2,9 +2,12 @@
 
 Routes screening decisions through a 4-tier hierarchy:
   Tier 0: Hard rule override → AUTO-EXCLUDE
-  Tier 1: Unanimous agreement + high confidence → AUTO decision
-  Tier 2: Majority + mid confidence → AUTO-INCLUDE (recall bias)
-  Tier 3: No consensus or low confidence → HUMAN_REVIEW
+  Tier 1: Unanimous agreement + confidence >= tau_high → AUTO decision
+  Tier 2: Majority agree + confidence >= tau_mid → AUTO-INCLUDE (recall bias)
+  Tier 3: No majority, confidence < tau_low, or between tau_low and tau_mid
+          without majority → HUMAN_REVIEW
+
+Thresholds: tau_high > tau_mid > tau_low (optimized by ThresholdOptimizer).
 """
 from __future__ import annotations
 
@@ -73,6 +76,9 @@ class DecisionRouter:
             logger.warning("no_valid_decisions")
             return (Decision.HUMAN_REVIEW, Tier.THREE)
 
+        n_include = sum(1 for d in decisions if d == Decision.INCLUDE)
+        n_total = len(decisions)
+
         # Tier 1: Unanimous agreement + high confidence
         unique_decisions = set(decisions)
         if (
@@ -87,18 +93,36 @@ class DecisionRouter:
             )
             return (decision, Tier.ONE)
 
-        # Tier 2: Mid confidence → INCLUDE (recall bias)
-        if ensemble_confidence >= self.tau_mid:
+        # Tier 3 floor: confidence below tau_low → always HUMAN_REVIEW
+        # tau_low is the absolute minimum for any automated decision.
+        if ensemble_confidence < self.tau_low:
+            logger.info(
+                "tier3_below_floor",
+                confidence=round(ensemble_confidence, 4),
+                tau_low=self.tau_low,
+            )
+            return (Decision.HUMAN_REVIEW, Tier.THREE)
+
+        # Tier 2: Majority agree + confidence >= tau_mid → INCLUDE (recall bias)
+        # A clear majority exists AND confidence is at or above tau_mid.
+        # Recall bias: even if majority EXCLUDE, return INCLUDE to avoid
+        # missing relevant papers — only hard rules can force EXCLUDE.
+        has_majority = n_include > n_total / 2 or n_include < n_total / 2
+        if has_majority and ensemble_confidence >= self.tau_mid:
             logger.info(
                 "tier2_majority",
+                n_include=n_include,
+                n_total=n_total,
                 confidence=round(ensemble_confidence, 4),
                 final_score=round(final_score, 4),
             )
             return (Decision.INCLUDE, Tier.TWO)
 
-        # Tier 3: Low confidence / no consensus
+        # Tier 3: No clear majority, or confidence between tau_low and tau_mid
         logger.info(
             "tier3_no_consensus",
+            n_include=n_include,
+            n_total=n_total,
             confidence=round(ensemble_confidence, 4),
         )
         return (Decision.HUMAN_REVIEW, Tier.THREE)

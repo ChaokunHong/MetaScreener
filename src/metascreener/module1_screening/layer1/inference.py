@@ -59,7 +59,7 @@ class InferenceEngine:
             record_id=record.record_id,
             criteria_type=criteria_type,
             framework=framework,
-            n_backends=len(self._runner._backends),
+            n_backends=self._runner.backend_count,
             seed=seed,
         )
 

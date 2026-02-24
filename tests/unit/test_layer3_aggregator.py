@@ -1,11 +1,12 @@
 """Tests for Layer 3 CCA aggregator and weight optimizer."""
 from __future__ import annotations
 
-import pytest
+from pathlib import Path
 
 from metascreener.core.enums import Decision
 from metascreener.core.models import ModelOutput, PICOAssessment
 from metascreener.module1_screening.layer3.aggregator import CCAggregator
+from metascreener.module1_screening.layer3.calibration import PlattCalibrator
 from metascreener.module1_screening.layer3.weight_optimizer import WeightOptimizer
 
 
@@ -105,6 +106,38 @@ class TestCCAggregator:
         _, c_ens = CCAggregator().aggregate(outputs)
         assert c_ens == 1.0
 
+    def test_with_fitted_calibrators(self) -> None:
+        """CCA with fitted Platt calibrators applies phi_i factor."""
+        cal_m1 = PlattCalibrator()
+        cal_m1.fit(
+            [0.1, 0.2, 0.3, 0.7, 0.8, 0.9],
+            [0, 0, 0, 1, 1, 1],
+            seed=42,
+        )
+        cal_m2 = PlattCalibrator()
+        cal_m2.fit(
+            [0.1, 0.2, 0.3, 0.7, 0.8, 0.9],
+            [0, 0, 0, 1, 1, 1],
+            seed=42,
+        )
+        agg_cal = CCAggregator(calibrators={"m1": cal_m1, "m2": cal_m2})
+        agg_no_cal = CCAggregator()
+
+        # Use different scores so phi_i doesn't cancel out in CCA ratio
+        outputs = [
+            _make_output(0.9, 0.9, Decision.INCLUDE, "m1"),
+            _make_output(0.3, 0.9, Decision.EXCLUDE, "m2"),
+        ]
+        s_cal, _ = agg_cal.aggregate(outputs)
+        s_no_cal, _ = agg_no_cal.aggregate(outputs)
+
+        # With different scores, calibration changes the relative weights
+        # via phi_i, so the final score should differ
+        assert s_cal != s_no_cal
+        # Both should be valid
+        assert 0.0 <= s_cal <= 1.0
+        assert 0.0 <= s_no_cal <= 1.0
+
 
 # ── WeightOptimizer Tests ────────────────────────────────────────────
 
@@ -164,7 +197,7 @@ class TestWeightOptimizer:
         for model_id in w1:
             assert abs(w1[model_id] - w2[model_id]) < 1e-9
 
-    def test_save_load_roundtrip(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_save_load_roundtrip(self, tmp_path: Path) -> None:
         """Saved weights can be loaded and produce same results."""
         opt = WeightOptimizer()
         opt.fit(
