@@ -1,0 +1,37 @@
+# Version-locked model registry for MetaScreener 2.0
+# See CLAUDE.md for model selection rationale
+models:
+  qwen3:
+    name: "Qwen/Qwen3-235B-A22B-Instruct"
+    version: "2025-04-28"
+    provider: "openrouter"
+    model_id: "qwen/qwen3-235b-a22b"
+    license: "Apache-2.0"
+  deepseek:
+    name: "DeepSeek-V3.2"
+    version: "2025-05-15"
+    provider: "openrouter"
+    model_id: "deepseek/deepseek-v3.2"
+    license: "MIT"
+  llama:
+    name: "Llama 4 Scout"
+    version: "2025-04-05"
+    provider: "openrouter"
+    model_id: "meta-llama/llama-4-scout"
+    license: "Llama"
+  mistral:
+    name: "Mistral Small 3 24B"
+    version: "2025-01-29"
+    provider: "openrouter"
+    model_id: "mistralai/mistral-small-3-24b"
+    license: "Apache-2.0"
+
+thresholds:
+  tau_high: 0.85
+  tau_mid: 0.65
+  tau_low: 0.45
+
+inference:
+  temperature: 0.0
+  timeout_s: 120.0
+  max_retries: 3
