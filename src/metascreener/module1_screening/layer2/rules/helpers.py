@@ -12,6 +12,8 @@ def count_element_matches(
 
     Inspects ``model_output.pico_assessment[element_key].match`` for
     each output. Outputs without the element key are skipped.
+    Assessments with ``match=None`` (unable to assess) are skipped
+    to avoid penalizing uncertain evaluations.
 
     Args:
         element_key: The assessment element to inspect (e.g., "population").
@@ -26,6 +28,9 @@ def count_element_matches(
     for output in model_outputs:
         assessment = output.pico_assessment.get(element_key)
         if assessment is None:
+            continue
+        # Skip assessments where match is None (unable to assess)
+        if assessment.match is None:
             continue
         if assessment.match:
             n_match += 1

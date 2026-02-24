@@ -74,8 +74,7 @@ def build_output_spec() -> str:
     """
     return (
         "## OUTPUT FORMAT\n"
-        "Respond with a JSON object (no markdown fences) containing:\n"
-        "```\n"
+        "Respond with ONLY a raw JSON object (no markdown fences, no extra text):\n"
         "{\n"
         '  "decision": "INCLUDE" or "EXCLUDE",\n'
         '  "confidence": 0.0-1.0,\n'
@@ -86,8 +85,7 @@ def build_output_spec() -> str:
         "    ...\n"
         "  },\n"
         '  "rationale": "Brief explanation"\n'
-        "}\n"
-        "```"
+        "}"
     )
 
 

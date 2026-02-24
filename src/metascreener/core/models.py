@@ -104,11 +104,11 @@ class PICOAssessment(BaseModel):
     """Assessment of a single PICO element from one LLM call.
 
     Attributes:
-        match: Whether the record matches this PICO element.
+        match: Whether the record matches this element (None = unable to assess).
         evidence: Quoted or paraphrased text from the record supporting the judgement.
     """
 
-    match: bool
+    match: bool | None
     evidence: str | None = None
 
 
@@ -329,6 +329,7 @@ class CriteriaElement(BaseModel):
         model_votes: Per-term agreement scores (term -> agreement ratio 0.0-1.0).
             Populated by the consensus merger. Include terms are keyed by
             the term string; exclude terms are keyed as ``"exclude:<term>"``.
+        notes: Free-text notes or context for this element.
     """
 
     name: str
@@ -337,6 +338,7 @@ class CriteriaElement(BaseModel):
     ambiguity_flags: list[str] = Field(default_factory=list)
     element_quality: int | None = None
     model_votes: dict[str, float] | None = None
+    notes: str | None = None
 
 
 class QualityScore(BaseModel):

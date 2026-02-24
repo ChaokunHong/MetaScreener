@@ -29,6 +29,17 @@ class PCCPrompt(ScreeningPrompt):
             if element:
                 lines.extend(render_element(label, element))
 
+        if criteria.study_design_include or criteria.study_design_exclude:
+            lines.append("### STUDY DESIGN")
+            if criteria.study_design_include:
+                lines.append(
+                    f"  Include: {', '.join(criteria.study_design_include)}"
+                )
+            if criteria.study_design_exclude:
+                lines.append(
+                    f"  Exclude: {', '.join(criteria.study_design_exclude)}"
+                )
+
         if criteria.research_question:
             lines.append(f"\nResearch question: {criteria.research_question}")
 

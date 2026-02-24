@@ -250,8 +250,9 @@ class LLMBackend(ABC):
         pico_assessment: dict[str, PICOAssessment] = {}
         for key, val in assessment_data.items():
             if isinstance(val, dict):
+                raw_match = val.get("match")
                 pico_assessment[key] = PICOAssessment(
-                    match=bool(val.get("match", False)),
+                    match=raw_match if raw_match is None else bool(raw_match),
                     evidence=val.get("evidence"),
                 )
 

@@ -453,3 +453,119 @@ class TestAmbiguousInterventionRule:
         record = Record(title="Test")
         result = AmbiguousInterventionRule().check(record, criteria, outputs)
         assert result is None
+
+    def test_exposure_key_for_peo(self) -> None:
+        """PEO 'exposure' key triggers intervention ambiguity rule."""
+        outputs = [
+            _make_output(
+                model_id="m1",
+                pico_assessment={
+                    "exposure": PICOAssessment(match=True, evidence="yes"),
+                },
+            ),
+            _make_output(
+                model_id="m2",
+                pico_assessment={
+                    "exposure": PICOAssessment(match=False, evidence="no"),
+                },
+            ),
+        ]
+        criteria = ReviewCriteria(framework="peo")
+        record = Record(title="Test")
+        result = AmbiguousInterventionRule().check(record, criteria, outputs)
+        assert result is not None
+        assert result.penalty == 0.05
+
+
+# --- Cross-framework soft rule tests ---
+
+
+class TestSoftRulesCrossFramework:
+    """Tests for soft rules working across non-PICO frameworks."""
+
+    def test_population_sample_key_for_spider(self) -> None:
+        """SPIDER 'sample' key triggers population rule."""
+        outputs = [
+            _make_output(
+                model_id="m1",
+                pico_assessment={
+                    "sample": PICOAssessment(match=False, evidence="mismatch"),
+                },
+            ),
+            _make_output(
+                model_id="m2",
+                pico_assessment={
+                    "sample": PICOAssessment(match=False, evidence="mismatch"),
+                },
+            ),
+        ]
+        criteria = ReviewCriteria(framework="spider")
+        record = Record(title="Test")
+        result = PopulationPartialMatchRule().check(record, criteria, outputs)
+        assert result is not None
+        assert result.penalty == 0.15
+
+    def test_outcome_evaluation_key_for_spider(self) -> None:
+        """SPIDER 'evaluation' key triggers outcome rule."""
+        outputs = [
+            _make_output(
+                model_id="m1",
+                pico_assessment={
+                    "evaluation": PICOAssessment(match=False, evidence="no"),
+                },
+            ),
+            _make_output(
+                model_id="m2",
+                pico_assessment={
+                    "evaluation": PICOAssessment(match=False, evidence="no"),
+                },
+            ),
+        ]
+        criteria = ReviewCriteria(framework="spider")
+        record = Record(title="Test")
+        result = OutcomePartialMatchRule().check(record, criteria, outputs)
+        assert result is not None
+        assert result.penalty == 0.10
+
+    def test_match_none_skipped_in_soft_rules(self) -> None:
+        """match=None (unable to assess) is skipped, not counted as mismatch."""
+        outputs = [
+            _make_output(
+                model_id="m1",
+                pico_assessment={
+                    "population": PICOAssessment(match=None, evidence="unclear"),
+                },
+            ),
+            _make_output(
+                model_id="m2",
+                pico_assessment={
+                    "population": PICOAssessment(match=True, evidence="ok"),
+                },
+            ),
+        ]
+        criteria = ReviewCriteria(framework="pico")
+        record = Record(title="Test")
+        result = PopulationPartialMatchRule().check(record, criteria, outputs)
+        # match=None skipped, only 1 match → no mismatch majority
+        assert result is None
+
+    def test_concept_key_for_pcc(self) -> None:
+        """PCC 'concept' key triggers intervention ambiguity rule."""
+        outputs = [
+            _make_output(
+                model_id="m1",
+                pico_assessment={
+                    "concept": PICOAssessment(match=True, evidence="yes"),
+                },
+            ),
+            _make_output(
+                model_id="m2",
+                pico_assessment={
+                    "concept": PICOAssessment(match=False, evidence="no"),
+                },
+            ),
+        ]
+        criteria = ReviewCriteria(framework="pcc")
+        record = Record(title="Test")
+        result = AmbiguousInterventionRule().check(record, criteria, outputs)
+        assert result is not None
