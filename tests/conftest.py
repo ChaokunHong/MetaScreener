@@ -1,6 +1,13 @@
 """Shared pytest fixtures for MetaScreener 2.0 tests."""
 from __future__ import annotations
 
+import os
+
+# Prevent Rich/Typer from emitting ANSI escape codes in CLI output.
+# Without this, help text on Linux CI contains escape sequences that
+# break plain-text substring assertions (e.g. "--pdfs" not found).
+os.environ["NO_COLOR"] = "1"
+
 import json
 from pathlib import Path
 
