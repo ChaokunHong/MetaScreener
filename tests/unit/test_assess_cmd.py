@@ -1,11 +1,14 @@
 """Tests for assess-rob CLI command."""
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from typer.testing import CliRunner
 
 from metascreener.cli import app
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 runner = CliRunner()
 
@@ -16,10 +19,11 @@ class TestAssessRobCLI:
     def test_help(self) -> None:
         """Assess-rob help shows expected options."""
         result = runner.invoke(app, ["assess-rob", "--help"])
+        output = _ANSI_RE.sub("", result.output)
         assert result.exit_code == 0
-        assert "--pdfs" in result.output
-        assert "--tool" in result.output
-        assert "--seed" in result.output
+        assert "--pdfs" in output
+        assert "--tool" in output
+        assert "--seed" in output
 
     def test_dry_run_missing_pdfs(self, tmp_path: Path) -> None:
         """Dry run with non-existent PDFs directory reports error."""

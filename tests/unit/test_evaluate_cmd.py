@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from typer.testing import CliRunner
 
 from metascreener.cli import app
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 runner = CliRunner()
 
@@ -15,7 +18,7 @@ def test_evaluate_help() -> None:
     """Evaluate command shows help with expected options."""
     result = runner.invoke(app, ["evaluate", "--help"])
     assert result.exit_code == 0
-    assert "--labels" in result.output
+    assert "--labels" in _ANSI_RE.sub("", result.output)
 
 
 def test_evaluate_missing_labels_file() -> None:

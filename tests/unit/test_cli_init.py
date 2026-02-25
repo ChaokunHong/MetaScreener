@@ -1,11 +1,14 @@
 """Tests for metascreener init CLI command."""
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from typer.testing import CliRunner
 
 from metascreener.cli import app
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 runner = CliRunner()
 
@@ -13,16 +16,17 @@ runner = CliRunner()
 def test_init_help() -> None:
     """init --help should show all options."""
     result = runner.invoke(app, ["init", "--help"])
+    output = _ANSI_RE.sub("", result.output)
     assert result.exit_code == 0
-    assert "--criteria" in result.output
-    assert "--topic" in result.output
-    assert "--mode" in result.output
-    assert "--output" in result.output
-    assert "--framework" in result.output
-    assert "--template" in result.output
-    assert "--language" in result.output
-    assert "--resume" in result.output
-    assert "--clean-sessions" in result.output
+    assert "--criteria" in output
+    assert "--topic" in output
+    assert "--mode" in output
+    assert "--output" in output
+    assert "--framework" in output
+    assert "--template" in output
+    assert "--language" in output
+    assert "--resume" in output
+    assert "--clean-sessions" in output
 
 
 def test_init_requires_input() -> None:
