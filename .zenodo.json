@@ -1,0 +1,15 @@
+{
+  "title": "MetaScreener: Open-Source Multi-LLM Ensemble for Systematic Review Workflows",
+  "upload_type": "software",
+  "creators": [
+    {"name": "Hong, Chaokun"}
+  ],
+  "license": "Apache-2.0",
+  "keywords": [
+    "systematic review",
+    "large language models",
+    "screening",
+    "evidence synthesis"
+  ],
+  "access_right": "open"
+}
