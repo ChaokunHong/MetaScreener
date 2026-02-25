@@ -183,7 +183,7 @@ If you use MetaScreener in your research, please cite:
                Systematic Review Screening, Data Extraction, and
                Quality Assessment},
   author    = {Hong, Chaokun},
-  journal   = {The Lancet Digital Health},
+  journal   = {},
   year      = {2026},
   note      = {Manuscript in preparation}
 }
