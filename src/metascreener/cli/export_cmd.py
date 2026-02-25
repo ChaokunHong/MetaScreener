@@ -40,7 +40,7 @@ def export(
 
     # Parse requested formats
     format_list = [f.strip().lower() for f in formats.split(",")]
-    valid_formats = {"csv", "json", "excel", "audit"}
+    valid_formats = {"csv", "json", "excel", "audit", "ris"}
     invalid = set(format_list) - valid_formats
     if invalid:
         raise typer.BadParameter(
@@ -60,6 +60,8 @@ def export(
             _export_excel(data, output_dir)
         elif fmt == "audit":
             _export_audit(data, output_dir)
+        elif fmt == "ris":
+            _export_ris(data, output_dir)
 
     typer.echo(f"Exported {len(format_list)} format(s) to {output_dir}/")
 
@@ -129,3 +131,33 @@ def _export_audit(
     audit_path.write_text(json.dumps(audit_data, indent=2, default=str))
     typer.echo(f"  Audit: {audit_path}")
     logger.info("export_audit", path=str(audit_path), n_records=len(data))
+
+
+def _export_ris(data: list[dict[str, Any]], output_dir: Path) -> None:
+    """Export results as RIS format.
+
+    Args:
+        data: List of result dictionaries.
+        output_dir: Output directory.
+    """
+    from metascreener.core.models import Record  # noqa: PLC0415
+    from metascreener.io.writers import write_records  # noqa: PLC0415
+
+    records: list[Record] = []
+    for item in data:
+        title = item.get("title", "[Untitled]")
+        if not title:
+            title = "[Untitled]"
+        records.append(Record(
+            record_id=item.get("record_id", ""),
+            title=title,
+            authors=item.get("authors", []) if isinstance(item.get("authors"), list) else [],
+            year=item.get("year") if isinstance(item.get("year"), int) else None,
+            abstract=item.get("abstract"),
+            doi=item.get("doi"),
+            journal=item.get("journal"),
+        ))
+    ris_path = output_dir / "results.ris"
+    write_records(records, ris_path)
+    typer.echo(f"  RIS: {ris_path}")
+    logger.info("export_ris", path=str(ris_path), n_records=len(records))
