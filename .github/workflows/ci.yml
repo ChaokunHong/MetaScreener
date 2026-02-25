@@ -28,13 +28,10 @@ jobs:
         run: uv sync --extra dev
 
       - name: Run ruff
-        run: uv run ruff check src/
+        run: uv run ruff check src/ validation/
 
       - name: Run mypy
         run: uv run mypy src/
 
       - name: Run tests with coverage
-        run: uv run pytest --cov=src/metascreener --cov-report=term-missing
-
-      - name: Check coverage threshold
-        run: uv run pytest --cov=src/metascreener --cov-fail-under=80
+        run: uv run pytest --cov=src/metascreener --cov-report=term-missing --cov-fail-under=80
