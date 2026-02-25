@@ -38,7 +38,7 @@ dev = [
     "types-PyYAML>=6.0",
 ]
 gpu = ["vllm>=0.6"]
-viz = ["matplotlib>=3.9", "seaborn>=0.13"]
+viz = ["matplotlib>=3.9", "seaborn>=0.13", "kaleido>=0.2"]
 
 [project.scripts]
 metascreener = "metascreener.cli:app"
