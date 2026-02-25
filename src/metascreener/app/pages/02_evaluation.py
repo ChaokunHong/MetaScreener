@@ -212,6 +212,181 @@ def main() -> None:
             mime="application/json",
         )
 
+        # ------------------------------------------------------------------
+        # Paper-quality figure export
+        # ------------------------------------------------------------------
+        st.markdown("---")
+        st.subheader("Export for Paper")
+        st.caption(
+            "Generate 300 DPI figures suitable for "
+            "Lancet Digital Health submission."
+        )
+
+        _export_figure_downloads(
+            report,
+            st.session_state["eval_decisions"],
+            st.session_state["eval_gold"],
+        )
+
+        # ------------------------------------------------------------------
+        # Copy-for-paper text area with Lancet-formatted metrics
+        # ------------------------------------------------------------------
+        if report.bootstrap_cis:
+            st.markdown("---")
+            st.subheader("Copy for Paper")
+            st.caption(
+                "Pre-formatted metrics text using Lancet Digital Health "
+                "conventions (middle dot, en dash, 95% CI)."
+            )
+            paper_text = _build_paper_metrics_text(report)
+            st.text_area(
+                "Formatted metrics (select all \u2192 copy)",
+                value=paper_text,
+                height=200,
+            )
+
+        # ------------------------------------------------------------------
+        # Comparison placeholder
+        # ------------------------------------------------------------------
+        st.markdown("---")
+        with st.expander("Compare Multiple Runs"):
+            st.info(
+                "Multi-run comparison is planned for a future release. "
+                "Upload multiple evaluation reports side-by-side to "
+                "compare screening configurations, threshold settings, "
+                "and model ablations."
+            )
+
+
+# ------------------------------------------------------------------
+# Helper functions for paper export
+# ------------------------------------------------------------------
+
+
+def _export_figure_downloads(
+    report: object,
+    decisions_list: list[ScreeningDecision],
+    gold: dict[str, Decision],
+) -> None:
+    """Render download buttons for each visualisation figure.
+
+    Attempts PNG export at 300 DPI via *kaleido*.  Falls back to
+    interactive HTML export when kaleido is not installed.
+
+    Args:
+        report: The evaluation report stored in session state.
+        decisions_list: List of screening decisions.
+        gold: Gold-standard label mapping.
+    """
+    scores = [
+        d.final_score for d in decisions_list if d.record_id in gold
+    ]
+    int_labels = [
+        1 if gold[d.record_id] == Decision.INCLUDE else 0
+        for d in decisions_list
+        if d.record_id in gold
+    ]
+
+    figures: dict[str, object] = {}
+    try:
+        figures["roc_curve"] = plot_roc_curve(
+            report.auroc,  # type: ignore[attr-defined]
+        )
+        figures["calibration"] = plot_calibration_curve(
+            report.calibration,  # type: ignore[attr-defined]
+        )
+        figures["score_distribution"] = plot_score_distribution(
+            scores, int_labels
+        )
+        figures["threshold_analysis"] = plot_threshold_analysis(
+            scores, int_labels
+        )
+    except Exception as exc:  # noqa: BLE001
+        st.warning(f"Could not build figures for export: {exc}")
+        return
+
+    # Detect kaleido availability once
+    has_kaleido = _kaleido_available()
+
+    if has_kaleido:
+        st.caption("Exporting as 300 DPI PNG (kaleido detected).")
+    else:
+        st.caption(
+            "kaleido not installed \u2014 exporting as interactive HTML. "
+            "Install kaleido (`pip install kaleido`) for PNG export."
+        )
+
+    cols = st.columns(len(figures))
+    for idx, (name, fig) in enumerate(figures.items()):
+        with cols[idx]:
+            label = name.replace("_", " ").title()
+            if has_kaleido:
+                try:
+                    png_bytes = fig.to_image(  # type: ignore[attr-defined]
+                        format="png", width=1200, height=900, scale=3
+                    )
+                    st.download_button(
+                        f"\u2b07 {label} (PNG)",
+                        data=png_bytes,
+                        file_name=f"{name}.png",
+                        mime="image/png",
+                        key=f"dl_png_{name}",
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    st.warning(f"PNG export failed for {label}: {exc}")
+            else:
+                html_str = fig.to_html(  # type: ignore[attr-defined]
+                    include_plotlyjs="cdn",
+                )
+                st.download_button(
+                    f"\u2b07 {label} (HTML)",
+                    data=html_str,
+                    file_name=f"{name}.html",
+                    mime="text/html",
+                    key=f"dl_html_{name}",
+                )
+
+
+def _kaleido_available() -> bool:
+    """Check whether the kaleido package is importable.
+
+    Returns:
+        True if kaleido can be imported, False otherwise.
+    """
+    try:
+        import kaleido  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def _build_paper_metrics_text(report: object) -> str:
+    """Build a copy-paste-ready block of Lancet-formatted metrics.
+
+    Each line contains the metric name followed by its point estimate
+    and 95% CI formatted with middle dot and en dash.
+
+    Args:
+        report: The evaluation report with ``bootstrap_cis`` attribute.
+
+    Returns:
+        Multi-line string of formatted metrics.
+    """
+    lines: list[str] = []
+    bootstrap_cis: dict[str, object] = getattr(
+        report, "bootstrap_cis", {}
+    ) or {}
+    for name, ci in bootstrap_cis.items():
+        formatted = format_lancet(
+            ci.point,  # type: ignore[attr-defined]
+            ci.ci_lower,  # type: ignore[attr-defined]
+            ci.ci_upper,  # type: ignore[attr-defined]
+        )
+        display_name = name.replace("_", " ").title()
+        lines.append(f"{display_name} {formatted}")
+    return "\n".join(lines)
+
 
 if __name__ == "__main__":
     main()
