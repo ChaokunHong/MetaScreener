@@ -37,17 +37,4 @@ jobs:
         run: uv run mypy src/
 
       - name: Run tests with coverage
-        run: |
-          uv run pytest --cov=src/metascreener --cov-report=term-missing --cov-fail-under=80 -v --tb=long 2>&1 | tee test-output.txt; echo "PYTEST_EXIT=$?" >> "$GITHUB_ENV"
-
-      - name: Show test failures in summary
-        if: always()
-        run: |
-          echo '## Test Results (Python ${{ matrix.python-version }})' >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          tail -80 test-output.txt >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Fail if tests failed
-        if: env.PYTEST_EXIT != '0'
-        run: exit 1
+        run: uv run pytest --cov=src/metascreener --cov-report=term-missing --cov-fail-under=80 -v
