@@ -162,17 +162,61 @@ def init(  # noqa: C901
     if language:
         typer.echo(f"[init] Language override: {language}")
 
-    typer.echo(
-        "[init] Full wizard execution requires LLM backends — "
-        "use 'metascreener ui' for interactive mode."
+    # Run the wizard with real LLM backends
+    import asyncio  # noqa: PLC0415
+
+    from metascreener.core.enums import CriteriaInputMode  # noqa: PLC0415
+    from metascreener.criteria.wizard import CriteriaWizard  # noqa: PLC0415
+    from metascreener.llm.factory import create_backends  # noqa: PLC0415
+
+    backends = create_backends()
+    wizard = CriteriaWizard(
+        generation_backends=backends,
+        detector_backend=backends[0],
+        quality_backend=backends[0],
+        output_dir=output.parent,
     )
-    typer.echo("Not fully implemented — coming in Phase 2 integration.")
+
+    # CLI callbacks for interactive wizard
+    async def _ask_user(question: str) -> str:
+        typer.echo(f"\n{question}")
+        return input("> ").strip()  # noqa: A001
+
+    async def _show_status(msg: str) -> None:
+        typer.echo(f"  {msg}")
+
+    async def _confirm(question: str) -> bool:
+        typer.echo(f"\n{question} [y/n]")
+        return input("> ").strip().lower() in ("y", "yes")
+
+    input_mode_enum = (
+        CriteriaInputMode.TEXT if input_mode_str == "text"
+        else CriteriaInputMode.TOPIC
+    )
+
+    typer.echo("[init] Starting criteria wizard...")
+    result = asyncio.run(wizard.run(
+        input_mode=input_mode_enum,
+        wizard_mode=mode,
+        raw_input=raw_input,
+        ask_user=_ask_user,
+        show_status=_show_status,
+        confirm=_confirm,
+        override_framework=fw_override,
+        language=language,
+    ))
+
+    # Save to output path
+    from metascreener.criteria.schema import CriteriaSchema  # noqa: PLC0415
+
+    CriteriaSchema.save(result, output)
+    typer.echo(f"\n[init] Criteria saved to {output}")
+    typer.echo(f"  Framework: {result.framework.value}")
+    typer.echo(f"  Elements: {', '.join(result.elements.keys())}")
 
     logger.info(
-        "init_command_invoked",
+        "init_command_completed",
         input_mode=input_mode_str,
-        framework=fw_label,
-        mode=mode.value,
+        framework=result.framework.value,
         output=str(output),
-        language=language,
     )

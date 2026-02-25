@@ -1,13 +1,18 @@
 """metascreener screen — Literature screening command."""
 from __future__ import annotations
 
+import asyncio
 import collections.abc
+import json
 from enum import StrEnum
 from pathlib import Path
 
+import structlog
 import typer
 
 from metascreener.config import MetaScreenerConfig, load_model_config
+
+logger = structlog.get_logger(__name__)
 
 screen_app = typer.Typer(help="Screen literature (title/abstract or full-text).")
 
@@ -28,6 +33,7 @@ def screen(
     criteria: Path | None = typer.Option(None, "--criteria", "-c", help="criteria.yaml"),  # noqa: B008
     output_dir: Path = typer.Option(Path("results"), "--output", "-o"),  # noqa: B008
     config: Path | None = typer.Option(None, "--config", help="models.yaml config file"),  # noqa: B008
+    seed: int = typer.Option(42, "--seed", help="Random seed for reproducibility"),  # noqa: B008
     dry_run: bool = typer.Option(False, "--dry-run", help="Validate inputs without running"),  # noqa: B008
 ) -> None:
     """Screen literature using the Hierarchical Consensus Network (HCN)."""
@@ -38,17 +44,64 @@ def screen(
         return
 
     from metascreener.io.readers import read_records  # noqa: PLC0415
+    from metascreener.llm.factory import create_backends  # noqa: PLC0415
+    from metascreener.module1_screening.ta_screener import TAScreener  # noqa: PLC0415
+
+    # Validate criteria first (before API key check)
+    if not criteria:
+        typer.echo(
+            "Error: --criteria is required for screening. "
+            "Run 'metascreener init' first to generate criteria.yaml.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    if not criteria.exists():
+        typer.echo(f"Error: Criteria file not found: {criteria}", err=True)
+        raise typer.Exit(code=1)
 
     records = read_records(input)
     typer.echo(f"[screen] Loaded {len(records)} records from {input}")
     typer.echo(f"[screen] Stage: {stage.value}")
     typer.echo(f"[screen] Models: {', '.join(cfg.models.keys())}")
-    typer.echo(f"[screen] Thresholds: tau_high={cfg.thresholds.tau_high}, "
-               f"tau_mid={cfg.thresholds.tau_mid}, tau_low={cfg.thresholds.tau_low}")
-    typer.echo(
-        "[screen] Full screening pipeline requires LLM backends. "
-        "Set OPENROUTER_API_KEY and configure configs/models.yaml."
+
+    backends = create_backends(cfg)
+
+    from metascreener.criteria.schema import CriteriaSchema  # noqa: PLC0415
+
+    review_criteria = CriteriaSchema.load(criteria)
+    typer.echo(f"[screen] Criteria: {review_criteria.framework.value}")
+
+    screener = TAScreener(backends=backends, timeout_s=cfg.inference.timeout_s)
+    typer.echo(f"[screen] Screening {len(records)} records with seed={seed}...")
+
+    decisions = asyncio.run(
+        screener.screen_batch(records, review_criteria, seed=seed)
     )
+
+    # Save results
+    output_dir.mkdir(parents=True, exist_ok=True)
+    results_path = output_dir / "screening_results.json"
+    results_data = [d.model_dump(mode="json") for d in decisions]
+    results_path.write_text(json.dumps(results_data, indent=2, ensure_ascii=False))
+
+    # Summary
+    from metascreener.core.enums import Decision  # noqa: PLC0415
+
+    n_include = sum(1 for d in decisions if d.decision == Decision.INCLUDE)
+    n_exclude = sum(1 for d in decisions if d.decision == Decision.EXCLUDE)
+    n_review = sum(1 for d in decisions if d.decision == Decision.HUMAN_REVIEW)
+
+    typer.echo(f"\n[screen] Done. Results saved to {results_path}")
+    typer.echo(f"  INCLUDE: {n_include}  |  EXCLUDE: {n_exclude}  |  HUMAN_REVIEW: {n_review}")
+
+    # Save audit trail
+    audit_path = output_dir / "audit_trail.json"
+    audit_entries = [
+        screener.build_audit_entry(record, review_criteria, decision).model_dump(mode="json")
+        for record, decision in zip(records, decisions, strict=True)
+    ]
+    audit_path.write_text(json.dumps(audit_entries, indent=2, ensure_ascii=False))
+    typer.echo(f"  Audit trail: {audit_path}")
 
 
 def _load_config(config_path: Path | None) -> MetaScreenerConfig:
