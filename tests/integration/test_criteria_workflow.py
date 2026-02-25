@@ -1,6 +1,7 @@
 """Integration tests for criteria wizard workflows."""
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from typing import Any
 
@@ -348,6 +349,7 @@ class TestSessionRecovery:
         # Save two sessions
         session1 = WizardSession(current_step=1)
         mgr.save(session1)
+        time.sleep(0.05)  # Ensure distinct file mtime on fast CI
 
         session2 = WizardSession(current_step=5)
         mgr.save(session2)
