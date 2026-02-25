@@ -171,6 +171,38 @@ def main() -> None:
                 use_container_width=True,
             )
 
+        # Optimize Thresholds
+        st.markdown("---")
+        st.subheader("Threshold Optimization")
+        min_sens = st.slider(
+            "Minimum sensitivity constraint",
+            min_value=0.80,
+            max_value=1.00,
+            value=0.95,
+            step=0.01,
+        )
+        if st.button("Optimize Thresholds"):
+            decisions_list = st.session_state["eval_decisions"]
+            gold = st.session_state["eval_gold"]
+            runner = EvaluationRunner()
+            try:
+                thresholds = runner.optimize_thresholds(
+                    decisions_list,
+                    gold,
+                    min_sensitivity=min_sens,
+                    seed=seed,
+                )
+                st.session_state["optimized_thresholds"] = thresholds
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"Threshold optimization failed: {exc}")
+
+        if "optimized_thresholds" in st.session_state:
+            t = st.session_state["optimized_thresholds"]
+            tc1, tc2, tc3 = st.columns(3)
+            tc1.metric("\u03c4 high (Tier 1)", f"{t.tau_high:.3f}")
+            tc2.metric("\u03c4 mid (Tier 2)", f"{t.tau_mid:.3f}")
+            tc3.metric("\u03c4 low (Tier 3)", f"{t.tau_low:.3f}")
+
         # Export
         st.markdown("---")
         st.download_button(
