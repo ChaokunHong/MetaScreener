@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://pypi.org/project/metascreener/"><img alt="PyPI" src="https://img.shields.io/pypi/v/metascreener?include_prereleases&color=blue"></a>
-  <a href="https://hub.docker.com/r/chaokunhong/metascreener"><img alt="Docker" src="https://img.shields.io/docker/v/chaokunhong/metascreener?sort=date&label=docker&color=blue"></a>
+  <a href="https://hub.docker.com/r/chaokunhong/metascreener"><img alt="Docker" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fhub.docker.com%2Fv2%2Frepositories%2Fchaokunhong%2Fmetascreener%2Ftags%2Flatest&query=name&label=docker&color=blue"></a>
   <a href="https://github.com/ChaokunHong/MetaScreener/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ChaokunHong/MetaScreener/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://opensource.org/licenses/Apache-2.0"><img alt="License" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg"></a>
   <a href="https://www.python.org/downloads/"><img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-blue.svg"></a>
