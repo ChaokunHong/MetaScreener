@@ -4,6 +4,21 @@ version = "2.0.0a1"
 description = "Open-source multi-LLM ensemble tool for systematic review workflows"
 readme = "README.md"
 license = { text = "Apache-2.0" }
+authors = [
+    {name = "Chaokun Hong"},
+]
+keywords = [
+    "systematic-review", "screening", "llm",
+    "meta-analysis", "evidence-synthesis",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
 requires-python = ">=3.11"
 dependencies = [
     "litellm>=1.50",
@@ -42,6 +57,12 @@ viz = ["matplotlib>=3.9", "seaborn>=0.13", "kaleido>=0.2"]
 
 [project.scripts]
 metascreener = "metascreener.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/ChaokunHong/MetaScreener"
+Documentation = "https://github.com/ChaokunHong/MetaScreener#readme"
+Repository = "https://github.com/ChaokunHong/MetaScreener"
+Issues = "https://github.com/ChaokunHong/MetaScreener/issues"
 
 [build-system]
 requires = ["hatchling"]
