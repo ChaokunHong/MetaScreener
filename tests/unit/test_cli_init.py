@@ -49,19 +49,20 @@ def test_init_criteria_file_not_found() -> None:
 
 
 def test_init_criteria_file(tmp_path: Path) -> None:
-    """--criteria with valid file should succeed."""
+    """--criteria with valid file requires API key."""
     criteria_file = tmp_path / "criteria.txt"
     criteria_file.write_text("Patients with diabetes receiving insulin therapy")
     result = runner.invoke(app, ["init", "--criteria", str(criteria_file)])
-    assert result.exit_code == 0
-    assert "text" in result.output.lower()
+    # Without API key, exits with error
+    assert result.exit_code != 0
+    assert "api key" in result.output.lower() or "openrouter" in result.output.lower()
 
 
 def test_init_topic() -> None:
-    """--topic should succeed with informational output."""
+    """--topic requires API key for LLM calls."""
     result = runner.invoke(app, ["init", "--topic", "antimicrobial resistance"])
-    assert result.exit_code == 0
-    assert "topic" in result.output.lower()
+    assert result.exit_code != 0
+    assert "api key" in result.output.lower() or "openrouter" in result.output.lower()
 
 
 def test_init_invalid_framework() -> None:
@@ -74,12 +75,12 @@ def test_init_invalid_framework() -> None:
 
 
 def test_init_valid_framework() -> None:
-    """--framework with valid value should succeed."""
+    """--framework with valid value requires API key."""
     result = runner.invoke(
         app, ["init", "--topic", "test", "--framework", "pico"]
     )
-    assert result.exit_code == 0
-    assert "pico" in result.output.lower()
+    assert result.exit_code != 0
+    assert "api key" in result.output.lower() or "openrouter" in result.output.lower()
 
 
 def test_init_template() -> None:

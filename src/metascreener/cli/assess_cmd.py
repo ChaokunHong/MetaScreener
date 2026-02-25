@@ -53,7 +53,34 @@ def assess_rob(
         typer.echo("  Status: OK — inputs valid")
         return
 
-    typer.echo(
-        f"[assess-rob] Tool: {schema.tool_name} | "
-        f"Full assessment not yet implemented — coming in Phase 6."
-    )
+    import asyncio  # noqa: PLC0415
+    import json  # noqa: PLC0415
+
+    from metascreener.io.pdf_parser import extract_text_from_pdf  # noqa: PLC0415
+    from metascreener.llm.factory import create_backends  # noqa: PLC0415
+    from metascreener.module3_quality.assessor import RoBAssessor  # noqa: PLC0415
+
+    pdf_files = sorted(pdfs.glob("*.pdf"))
+    if not pdf_files:
+        typer.echo(f"Error: No PDF files found in {pdfs}", err=True)
+        raise typer.Exit(code=1)
+
+    backends = create_backends()
+    assessor = RoBAssessor(backends=backends)
+
+    typer.echo(f"[assess-rob] Tool: {schema.tool_name} ({len(schema.domains)} domains)")
+    typer.echo(f"[assess-rob] PDFs: {len(pdf_files)} files")
+
+    results = []
+    for i, pdf_path in enumerate(pdf_files, 1):
+        typer.echo(f"  [{i}/{len(pdf_files)}] {pdf_path.name}...")
+        text = extract_text_from_pdf(pdf_path)
+        result = asyncio.run(assessor.assess(
+            text, tool_name, record_id=pdf_path.stem, seed=seed,
+        ))
+        results.append({"file": pdf_path.name, **result.model_dump(mode="json")})
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    out_path = output_dir / f"rob_{tool_name}_results.json"
+    out_path.write_text(json.dumps(results, indent=2, ensure_ascii=False))
+    typer.echo(f"\n[assess-rob] Done. Results saved to {out_path}")

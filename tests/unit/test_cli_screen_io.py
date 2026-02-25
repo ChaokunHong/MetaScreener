@@ -27,12 +27,14 @@ def test_screen_dry_run_with_csv() -> None:
     assert "5" in result.stdout
 
 
-def test_screen_reads_records() -> None:
+def test_screen_requires_criteria() -> None:
+    """Running screen without --criteria should error."""
     result = runner.invoke(app, [
         "screen", "--input", str(FIXTURES / "sample.ris"),
     ])
-    assert result.exit_code == 0
-    assert "3" in result.stdout
+    # Without --criteria, exits with error before any API calls
+    assert result.exit_code != 0
+    assert "criteria" in result.output.lower() or "api key" in result.output.lower()
 
 
 def test_screen_unsupported_format() -> None:
