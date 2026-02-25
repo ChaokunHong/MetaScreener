@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE PubmedArticleSet PUBLIC "-//NLM//DTD PubMedArticle, 1st January 2024//EN" "https://dtd.nlm.nih.gov/ncbi/pubmed/out/pubmed_240101.dtd">
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation>
+      <PMID>12345678</PMID>
+      <Article>
+        <Journal>
+          <Title>Journal of Antimicrobial Chemotherapy</Title>
+        </Journal>
+        <ArticleTitle>Antimicrobial resistance in ICU patients</ArticleTitle>
+        <Abstract>
+          <AbstractText>This study examines antimicrobial resistance patterns in intensive care unit patients across five hospitals.</AbstractText>
+        </Abstract>
+        <AuthorList>
+          <Author>
+            <LastName>Smith</LastName>
+            <ForeName>John</ForeName>
+          </Author>
+          <Author>
+            <LastName>Doe</LastName>
+            <ForeName>Jane</ForeName>
+          </Author>
+        </AuthorList>
+        <Language>eng</Language>
+        <ArticleIdList>
+          <ArticleId IdType="doi">10.1234/amr.2023.001</ArticleId>
+        </ArticleIdList>
+      </Article>
+      <MeshHeadingList>
+        <MeshHeading>
+          <DescriptorName>Anti-Infective Agents</DescriptorName>
+        </MeshHeading>
+        <MeshHeading>
+          <DescriptorName>Drug Resistance, Microbial</DescriptorName>
+        </MeshHeading>
+      </MeshHeadingList>
+    </MedlineCitation>
+    <PubmedData>
+      <History>
+        <PubMedPubDate PubStatus="pubmed">
+          <Year>2023</Year>
+        </PubMedPubDate>
+      </History>
+    </PubmedData>
+  </PubmedArticle>
+  <PubmedArticle>
+    <MedlineCitation>
+      <PMID>23456789</PMID>
+      <Article>
+        <Journal>
+          <Title>Clinical Microbiology Reviews</Title>
+        </Journal>
+        <ArticleTitle>Meta-analysis of stewardship programs</ArticleTitle>
+        <Abstract>
+          <AbstractText Label="BACKGROUND">Background of the study.</AbstractText>
+          <AbstractText Label="METHODS">Methods used in the review.</AbstractText>
+        </Abstract>
+        <AuthorList>
+          <Author>
+            <LastName>García</LastName>
+            <ForeName>María</ForeName>
+          </Author>
+        </AuthorList>
+        <Language>eng</Language>
+        <ArticleIdList>
+          <ArticleId IdType="doi">10.1234/meta.2022.042</ArticleId>
+        </ArticleIdList>
+      </Article>
+    </MedlineCitation>
+    <PubmedData>
+      <History>
+        <PubMedPubDate PubStatus="pubmed">
+          <Year>2022</Year>
+        </PubMedPubDate>
+      </History>
+    </PubmedData>
+  </PubmedArticle>
+  <PubmedArticle>
+    <MedlineCitation>
+      <PMID>34567890</PMID>
+      <Article>
+        <Journal>
+          <Title>WHO Technical Report</Title>
+        </Journal>
+        <ArticleTitle>WHO report on antibiotic resistance</ArticleTitle>
+        <AuthorList>
+          <Author>
+            <CollectiveName>World Health Organization</CollectiveName>
+          </Author>
+        </AuthorList>
+        <Language>eng</Language>
+      </Article>
+    </MedlineCitation>
+    <PubmedData>
+      <History>
+        <PubMedPubDate PubStatus="pubmed">
+          <Year>2021</Year>
+        </PubMedPubDate>
+      </History>
+    </PubmedData>
+  </PubmedArticle>
+</PubmedArticleSet>
