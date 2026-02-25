@@ -34,7 +34,7 @@ class TestCommandRegistry:
     def test_all_commands_defined(self) -> None:
         expected = {
             "/init", "/screen", "/extract", "/assess-rob",
-            "/evaluate", "/export", "/help", "/status", "/quit",
+            "/evaluate", "/export", "/ui", "/help", "/status", "/quit",
         }
         assert set(COMMANDS.keys()) == expected
 
@@ -42,8 +42,8 @@ class TestCommandRegistry:
         for cmd, desc in COMMANDS.items():
             assert desc, f"Command {cmd} has empty description"
 
-    def test_menu_has_six_items(self) -> None:
-        assert len(MENU_ITEMS) == 6
+    def test_menu_has_seven_items(self) -> None:
+        assert len(MENU_ITEMS) == 7
 
     def test_menu_items_have_handlers(self) -> None:
         for cmd, desc, handler in MENU_ITEMS:
@@ -66,6 +66,12 @@ class TestInteractiveEntryPoint:
         result = runner.invoke(app, ["screen", "--help"])
         assert result.exit_code == 0
         assert "Screen literature" in result.output
+
+    def test_ui_subcommand_exists(self) -> None:
+        """'metascreener ui --help' should show help."""
+        result = runner.invoke(app, ["ui", "--help"])
+        assert result.exit_code == 0
+        assert "Streamlit" in result.output or "dashboard" in result.output
 
 
 class TestInteractiveREPL:

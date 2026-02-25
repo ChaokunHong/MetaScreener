@@ -1,6 +1,8 @@
 """MetaScreener interactive REPL with slash commands and guided prompts."""
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 
 import structlog
@@ -19,6 +21,7 @@ BANNER = f"""\
 [bold cyan]MetaScreener {VERSION}[/bold cyan]
 [dim]AI-assisted systematic review tool[/dim]
 [dim]Hierarchical Consensus Network (HCN) with 4 open-source LLMs[/dim]
+[dim]Tip: Enter [bold]7[/bold] or [bold]/ui[/bold] to open the web dashboard[/dim]
 """
 
 # Numbered menu items: (number, slash_cmd, description, handler_name)
@@ -29,6 +32,7 @@ MENU_ITEMS: list[tuple[str, str, str]] = [
     ("/assess-rob", "Assess risk of bias (RoB 2 / ROBINS-I / QUADAS-2)", "_handle_assess_rob"),
     ("/evaluate", "Evaluate screening performance", "_handle_evaluate"),
     ("/export", "Export results (CSV, JSON, Excel, RIS)", "_handle_export"),
+    ("/ui", "Open web dashboard (Streamlit)", "_handle_ui"),
 ]
 
 COMMANDS: dict[str, str] = {
@@ -38,6 +42,7 @@ COMMANDS: dict[str, str] = {
     "/assess-rob": "Assess risk of bias (RoB 2 / ROBINS-I / QUADAS-2)",
     "/evaluate": "Evaluate screening performance and compute metrics",
     "/export": "Export results (CSV, JSON, Excel, RIS)",
+    "/ui": "Open web dashboard (Streamlit)",
     "/help": "Show this help message",
     "/status": "Show current working files and project state",
     "/quit": "Exit MetaScreener",
@@ -51,6 +56,7 @@ _HANDLERS: dict[str, str] = {
     "/assess-rob": "_handle_assess_rob",
     "/evaluate": "_handle_evaluate",
     "/export": "_handle_export",
+    "/ui": "_handle_ui",
 }
 
 
@@ -63,7 +69,7 @@ def run_interactive() -> None:
         console.print()
         try:
             user_input = Prompt.ask(
-                "[bold cyan]>>>[/bold cyan] Enter a number (1-6), "
+                "[bold cyan]>>>[/bold cyan] Enter a number (1-7), "
                 "a command (/help), or /quit",
             ).strip()
         except (KeyboardInterrupt, EOFError):
@@ -74,7 +80,7 @@ def run_interactive() -> None:
             _show_main_menu()
             continue
 
-        # Handle numbered selection (1-6)
+        # Handle numbered selection (1-7)
         if user_input.isdigit():
             idx = int(user_input)
             if 1 <= idx <= len(MENU_ITEMS):
@@ -110,11 +116,11 @@ def run_interactive() -> None:
         elif cmd.startswith("/"):
             console.print(
                 f"[yellow]Unknown command: {cmd}[/yellow]\n"
-                "Type [bold green]/help[/bold green] or a number (1-6)."
+                "Type [bold green]/help[/bold green] or a number (1-7)."
             )
         else:
             console.print(
-                "[yellow]Tip: Enter a number (1-6) to select a command, "
+                "[yellow]Tip: Enter a number (1-7) to select a command, "
                 "or type /help for all options.[/yellow]"
             )
 
@@ -150,7 +156,7 @@ def _show_help() -> None:
         table.add_row(cmd, desc)
     console.print(table)
     console.print(
-        "\n[dim]You can type a number (1-6) or a /command. "
+        "\n[dim]You can type a number (1-7) or a /command. "
         "Each command guides you step-by-step.[/dim]"
     )
 
@@ -560,6 +566,31 @@ def _handle_export() -> None:
         "--format", formats,
         "--output", output_dir,
     ])
+
+
+# ---------------------------------------------------------------------------
+# /ui — Launch Streamlit Web Dashboard
+# ---------------------------------------------------------------------------
+def _handle_ui() -> None:
+    """Launch the Streamlit web dashboard in the user's browser."""
+    app_path = Path(__file__).parent.parent / "app" / "main.py"
+    if not app_path.exists():
+        console.print("[red]Streamlit app not found. Reinstall MetaScreener.[/red]")
+        return
+
+    console.print(
+        "[cyan]Launching Streamlit dashboard...[/cyan]\n"
+        "[dim]Opening http://localhost:8501 in your browser.[/dim]\n"
+        "[dim]Press Ctrl+C to stop the server and return here.[/dim]"
+    )
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "streamlit", "run", str(app_path),
+             "--server.headless=true"],
+            check=False,
+        )
+    except KeyboardInterrupt:
+        console.print("\n[dim]Streamlit server stopped.[/dim]")
 
 
 # ---------------------------------------------------------------------------

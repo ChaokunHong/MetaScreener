@@ -41,6 +41,9 @@ paper/figures/*.png
 paper/tables/*
 !paper/tables/.gitkeep
 
+# Legacy v1.0 codebase (kept for reference, not part of v2)
+metascreener1.0/
+
 # OS / editor junk
 .DS_Store
 .Rhistory

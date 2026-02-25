@@ -36,3 +36,24 @@ app.add_typer(evaluate_app, name="evaluate")
 app.add_typer(extract_app, name="extract")
 app.add_typer(assess_app, name="assess-rob")
 app.add_typer(export_app, name="export")
+
+
+@app.command()
+def ui() -> None:
+    """Launch the Streamlit web dashboard."""
+    import subprocess  # noqa: PLC0415
+    import sys  # noqa: PLC0415
+    from pathlib import Path  # noqa: PLC0415
+
+    app_path = Path(__file__).parent.parent / "app" / "main.py"
+    if not app_path.exists():
+        typer.echo("Error: Streamlit app not found.", err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo("Launching MetaScreener web dashboard...")
+    typer.echo("Open http://localhost:8501 in your browser.")
+    subprocess.run(
+        [sys.executable, "-m", "streamlit", "run", str(app_path),
+         "--server.headless=true"],
+        check=False,
+    )
