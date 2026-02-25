@@ -33,6 +33,7 @@ def test_load_latest(tmp_path: Path) -> None:
     s1 = WizardSession(current_step=1)
     s2 = WizardSession(current_step=3)
     mgr.save(s1)
+    time.sleep(0.05)  # Ensure distinct file mtime on fast CI
     mgr.save(s2)
     latest = mgr.load_latest()
     assert latest is not None
