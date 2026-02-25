@@ -25,6 +25,7 @@ MetaScreener is a local Python tool for AI-assisted systematic review (SR) workf
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [User Guide](#user-guide)
+  - [Interactive Mode](#interactive-mode)
   - [Typical Workflow](#typical-workflow)
   - [Step 1: Define Review Criteria](#step-1-define-review-criteria-metascreener-init)
   - [Step 2: Screen Papers](#step-2-screen-papers-metascreener-screen)
@@ -47,6 +48,7 @@ MetaScreener is a local Python tool for AI-assisted systematic review (SR) workf
 - **Reproducible by Design** -- All models are open-source with version-locked weights; `temperature=0.0` for all inference; seeded randomness; SHA256 prompt hashing in every audit trail entry
 - **Framework-Agnostic Criteria** -- Supports PICO, PEO, SPIDER, PCC, and custom frameworks with an interactive criteria wizard
 - **Multiple Input/Output Formats** -- Reads RIS, BibTeX, CSV, PubMed XML, Excel; exports to RIS, CSV, JSON, Excel, and audit trail
+- **Interactive Mode** -- Guided slash-command REPL that walks you through each step; no flags to memorize
 - **CLI + Web UI** -- Full Typer CLI and Streamlit dashboard
 - **Evaluation Toolkit** -- Built-in metrics (sensitivity, specificity, F1, WSS@95, AUROC, ECE, Brier score), Plotly visualizations, and bootstrap 95% confidence intervals
 
@@ -137,6 +139,54 @@ metascreener screen --input data.ris --config my_models.yaml
 Local inference via [vLLM](https://github.com/vllm-project/vllm) or [Ollama](https://ollama.com/) is also supported -- see the config file for adapter options.
 
 ## User Guide
+
+### Interactive Mode
+
+If you are new to MetaScreener, the easiest way to get started is the **interactive mode**. Simply run `metascreener` with no arguments:
+
+```bash
+metascreener
+```
+
+This launches a guided terminal interface with slash commands:
+
+```
+┌──────────────────────────────────────────────────────┐
+│  MetaScreener 2.0.0a3                                │
+│  AI-assisted systematic review tool                  │
+│                                                      │
+│  Type /help for commands, /quit to exit.             │
+└──────────────────────────────────────────────────────┘
+
+ Quick Start — Typical Workflow
+  Step  Command      Description
+  1     /init        Define your review criteria
+  2     /screen      Screen papers against your criteria
+  3     /evaluate    Evaluate screening accuracy
+  4     /extract     Extract structured data from PDFs
+  5     /assess-rob  Assess risk of bias for included studies
+  6     /export      Export results in your preferred format
+
+metascreener> /init
+```
+
+Each command guides you step-by-step through the required inputs with prompts, defaults, and validation. You don't need to memorize any flags or options.
+
+Available slash commands:
+
+| Command | Description |
+| ------- | ----------- |
+| `/init` | Generate structured review criteria (PICO/PEO/SPIDER/PCC) |
+| `/screen` | Screen literature (title/abstract or full-text) |
+| `/extract` | Extract structured data from PDFs |
+| `/assess-rob` | Assess risk of bias (RoB 2 / ROBINS-I / QUADAS-2) |
+| `/evaluate` | Evaluate screening performance and compute metrics |
+| `/export` | Export results (CSV, JSON, Excel, RIS) |
+| `/status` | Show current working files and project state |
+| `/help` | Show all available commands |
+| `/quit` | Exit MetaScreener |
+
+> **Tip**: All commands also work as direct CLI subcommands (e.g., `metascreener screen --input file.ris --criteria criteria.yaml`). See the [Command Reference](#command-reference) below for full flag documentation.
 
 ### Typical Workflow
 
