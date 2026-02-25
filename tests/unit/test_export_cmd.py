@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from typer.testing import CliRunner
 
 from metascreener.cli import app
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 runner = CliRunner()
 
@@ -14,7 +17,7 @@ runner = CliRunner()
 def test_export_help() -> None:
     result = runner.invoke(app, ["export", "--help"])
     assert result.exit_code == 0
-    assert "--format" in result.output
+    assert "--format" in _ANSI_RE.sub("", result.output)
 
 
 def test_export_csv(tmp_path: Path) -> None:

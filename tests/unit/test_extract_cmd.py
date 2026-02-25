@@ -1,11 +1,14 @@
 """Tests for the extract CLI command."""
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from typer.testing import CliRunner
 
 from metascreener.cli import app
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 runner = CliRunner()
 
@@ -13,16 +16,17 @@ runner = CliRunner()
 def test_extract_help() -> None:
     """Extract command shows help text."""
     result = runner.invoke(app, ["extract", "--help"])
+    output = _ANSI_RE.sub("", result.output)
     assert result.exit_code == 0
-    assert "--pdfs" in result.output
-    assert "--form" in result.output
+    assert "--pdfs" in output
+    assert "--form" in output
 
 
 def test_init_form_help() -> None:
     """init-form subcommand shows help text."""
     result = runner.invoke(app, ["extract", "init-form", "--help"])
     assert result.exit_code == 0
-    assert "--topic" in result.output
+    assert "--topic" in _ANSI_RE.sub("", result.output)
 
 
 def test_extract_dry_run_missing_files(tmp_path: Path) -> None:
