@@ -13,8 +13,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.11", "3.12"]
+    env:
+      NO_COLOR: "1"
+      TERM: "dumb"
     steps:
       - uses: actions/checkout@v4
 
@@ -64,6 +68,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Docker meta (slim)
         id: meta-slim
         uses: docker/metadata-action@v5
@@ -71,6 +79,7 @@ jobs:
           images: chaokunhong/metascreener
           tags: |
             type=semver,pattern={{version}}
+            type=match,pattern=v(.*),group=1
             type=raw,value=latest
 
       - name: Docker meta (full)
@@ -80,6 +89,7 @@ jobs:
           images: chaokunhong/metascreener
           tags: |
             type=semver,pattern=full-{{version}}
+            type=match,pattern=v(.*),group=1,prefix=full-
             type=raw,value=full
 
       - name: Set up Docker Buildx
@@ -124,6 +134,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Generate changelog
         id: changelog
         run: |
@@ -145,17 +159,17 @@ jobs:
             ## Install
 
             ```bash
-            pip install metascreener==${{ github.ref_name }}
+            pip install metascreener==${{ steps.version.outputs.version }}
             ```
 
             ### Docker
 
             ```bash
             # Daily use
-            docker pull chaokunhong/metascreener:${{ github.ref_name }}
+            docker pull chaokunhong/metascreener:${{ steps.version.outputs.version }}
 
             # Full reproduction
-            docker pull chaokunhong/metascreener:full-${{ github.ref_name }}
+            docker pull chaokunhong/metascreener:full-${{ steps.version.outputs.version }}
             ```
 
             ## Changes
