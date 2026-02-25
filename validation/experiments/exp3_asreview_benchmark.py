@@ -251,7 +251,10 @@ async def run_single_dataset(
             continue
 
         y_true.append(gold_labels[dec.record_id])
-        y_pred.append(1 if dec.decision == Decision.INCLUDE else 0)
+        # Treat HUMAN_REVIEW as INCLUDE (recall-safe default)
+        y_pred.append(
+            1 if dec.decision in (Decision.INCLUDE, Decision.HUMAN_REVIEW) else 0
+        )
         y_score.append(dec.final_score)
 
     # Compute metrics with bootstrap CI
@@ -335,10 +338,11 @@ async def run_all_datasets(
             continue
         per_dataset.append(dataset_result)
 
-    # Compute macro-average across datasets
+    # Compute macro-average across datasets with proper CI
+    # CI is derived from the distribution of per-dataset point estimates
+    # (not by averaging per-dataset CI bounds, which is statistically invalid)
     macro_average: dict[str, dict[str, float]] = {}
     if per_dataset:
-        # Collect all metric names from the first dataset
         metric_names = list(per_dataset[0]["metrics"].keys())
         for metric_name in metric_names:
             points = [
@@ -346,21 +350,23 @@ async def run_all_datasets(
                 for d in per_dataset
                 if metric_name in d["metrics"]
             ]
-            ci_lowers = [
-                d["metrics"][metric_name]["ci_lower"]
-                for d in per_dataset
-                if metric_name in d["metrics"]
-            ]
-            ci_uppers = [
-                d["metrics"][metric_name]["ci_upper"]
-                for d in per_dataset
-                if metric_name in d["metrics"]
-            ]
             if points:
+                mean_val = sum(points) / len(points)
+                if len(points) >= 2:
+                    # 95% CI from SD of per-dataset point estimates
+                    variance = sum((p - mean_val) ** 2 for p in points) / (
+                        len(points) - 1
+                    )
+                    se = (variance / len(points)) ** 0.5
+                    ci_lower = mean_val - 1.96 * se
+                    ci_upper = mean_val + 1.96 * se
+                else:
+                    ci_lower = mean_val
+                    ci_upper = mean_val
                 macro_average[metric_name] = {
-                    "point": sum(points) / len(points),
-                    "ci_lower": sum(ci_lowers) / len(ci_lowers),
-                    "ci_upper": sum(ci_uppers) / len(ci_uppers),
+                    "point": mean_val,
+                    "ci_lower": ci_lower,
+                    "ci_upper": ci_upper,
                 }
 
     aggregated: dict[str, Any] = {

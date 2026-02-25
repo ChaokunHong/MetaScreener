@@ -160,7 +160,10 @@ async def run_single_topic(
             continue
 
         y_true.append(gold_labels[dec.record_id])
-        y_pred.append(1 if dec.decision == Decision.INCLUDE else 0)
+        # Treat HUMAN_REVIEW as INCLUDE (recall-safe default)
+        y_pred.append(
+            1 if dec.decision in (Decision.INCLUDE, Decision.HUMAN_REVIEW) else 0
+        )
         y_score.append(dec.final_score)
 
     # Compute metrics with bootstrap CI
@@ -246,10 +249,11 @@ async def run_all_topics(
         )
         per_topic.append(topic_result)
 
-    # Compute macro-average across topics
+    # Compute macro-average across topics with proper CI
+    # CI is derived from the distribution of per-topic point estimates
+    # (not by averaging per-topic CI bounds, which is statistically invalid)
     macro_average: dict[str, dict[str, float]] = {}
     if per_topic:
-        # Collect all metric names from the first topic
         metric_names = list(per_topic[0]["metrics"].keys())
         for metric_name in metric_names:
             points = [
@@ -257,21 +261,23 @@ async def run_all_topics(
                 for t in per_topic
                 if metric_name in t["metrics"]
             ]
-            ci_lowers = [
-                t["metrics"][metric_name]["ci_lower"]
-                for t in per_topic
-                if metric_name in t["metrics"]
-            ]
-            ci_uppers = [
-                t["metrics"][metric_name]["ci_upper"]
-                for t in per_topic
-                if metric_name in t["metrics"]
-            ]
             if points:
+                mean_val = sum(points) / len(points)
+                if len(points) >= 2:
+                    # 95% CI from SD of per-topic point estimates
+                    variance = sum((p - mean_val) ** 2 for p in points) / (
+                        len(points) - 1
+                    )
+                    se = (variance / len(points)) ** 0.5
+                    ci_lower = mean_val - 1.96 * se
+                    ci_upper = mean_val + 1.96 * se
+                else:
+                    ci_lower = mean_val
+                    ci_upper = mean_val
                 macro_average[metric_name] = {
-                    "point": sum(points) / len(points),
-                    "ci_lower": sum(ci_lowers) / len(ci_lowers),
-                    "ci_upper": sum(ci_uppers) / len(ci_uppers),
+                    "point": mean_val,
+                    "ci_lower": ci_lower,
+                    "ci_upper": ci_upper,
                 }
 
     aggregated: dict[str, Any] = {

@@ -1,12 +1,13 @@
 """Exp4: Ablation Study — Component Contribution Analysis.
 
-Compares 6 configurations to quantify the contribution of each HCN component:
+Compares 7 configurations to quantify the contribution of each HCN component:
 1. Single model (Qwen3 only)
 2. Single model (DeepSeek only)
 3. Single model (Llama 4 only)
 4. Single model (Mistral only)
 5. Ensemble without Layer 2 rules
-6. Full HCN pipeline
+6. Ensemble without calibration
+7. Full HCN pipeline
 
 Paper Section: Results 3.3
 
@@ -27,6 +28,7 @@ import structlog
 from metascreener.core.enums import Decision
 from metascreener.core.models import PICOCriteria, Record
 from metascreener.module1_screening.layer2.rule_engine import RuleEngine
+from metascreener.module1_screening.layer3.aggregator import CCAggregator
 from metascreener.module1_screening.ta_screener import TAScreener
 from validation.common import (
     compute_metrics_with_ci,
@@ -44,15 +46,16 @@ _ABLATION_CRITERIA = PICOCriteria(
     outcome_primary=["clinical outcomes"],
 )
 
-# Configuration definitions: (name, backend_indices, use_rules)
+# Configuration definitions: (name, backend_indices, use_rules, use_calibration)
 # backend_indices=None means all backends; list[int] selects specific ones.
-_CONFIGURATIONS: list[tuple[str, list[int] | None, bool]] = [
-    ("single_qwen3", [0], True),
-    ("single_deepseek", [1], True),
-    ("single_llama4", [2], True),
-    ("single_mistral", [3], True),
-    ("ensemble_no_rules", None, False),
-    ("full_hcn", None, True),
+_CONFIGURATIONS: list[tuple[str, list[int] | None, bool, bool]] = [
+    ("single_qwen3", [0], True, True),
+    ("single_deepseek", [1], True, True),
+    ("single_llama4", [2], True, True),
+    ("single_mistral", [3], True, True),
+    ("ensemble_no_rules", None, False, True),
+    ("ensemble_no_calibration", None, True, False),
+    ("full_hcn", None, True, True),
 ]
 
 
@@ -151,7 +154,10 @@ async def _run_single_config(
             continue
 
         y_true.append(gold_labels[dec.record_id])
-        y_pred.append(1 if dec.decision == Decision.INCLUDE else 0)
+        # Treat HUMAN_REVIEW as INCLUDE (recall-safe default)
+        y_pred.append(
+            1 if dec.decision in (Decision.INCLUDE, Decision.HUMAN_REVIEW) else 0
+        )
         y_score.append(dec.final_score)
 
     # Compute metrics with bootstrap CI
@@ -222,7 +228,7 @@ async def run_ablation(
 
     configurations: list[dict[str, Any]] = []
 
-    for config_name, backend_indices, use_rules in _CONFIGURATIONS:
+    for config_name, backend_indices, use_rules, use_calibration in _CONFIGURATIONS:
         # Select backends for this configuration
         if backend_indices is not None:
             selected_backends = [all_backends[i] for i in backend_indices]
@@ -232,10 +238,14 @@ async def run_ablation(
         # Build rule engine: empty rules if use_rules is False
         rule_engine = None if use_rules else RuleEngine(rules=[])
 
+        # Build aggregator: identity calibration if use_calibration is False
+        aggregator = None if use_calibration else CCAggregator(calibrators={})
+
         # Create screener for this configuration
         screener = TAScreener(
             backends=selected_backends,
             rule_engine=rule_engine,
+            aggregator=aggregator,
         )
 
         config_result = await _run_single_config(

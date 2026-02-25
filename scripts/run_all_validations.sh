@@ -57,5 +57,5 @@ python validation/analysis/generate_figures.py
 echo ""
 echo "=== All validation experiments complete ==="
 echo "Results: validation/results/"
-echo "Tables:  validation/results/paper_tables.md"
+echo "Tables:  paper/tables/paper_tables.md"
 echo "Figures: paper/figures/"
