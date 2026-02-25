@@ -40,3 +40,7 @@ validation/datasets/asreview/
 paper/figures/*.png
 paper/tables/*
 !paper/tables/.gitkeep
+
+# Build artifacts
+*.whl
+*.tar.gz
