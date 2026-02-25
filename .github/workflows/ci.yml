@@ -41,15 +41,26 @@ jobs:
         continue-on-error: true
         run: uv run pytest --cov=src/metascreener --cov-report=term-missing --cov-fail-under=80 -v --tb=long > test-output.txt 2>&1
 
-      - name: Show test results in summary
+      - name: Report test failures
         if: always()
         run: |
+          # Print full output to log
+          cat test-output.txt
+          # Create annotation with failure summary
+          if grep -q "FAILED\|ERROR" test-output.txt; then
+            echo "::error::Test failures detected. See summary below."
+            grep "FAILED\|ERROR" test-output.txt | while read line; do
+              echo "::error::$line"
+            done
+          fi
+          # Write to step summary (visible on Actions page)
           echo '## Test Results — Python ${{ matrix.python-version }}' >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           tail -100 test-output.txt >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          cat test-output.txt
 
       - name: Fail if tests failed
         if: steps.tests.outcome != 'success'
-        run: exit 1
+        run: |
+          echo "Tests failed — see 'Report test failures' step for details"
+          exit 1
