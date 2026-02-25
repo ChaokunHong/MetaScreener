@@ -1,0 +1,6 @@
+Population: Adult patients (≥18 years) admitted to intensive care units (ICUs)
+Intervention: Antimicrobial stewardship programs, antibiotic de-escalation protocols, or antimicrobial optimization strategies
+Comparison: Standard care, no stewardship program, or usual antibiotic prescribing
+Outcome: Antimicrobial resistance rates, mortality, length of ICU stay, antibiotic consumption
+Study design: Randomized controlled trials, cohort studies, before-after studies
+Exclusions: Pediatric populations, non-ICU settings, editorials, letters, case reports
