@@ -68,7 +68,7 @@ jobs:
         id: meta-slim
         uses: docker/metadata-action@v5
         with:
-          images: chaokun/metascreener
+          images: chaokunhong/metascreener
           tags: |
             type=semver,pattern={{version}}
             type=raw,value=latest
@@ -77,7 +77,7 @@ jobs:
         id: meta-full
         uses: docker/metadata-action@v5
         with:
-          images: chaokun/metascreener
+          images: chaokunhong/metascreener
           tags: |
             type=semver,pattern=full-{{version}}
             type=raw,value=full
@@ -152,10 +152,10 @@ jobs:
 
             ```bash
             # Daily use
-            docker pull chaokun/metascreener:${{ github.ref_name }}
+            docker pull chaokunhong/metascreener:${{ github.ref_name }}
 
             # Full reproduction
-            docker pull chaokun/metascreener:full-${{ github.ref_name }}
+            docker pull chaokunhong/metascreener:full-${{ github.ref_name }}
             ```
 
             ## Changes
