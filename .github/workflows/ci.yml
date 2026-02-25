@@ -37,4 +37,13 @@ jobs:
         run: uv run mypy src/
 
       - name: Run tests with coverage
-        run: uv run pytest --cov=src/metascreener --cov-report=term-missing --cov-fail-under=80
+        run: |
+          set -o pipefail
+          uv run pytest --cov=src/metascreener --cov-report=term-missing --cov-fail-under=80 -v --tb=long 2>&1 | tee test-output.txt
+
+      - name: Upload test output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output-${{ matrix.python-version }}
+          path: test-output.txt
