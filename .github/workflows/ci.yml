@@ -38,12 +38,16 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          set -o pipefail
-          uv run pytest --cov=src/metascreener --cov-report=term-missing --cov-fail-under=80 -v --tb=long 2>&1 | tee test-output.txt
+          uv run pytest --cov=src/metascreener --cov-report=term-missing --cov-fail-under=80 -v --tb=long 2>&1 | tee test-output.txt; echo "PYTEST_EXIT=$?" >> "$GITHUB_ENV"
 
-      - name: Upload test output on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-output-${{ matrix.python-version }}
-          path: test-output.txt
+      - name: Show test failures in summary
+        if: always()
+        run: |
+          echo '## Test Results (Python ${{ matrix.python-version }})' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          tail -80 test-output.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if tests failed
+        if: env.PYTEST_EXIT != '0'
+        run: exit 1
