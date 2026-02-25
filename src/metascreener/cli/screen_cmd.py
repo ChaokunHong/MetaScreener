@@ -1,6 +1,7 @@
 """metascreener screen — Literature screening command."""
 from __future__ import annotations
 
+import collections.abc
 from enum import StrEnum
 from pathlib import Path
 
@@ -36,13 +37,17 @@ def screen(
         _validate_inputs(input, criteria, output_dir, stage, cfg)
         return
 
-    typer.echo(f"[screen] Stage: {stage.value} | Input: {input}")
+    from metascreener.io.readers import read_records  # noqa: PLC0415
+
+    records = read_records(input)
+    typer.echo(f"[screen] Loaded {len(records)} records from {input}")
+    typer.echo(f"[screen] Stage: {stage.value}")
     typer.echo(f"[screen] Models: {', '.join(cfg.models.keys())}")
     typer.echo(f"[screen] Thresholds: tau_high={cfg.thresholds.tau_high}, "
                f"tau_mid={cfg.thresholds.tau_mid}, tau_low={cfg.thresholds.tau_low}")
     typer.echo(
-        "[screen] Full screening requires data readers (RIS/BibTeX/CSV) "
-        "— coming in a future phase."
+        "[screen] Full screening pipeline requires LLM backends. "
+        "Set OPENROUTER_API_KEY and configure configs/models.yaml."
     )
 
 
@@ -79,6 +84,7 @@ def _validate_inputs(
         cfg: Loaded configuration.
     """
     errors: list[str] = []
+    records: collections.abc.Sequence[object] = []
 
     if not input_path.exists():
         errors.append(f"Input file not found: {input_path}")
@@ -86,11 +92,21 @@ def _validate_inputs(
     if criteria_path is not None and not criteria_path.exists():
         errors.append(f"Criteria file not found: {criteria_path}")
 
+    # Try to parse the input file
+    if not errors and input_path.exists():
+        from metascreener.io.readers import read_records  # noqa: PLC0415
+
+        try:
+            records = read_records(input_path)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"Cannot parse input file: {exc}")
+
     if errors:
         for error in errors:
             typer.echo(f"ERROR: {error}", err=True)
         raise typer.Exit(code=1)
 
+    typer.echo(f"[dry-run] Loaded {len(records)} records from {input_path}")
     model_names = ", ".join(cfg.models.keys()) if cfg.models else "(default)"
     typer.echo("[dry-run] Validation passed:")
     typer.echo(f"  Input: {input_path}")
