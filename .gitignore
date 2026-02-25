@@ -35,7 +35,8 @@ backend/uploads/
 backend/data/
 
 # Validation outputs (regenerated via scripts/run_all_validations.sh)
-validation/results/*.json
 validation/datasets/cohen/
 validation/datasets/asreview/
 paper/figures/*.png
+paper/tables/*
+!paper/tables/.gitkeep

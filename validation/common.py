@@ -123,8 +123,7 @@ def save_results(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now(UTC).isoformat()
-    filename = f"{experiment_name}_{timestamp.replace(':', '-').split('.')[0]}.json"
-    output_path = output_dir / filename
+    output_path = output_dir / f"{experiment_name}.json"
 
     output_data: dict[str, Any] = {
         **results,
@@ -259,6 +258,8 @@ def compute_metrics_with_ci(
     """
     from metascreener.evaluation.metrics import (
         bootstrap_ci,
+        compute_auroc,
+        compute_calibration_metrics,
         compute_screening_metrics,
     )
 
@@ -310,6 +311,57 @@ def compute_metrics_with_ci(
             "point": getattr(base_metrics, attr),
             "ci_lower": ci.ci_lower,
             "ci_upper": ci.ci_upper,
+        }
+
+    # AUROC (requires both classes present and score data)
+    unique_labels = set(y_true)
+    if len(unique_labels) >= 2 and y_score:
+        try:
+            auroc_result = compute_auroc(y_score, y_true)
+
+            def _auroc_fn(data: tuple[Any, ...]) -> float:
+                scores_b, labels_b = list(data[0]), list(data[1])
+                if len(set(labels_b)) < 2:
+                    return 0.5  # fallback for single-class bootstrap samples
+                return compute_auroc(scores_b, labels_b).auroc
+
+            auroc_ci = bootstrap_ci(
+                _auroc_fn, (y_score, y_true), n_iter=n_bootstrap, seed=seed
+            )
+            result["auroc"] = {
+                "point": auroc_result.auroc,
+                "ci_lower": auroc_ci.ci_lower,
+                "ci_upper": auroc_ci.ci_upper,
+            }
+        except ValueError:
+            logger.warning("auroc_computation_failed", reason="single_class_or_error")
+
+    # ECE and Brier score (require score data)
+    if y_score:
+        cal_metrics = compute_calibration_metrics(y_score, y_true)
+
+        def _ece_fn(data: tuple[Any, ...]) -> float:
+            return compute_calibration_metrics(list(data[0]), list(data[1])).ece
+
+        def _brier_fn(data: tuple[Any, ...]) -> float:
+            return compute_calibration_metrics(list(data[0]), list(data[1])).brier
+
+        ece_ci = bootstrap_ci(
+            _ece_fn, (y_score, y_true), n_iter=n_bootstrap, seed=seed
+        )
+        result["ece"] = {
+            "point": cal_metrics.ece,
+            "ci_lower": ece_ci.ci_lower,
+            "ci_upper": ece_ci.ci_upper,
+        }
+
+        brier_ci = bootstrap_ci(
+            _brier_fn, (y_score, y_true), n_iter=n_bootstrap, seed=seed
+        )
+        result["brier"] = {
+            "point": cal_metrics.brier,
+            "ci_lower": brier_ci.ci_lower,
+            "ci_upper": brier_ci.ci_upper,
         }
 
     logger.info(

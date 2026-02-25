@@ -230,6 +230,9 @@ class TestComputeMetricsWithCI:
             "f1",
             "wss_at_95",
             "automation_rate",
+            "auroc",
+            "ece",
+            "brier",
         }
         assert set(result.keys()) == expected_metrics
 
