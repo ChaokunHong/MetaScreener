@@ -14,7 +14,21 @@ app = typer.Typer(
     name="metascreener",
     help="MetaScreener 2.0: AI-assisted systematic review tool.",
     add_completion=False,
+    invoke_without_command=True,
 )
+
+
+@app.callback()
+def main(ctx: typer.Context) -> None:
+    """MetaScreener 2.0: AI-assisted systematic review tool.
+
+    Run without a subcommand to enter interactive mode with guided prompts.
+    """
+    if ctx.invoked_subcommand is None:
+        from metascreener.cli.interactive import run_interactive  # noqa: PLC0415
+
+        run_interactive()
+
 
 app.add_typer(init_app, name="init")
 app.add_typer(screen_app, name="screen")
