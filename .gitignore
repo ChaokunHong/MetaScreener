@@ -10,8 +10,6 @@ build/
 .coverage
 htmlcov/
 *.db
-*claude
-claude*
 *.sqlite
 .env
 .env.*
@@ -42,6 +40,17 @@ validation/datasets/asreview/
 paper/figures/*.png
 paper/tables/*
 !paper/tables/.gitkeep
+
+# OS / editor junk
+.DS_Store
+.Rhistory
+*.swp
+
+# Claude Code / dev tooling (NOT part of the project)
+CLAUDE.md
+.claude/
+.metascreener/
+docs/plans/
 
 # Build artifacts
 *.whl
