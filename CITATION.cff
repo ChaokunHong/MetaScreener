@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+title: "MetaScreener"
+message: "If you use this software, please cite as below."
+type: software
+authors:
+  - family-names: Hong
+    given-names: Chaokun
+version: 2.0.0a1
+date-released: "2026-02-25"
+license: Apache-2.0
+url: "https://github.com/ChaokunHong/MetaScreener"
+repository-code: "https://github.com/ChaokunHong/MetaScreener"
+keywords:
+  - systematic review
+  - large language models
+  - evidence synthesis
+  - screening
