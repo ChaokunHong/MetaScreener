@@ -6,8 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from metascreener.core.enums import CriteriaFramework
-from metascreener.core.models import CriteriaElement, PICOCriteria, Record, ReviewCriteria
+from metascreener.core.enums import CriteriaFramework, Decision, ScreeningStage, Tier
+from metascreener.core.models import (
+    CriteriaElement,
+    PICOCriteria,
+    Record,
+    ReviewCriteria,
+    ScreeningDecision,
+)
 from metascreener.llm.adapters.mock import MockLLMAdapter
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -250,3 +256,39 @@ def sample_extraction_form_yaml(tmp_path: Path) -> Path:
     form_path = tmp_path / "extraction_form.yaml"
     form_path.write_text(form_content)
     return form_path
+
+
+@pytest.fixture
+def sample_screening_decisions() -> list[ScreeningDecision]:
+    """10 include + 10 exclude decisions for evaluation tests."""
+    decisions = []
+    for i in range(10):
+        decisions.append(ScreeningDecision(
+            record_id=f"eval_r{i}",
+            stage=ScreeningStage.TITLE_ABSTRACT,
+            decision=Decision.INCLUDE,
+            tier=Tier.ONE,
+            final_score=0.8 + i * 0.02,
+            ensemble_confidence=0.9,
+        ))
+    for i in range(10, 20):
+        decisions.append(ScreeningDecision(
+            record_id=f"eval_r{i}",
+            stage=ScreeningStage.TITLE_ABSTRACT,
+            decision=Decision.EXCLUDE,
+            tier=Tier.ONE,
+            final_score=0.1 + (i - 10) * 0.02,
+            ensemble_confidence=0.9,
+        ))
+    return decisions
+
+
+@pytest.fixture
+def sample_gold_labels() -> dict[str, Decision]:
+    """Gold standard labels matching sample_screening_decisions."""
+    labels = {}
+    for i in range(10):
+        labels[f"eval_r{i}"] = Decision.INCLUDE
+    for i in range(10, 20):
+        labels[f"eval_r{i}"] = Decision.EXCLUDE
+    return labels
