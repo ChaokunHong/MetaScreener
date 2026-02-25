@@ -68,22 +68,23 @@ class SessionManager:
         return WizardSession(**data)
 
     def load_latest(self) -> WizardSession | None:
-        """Load the most recently modified session.
+        """Load the most recently updated session.
+
+        Uses the ``updated_at`` field stored inside each session for ordering,
+        which is more reliable than filesystem modification time on fast CI.
 
         Returns:
             The latest session if any exist, None otherwise.
         """
         if not self._dir.exists():
             return None
-        files = sorted(
-            self._dir.glob("*.json"),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        )
-        if not files:
+        sessions: list[WizardSession] = []
+        for path in self._dir.glob("*.json"):
+            data = json.loads(path.read_text())
+            sessions.append(WizardSession(**data))
+        if not sessions:
             return None
-        data = json.loads(files[0].read_text())
-        return WizardSession(**data)
+        return max(sessions, key=lambda s: s.updated_at)
 
     def delete(self, session_id: str) -> None:
         """Delete a session file.
