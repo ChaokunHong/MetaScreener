@@ -7,7 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from metascreener.cli import app
-from metascreener.cli.interactive import COMMANDS, _split_flag, run_interactive
+from metascreener.cli.interactive import COMMANDS, MENU_ITEMS, _split_flag, run_interactive
 
 runner = CliRunner()
 
@@ -41,6 +41,15 @@ class TestCommandRegistry:
     def test_all_commands_have_descriptions(self) -> None:
         for cmd, desc in COMMANDS.items():
             assert desc, f"Command {cmd} has empty description"
+
+    def test_menu_has_six_items(self) -> None:
+        assert len(MENU_ITEMS) == 6
+
+    def test_menu_items_have_handlers(self) -> None:
+        for cmd, desc, handler in MENU_ITEMS:
+            assert cmd.startswith("/")
+            assert desc
+            assert handler.startswith("_handle_")
 
 
 class TestInteractiveEntryPoint:
@@ -77,9 +86,24 @@ class TestInteractiveREPL:
         """/q is an alias for /quit."""
         run_interactive()
 
+    @patch("metascreener.cli.interactive.Prompt.ask", side_effect=["quit"])
+    def test_quit_without_slash(self, mock_ask: MagicMock) -> None:
+        """'quit' without slash also works."""
+        run_interactive()
+
     @patch("metascreener.cli.interactive.Prompt.ask", side_effect=["/help", "/quit"])
     def test_help_command(self, mock_ask: MagicMock, capsys: pytest.CaptureFixture[str]) -> None:
         """/help should display commands without error."""
+        run_interactive()
+
+    @patch("metascreener.cli.interactive.Prompt.ask", side_effect=["help", "/quit"])
+    def test_help_without_slash(self, mock_ask: MagicMock) -> None:
+        """'help' without slash also works."""
+        run_interactive()
+
+    @patch("metascreener.cli.interactive.Prompt.ask", side_effect=["?", "/quit"])
+    def test_question_mark_help(self, mock_ask: MagicMock) -> None:
+        """'?' shows help."""
         run_interactive()
 
     @patch("metascreener.cli.interactive.Prompt.ask", side_effect=["/status", "/quit"])
@@ -94,12 +118,17 @@ class TestInteractiveREPL:
 
     @patch("metascreener.cli.interactive.Prompt.ask", side_effect=["hello", "/quit"])
     def test_non_slash_input(self, mock_ask: MagicMock) -> None:
-        """Non-slash input should prompt user to use commands."""
+        """Non-slash, non-number input should show tip."""
         run_interactive()
 
     @patch("metascreener.cli.interactive.Prompt.ask", side_effect=["", "/quit"])
-    def test_empty_input(self, mock_ask: MagicMock) -> None:
-        """Empty input should be silently ignored."""
+    def test_empty_input_shows_menu(self, mock_ask: MagicMock) -> None:
+        """Empty input should re-show the menu."""
+        run_interactive()
+
+    @patch("metascreener.cli.interactive.Prompt.ask", side_effect=["99", "/quit"])
+    def test_invalid_number(self, mock_ask: MagicMock) -> None:
+        """Number out of range should show error."""
         run_interactive()
 
     @patch("metascreener.cli.interactive.Prompt.ask", side_effect=KeyboardInterrupt)

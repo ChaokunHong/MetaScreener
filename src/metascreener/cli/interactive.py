@@ -19,9 +19,17 @@ BANNER = f"""\
 [bold cyan]MetaScreener {VERSION}[/bold cyan]
 [dim]AI-assisted systematic review tool[/dim]
 [dim]Hierarchical Consensus Network (HCN) with 4 open-source LLMs[/dim]
-
-Type [bold green]/help[/bold green] for commands, [bold green]/quit[/bold green] to exit.
 """
+
+# Numbered menu items: (number, slash_cmd, description, handler_name)
+MENU_ITEMS: list[tuple[str, str, str]] = [
+    ("/init", "Define review criteria (PICO/PEO/SPIDER/PCC)", "_handle_init"),
+    ("/screen", "Screen literature (title/abstract or full-text)", "_handle_screen"),
+    ("/extract", "Extract structured data from PDFs", "_handle_extract"),
+    ("/assess-rob", "Assess risk of bias (RoB 2 / ROBINS-I / QUADAS-2)", "_handle_assess_rob"),
+    ("/evaluate", "Evaluate screening performance", "_handle_evaluate"),
+    ("/export", "Export results (CSV, JSON, Excel, RIS)", "_handle_export"),
+]
 
 COMMANDS: dict[str, str] = {
     "/init": "Generate structured review criteria (PICO/PEO/SPIDER/PCC)",
@@ -35,85 +43,115 @@ COMMANDS: dict[str, str] = {
     "/quit": "Exit MetaScreener",
 }
 
+# Map slash commands to handler functions
+_HANDLERS: dict[str, str] = {
+    "/init": "_handle_init",
+    "/screen": "_handle_screen",
+    "/extract": "_handle_extract",
+    "/assess-rob": "_handle_assess_rob",
+    "/evaluate": "_handle_evaluate",
+    "/export": "_handle_export",
+}
+
 
 def run_interactive() -> None:
     """Launch the interactive REPL."""
     console.print(Panel(BANNER, border_style="cyan", padding=(1, 2)))
-    _show_quick_start()
+    _show_main_menu()
 
     while True:
+        console.print()
         try:
-            user_input = Prompt.ask("\n[bold cyan]metascreener[/bold cyan]").strip()
+            user_input = Prompt.ask(
+                "[bold cyan]>>>[/bold cyan] Enter a number (1-6), "
+                "a command (/help), or /quit",
+            ).strip()
         except (KeyboardInterrupt, EOFError):
             console.print("\n[dim]Goodbye![/dim]")
             break
 
         if not user_input:
+            _show_main_menu()
             continue
+
+        # Handle numbered selection (1-6)
+        if user_input.isdigit():
+            idx = int(user_input)
+            if 1 <= idx <= len(MENU_ITEMS):
+                cmd_name, desc, handler_name = MENU_ITEMS[idx - 1]
+                console.print(f"\n[bold green]{cmd_name}[/bold green] — {desc}\n")
+                handler = globals()[handler_name]
+                handler()
+                console.print()
+                _show_main_menu()
+                continue
+            else:
+                console.print(
+                    f"[yellow]Please enter a number between 1 and {len(MENU_ITEMS)}.[/yellow]"
+                )
+                continue
 
         cmd = user_input.split()[0].lower()
 
-        if cmd in ("/quit", "/exit", "/q"):
+        if cmd in ("/quit", "/exit", "/q", "quit", "exit", "q"):
             console.print("[dim]Goodbye![/dim]")
             break
-        elif cmd == "/help":
+        elif cmd in ("/help", "help", "h", "?"):
             _show_help()
-        elif cmd == "/status":
+        elif cmd in ("/status", "status"):
             _show_status()
-        elif cmd == "/init":
-            _handle_init()
-        elif cmd == "/screen":
-            _handle_screen()
-        elif cmd == "/extract":
-            _handle_extract()
-        elif cmd == "/assess-rob":
-            _handle_assess_rob()
-        elif cmd == "/evaluate":
-            _handle_evaluate()
-        elif cmd == "/export":
-            _handle_export()
+        elif cmd in ("/menu", "menu", "m"):
+            _show_main_menu()
+        elif cmd in _HANDLERS:
+            handler = globals()[_HANDLERS[cmd]]
+            handler()
+            console.print()
+            _show_main_menu()
         elif cmd.startswith("/"):
             console.print(
                 f"[yellow]Unknown command: {cmd}[/yellow]\n"
-                "Type [bold green]/help[/bold green] to see available commands."
+                "Type [bold green]/help[/bold green] or a number (1-6)."
             )
         else:
             console.print(
-                "[yellow]Please use a slash command.[/yellow]\n"
-                "Type [bold green]/help[/bold green] to see available commands."
+                "[yellow]Tip: Enter a number (1-6) to select a command, "
+                "or type /help for all options.[/yellow]"
             )
 
 
-def _show_quick_start() -> None:
-    """Show quick start guide for new users."""
+def _show_main_menu() -> None:
+    """Show the main numbered menu."""
     table = Table(
-        title="Quick Start — Typical Workflow",
+        title="What would you like to do?",
         show_header=False,
-        border_style="dim",
+        border_style="cyan",
         padding=(0, 2),
+        title_style="bold",
     )
-    table.add_column("Step", style="bold cyan", width=6)
-    table.add_column("Command", style="green", width=14)
+    table.add_column("No.", style="bold yellow", width=4, justify="right")
+    table.add_column("Command", style="bold green", width=14)
     table.add_column("Description", style="white")
-    table.add_row("1", "/init", "Define your review criteria (PICO, topic, or text)")
-    table.add_row("2", "/screen", "Screen papers against your criteria")
-    table.add_row("3", "/evaluate", "Evaluate screening accuracy (if gold labels available)")
-    table.add_row("4", "/extract", "Extract structured data from included PDFs")
-    table.add_row("5", "/assess-rob", "Assess risk of bias for included studies")
-    table.add_row("6", "/export", "Export results in your preferred format")
+
+    for i, (cmd, desc, _handler) in enumerate(MENU_ITEMS, 1):
+        table.add_row(str(i), cmd, desc)
+
     console.print(table)
+    console.print(
+        "[dim]  Also: /help  /status  /quit[/dim]"
+    )
 
 
 def _show_help() -> None:
     """Display help with all available commands."""
-    table = Table(title="Available Commands", border_style="cyan")
+    table = Table(title="All Commands", border_style="cyan")
     table.add_column("Command", style="bold green", width=16)
     table.add_column("Description", style="white")
     for cmd, desc in COMMANDS.items():
         table.add_row(cmd, desc)
     console.print(table)
     console.print(
-        "\n[dim]Each command will guide you step-by-step through the required inputs.[/dim]"
+        "\n[dim]You can type a number (1-6) or a /command. "
+        "Each command guides you step-by-step.[/dim]"
     )
 
 
@@ -124,7 +162,6 @@ def _show_status() -> None:
 
     # Check for common project files
     found: list[tuple[str, str]] = []
-    not_found: list[str] = []
 
     checks = [
         ("criteria.yaml", "Review criteria"),
@@ -139,8 +176,6 @@ def _show_status() -> None:
     for path, label in checks:
         if (cwd / path).exists():
             found.append((path, label))
-        else:
-            not_found.append(label)
 
     if found:
         table = Table(title="Found Files", border_style="green", show_header=False)
@@ -151,7 +186,7 @@ def _show_status() -> None:
         console.print(table)
     else:
         console.print("[yellow]No MetaScreener output files found in this directory.[/yellow]")
-        console.print("[dim]Start with /init to create review criteria.[/dim]")
+        console.print("[dim]Start with 1 (/init) to create review criteria.[/dim]")
 
 
 # ---------------------------------------------------------------------------
@@ -162,15 +197,18 @@ def _handle_init() -> None:
     console.print(Panel(
         "[bold]Step 0: Initialize Review Criteria[/bold]\n\n"
         "MetaScreener will help you create structured criteria (criteria.yaml)\n"
-        "for screening. Choose how you'd like to provide your criteria:",
+        "for screening. Choose how you'd like to provide your criteria:\n\n"
+        "  [yellow]1[/yellow]  [bold]text[/bold]  — Provide a text file with your criteria\n"
+        "  [yellow]2[/yellow]  [bold]topic[/bold] — Provide a topic, AI generates criteria",
         border_style="cyan",
     ))
 
     mode = Prompt.ask(
-        "How would you like to create criteria?",
-        choices=["text", "topic"],
-        default="text",
+        "Select mode (1=text, 2=topic)",
+        choices=["1", "2", "text", "topic"],
+        default="1",
     )
+    mode = "text" if mode in ("1", "text") else "topic"
 
     if mode == "text":
         console.print(
@@ -201,8 +239,8 @@ def _handle_init() -> None:
     output = Prompt.ask("Output path for criteria.yaml", default="criteria.yaml")
 
     # Confirm and run
-    console.print(f"\n[dim]Running: metascreener init {raw_input_flag} --output {output}[/dim]")
-    if not Confirm.ask("Proceed?", default=True):
+    console.print(f"\n[dim]Command: metascreener init {raw_input_flag} --output {output}[/dim]")
+    if not Confirm.ask("Run this command?", default=True):
         console.print("[yellow]Cancelled.[/yellow]")
         return
 
@@ -217,7 +255,8 @@ def _handle_screen() -> None:
     console.print(Panel(
         "[bold]Module 1: Literature Screening[/bold]\n\n"
         "Screen papers using the Hierarchical Consensus Network (HCN).\n"
-        "4 LLMs analyze each paper and reach consensus via calibrated aggregation.",
+        "4 LLMs analyze each paper and reach consensus via calibrated aggregation.\n\n"
+        "[dim]Required: input file (.ris/.bib/.csv) + criteria.yaml[/dim]",
         border_style="cyan",
     ))
 
@@ -241,13 +280,21 @@ def _handle_screen() -> None:
         return
 
     # Stage
-    stage = Prompt.ask(
-        "Screening stage",
-        choices=["ta", "ft", "both"],
-        default="ta",
+    console.print(
+        "\nScreening stage:\n"
+        "  [yellow]1[/yellow]  [bold]ta[/bold]   — Title/Abstract only (fast)\n"
+        "  [yellow]2[/yellow]  [bold]ft[/bold]   — Full-text only\n"
+        "  [yellow]3[/yellow]  [bold]both[/bold] — Both stages sequentially"
     )
+    stage_input = Prompt.ask(
+        "Select stage (1/2/3)",
+        choices=["1", "2", "3", "ta", "ft", "both"],
+        default="1",
+    )
+    stage_map = {"1": "ta", "2": "ft", "3": "both"}
+    stage = stage_map.get(stage_input, stage_input)
     stage_labels = {"ta": "Title/Abstract", "ft": "Full-text", "both": "Both stages"}
-    console.print(f"  Stage: [cyan]{stage_labels[stage]}[/cyan]")
+    console.print(f"  Selected: [cyan]{stage_labels[stage]}[/cyan]")
 
     # Output
     output_dir = Prompt.ask("Output directory", default="results")
@@ -257,11 +304,11 @@ def _handle_screen() -> None:
 
     # Confirm
     console.print(
-        f"\n[dim]Running: metascreener screen "
+        f"\n[dim]Command: metascreener screen "
         f"--input {input_path} --criteria {criteria_path} "
         f"--stage {stage} --output {output_dir} --seed {seed}[/dim]"
     )
-    if not Confirm.ask("Proceed?", default=True):
+    if not Confirm.ask("Run this command?", default=True):
         console.print("[yellow]Cancelled.[/yellow]")
         return
 
@@ -283,13 +330,15 @@ def _handle_extract() -> None:
     console.print(Panel(
         "[bold]Module 2: Data Extraction[/bold]\n\n"
         "Extract structured data from full-text PDFs using multi-LLM consensus.\n"
-        "You need an extraction form (YAML) defining what to extract.",
+        "You need an extraction form (YAML) defining what to extract.\n\n"
+        "  [yellow]1[/yellow]  I have an extraction_form.yaml\n"
+        "  [yellow]2[/yellow]  Generate a form for me (from research topic)",
         border_style="cyan",
     ))
 
-    has_form = Confirm.ask("Do you already have an extraction_form.yaml?", default=True)
+    choice = Prompt.ask("Select (1 or 2)", choices=["1", "2"], default="1")
 
-    if not has_form:
+    if choice == "2":
         console.print(
             "\n[bold]Generate Extraction Form[/bold]\n"
             "MetaScreener can generate a form based on your research topic.\n"
@@ -301,10 +350,10 @@ def _handle_extract() -> None:
         form_output = Prompt.ask("Output path for form", default="extraction_form.yaml")
 
         console.print(
-            f"\n[dim]Running: metascreener extract init-form "
+            f'\n[dim]Command: metascreener extract init-form '
             f'--topic "{topic}" --output {form_output}[/dim]'
         )
-        if not Confirm.ask("Proceed?", default=True):
+        if not Confirm.ask("Run this command?", default=True):
             console.print("[yellow]Cancelled.[/yellow]")
             return
 
@@ -344,10 +393,10 @@ def _handle_extract() -> None:
     output_dir = Prompt.ask("Output directory", default="results")
 
     console.print(
-        f"\n[dim]Running: metascreener extract "
+        f"\n[dim]Command: metascreener extract "
         f"--pdfs {pdfs_dir} --form {form_path_str} --output {output_dir}[/dim]"
     )
-    if not Confirm.ask("Proceed?", default=True):
+    if not Confirm.ask("Run this command?", default=True):
         console.print("[yellow]Cancelled.[/yellow]")
         return
 
@@ -366,18 +415,21 @@ def _handle_assess_rob() -> None:
     """Guide user through risk of bias assessment."""
     console.print(Panel(
         "[bold]Module 3: Risk of Bias Assessment[/bold]\n\n"
-        "Assess risk of bias using standardized tools:\n"
-        "  [cyan]rob2[/cyan]      — RoB 2 for randomized controlled trials (5 domains)\n"
-        "  [cyan]robins-i[/cyan]  — ROBINS-I for observational studies (7 domains)\n"
-        "  [cyan]quadas2[/cyan]   — QUADAS-2 for diagnostic accuracy studies (4 domains)",
+        "Choose a tool based on your study design:\n\n"
+        "  [yellow]1[/yellow]  [bold]rob2[/bold]      — RoB 2 for RCTs\n"
+        "  [yellow]2[/yellow]  [bold]robins-i[/bold]  — ROBINS-I for observational\n"
+        "  [yellow]3[/yellow]  [bold]quadas2[/bold]   — QUADAS-2 for diagnostic",
         border_style="cyan",
     ))
 
-    tool = Prompt.ask(
-        "Which RoB tool?",
-        choices=["rob2", "robins-i", "quadas2"],
-        default="rob2",
+    tool_input = Prompt.ask(
+        "Select tool (1/2/3)",
+        choices=["1", "2", "3", "rob2", "robins-i", "quadas2"],
+        default="1",
     )
+    tool_map = {"1": "rob2", "2": "robins-i", "3": "quadas2"}
+    tool = tool_map.get(tool_input, tool_input)
+    console.print(f"  Selected: [cyan]{tool}[/cyan]")
 
     pdfs_dir = _ask_dir_path(
         "Directory containing PDF files",
@@ -391,10 +443,10 @@ def _handle_assess_rob() -> None:
     seed = Prompt.ask("Random seed", default="42")
 
     console.print(
-        f"\n[dim]Running: metascreener assess-rob "
+        f"\n[dim]Command: metascreener assess-rob "
         f"--pdfs {pdfs_dir} --tool {tool} --output {output_dir} --seed {seed}[/dim]"
     )
-    if not Confirm.ask("Proceed?", default=True):
+    if not Confirm.ask("Run this command?", default=True):
         console.print("[yellow]Cancelled.[/yellow]")
         return
 
@@ -414,9 +466,9 @@ def _handle_evaluate() -> None:
     """Guide user through screening evaluation."""
     console.print(Panel(
         "[bold]Evaluation Mode[/bold]\n\n"
-        "Compare screening results against gold-standard labels to compute:\n"
-        "sensitivity, specificity, F1, WSS@95, AUROC, ECE, Brier score, kappa.\n"
-        "Optionally generate interactive Plotly visualizations.",
+        "Compare screening results against gold-standard labels.\n"
+        "Computes: sensitivity, specificity, F1, WSS@95, AUROC, ECE, Brier, kappa.\n\n"
+        "[dim]Required: labels CSV + predictions JSON[/dim]",
         border_style="cyan",
     ))
 
@@ -443,11 +495,11 @@ def _handle_evaluate() -> None:
 
     viz_flag = " --visualize" if visualize else ""
     console.print(
-        f"\n[dim]Running: metascreener evaluate "
+        f"\n[dim]Command: metascreener evaluate "
         f"--labels {labels_path} --predictions {preds_path}"
         f"{viz_flag} --output {output_dir} --seed {seed}[/dim]"
     )
-    if not Confirm.ask("Proceed?", default=True):
+    if not Confirm.ask("Run this command?", default=True):
         console.print("[yellow]Cancelled.[/yellow]")
         return
 
@@ -471,7 +523,7 @@ def _handle_export() -> None:
     """Guide user through exporting results."""
     console.print(Panel(
         "[bold]Export Results[/bold]\n\n"
-        "Export screening results in one or more formats:\n"
+        "Export screening results in one or more formats:\n\n"
         "  [cyan]csv[/cyan]    — Comma-separated values\n"
         "  [cyan]json[/cyan]   — Pretty-printed JSON\n"
         "  [cyan]excel[/cyan]  — Excel spreadsheet (.xlsx)\n"
@@ -489,16 +541,16 @@ def _handle_export() -> None:
     if results_path is None:
         return
 
-    console.print("\nSelect export formats (comma-separated):")
+    console.print("\nSelect export formats (comma-separated, e.g. csv,json):")
     formats = Prompt.ask("Formats", default="csv,json")
 
     output_dir = Prompt.ask("Output directory", default="export")
 
     console.print(
-        f"\n[dim]Running: metascreener export "
+        f"\n[dim]Command: metascreener export "
         f"--results {results_path} --format {formats} --output {output_dir}[/dim]"
     )
-    if not Confirm.ask("Proceed?", default=True):
+    if not Confirm.ask("Run this command?", default=True):
         console.print("[yellow]Cancelled.[/yellow]")
         return
 
