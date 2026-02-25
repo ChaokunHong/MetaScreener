@@ -1,0 +1,6 @@
+record_id,Title,Authors,Year,Abstract,DOI,Journal,Keywords,Language
+rec001,Antimicrobial resistance in ICU patients,"Smith, John; Doe, Jane",2023,This study examines antimicrobial resistance patterns in intensive care unit patients across five hospitals.,10.1234/amr.2023.001,Journal of Antimicrobial Chemotherapy,"antimicrobial resistance; ICU",en
+rec002,Meta-analysis of stewardship programs,"García, María",2022,A systematic review and meta-analysis of antimicrobial stewardship interventions.,10.1234/meta.2022.042,Clinical Microbiology Reviews,stewardship,en
+rec003,Resistance patterns in Southeast Asia,"Nguyen, Thanh; Le, Minh",2024,Regional analysis of antimicrobial resistance trends.,10.1234/sea.2024.010,Lancet Infectious Diseases,"AMR; Southeast Asia",en
+rec004,No abstract record,"Author, Test",2020,,,Some Journal,,
+rec005,Minimal record,,,,,,,
