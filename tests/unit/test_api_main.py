@@ -29,9 +29,21 @@ class TestFastAPIApp:
 
     def test_static_file_serving_returns_404_without_dist(self) -> None:
         """Without web/dist, non-API routes return 404."""
+        from unittest.mock import patch
+        from pathlib import Path
+
         from metascreener.api.main import create_app
 
-        app = create_app()
+        # Mock dist_dir.is_dir() to return False so SPA fallback is not mounted
+        orig_is_dir = Path.is_dir
+
+        def fake_is_dir(self: Path) -> bool:
+            if str(self).endswith("web/dist"):
+                return False
+            return orig_is_dir(self)
+
+        with patch.object(Path, "is_dir", fake_is_dir):
+            app = create_app()
         client = TestClient(app)
         resp = client.get("/nonexistent")
         assert resp.status_code == 404

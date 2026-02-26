@@ -60,7 +60,7 @@ def create_app() -> FastAPI:
             app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
         # SPA fallback: serve index.html for all non-API routes
-        @app.get("/{path:path}")
+        @app.get("/{path:path}", response_model=None)
         async def spa_fallback(path: str) -> FileResponse | JSONResponse:
             """Serve React SPA for non-API routes."""
             file_path = dist_dir / path

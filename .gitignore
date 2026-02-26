@@ -27,7 +27,12 @@ validation/datasets/*.json
 validation/datasets/*.xml
 validation/datasets/*.bib
 backend/
-frontend/
+# v2.0 frontend
+frontend/node_modules/
+frontend/dist/
+
+# Built web assets (generated)
+src/metascreener/web/dist/
 screen_webapp.db
 *.pkl
 backend/rag_data/
