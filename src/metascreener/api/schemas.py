@@ -167,3 +167,46 @@ class RunScreeningRequest(BaseModel):
 
     session_id: str
     seed: int = 42
+
+
+# --- Evaluation API schemas ---
+
+
+class EvaluationMetrics(BaseModel):
+    """Evaluation metrics summary.
+
+    Attributes:
+        sensitivity: True positive rate (recall).
+        specificity: True negative rate.
+        f1: F1 score (harmonic mean of precision and recall).
+        wss_at_95: Work Saved over Sampling at 95% recall.
+        auroc: Area Under the ROC Curve.
+        ece: Expected Calibration Error.
+        brier: Brier score.
+        kappa: Cohen's kappa inter-rater agreement.
+    """
+
+    sensitivity: float | None = None
+    specificity: float | None = None
+    f1: float | None = None
+    wss_at_95: float | None = None
+    auroc: float | None = None
+    ece: float | None = None
+    brier: float | None = None
+    kappa: float | None = None
+
+
+class EvaluationResponse(BaseModel):
+    """Response from evaluation computation.
+
+    Attributes:
+        session_id: Evaluation session identifier.
+        metrics: Computed evaluation metrics.
+        total_records: Total records evaluated.
+        gold_label_count: Number of gold-standard labels.
+    """
+
+    session_id: str
+    metrics: EvaluationMetrics
+    total_records: int
+    gold_label_count: int

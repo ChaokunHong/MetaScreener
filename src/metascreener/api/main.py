@@ -33,11 +33,13 @@ def create_app() -> FastAPI:
     )
 
     # API routers
+    from metascreener.api.routes.evaluation import router as evaluation_router
     from metascreener.api.routes.screening import router as screening_router
     from metascreener.api.routes.settings import router as settings_router
 
     app.include_router(settings_router)
     app.include_router(screening_router)
+    app.include_router(evaluation_router)
 
     # Health check
     @app.get("/api/health")
