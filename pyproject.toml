@@ -123,6 +123,10 @@ addopts = "--tb=short"
 [tool.coverage.run]
 source = ["src/metascreener"]
 branch = true
+omit = [
+    "src/metascreener/app/*",
+    "src/metascreener/__main__.py",
+]
 
 [tool.coverage.report]
 show_missing = true
