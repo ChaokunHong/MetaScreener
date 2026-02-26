@@ -6,6 +6,8 @@ import type {
   TestKeyResponse,
   ScreeningResultsResponse,
   EvaluationResponse,
+  ExtractionResultsResponse,
+  QualityResultsResponse,
 } from './types.ts'
 
 export function useSettings() {
@@ -54,6 +56,24 @@ export function useEvaluationResults(sessionId: string | null) {
     queryKey: ['evaluation-results', sessionId],
     queryFn: () =>
       apiGet<EvaluationResponse>(`/evaluation/results/${sessionId}`),
+    enabled: !!sessionId,
+  })
+}
+
+export function useExtractionResults(sessionId: string | null) {
+  return useQuery({
+    queryKey: ['extraction-results', sessionId],
+    queryFn: () =>
+      apiGet<ExtractionResultsResponse>(`/extraction/results/${sessionId}`),
+    enabled: !!sessionId,
+  })
+}
+
+export function useQualityResults(sessionId: string | null) {
+  return useQuery({
+    queryKey: ['quality-results', sessionId],
+    queryFn: () =>
+      apiGet<QualityResultsResponse>(`/quality/results/${sessionId}`),
     enabled: !!sessionId,
   })
 }
