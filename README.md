@@ -39,21 +39,20 @@ All three methods use the same underlying AI engine and produce identical result
 
 ## Table of Contents
 
-- [Quick Start (5 minutes)](#quick-start-5-minutes)
-- [Installation](#installation)
-  - [Option A: pip](#option-a-pip-recommended)
-  - [Option B: Docker](#option-b-docker)
-  - [Option C: From source](#option-c-from-source-for-developers)
+- [Prerequisites — What You Need Before Starting](#prerequisites--what-you-need-before-starting)
+- [Installation (Step by Step)](#installation-step-by-step)
+  - [Option A: Install with pip (recommended)](#option-a-install-with-pip-recommended)
+  - [Option B: Install in PyCharm](#option-b-install-in-pycharm)
+  - [Option C: Install with Docker (no Python needed)](#option-c-install-with-docker-no-python-needed)
+  - [Option D: Install from source (for developers)](#option-d-install-from-source-for-developers)
 - [Configuration — Get Your API Key](#configuration--get-your-api-key)
+  - [Step 1: Get a free API key](#step-1-get-a-free-api-key)
+  - [Step 2: Set the API key](#step-2-set-the-api-key)
+  - [Setting the API key in PyCharm](#setting-the-api-key-in-pycharm)
+  - [Step 3: Verify it works](#step-3-verify-it-works)
+- [Quick Start — Your First Screening](#quick-start--your-first-screening)
 - [User Guide: Web UI](#user-guide-web-ui)
 - [User Guide: Command Line](#user-guide-command-line)
-  - [Interactive Mode](#interactive-mode)
-  - [Step 1: Define Review Criteria](#step-1-define-review-criteria-metascreener-init)
-  - [Step 2: Screen Papers](#step-2-screen-papers-metascreener-screen)
-  - [Step 3: Extract Data](#step-3-extract-data-metascreener-extract)
-  - [Step 4: Assess Risk of Bias](#step-4-assess-risk-of-bias-metascreener-assess-rob)
-  - [Step 5: Evaluate Performance](#step-5-evaluate-performance-metascreener-evaluate)
-  - [Step 6: Export Results](#step-6-export-results-metascreener-export)
 - [Command Reference](#command-reference)
 - [How It Works](#how-it-works)
 - [Supported File Formats](#supported-file-formats)
@@ -66,75 +65,206 @@ All three methods use the same underlying AI engine and produce identical result
 
 ---
 
-## Quick Start (5 minutes)
+## Prerequisites — What You Need Before Starting
 
-This section gets you from zero to screening in 5 minutes.
+Before installing MetaScreener, make sure you have:
 
-### 1. Install MetaScreener
+### 1. Python 3.11 or higher
 
-```bash
-pip install metascreener
-```
+**Check if you already have Python:**
 
-> **Prerequisite:** You need Python 3.11 or higher. To check: `python --version`. If you don't have Python, see [Installation](#installation) for alternatives including Docker (no Python needed).
-
-### 2. Get a free API key
-
-MetaScreener uses cloud AI services to run its language models. You need a free API key:
-
-1. Go to [openrouter.ai](https://openrouter.ai/) and create an account
-2. Go to [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) and create a new key
-3. Copy the key (it starts with `sk-or-v1-`)
-
-### 3. Set the API key
+Open a terminal (see below) and type:
 
 ```bash
-# macOS / Linux
-export OPENROUTER_API_KEY="sk-or-v1-paste-your-key-here"
-
-# Windows PowerShell
-$env:OPENROUTER_API_KEY = "sk-or-v1-paste-your-key-here"
+python --version
 ```
 
-### 4. Launch the Web UI
+If you see `Python 3.11.x` or higher (3.12, 3.13, etc.), you're good. Skip to [Installation](#installation-step-by-step).
 
-```bash
-metascreener serve
-```
+If you see an older version, or `command not found`, you need to install Python.
 
-Open your browser to **http://localhost:8000**. You'll see the MetaScreener dashboard.
+**How to install Python:**
 
-From there:
-1. Go to **Settings** — paste your API key and save
-2. Go to **Screening** — upload your search results file (.ris, .csv, etc.)
-3. Set your criteria (or let AI generate them from a topic)
-4. Click **Run Screening** and watch results come in
+1. Go to https://www.python.org/downloads/
+2. Download Python 3.12 (or the latest 3.x version)
+3. Run the installer
+   - **IMPORTANT (Windows):** Check the box that says **"Add Python to PATH"** at the bottom of the installer. If you miss this, MetaScreener commands won't work.
+   - **macOS:** The installer handles PATH automatically.
+4. After installation, close and reopen your terminal, then verify: `python --version`
 
-**That's it!** You can also use the [command line](#user-guide-command-line) if you prefer.
+> **Windows users:** If `python --version` still doesn't work after installing, try `python3 --version` or `py --version`. Windows sometimes uses different command names.
+
+### 2. A terminal (command line)
+
+- **macOS:** Open **Terminal** (press `Cmd + Space`, type "Terminal", press Enter)
+- **Windows:** Open **PowerShell** (press `Win + X`, select "Windows PowerShell") or **Command Prompt** (press `Win + R`, type `cmd`, press Enter)
+- **Linux:** Open your distribution's terminal emulator (usually `Ctrl + Alt + T`)
+- **PyCharm:** Click **Terminal** tab at the bottom of the PyCharm window (see [PyCharm section](#option-b-install-in-pycharm) for details)
+
+### 3. An internet connection
+
+MetaScreener calls cloud AI services to run its language models. You need internet access during screening, extraction, and quality assessment.
+
+### 4. An API key (free)
+
+MetaScreener uses open-source AI models hosted by cloud providers. You need a free API key from OpenRouter or Together AI. We'll set this up in the [Configuration](#configuration--get-your-api-key) section.
 
 ---
 
-## Installation
+## Installation (Step by Step)
 
-### Option A: pip (recommended)
+### Option A: Install with pip (recommended)
 
-Requires **Python 3.11 or higher**.
+This is the simplest method. Open a terminal and run:
 
 ```bash
 pip install metascreener
 ```
 
-Verify the installation:
+**If this fails**, try one of these alternatives:
+
+```bash
+# Some systems use pip3 instead of pip
+pip3 install metascreener
+
+# If you get a "permission denied" error
+pip install --user metascreener
+
+# If you use Python 3 explicitly
+python3 -m pip install metascreener
+```
+
+**Verify the installation:**
 
 ```bash
 metascreener --help
 ```
 
-You should see a list of available commands. If you get `command not found`, make sure Python's `bin` directory is in your system PATH.
+You should see output like:
 
-### Option B: Docker
+```
+Usage: metascreener [OPTIONS] COMMAND [ARGS]...
 
-No Python installation needed — everything is bundled in the Docker image.
+  MetaScreener — AI-assisted systematic review tool.
+
+Commands:
+  assess-rob  Assess risk of bias for included studies.
+  evaluate    Evaluate screening performance against gold-standard labels.
+  export      Export results in various formats.
+  extract     Extract structured data from PDFs.
+  init        Generate structured review criteria using AI.
+  screen      Screen literature against review criteria using HCN.
+  serve       Launch the MetaScreener Web UI.
+  ui          Launch the Streamlit evaluation dashboard.
+```
+
+If you see this, MetaScreener is installed correctly. Skip to [Configuration](#configuration--get-your-api-key).
+
+**If you see "command not found":**
+
+```bash
+# Try running as a Python module
+python -m metascreener --help
+
+# Or python3
+python3 -m metascreener --help
+```
+
+If `python -m metascreener --help` works but `metascreener --help` doesn't, it means Python's scripts directory is not in your system PATH. See [Troubleshooting](#command-not-found-metascreener) for how to fix this.
+
+---
+
+### Option B: Install in PyCharm
+
+If you use **PyCharm** (a popular Python IDE), follow these steps:
+
+#### Step B1: Create a new project (or open your existing project)
+
+1. Open PyCharm
+2. Go to **File → New Project** (or open your existing project)
+3. Choose a location (e.g., `~/my-review-project`)
+4. Under **Python Interpreter**, select **Python 3.11** or higher
+   - If you don't see Python 3.11+, click the gear icon and select **Add Interpreter → System Interpreter**, then browse to your Python installation
+5. Click **Create**
+
+#### Step B2: Install MetaScreener in PyCharm
+
+**Method 1: Using PyCharm's built-in package manager**
+
+1. Go to **PyCharm → Settings** (Mac: `Cmd + ,`) or **File → Settings** (Windows/Linux: `Ctrl + Alt + S`)
+2. Navigate to **Project → Python Interpreter**
+3. Click the **+** button (top-left of the packages list)
+4. Search for **metascreener**
+5. Click **Install Package**
+6. Wait for installation to complete
+7. Close the Settings dialog
+
+**Method 2: Using PyCharm's terminal**
+
+1. Click the **Terminal** tab at the bottom of the PyCharm window
+2. Type:
+   ```bash
+   pip install metascreener
+   ```
+3. Press Enter and wait for installation to complete
+
+#### Step B3: Verify installation in PyCharm
+
+In PyCharm's Terminal tab, type:
+
+```bash
+metascreener --help
+```
+
+or:
+
+```bash
+python -m metascreener --help
+```
+
+You should see the command list. If not, make sure PyCharm is using the correct Python interpreter (the one where you installed MetaScreener).
+
+#### Step B4: Set the API key in PyCharm
+
+See [Setting the API key in PyCharm](#setting-the-api-key-in-pycharm) below.
+
+#### Step B5: Run MetaScreener in PyCharm
+
+**Option 1: Use the Terminal tab**
+
+Click the Terminal tab at the bottom of PyCharm and type commands directly:
+
+```bash
+metascreener serve                 # Launch Web UI
+metascreener screen --help         # See screening options
+```
+
+**Option 2: Create a Run Configuration**
+
+1. Go to **Run → Edit Configurations**
+2. Click **+** → **Python**
+3. Set:
+   - **Name:** MetaScreener Web UI
+   - **Module name:** `metascreener.cli` (select "Module name" instead of "Script path")
+   - **Parameters:** `serve`
+   - **Environment variables:** `OPENROUTER_API_KEY=sk-or-v1-your-key-here`
+   - **Working directory:** your project folder
+4. Click **OK**
+5. Click the green **Run** button (or press `Shift + F10`)
+
+This launches the Web UI. Open http://localhost:8000 in your browser.
+
+---
+
+### Option C: Install with Docker (no Python needed)
+
+Docker packages everything (Python, MetaScreener, all dependencies) into a single container. You don't need to install Python.
+
+**Step C1: Install Docker**
+
+Download Docker Desktop from https://www.docker.com/products/docker-desktop/ and install it.
+
+**Step C2: Pull and run MetaScreener**
 
 ```bash
 # Pull the image
@@ -150,17 +280,26 @@ docker run -e OPENROUTER_API_KEY="$OPENROUTER_API_KEY" \
   chaokunhong/metascreener screen --help
 ```
 
-> **What is Docker?** Docker is a tool that packages software with all its dependencies into a single container. If you don't have Docker installed, download it from [docker.com](https://www.docker.com/products/docker-desktop/).
+> **What is Docker?** Docker is a tool that packages software with all its dependencies into a single container. Think of it like a virtual computer that has everything pre-installed. You don't need to worry about Python versions or dependencies.
 
-### Option C: From source (for developers)
+---
 
-Requires [uv](https://docs.astral.sh/uv/) (a fast Python package manager).
+### Option D: Install from source (for developers)
+
+This method is for developers who want to modify the code. Requires [uv](https://docs.astral.sh/uv/) and [Node.js 18+](https://nodejs.org/).
 
 ```bash
 git clone https://github.com/ChaokunHong/MetaScreener.git
 cd MetaScreener
+
+# Install Python dependencies
 uv sync --extra dev
+
+# Run MetaScreener
 uv run metascreener --help
+
+# Run tests
+uv run pytest
 ```
 
 To also build the React Web UI from source:
@@ -175,46 +314,117 @@ make dev-frontend   # Start frontend dev server (terminal 2)
 
 ## Configuration — Get Your API Key
 
-MetaScreener calls open-source AI models via cloud API providers. The models themselves are free and open-source, but the cloud providers charge a small fee for running them (typically less than $0.005 per paper screened).
+MetaScreener uses open-source AI models via cloud API providers. The models themselves are free and open-source, but the cloud providers charge a small fee for running them (typically **$0.002–0.005 per paper**).
 
-### Step 1: Choose a provider and sign up
+### Step 1: Get a free API key
 
 | Provider | Free Tier | Sign-Up Link |
 |----------|-----------|-------------|
 | **OpenRouter** (recommended) | Yes | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) |
 | **Together AI** | Yes ($5 free credit) | [api.together.ai/settings/api-keys](https://api.together.ai/settings/api-keys) |
 
-### Step 2: Set the environment variable
+**How to get an OpenRouter API key:**
 
-After signing up and creating an API key:
+1. Go to https://openrouter.ai/ and click **Sign Up** (you can sign in with Google)
+2. After signing in, go to https://openrouter.ai/settings/keys
+3. Click **Create Key**
+4. Give it a name (e.g., "MetaScreener")
+5. Copy the key — it starts with `sk-or-v1-`
+6. **Save this key somewhere safe** (you'll need it in the next step)
+
+### Step 2: Set the API key
+
+You need to tell MetaScreener your API key. There are **3 ways** to do this:
+
+#### Way 1: Set via the Web UI (easiest)
+
+1. Run `metascreener serve` in your terminal
+2. Open http://localhost:8000 in your browser
+3. Go to **Settings** (click the gear icon in the sidebar)
+4. Paste your API key in the "OpenRouter API Key" field
+5. Click **Save**
+
+This saves the key to `~/.metascreener/config.yaml` and persists across sessions.
+
+#### Way 2: Set as an environment variable (for terminal users)
 
 **macOS / Linux:**
 
 ```bash
-export OPENROUTER_API_KEY="sk-or-v1-your-key-here"
+export OPENROUTER_API_KEY="sk-or-v1-paste-your-key-here"
 ```
 
-To make this permanent (so you don't have to type it every time), add the line above to your shell configuration file:
+To make this permanent (so you don't have to type it every time you open a terminal):
 
 ```bash
 # For zsh (default on macOS)
-echo 'export OPENROUTER_API_KEY="sk-or-v1-your-key-here"' >> ~/.zshrc
+echo 'export OPENROUTER_API_KEY="sk-or-v1-paste-your-key-here"' >> ~/.zshrc
 source ~/.zshrc
 
 # For bash (default on most Linux)
-echo 'export OPENROUTER_API_KEY="sk-or-v1-your-key-here"' >> ~/.bashrc
+echo 'export OPENROUTER_API_KEY="sk-or-v1-paste-your-key-here"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
 **Windows PowerShell:**
 
 ```powershell
-$env:OPENROUTER_API_KEY = "sk-or-v1-your-key-here"
+$env:OPENROUTER_API_KEY = "sk-or-v1-paste-your-key-here"
 ```
 
-To make it permanent on Windows, search for "Environment Variables" in the Start menu, click "Edit the system environment variables", then add `OPENROUTER_API_KEY` as a new user variable.
+To make it permanent on Windows:
+1. Press `Win + S` and search for "Environment Variables"
+2. Click "Edit the system environment variables"
+3. Click "Environment Variables..." at the bottom
+4. Under "User variables", click "New..."
+5. Variable name: `OPENROUTER_API_KEY`
+6. Variable value: `sk-or-v1-paste-your-key-here`
+7. Click OK on all dialogs
+8. **Restart your terminal** (or PyCharm) for the change to take effect
 
-**Or set it via the Web UI:** Launch `metascreener serve`, go to Settings, and paste your key there. This is saved to `~/.metascreener/config.yaml`.
+#### Way 3: Set in your Python code (for scripting)
+
+```python
+import os
+os.environ["OPENROUTER_API_KEY"] = "sk-or-v1-paste-your-key-here"
+```
+
+### Setting the API key in PyCharm
+
+If you're using PyCharm, there are two ways:
+
+**Way A: Set in PyCharm's terminal**
+
+1. Click the **Terminal** tab at the bottom of PyCharm
+2. Type (macOS/Linux):
+   ```bash
+   export OPENROUTER_API_KEY="sk-or-v1-paste-your-key-here"
+   ```
+   Or (Windows):
+   ```powershell
+   $env:OPENROUTER_API_KEY = "sk-or-v1-paste-your-key-here"
+   ```
+3. Now run MetaScreener commands in the same terminal window
+
+> **Note:** This only lasts for the current terminal session. If you close and reopen the terminal, you'll need to set it again.
+
+**Way B: Set in Run Configuration (permanent for PyCharm)**
+
+1. Go to **Run → Edit Configurations**
+2. Select your MetaScreener configuration (or create one)
+3. Find the **Environment variables** field
+4. Click the **...** button next to it
+5. Click **+** to add a new variable:
+   - Name: `OPENROUTER_API_KEY`
+   - Value: `sk-or-v1-paste-your-key-here`
+6. Click OK
+7. Now every time you run this configuration, the key will be set automatically
+
+**Way C: Set in PyCharm globally**
+
+1. Go to **PyCharm → Settings** (Mac) or **File → Settings** (Windows/Linux)
+2. Navigate to **Build, Execution, Deployment → Console → Python Console**
+3. Add to **Environment variables**: `OPENROUTER_API_KEY=sk-or-v1-paste-your-key-here`
 
 ### Step 3: Verify it works
 
@@ -222,17 +432,68 @@ To make it permanent on Windows, search for "Environment Variables" in the Start
 metascreener screen --input your_file.ris --dry-run
 ```
 
-If the key is set correctly, you will see `Validation passed` with model names listed. The `--dry-run` flag means no API calls are made and no money is spent.
+If the key is set correctly, you'll see a validation summary. The `--dry-run` flag means **no API calls are made and no money is spent**.
 
-### Custom model configuration (advanced)
-
-By default, MetaScreener uses 4 models defined in [`configs/models.yaml`](configs/models.yaml). You can override this:
+If you don't have a file yet, just check that the command runs:
 
 ```bash
-metascreener screen --input data.ris --config my_models.yaml
+metascreener --help
 ```
 
-Local inference via [vLLM](https://github.com/vllm-project/vllm) or [Ollama](https://ollama.com/) is also supported — see the config file for adapter options.
+---
+
+## Quick Start — Your First Screening
+
+Now that MetaScreener is installed and configured, let's do your first screening.
+
+### Using the Web UI (recommended for beginners)
+
+**Step 1:** Start MetaScreener:
+
+```bash
+metascreener serve
+```
+
+You should see output like:
+
+```
+INFO     Started server process [12345]
+INFO     Uvicorn running on http://0.0.0.0:8000
+```
+
+**Step 2:** Open your browser and go to http://localhost:8000
+
+You'll see the MetaScreener dashboard with links to each step.
+
+**Step 3:** Go to **Settings** (sidebar) and paste your API key if you haven't already.
+
+**Step 4:** Go to **Screening** (sidebar):
+1. Upload your search results file (.ris, .csv, .bib, .xlsx)
+2. Set your criteria: type your research topic and let AI generate them, or upload an existing `criteria.yaml`
+3. Click **Run Screening**
+4. Watch results appear in real time
+5. Export results as CSV, JSON, or Excel
+
+### Using the command line
+
+```bash
+# Step 1: Generate criteria from your research topic
+metascreener init --topic "antimicrobial resistance in ICU patients"
+
+# Step 2: Screen papers (title/abstract)
+metascreener screen --input search_results.ris --criteria criteria.yaml
+
+# Step 3: Export results
+metascreener export --results results/screening_results.json --format csv
+```
+
+### Using the interactive mode
+
+```bash
+metascreener
+```
+
+This launches a guided interface. Type `/init` to start, and follow the prompts step by step.
 
 ---
 
@@ -289,7 +550,7 @@ This opens at **http://localhost:8501** and provides interactive Plotly charts f
 
 ### Interactive Mode
 
-If you are new to the command line, the easiest way to start is the **interactive mode**. Run `metascreener` with no arguments:
+If you are new to the command line, the easiest way to start is the **interactive mode**:
 
 ```bash
 metascreener
@@ -298,12 +559,12 @@ metascreener
 This launches a guided terminal interface:
 
 ```
-┌──────────────────────────────────────────────────────┐
-│  MetaScreener 2.0                                    │
-│  AI-assisted systematic review tool                  │
-│                                                      │
-│  Type /help for commands, /quit to exit.             │
-└──────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│  MetaScreener 2.0                                │
+│  AI-assisted systematic review tool              │
+│                                                  │
+│  Type /help for commands, /quit to exit.         │
+└──────────────────────────────────────────────────┘
 
  Quick Start — Typical Workflow
   Step  Command      Description
@@ -318,18 +579,6 @@ metascreener>
 ```
 
 Type a command (e.g., `/init`) and follow the prompts. Each command guides you step-by-step. You don't need to memorize any flags.
-
-| Command | Description |
-| ------- | ----------- |
-| `/init` | Generate structured review criteria (PICO/PEO/SPIDER/PCC) |
-| `/screen` | Screen literature (title/abstract or full-text) |
-| `/extract` | Extract structured data from PDFs |
-| `/assess-rob` | Assess risk of bias (RoB 2 / ROBINS-I / QUADAS-2) |
-| `/evaluate` | Evaluate screening performance and compute metrics |
-| `/export` | Export results (CSV, JSON, Excel, RIS) |
-| `/status` | Show current working files and project state |
-| `/help` | Show all available commands |
-| `/quit` | Exit MetaScreener |
 
 ### Typical Workflow
 
@@ -461,13 +710,6 @@ This validates your file, counts records, and confirms which models will be used
 | `--seed INTEGER` | | Random seed for reproducibility (default: `42`) |
 | `--dry-run` | | Validate inputs without running screening (no API calls) |
 
-**Output files:**
-
-| File | Description |
-|------|-------------|
-| `results/screening_results.json` | Decision, tier, score, and confidence for each paper |
-| `results/audit_trail.json` | Full audit trail with model outputs, rule violations, and prompt hashes |
-
 ---
 
 ### Step 3: Extract Data (`metascreener extract`)
@@ -476,10 +718,7 @@ After screening, extract structured data from the included PDFs.
 
 **Step 3a: Create an extraction form**
 
-First, define what data you want to extract:
-
 ```bash
-# AI-generated form based on your research topic
 metascreener extract init-form --topic "antimicrobial stewardship in ICU"
 ```
 
@@ -515,13 +754,6 @@ Supported field types: `text`, `integer`, `float`, `boolean`, `date`, `list`, `c
 metascreener extract --pdfs papers/ --form extraction_form.yaml
 ```
 
-Place your PDFs in a folder (e.g., `papers/`). MetaScreener will:
-1. Extract text from each PDF
-2. Split long documents into manageable chunks
-3. Send each chunk to 4 AI models
-4. Merge results using majority-vote consensus
-5. Validate extracted values against the field definitions
-
 **All options:**
 
 | Option | Short | Description |
@@ -531,17 +763,9 @@ Place your PDFs in a folder (e.g., `papers/`). MetaScreener will:
 | `--output PATH` | `-o` | Output directory (default: `results/`) |
 | `--dry-run` | | Validate inputs without running extraction |
 
-| Subcommand | Description |
-|------------|-------------|
-| `metascreener extract init-form --topic TEXT` | Generate an extraction form using AI |
-
-**Output:** `results/extraction_results.json` with structured data for each PDF.
-
 ---
 
 ### Step 4: Assess Risk of Bias (`metascreener assess-rob`)
-
-Assess the quality of included studies using standardized tools:
 
 ```bash
 # RoB 2 — for randomized controlled trials (5 domains, 22 signaling questions)
@@ -554,13 +778,6 @@ metascreener assess-rob --pdfs papers/ --tool robins-i
 metascreener assess-rob --pdfs papers/ --tool quadas2
 ```
 
-For each study, MetaScreener:
-1. Extracts text from the PDF
-2. Sends each domain's signaling questions to 4 AI models
-3. Uses worst-case merging per domain (most pessimistic judgment wins per model)
-4. Applies majority-vote consensus across models
-5. Determines an overall risk-of-bias judgment
-
 **All options:**
 
 | Option | Short | Description |
@@ -571,8 +788,6 @@ For each study, MetaScreener:
 | `--seed INTEGER` | `-s` | Random seed (default: `42`) |
 | `--dry-run` | | Validate inputs without running |
 
-**Output:** `results/rob_results.json` with per-domain judgments, signaling question responses, and rationale.
-
 ---
 
 ### Step 5: Evaluate Performance (`metascreener evaluate`)
@@ -580,10 +795,6 @@ For each study, MetaScreener:
 If you have gold-standard labels (e.g., from human reviewers), evaluate MetaScreener's accuracy:
 
 ```bash
-# Basic evaluation
-metascreener evaluate --labels gold_standard.csv
-
-# With interactive charts
 metascreener evaluate --labels gold_standard.csv --predictions results/screening_results.json --visualize
 ```
 
@@ -596,39 +807,25 @@ def456,0
 ghi789,1
 ```
 
-Where `1` = include, `0` = exclude. The `record_id` must match the IDs in your screening results.
+Where `1` = include, `0` = exclude.
 
 **Metrics computed:**
 
 | Metric | What it measures |
 |--------|-----------------|
-| Sensitivity (Recall) | Of all relevant papers, how many did MetaScreener find? (higher = better, target ≥95%) |
+| Sensitivity (Recall) | Of all relevant papers, how many did MetaScreener find? (target ≥95%) |
 | Specificity | Of all irrelevant papers, how many did MetaScreener correctly exclude? |
 | F1 Score | Balance between precision and recall |
 | WSS@95 | Work saved compared to screening everything, at 95% recall |
 | AUROC | Overall discriminative ability (0.5 = random, 1.0 = perfect) |
 | ECE | Calibration error — how well confidence scores match actual accuracy |
-| Brier Score | Mean squared prediction error (lower = better) |
 | Cohen's Kappa | Agreement between MetaScreener and human reviewers |
 
 All metrics include bootstrap 95% confidence intervals (1000 iterations).
 
-**All options:**
-
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--labels PATH` | `-l` | **(Required)** Gold-standard labels CSV |
-| `--predictions PATH` | `-p` | Predictions JSON file |
-| `--visualize` | | Generate interactive HTML charts (ROC, calibration, score distribution) |
-| `--output PATH` | `-o` | Output directory (default: `results/`) |
-| `--seed INTEGER` | `-s` | Bootstrap random seed (default: `42`) |
-| `--dry-run` | | Validate inputs only |
-
 ---
 
 ### Step 6: Export Results (`metascreener export`)
-
-Export results for use in other tools (Covidence, Rayyan, Excel, etc.):
 
 ```bash
 # Export as CSV
@@ -637,14 +834,6 @@ metascreener export --results results/screening_results.json --format csv
 # Multiple formats at once
 metascreener export --results results/screening_results.json --format csv,json,excel,ris
 ```
-
-**All options:**
-
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--results PATH` | `-r` | **(Required)** Path to screening results JSON |
-| `--format TEXT` | `-f` | Comma-separated: `csv`, `json`, `excel`, `audit`, `ris` (default: `csv`) |
-| `--output PATH` | `-o` | Output directory (default: `export/`) |
 
 **Output formats:**
 
@@ -659,8 +848,6 @@ metascreener export --results results/screening_results.json --format csv,json,e
 ---
 
 ## Command Reference
-
-Quick reference for all commands:
 
 ```bash
 # Help
@@ -745,7 +932,6 @@ Decision + Confidence Score + Full Audit Trail (per paper)
 
 ### Why 4 models instead of 1?
 
-Using multiple models has key advantages:
 - **No single point of failure** — if one model makes an error, the others catch it
 - **Calibrated confidence** — when all 4 agree, you can be very confident; when they disagree, the paper is flagged for human review
 - **Recall-biased design** — the system is deliberately designed to err on the side of inclusion, ensuring you don't miss relevant papers
@@ -810,31 +996,52 @@ MetaScreener is designed for scientific publication. Every design decision prior
 
 ### "command not found: metascreener"
 
-**Cause:** Python's `bin` directory is not in your PATH.
+**Cause:** Python's `bin` / `Scripts` directory is not in your PATH.
 
-**Fix:**
+**Fix (try in order):**
+
 ```bash
-# Try running with python -m
+# 1. Try as a Python module
 python -m metascreener --help
 
-# Or find where pip installed it
+# 2. Try with python3
+python3 -m metascreener --help
+
+# 3. Find where pip installed it
 pip show metascreener
+# Look at the "Location:" line — it tells you where the package is
+
+# 4. On macOS/Linux, add Python's bin to PATH
+export PATH="$HOME/.local/bin:$PATH"
+
+# 5. On Windows, find the Scripts folder and add to PATH
+# Usually: C:\Users\YourName\AppData\Local\Programs\Python\Python311\Scripts
 ```
+
+**PyCharm-specific fix:** Make sure PyCharm is using the right Python interpreter:
+1. Go to **File → Settings → Project → Python Interpreter**
+2. Check that MetaScreener is listed in the packages
+3. If not, click **+** and install it
 
 ### "OPENROUTER_API_KEY not set"
 
 **Cause:** The environment variable is not set in your current terminal session.
 
 **Fix:**
+
 ```bash
 # Check if it's set
-echo $OPENROUTER_API_KEY
+echo $OPENROUTER_API_KEY    # macOS/Linux
+echo $env:OPENROUTER_API_KEY  # Windows PowerShell
 
 # If empty, set it
-export OPENROUTER_API_KEY="sk-or-v1-your-key-here"
+export OPENROUTER_API_KEY="sk-or-v1-your-key-here"  # macOS/Linux
+$env:OPENROUTER_API_KEY = "sk-or-v1-your-key-here"  # Windows PowerShell
 ```
 
 Or use the Web UI: `metascreener serve` → Settings → paste your key.
+
+**PyCharm-specific:** See [Setting the API key in PyCharm](#setting-the-api-key-in-pycharm) above.
 
 ### "API error: 401 Unauthorized"
 
@@ -853,22 +1060,27 @@ Or use the Web UI: `metascreener serve` → Settings → paste your key.
 **Cause:** MetaScreener is not installed in the current Python environment.
 
 **Fix:**
+
 ```bash
 pip install metascreener
-# or, if using uv:
-uv pip install metascreener
 ```
+
+**PyCharm-specific:** Make sure MetaScreener is installed in the same Python interpreter that PyCharm is using:
+1. Go to **File → Settings → Project → Python Interpreter**
+2. Check if `metascreener` appears in the package list
+3. If not, click **+**, search for `metascreener`, and install it
 
 ### The Web UI shows a blank page
 
-**Cause:** The frontend assets may not be built.
+**Cause:** The frontend assets may not be included in your installation.
 
 **Fix:**
+
 ```bash
-# If installed via pip, reinstall:
+# Reinstall
 pip install --force-reinstall metascreener
 
-# If running from source:
+# If running from source, build the frontend first:
 cd frontend && npm ci && npm run build
 ```
 
@@ -878,9 +1090,18 @@ cd frontend && npm ci && npm run build
 
 **Tips:**
 - Use `--dry-run` first to validate your input
-- Papers are processed sequentially to respect rate limits
 - Typical speed: 1-3 seconds per paper
 - For large datasets (>5000 papers), consider running overnight
+
+### PyCharm can't find the metascreener command
+
+**Cause:** PyCharm may be using a different Python environment than your system.
+
+**Fix:**
+1. Open PyCharm's Terminal tab
+2. Check which Python is active: `python --version` and `which python` (macOS/Linux) or `where python` (Windows)
+3. Install metascreener in that specific environment: `pip install metascreener`
+4. Verify: `python -m metascreener --help`
 
 ---
 
@@ -921,6 +1142,19 @@ Performance depends on the dataset and criteria. In our validation experiments:
 - **WSS@95:** ≥45% — saves at least 45% of screening effort at 95% recall
 
 Papers flagged as HUMAN_REVIEW should always be checked manually.
+
+### I installed MetaScreener but nothing happens when I type the command
+
+This usually means one of three things:
+1. **Wrong Python version:** MetaScreener requires Python 3.11+. Check: `python --version`
+2. **PATH issue:** Python's scripts directory isn't in your PATH. Try: `python -m metascreener --help`
+3. **Wrong environment:** If using PyCharm or conda, make sure you installed MetaScreener in the active environment. See [PyCharm section](#option-b-install-in-pycharm).
+
+### How do I update MetaScreener?
+
+```bash
+pip install --upgrade metascreener
+```
 
 ---
 
@@ -974,15 +1208,6 @@ uv run mypy src/
 
 # Build everything (frontend + Python wheel)
 make build
-```
-
-### Building the frontend from source
-
-```bash
-cd frontend
-npm ci          # Install dependencies
-npm run build   # Build to src/metascreener/web/dist/
-npm run dev     # Start dev server with hot-reload
 ```
 
 ---
