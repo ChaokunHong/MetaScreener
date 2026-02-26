@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Header } from '../components/layout/Header'
 import { GlassCard } from '../components/glass/GlassCard'
 import { GlassButton } from '../components/glass/GlassButton'
@@ -18,6 +19,16 @@ import {
   X,
 } from 'lucide-react'
 
+function downloadBlob(content: string, filename: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 const STEPS = ['Upload Form', 'Upload PDFs', 'Extract & Review']
 
 interface UploadedFile {
@@ -32,6 +43,7 @@ function formatFileSize(bytes: number): string {
 }
 
 export function Extraction() {
+  const queryClient = useQueryClient()
   const [step, setStep] = useState(0)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [formFilename, setFormFilename] = useState<string | null>(null)
@@ -41,6 +53,7 @@ export function Extraction() {
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [editedResults, setEditedResults] = useState<Record<string, unknown>[] | null>(null)
 
   const { data: extractionData } = useExtractionResults(
     step === 2 ? sessionId : null,
@@ -144,6 +157,8 @@ export function Extraction() {
     setError(null)
     try {
       await apiPost(`/extraction/run/${sessionId}`)
+      setEditedResults(null)
+      void queryClient.invalidateQueries({ queryKey: ['extraction-results'] })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Extraction failed')
     } finally {
@@ -151,9 +166,42 @@ export function Extraction() {
     }
   }
 
-  const results = extractionData?.results ?? []
+  const rawResults = extractionData?.results ?? []
+  const results = editedResults ?? rawResults
   const resultColumns =
     results.length > 0 ? Object.keys(results[0]) : []
+
+  const handleCellEdit = (rowIdx: number, col: string, value: string) => {
+    const updated = [...results]
+    updated[rowIdx] = { ...updated[rowIdx], [col]: value }
+    setEditedResults(updated)
+  }
+
+  const handleExportCSV = () => {
+    if (results.length === 0) return
+    const cols = resultColumns
+    const header = cols.join(',')
+    const rows = results.map((row) =>
+      cols.map((col) => {
+        const val = String(row[col] ?? '')
+        return val.includes(',') || val.includes('"') || val.includes('\n')
+          ? `"${val.replace(/"/g, '""')}"`
+          : val
+      }).join(','),
+    )
+    downloadBlob([header, ...rows].join('\n'), 'extraction_results.csv', 'text/csv')
+  }
+
+  const handleExportJSON = () => {
+    if (results.length === 0) return
+    downloadBlob(JSON.stringify(results, null, 2), 'extraction_results.json', 'application/json')
+  }
+
+  const handleExportExcel = () => {
+    // Excel export requires xlsx library; fall back to CSV download
+    alert('Excel export requires the xlsx library. Downloading as CSV instead.')
+    handleExportCSV()
+  }
 
   return (
     <>
@@ -370,17 +418,17 @@ export function Extraction() {
                     Extraction Results
                   </h3>
                   <div className="flex gap-2">
-                    <GlassButton variant="outline" size="sm">
+                    <GlassButton variant="outline" size="sm" onClick={handleExportCSV}>
                       <span className="flex items-center gap-2">
                         <Download size={14} /> CSV
                       </span>
                     </GlassButton>
-                    <GlassButton variant="outline" size="sm">
+                    <GlassButton variant="outline" size="sm" onClick={handleExportJSON}>
                       <span className="flex items-center gap-2">
                         <Download size={14} /> JSON
                       </span>
                     </GlassButton>
-                    <GlassButton variant="outline" size="sm">
+                    <GlassButton variant="outline" size="sm" onClick={handleExportExcel}>
                       <span className="flex items-center gap-2">
                         <Download size={14} /> Excel
                       </span>
@@ -414,7 +462,12 @@ export function Extraction() {
                           {resultColumns.map((col) => (
                             <td
                               key={col}
-                              className="text-white/80 py-2 px-3"
+                              contentEditable
+                              suppressContentEditableWarning
+                              onBlur={(e) => {
+                                handleCellEdit(rowIdx, col, e.currentTarget.textContent ?? '')
+                              }}
+                              className="text-white/80 py-2 px-3 cursor-text focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:bg-white/5 rounded"
                             >
                               {String(row[col] ?? '\u2014')}
                             </td>
