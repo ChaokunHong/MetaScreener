@@ -2,7 +2,7 @@
 # MetaScreener 2.0 — Multi-stage Docker Build
 # ============================================================
 # Targets:
-#   slim  — daily use (metascreener CLI + Streamlit UI)
+#   slim  — daily use (metascreener CLI + React Web UI + Streamlit)
 #   full  — reproduction (validation experiments + paper outputs)
 #
 # Build:
@@ -10,10 +10,21 @@
 #   docker build -f docker/Dockerfile --target full -t metascreener:full .
 #
 # Run:
+#   docker run -p 8000:8000 metascreener serve --host 0.0.0.0
 #   docker run metascreener screen --help
 #   docker run -p 8501:8501 metascreener ui
 #   docker run metascreener:full bash scripts/run_all_validations.sh --mock
 # ============================================================
+
+# ---- Node: Build React frontend ----
+FROM node:22-slim AS frontend-builder
+
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ .
+RUN npm run build
+# Output: /app/src/metascreener/web/dist/ (Vite outDir)
 
 # ---- Base: Python + uv + runtime dependencies ----
 FROM python:3.11-slim AS base
@@ -36,6 +47,10 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY README.md ./
 COPY src/ src/
 COPY configs/ configs/
+
+# Copy frontend build artifacts from Node stage
+COPY --from=frontend-builder /app/src/metascreener/web/dist/ src/metascreener/web/dist/
+
 RUN uv sync --frozen --no-dev
 
 # ---- Slim: Daily use image ----
@@ -46,9 +61,10 @@ LABEL org.opencontainers.image.title="MetaScreener" \
       org.opencontainers.image.source="https://github.com/ChaokunHong/MetaScreener" \
       org.opencontainers.image.licenses="Apache-2.0"
 
-EXPOSE 8501
+EXPOSE 8000 8501
 
 ENTRYPOINT ["uv", "run", "metascreener"]
+CMD ["serve", "--host", "0.0.0.0"]
 
 # ---- Full: Reproduction image ----
 FROM base AS full
