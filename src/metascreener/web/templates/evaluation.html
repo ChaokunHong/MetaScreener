@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Evaluation{% endblock %}
+
+{% block content %}
+<h2><i class="bi bi-bar-chart-line me-2"></i>Evaluation</h2>
+<p class="text-muted">Compare screening results against gold-standard labels and compute performance metrics.</p>
+
+<!-- ── Upload Gold Labels ──────────────────────────────────── -->
+<div class="section-card">
+    <h3>Upload Gold-Standard Labels</h3>
+    <p class="text-muted small">
+        Upload a file containing ground-truth include/exclude labels.
+        Accepted column names: <code>label</code>, <code>decision</code>, <code>include</code>.
+        Accepted formats: RIS, CSV, BibTeX, Excel, XML.
+    </p>
+
+    <div class="upload-zone mb-3" id="label-zone" onclick="document.getElementById('label-file').click()">
+        <div class="upload-icon"><i class="bi bi-file-earmark-check"></i></div>
+        <p class="mb-1">Click or drag &amp; drop your gold-standard labels file</p>
+        <p class="text-muted small mb-0">RIS · CSV · BibTeX · Excel · XML</p>
+    </div>
+    <input type="file" id="label-file" class="d-none"
+           accept=".ris,.bib,.csv,.xlsx,.xls,.xml">
+    <div id="label-result" class="d-none mb-3">
+        <div class="alert alert-success d-flex align-items-center gap-2 mb-0">
+            <i class="bi bi-check-circle-fill"></i>
+            <div>
+                Loaded <strong id="label-count">—</strong> labels from
+                <strong id="label-filename">—</strong>
+            </div>
+        </div>
+    </div>
+
+    <label class="form-label fw-medium mt-2">Link to Screening Session (optional)</label>
+    <select class="form-select mb-3" id="session-select" style="max-width:420px;">
+        <option value="">— Auto-match by record ID —</option>
+    </select>
+
+    <button class="btn btn-primary" id="eval-btn" disabled>
+        <i class="bi bi-calculator me-1"></i>Run Evaluation
+    </button>
+</div>
+
+<!-- ── Metrics ─────────────────────────────────────────────── -->
+<div id="metrics-section" style="display:none;">
+
+    <div class="section-card">
+        <h3>Performance Metrics</h3>
+        <div class="row g-3" id="metrics-grid"></div>
+    </div>
+
+    <!-- Charts -->
+    <div class="section-card">
+        <h3>Visualisation</h3>
+        <ul class="nav nav-pills mb-3" id="chart-tabs">
+            <li class="nav-item">
+                <button class="nav-link active" onclick="switchChart('roc', this)">ROC Curve</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" onclick="switchChart('cal', this)">Calibration</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" onclick="switchChart('dist', this)">Score Distribution</button>
+            </li>
+        </ul>
+        <div style="max-height:340px; position:relative;">
+            <canvas id="chart-roc"  style="display:block;"></canvas>
+            <canvas id="chart-cal"  style="display:none;"></canvas>
+            <canvas id="chart-dist" style="display:none;"></canvas>
+        </div>
+        <div class="mt-2 d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-secondary btn-sm" onclick="exportChart()">
+                <i class="bi bi-download me-1"></i>Export Chart PNG
+            </button>
+        </div>
+    </div>
+
+    <!-- Lancet format -->
+    <div class="section-card">
+        <h3>Lancet Digital Health Format</h3>
+        <p class="text-muted small">
+            Uses middle dot (·) for decimals and en dash (–) for ranges, per Lancet style.
+        </p>
+        <textarea class="form-control font-monospace" id="lancet-output" rows="6" readonly></textarea>
+        <button class="btn btn-outline-primary btn-sm mt-2" onclick="copyLancet()">
+            <i class="bi bi-clipboard me-1"></i>Copy to Clipboard
+        </button>
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/evaluation.js"></script>
+{% endblock %}

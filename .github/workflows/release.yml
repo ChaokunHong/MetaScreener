@@ -30,9 +30,6 @@ jobs:
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
 
-      - name: Create frontend placeholder (built separately, not needed for tests)
-        run: mkdir -p src/metascreener/web/dist
-
       - name: Install dependencies
         run: uv sync --extra dev
 
@@ -57,14 +54,6 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Build frontend
-        run: cd frontend && npm ci && npm run build
 
       - name: Build package
         run: uv build

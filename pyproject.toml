@@ -41,6 +41,7 @@ dependencies = [
     "rich>=13.0",
     "openpyxl>=3.1",
     "fastapi>=0.115",
+    "jinja2>=3.1",
     "python-multipart>=0.0.9",
     "uvicorn[standard]>=0.32",
 ]
@@ -57,6 +58,8 @@ dev = [
 ]
 gpu = ["vllm>=0.6"]
 viz = ["matplotlib>=3.9", "seaborn>=0.13", "kaleido>=0.2"]
+desktop = ["pywebview>=5.3"]
+desktop-build = ["pywebview>=5.3", "pyinstaller>=6.11"]
 
 [project.scripts]
 metascreener = "metascreener.cli:app"
@@ -77,11 +80,6 @@ packages = ["src/metascreener"]
 [tool.hatch.build.targets.sdist]
 include = ["src/", "configs/", "README.md", "pyproject.toml"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"src/metascreener/web/dist" = "metascreener/web/dist"
-
-[tool.hatch.build.targets.sdist.force-include]
-"src/metascreener/web/dist" = "src/metascreener/web/dist"
 
 [tool.ruff]
 line-length = 100

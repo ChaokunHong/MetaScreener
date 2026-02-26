@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Data Extraction{% endblock %}
+
+{% block content %}
+<h2><i class="bi bi-table me-2"></i>Data Extraction</h2>
+<p class="text-muted">Extract structured data from PDFs using a custom YAML form and multi-LLM consensus.</p>
+
+<!-- Step indicator -->
+<div class="step-indicator mb-4">
+    <div class="step-circle active" id="e1-circle">1</div>
+    <span class="step-label active"  id="e1-label">Upload PDFs</span>
+    <div class="step-line" id="eline-12"></div>
+    <div class="step-circle" id="e2-circle">2</div>
+    <span class="step-label" id="e2-label">Upload Form</span>
+    <div class="step-line" id="eline-23"></div>
+    <div class="step-circle" id="e3-circle">3</div>
+    <span class="step-label" id="e3-label">Extract &amp; Results</span>
+</div>
+
+<!-- ── Step 1: Upload PDFs ─────────────────────────────────── -->
+<div class="section-card" id="estep1">
+    <h3>Step 1 — Upload PDF Files</h3>
+    <p class="text-muted small">Upload one or more study PDFs. Full text will be extracted automatically.</p>
+
+    <div class="upload-zone mb-3" id="pdf-zone" onclick="document.getElementById('pdf-files').click()">
+        <div class="upload-icon"><i class="bi bi-file-earmark-pdf"></i></div>
+        <p class="mb-1">Click or drag &amp; drop PDF files here</p>
+        <p class="text-muted small mb-0">Select multiple files at once</p>
+    </div>
+    <input type="file" id="pdf-files" class="d-none" accept=".pdf" multiple>
+
+    <div id="pdf-result" class="d-none mb-3">
+        <div class="alert alert-success d-flex align-items-center gap-2 mb-0">
+            <i class="bi bi-check-circle-fill"></i>
+            <div>Uploaded <strong id="pdf-count">—</strong> PDF(s)</div>
+        </div>
+    </div>
+
+    <button class="btn btn-primary" id="pdf-upload-btn" disabled>
+        <i class="bi bi-upload me-1"></i>Upload PDFs &amp; Continue
+    </button>
+</div>
+
+<!-- ── Step 2: Upload Form ─────────────────────────────────── -->
+<div class="section-card" id="estep2" style="display:none;">
+    <h3>Step 2 — Upload Extraction Form (YAML)</h3>
+
+    <div class="info-box mb-3">
+        <i class="bi bi-lightbulb me-1"></i>
+        The YAML form defines what data to extract. Example:
+        <pre class="mt-2 mb-0" style="font-size:0.8em; background:transparent; border:none; padding:0;">form_name: "My Study Form"
+fields:
+  - name: "author"
+    type: "TEXT"
+    required: true
+  - name: "sample_size"
+    type: "INTEGER"
+    required: false</pre>
+    </div>
+
+    <div class="upload-zone mb-3" id="form-zone" onclick="document.getElementById('form-file').click()">
+        <div class="upload-icon"><i class="bi bi-file-earmark-code"></i></div>
+        <p class="mb-1">Click or drag &amp; drop your YAML extraction form</p>
+        <p class="text-muted small mb-0">.yaml or .yml</p>
+    </div>
+    <input type="file" id="form-file" class="d-none" accept=".yaml,.yml">
+
+    <label class="form-label fw-medium mt-2">Or paste YAML directly</label>
+    <textarea class="form-control font-monospace" id="form-yaml" rows="6"
+              placeholder="form_name: My Form&#10;fields:&#10;  - name: author&#10;    type: TEXT"></textarea>
+
+    <div class="mt-3">
+        <button class="btn btn-primary" id="form-upload-btn">
+            <i class="bi bi-arrow-right-circle me-1"></i>Apply Form &amp; Continue
+        </button>
+    </div>
+</div>
+
+<!-- ── Step 3: Run + Results ───────────────────────────────── -->
+<div class="section-card" id="estep3" style="display:none;">
+    <h3>Step 3 — Extract Data</h3>
+    <p class="text-muted small" id="ext-info">Ready to extract.</p>
+
+    <div class="warning-box mb-3">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        Data extraction is experimental. Always review AI-extracted values against the source PDFs.
+    </div>
+
+    <button class="btn btn-primary btn-lg mb-3" id="extract-btn">
+        <i class="bi bi-cpu me-1"></i>Extract Data
+    </button>
+
+    <div id="ext-progress" class="d-none">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="spinner-border spinner-border-sm text-primary"></div>
+            <span class="small text-muted">Extracting with multi-LLM consensus…</span>
+        </div>
+    </div>
+
+    <!-- Results table -->
+    <div id="ext-results" style="display:none;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <strong id="ext-result-title">Extracted Data</strong>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary btn-sm" onclick="exportExtraction('csv')">
+                    <i class="bi bi-download me-1"></i>CSV
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="exportExtraction('json')">
+                    <i class="bi bi-download me-1"></i>JSON
+                </button>
+            </div>
+        </div>
+        <div class="table-scroll">
+            <table class="table table-sm table-hover mb-0" id="ext-table">
+                <thead id="ext-thead"></thead>
+                <tbody id="ext-tbody"></tbody>
+            </table>
+        </div>
+        <p class="text-muted small mt-2">
+            <i class="bi bi-check-circle text-success me-1"></i> = all models agreed &nbsp;
+            <i class="bi bi-exclamation-triangle text-warning me-1"></i> = discrepancy, review required
+        </p>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/extraction.js"></script>
+{% endblock %}
