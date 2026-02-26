@@ -102,3 +102,68 @@ class TestKeyResponse(BaseModel):
 
     valid: bool
     message: str
+
+
+# --- Screening API schemas ---
+
+
+class UploadResponse(BaseModel):
+    """Response after uploading a file for screening.
+
+    Attributes:
+        session_id: Unique session identifier for this upload.
+        record_count: Number of records parsed from the file.
+        filename: Original uploaded filename.
+    """
+
+    session_id: str
+    record_count: int
+    filename: str
+
+
+class ScreeningRecordSummary(BaseModel):
+    """Summary of a single screening decision.
+
+    Attributes:
+        record_id: Unique record identifier.
+        title: Title of the screened paper.
+        decision: Screening decision (INCLUDE, EXCLUDE, HUMAN_REVIEW).
+        tier: Decision tier (TIER_0 through TIER_3).
+        score: Calibrated ensemble inclusion score.
+        confidence: Ensemble confidence score.
+    """
+
+    record_id: str
+    title: str
+    decision: str
+    tier: str
+    score: float
+    confidence: float
+
+
+class ScreeningResultsResponse(BaseModel):
+    """Response containing screening results for a session.
+
+    Attributes:
+        session_id: Session identifier.
+        total: Total number of records in the session.
+        completed: Number of records that have been screened.
+        results: Per-record screening decision summaries.
+    """
+
+    session_id: str
+    total: int
+    completed: int
+    results: list[ScreeningRecordSummary]
+
+
+class RunScreeningRequest(BaseModel):
+    """Request to start a screening run.
+
+    Attributes:
+        session_id: Session identifier from upload.
+        seed: Random seed for reproducibility.
+    """
+
+    session_id: str
+    seed: int = 42
