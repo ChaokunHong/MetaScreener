@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react'
+import { Fragment, useState, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Header } from '../components/layout/Header'
 import { GlassCard } from '../components/glass/GlassCard'
 import { GlassButton } from '../components/glass/GlassButton'
@@ -17,6 +18,16 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react'
+
+function downloadBlob(content: string, filename: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 type RoBTool = 'rob2' | 'robins_i' | 'quadas2'
 
@@ -72,6 +83,7 @@ function formatFileSize(bytes: number): string {
 }
 
 export function Quality() {
+  const queryClient = useQueryClient()
   const [selectedTool, setSelectedTool] = useState<RoBTool>('rob2')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [pdfCount, setPdfCount] = useState(0)
@@ -131,6 +143,7 @@ export function Quality() {
     try {
       await apiPost(`/quality/run/${sessionId}?tool=${selectedTool}`)
       setHasRun(true)
+      void queryClient.invalidateQueries({ queryKey: ['quality-results'] })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Assessment failed')
     } finally {
@@ -160,6 +173,33 @@ export function Quality() {
     if (domains && typeof domains === 'object' && !Array.isArray(domains)) {
       domainColumns.push(...Object.keys(domains as Record<string, unknown>))
     }
+  }
+
+  const handleExportJSON = () => {
+    if (results.length === 0) return
+    downloadBlob(JSON.stringify(results, null, 2), 'quality_results.json', 'application/json')
+  }
+
+  const handleExportExcel = () => {
+    // Excel export requires xlsx library; fall back to CSV download
+    if (results.length === 0) return
+    const header = ['Study', ...domainColumns, 'Overall'].join(',')
+    const rows = results.map((row, idx) => {
+      const domains = (row['domains'] as Record<string, Record<string, string>> | undefined) ?? {}
+      const overall = String(row['overall'] ?? 'UNCLEAR')
+      const studyId = String(row['record_id'] ?? row['study_id'] ?? `Study ${idx + 1}`)
+      const domainValues = domainColumns.map((domain) => {
+        const domainData = domains[domain]
+        return typeof domainData === 'object' && domainData !== null
+          ? String(domainData['judgement'] ?? 'UNCLEAR')
+          : typeof domainData === 'string'
+            ? domainData
+            : 'UNCLEAR'
+      })
+      return [studyId, ...domainValues, overall].join(',')
+    })
+    alert('Excel export requires the xlsx library. Downloading as CSV instead.')
+    downloadBlob([header, ...rows].join('\n'), 'quality_results.csv', 'text/csv')
   }
 
   return (
@@ -322,12 +362,12 @@ export function Quality() {
                 Risk of Bias Results ({qualityData?.tool?.toUpperCase()})
               </h3>
               <div className="flex gap-2">
-                <GlassButton variant="outline" size="sm">
+                <GlassButton variant="outline" size="sm" onClick={handleExportJSON}>
                   <span className="flex items-center gap-2">
                     <Download size={14} /> JSON
                   </span>
                 </GlassButton>
-                <GlassButton variant="outline" size="sm">
+                <GlassButton variant="outline" size="sm" onClick={handleExportExcel}>
                   <span className="flex items-center gap-2">
                     <Download size={14} /> Excel
                   </span>
@@ -385,9 +425,8 @@ export function Quality() {
                     const isExpanded = expandedRows.has(idx)
 
                     return (
-                      <>
+                      <Fragment key={idx}>
                         <tr
-                          key={`row-${idx}`}
                           className="border-b border-white/5 hover:bg-white/5 cursor-pointer"
                           onClick={() => toggleRow(idx)}
                         >
@@ -429,7 +468,7 @@ export function Quality() {
                           </td>
                         </tr>
                         {isExpanded && (
-                          <tr key={`detail-${idx}`} className="border-b border-white/5">
+                          <tr className="border-b border-white/5">
                             <td />
                             <td
                               colSpan={domainColumns.length + 1}
@@ -472,7 +511,7 @@ export function Quality() {
                             </td>
                           </tr>
                         )}
-                      </>
+                      </Fragment>
                     )
                   })}
                 </tbody>

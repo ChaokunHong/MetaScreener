@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Header } from '../components/layout/Header'
 import { GlassCard } from '../components/glass/GlassCard'
 import { GlassButton } from '../components/glass/GlassButton'
@@ -33,6 +34,16 @@ import {
 } from 'recharts'
 
 type ChartTab = 'roc' | 'calibration' | 'distribution'
+
+function downloadBlob(content: string, filename: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 // Sample data for chart placeholders (populated after evaluation runs)
 const ROC_DATA = [
@@ -94,6 +105,7 @@ function formatLancet(label: string, value: number | null): string {
 }
 
 export function Evaluation() {
+  const queryClient = useQueryClient()
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [goldLabelCount, setGoldLabelCount] = useState(0)
   const [totalRecords, setTotalRecords] = useState(0)
@@ -151,11 +163,32 @@ export function Evaluation() {
     setError(null)
     try {
       await apiPost(`/evaluation/run/${sessionId}`)
+      void queryClient.invalidateQueries({ queryKey: ['evaluation-results'] })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Evaluation failed')
     } finally {
       setRunning(false)
     }
+  }
+
+  const handleExportCSV = () => {
+    if (!metrics) return
+    const header = 'Metric,Value'
+    const rows = METRIC_CARDS.map(
+      (card) => `${card.label},${formatMetric(metrics[card.key])}`,
+    )
+    const csv = [header, ...rows].join('\n')
+    downloadBlob(csv, 'evaluation_metrics.csv', 'text/csv')
+  }
+
+  const handleExportPNG = () => {
+    // Requires html-to-image / canvas library for chart export
+    alert('PNG export requires a canvas rendering library. Use browser screenshot or export as CSV.')
+  }
+
+  const handleExportSVG = () => {
+    // Requires html-to-image / canvas library for chart export
+    alert('SVG export requires a canvas rendering library. Use browser screenshot or export as CSV.')
   }
 
   const lancetText = metrics
@@ -455,17 +488,17 @@ export function Evaluation() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <GlassButton variant="outline" size="sm">
+                <GlassButton variant="outline" size="sm" onClick={handleExportPNG}>
                   <span className="flex items-center gap-2">
                     <Image size={14} /> Export PNG (300 DPI)
                   </span>
                 </GlassButton>
-                <GlassButton variant="outline" size="sm">
+                <GlassButton variant="outline" size="sm" onClick={handleExportSVG}>
                   <span className="flex items-center gap-2">
                     <FileCode size={14} /> Export SVG
                   </span>
                 </GlassButton>
-                <GlassButton variant="outline" size="sm">
+                <GlassButton variant="outline" size="sm" onClick={handleExportCSV}>
                   <span className="flex items-center gap-2">
                     <Download size={14} /> Export CSV
                   </span>
