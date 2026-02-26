@@ -32,6 +32,11 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # API routers
+    from metascreener.api.routes.settings import router as settings_router
+
+    app.include_router(settings_router)
+
     # Health check
     @app.get("/api/health")
     async def health() -> dict[str, str]:
