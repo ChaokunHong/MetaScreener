@@ -1,0 +1,100 @@
+/* Aurora Background — MetaScreener Glass Design System */
+/* Ported from MetaScreener 1.0 Vue frontend */
+
+:root {
+  /* Aurora gradient colors */
+  --aurora-1: #8B5CF6;
+  --aurora-2: #6366F1;
+  --aurora-3: #3B82F6;
+  --aurora-4: #06B6D4;
+  --aurora-5: #10B981;
+  --aurora-6: #F59E0B;
+
+  /* Animation timing */
+  --aurora-duration: 40s;
+}
+
+.aurora-background {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0f0a1a 0%, #1a1145 50%, #0d1b2a 100%);
+}
+
+.aurora-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.4;
+  animation: aurora-float var(--aurora-duration) ease-in-out infinite;
+}
+
+.aurora-orb:nth-child(1) {
+  width: 40vw;
+  height: 40vw;
+  background: var(--aurora-1);
+  top: -10%;
+  left: -10%;
+  animation-delay: 0s;
+}
+
+.aurora-orb:nth-child(2) {
+  width: 35vw;
+  height: 35vw;
+  background: var(--aurora-2);
+  top: 20%;
+  right: -5%;
+  animation-delay: -8s;
+}
+
+.aurora-orb:nth-child(3) {
+  width: 45vw;
+  height: 45vw;
+  background: var(--aurora-3);
+  bottom: -15%;
+  left: 20%;
+  animation-delay: -16s;
+}
+
+.aurora-orb:nth-child(4) {
+  width: 30vw;
+  height: 30vw;
+  background: var(--aurora-4);
+  top: 50%;
+  left: -15%;
+  animation-delay: -24s;
+}
+
+.aurora-orb:nth-child(5) {
+  width: 38vw;
+  height: 38vw;
+  background: var(--aurora-5);
+  bottom: -10%;
+  right: -10%;
+  animation-delay: -32s;
+}
+
+.aurora-orb:nth-child(6) {
+  width: 25vw;
+  height: 25vw;
+  background: var(--aurora-6);
+  top: 10%;
+  left: 40%;
+  animation-delay: -36s;
+}
+
+@keyframes aurora-float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(5vw, -3vh) scale(1.1);
+  }
+  50% {
+    transform: translate(-3vw, 5vh) scale(0.95);
+  }
+  75% {
+    transform: translate(4vw, 2vh) scale(1.05);
+  }
+}
