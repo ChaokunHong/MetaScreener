@@ -57,3 +57,26 @@ def ui() -> None:
          "--server.headless=true"],
         check=False,
     )
+
+
+@app.command()
+def serve(
+    port: int = typer.Option(8000, help="Port to listen on."),  # noqa: B008
+    host: str = typer.Option("127.0.0.1", help="Host to bind to."),  # noqa: B008
+    api_only: bool = typer.Option(  # noqa: B008
+        False, "--api-only", help="Only start API server, skip frontend."
+    ),
+) -> None:
+    """Launch the FastAPI web server with React UI."""
+    import uvicorn  # noqa: PLC0415
+
+    typer.echo(f"Starting MetaScreener server on http://{host}:{port}")
+    if not api_only:
+        typer.echo("Open your browser to start using the Web UI.")
+
+    uvicorn.run(
+        "metascreener.api.main:create_app",
+        host=host,
+        port=port,
+        factory=True,
+    )

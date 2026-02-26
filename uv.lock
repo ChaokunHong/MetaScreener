@@ -2428,6 +2428,7 @@ version = "2.0.0a3"
 source = { editable = "." }
 dependencies = [
     { name = "bibtexparser" },
+    { name = "fastapi" },
     { name = "httpx" },
     { name = "litellm" },
     { name = "numpy" },
@@ -2446,6 +2447,7 @@ dependencies = [
     { name = "structlog" },
     { name = "tqdm" },
     { name = "typer" },
+    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.optional-dependencies]
@@ -2470,6 +2472,7 @@ viz = [
 [package.metadata]
 requires-dist = [
     { name = "bibtexparser", specifier = ">=2.0.0b9" },
+    { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "kaleido", marker = "extra == 'viz'", specifier = ">=0.2" },
     { name = "litellm", specifier = ">=1.50" },
@@ -2498,6 +2501,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.66" },
     { name = "typer", specifier = ">=0.12" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
     { name = "vllm", marker = "extra == 'gpu'", specifier = ">=0.6" },
 ]
 provides-extras = ["dev", "gpu", "viz"]

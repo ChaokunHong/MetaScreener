@@ -40,6 +40,8 @@ dependencies = [
     "pyyaml>=6.0",
     "rich>=13.0",
     "openpyxl>=3.1",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
 ]
 
 [project.optional-dependencies]
@@ -97,6 +99,10 @@ warn_required_dynamic_aliases = true
 
 [[tool.mypy.overrides]]
 module = ["plotly", "plotly.*", "pandas", "pandas.*", "kaleido"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["uvicorn", "uvicorn.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
