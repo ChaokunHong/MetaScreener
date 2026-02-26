@@ -1,0 +1,367 @@
+/* ============================================================
+   MetaScreener 2.0 — Custom Styles
+   Design system: Bootstrap 5 + v1-inspired academic aesthetic
+   ============================================================ */
+
+/* --- Layout ------------------------------------------------- */
+body {
+    padding-top: 70px;
+    padding-bottom: 60px;
+    background-color: #F9FAFB;
+    font-size: 0.95rem;
+}
+
+.container {
+    max-width: 1100px;
+}
+
+/* --- Section cards ------------------------------------------ */
+.section-card {
+    margin-bottom: 25px;
+    padding: 20px;
+    border: 1px solid #dee2e6;
+    border-radius: 0.3rem;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: box-shadow 0.2s ease-in-out;
+}
+
+.section-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Typography -------------------------------------------- */
+h1, h2 {
+    color: #111827;
+    margin-bottom: 0.8em;
+}
+
+h2 {
+    font-size: 1.6rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.3em;
+}
+
+h3 {
+    color: #1F2937;
+    font-size: 1.2rem;
+}
+
+/* --- Navbar ------------------------------------------------- */
+.navbar-dark .navbar-nav .nav-link.active {
+    border-bottom: 3px solid #2563EB;
+    padding-bottom: calc(0.5rem - 3px);
+    color: #fff !important;
+}
+
+.navbar-brand img {
+    height: 28px;
+}
+
+/* --- Primary colour override ------------------------------- */
+.btn-primary {
+    background-color: #2563EB;
+    border-color: #2563EB;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: #1D4ED8;
+    border-color: #1D4ED8;
+}
+
+.btn-primary:disabled {
+    background-color: #93C5FD;
+    border-color: #93C5FD;
+}
+
+.btn-outline-primary {
+    color: #2563EB;
+    border-color: #2563EB;
+}
+
+.btn-outline-primary:hover {
+    background-color: #2563EB;
+    border-color: #2563EB;
+}
+
+.text-primary { color: #2563EB !important; }
+.border-primary { border-color: #2563EB !important; }
+
+/* --- Decision badges --------------------------------------- */
+.badge-include {
+    background-color: #28a745;
+    color: #fff;
+    padding: 0.3em 0.65em;
+    border-radius: 0.25rem;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.badge-exclude {
+    background-color: #dc3545;
+    color: #fff;
+    padding: 0.3em 0.65em;
+    border-radius: 0.25rem;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.badge-review {
+    background-color: #ffc107;
+    color: #212529;
+    padding: 0.3em 0.65em;
+    border-radius: 0.25rem;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.badge-unclear {
+    background-color: #6c757d;
+    color: #fff;
+    padding: 0.3em 0.65em;
+    border-radius: 0.25rem;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+/* --- Traffic-light cells (RoB) ----------------------------- */
+.rob-low      { background-color: #d4edda !important; color: #155724; font-weight: 500; }
+.rob-concerns { background-color: #fff3cd !important; color: #856404; font-weight: 500; }
+.rob-high     { background-color: #f8d7da !important; color: #721c24; font-weight: 500; }
+.rob-unclear  { background-color: #e2e3e5 !important; color: #383d41; font-weight: 500; }
+
+/* --- Progress log ------------------------------------------ */
+#progress-log {
+    max-height: 120px;
+    overflow-y: auto;
+    font-size: 0.8em;
+    background-color: #f0f0f0;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    white-space: pre-line;
+    margin-top: 8px;
+}
+
+#progress-log div {
+    padding: 2px 0;
+    border-bottom: 1px dashed #e0e0e0;
+}
+
+#progress-log div:last-child {
+    border-bottom: none;
+}
+
+/* --- Scrollable table with sticky header ------------------- */
+.table-scroll {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.table-scroll thead th {
+    position: sticky;
+    top: 0;
+    background-color: #343a40;
+    color: #fff;
+    z-index: 1;
+    border-color: #454d55;
+}
+
+/* --- Step wizard ------------------------------------------- */
+.step-indicator {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.step-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    border: 2px solid #dee2e6;
+    background: #fff;
+    color: #6c757d;
+}
+
+.step-circle.active {
+    border-color: #2563EB;
+    background: #2563EB;
+    color: #fff;
+}
+
+.step-circle.done {
+    border-color: #28a745;
+    background: #28a745;
+    color: #fff;
+}
+
+.step-label {
+    font-size: 0.85rem;
+    margin-left: 0.5rem;
+    color: #6c757d;
+    white-space: nowrap;
+}
+
+.step-label.active { color: #2563EB; font-weight: 600; }
+.step-label.done   { color: #28a745; }
+
+.step-line {
+    flex: 1;
+    height: 2px;
+    background: #dee2e6;
+    margin: 0 0.5rem;
+}
+
+.step-line.done { background: #28a745; }
+
+/* --- File upload zone -------------------------------------- */
+.upload-zone {
+    border: 2px dashed #dee2e6;
+    border-radius: 0.3rem;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.upload-zone:hover,
+.upload-zone.drag-over {
+    border-color: #2563EB;
+    background: #EFF6FF;
+}
+
+.upload-zone .upload-icon {
+    font-size: 2.5rem;
+    color: #9CA3AF;
+    margin-bottom: 0.5rem;
+}
+
+/* --- Metric cards ------------------------------------------ */
+.metric-card {
+    padding: 1rem;
+    border: 1px solid #eee;
+    border-radius: 0.3rem;
+    background: #f9f9f9;
+    text-align: center;
+    height: 100%;
+}
+
+.metric-card .metric-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+.metric-card .metric-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 0.2rem;
+}
+
+/* --- Feature cards (dashboard) ----------------------------- */
+.feature-card {
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: all 0.2s ease-in-out;
+}
+
+.feature-card:hover {
+    text-decoration: none;
+    color: inherit;
+    transform: translateY(-4px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.feature-card .feature-icon {
+    font-size: 2.2rem;
+    margin-bottom: 0.75rem;
+}
+
+/* --- Best-practices / info boxes -------------------------- */
+.info-box {
+    background: #f0f8ff;
+    border-left: 4px solid #17a2b8;
+    padding: 0.75rem 1rem;
+    border-radius: 0 0.25rem 0.25rem 0;
+    font-size: 0.875rem;
+    color: #0c5460;
+}
+
+.warning-box {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 0.75rem 1rem;
+    border-radius: 0 0.25rem 0.25rem 0;
+    font-size: 0.875rem;
+    color: #856404;
+}
+
+/* --- Tab pills (criteria selector) ------------------------- */
+.nav-pills .nav-link.active {
+    background-color: #2563EB;
+}
+
+/* --- Footer ------------------------------------------------ */
+.footer {
+    padding: 1rem 0;
+    color: #6c757d;
+    text-align: center;
+    font-size: 0.875em;
+    border-top: 1px solid #e9ecef;
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    background-color: #fff;
+    z-index: 100;
+}
+
+/* --- Inline editable table cells -------------------------- */
+.editable-cell[contenteditable="true"] {
+    outline: none;
+    background: #fffbeb;
+    padding: 2px 4px;
+    border-radius: 2px;
+    min-width: 60px;
+    cursor: text;
+}
+
+.editable-cell[contenteditable="true"]:focus {
+    box-shadow: 0 0 0 2px #2563EB40;
+}
+
+/* --- Collapsible row details ------------------------------- */
+.rob-detail {
+    font-size: 0.85rem;
+    background: #fafafa;
+}
+
+/* --- Loading overlay --------------------------------------- */
+.spinner-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(255, 255, 255, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+/* --- Alert container --------------------------------------- */
+#alert-container {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(600px, 90vw);
+    z-index: 1050;
+}

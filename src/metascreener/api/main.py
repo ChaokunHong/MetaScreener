@@ -3,12 +3,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 import metascreener
+
+_WEB_DIR = Path(__file__).parent.parent / "web"
+_TEMPLATES_DIR = _WEB_DIR / "templates"
+_STATIC_DIR = _WEB_DIR / "static"
 
 
 def create_app() -> FastAPI:
@@ -22,14 +26,6 @@ def create_app() -> FastAPI:
         version=metascreener.__version__,
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
-    )
-
-    # CORS for local dev (Vite on :5173)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-        allow_methods=["*"],
-        allow_headers=["*"],
     )
 
     # API routers
@@ -51,24 +47,54 @@ def create_app() -> FastAPI:
         """Return server health status."""
         return {"status": "ok", "version": metascreener.__version__}
 
-    # Serve React static files if dist/ exists
-    dist_dir = Path(__file__).parent.parent / "web" / "dist"
-    if dist_dir.is_dir():
-        # Serve static assets (js, css, images)
-        assets_dir = dist_dir / "assets"
-        if assets_dir.is_dir():
-            app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+    # Static files (CSS, JS, images)
+    if _STATIC_DIR.is_dir():
+        app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
-        # SPA fallback: serve index.html for all non-API routes
-        @app.get("/{path:path}", response_model=None)
-        async def spa_fallback(path: str) -> FileResponse | JSONResponse:
-            """Serve React SPA for non-API routes."""
-            file_path = dist_dir / path
-            if file_path.is_file():
-                return FileResponse(str(file_path))
-            index = dist_dir / "index.html"
-            if index.is_file():
-                return FileResponse(str(index))
-            return JSONResponse({"error": "not found"}, status_code=404)
+    # Jinja2 templates
+    templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
+    version = metascreener.__version__
+
+    @app.get("/", response_class=HTMLResponse)
+    async def home(request: Request) -> HTMLResponse:
+        """Serve the dashboard page."""
+        return templates.TemplateResponse(
+            "index.html", {"request": request, "active": "home", "version": version}
+        )
+
+    @app.get("/settings", response_class=HTMLResponse)
+    async def settings_page(request: Request) -> HTMLResponse:
+        """Serve the settings page."""
+        return templates.TemplateResponse(
+            "settings.html", {"request": request, "active": "settings", "version": version}
+        )
+
+    @app.get("/screening", response_class=HTMLResponse)
+    async def screening_page(request: Request) -> HTMLResponse:
+        """Serve the screening page."""
+        return templates.TemplateResponse(
+            "screening.html", {"request": request, "active": "screening", "version": version}
+        )
+
+    @app.get("/evaluation", response_class=HTMLResponse)
+    async def evaluation_page(request: Request) -> HTMLResponse:
+        """Serve the evaluation page."""
+        return templates.TemplateResponse(
+            "evaluation.html", {"request": request, "active": "evaluation", "version": version}
+        )
+
+    @app.get("/extraction", response_class=HTMLResponse)
+    async def extraction_page(request: Request) -> HTMLResponse:
+        """Serve the extraction page."""
+        return templates.TemplateResponse(
+            "extraction.html", {"request": request, "active": "extraction", "version": version}
+        )
+
+    @app.get("/quality", response_class=HTMLResponse)
+    async def quality_page(request: Request) -> HTMLResponse:
+        """Serve the quality assessment page."""
+        return templates.TemplateResponse(
+            "quality.html", {"request": request, "active": "quality", "version": version}
+        )
 
     return app

@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Quality Assessment{% endblock %}
+
+{% block content %}
+<h2><i class="bi bi-clipboard-check me-2"></i>Quality / Risk of Bias Assessment</h2>
+<p class="text-muted">Assess methodological quality using validated RoB tools with multi-LLM consensus.</p>
+
+<!-- Step indicator -->
+<div class="step-indicator mb-4">
+    <div class="step-circle active" id="q1-circle">1</div>
+    <span class="step-label active" id="q1-label">Select Tool</span>
+    <div class="step-line" id="qline-12"></div>
+    <div class="step-circle" id="q2-circle">2</div>
+    <span class="step-label" id="q2-label">Upload PDFs</span>
+    <div class="step-line" id="qline-23"></div>
+    <div class="step-circle" id="q3-circle">3</div>
+    <span class="step-label" id="q3-label">Assess &amp; Results</span>
+</div>
+
+<!-- ── Step 1: Tool Selection ──────────────────────────────── -->
+<div class="section-card" id="qstep1">
+    <h3>Step 1 — Select Assessment Tool</h3>
+    <p class="text-muted small">Choose the appropriate tool for your study type.</p>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="section-card p-3 h-100" id="card-rob2"
+                 onclick="selectTool('rob2')" style="cursor:pointer; border:2px solid transparent;">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <input type="radio" name="rob-tool" value="rob2" id="radio-rob2">
+                    <label for="radio-rob2" class="fw-bold mb-0" style="cursor:pointer;">RoB 2</label>
+                </div>
+                <p class="small text-muted mb-1">For <strong>randomised controlled trials</strong></p>
+                <p class="small text-muted mb-0">5 domains: randomisation, deviations, missing data, outcomes, reporting</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="section-card p-3 h-100" id="card-robins_i"
+                 onclick="selectTool('robins_i')" style="cursor:pointer; border:2px solid transparent;">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <input type="radio" name="rob-tool" value="robins_i" id="radio-robins_i">
+                    <label for="radio-robins_i" class="fw-bold mb-0" style="cursor:pointer;">ROBINS-I</label>
+                </div>
+                <p class="small text-muted mb-1">For <strong>observational studies</strong></p>
+                <p class="small text-muted mb-0">7 domains: confounding, selection, classification, deviations, missing data, outcomes, reporting</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="section-card p-3 h-100" id="card-quadas2"
+                 onclick="selectTool('quadas2')" style="cursor:pointer; border:2px solid transparent;">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <input type="radio" name="rob-tool" value="quadas2" id="radio-quadas2">
+                    <label for="radio-quadas2" class="fw-bold mb-0" style="cursor:pointer;">QUADAS-2</label>
+                </div>
+                <p class="small text-muted mb-1">For <strong>diagnostic accuracy studies</strong></p>
+                <p class="small text-muted mb-0">4 domains: patient selection, index test, reference standard, flow &amp; timing</p>
+            </div>
+        </div>
+    </div>
+
+    <button class="btn btn-primary" id="tool-btn" disabled>
+        <i class="bi bi-arrow-right-circle me-1"></i>Select &amp; Continue
+    </button>
+</div>
+
+<!-- ── Step 2: Upload PDFs ─────────────────────────────────── -->
+<div class="section-card" id="qstep2" style="display:none;">
+    <h3>Step 2 — Upload Study PDFs</h3>
+
+    <div class="upload-zone mb-3" id="rob-pdf-zone" onclick="document.getElementById('rob-pdf-files').click()">
+        <div class="upload-icon"><i class="bi bi-file-earmark-pdf"></i></div>
+        <p class="mb-1">Click or drag &amp; drop PDF files here</p>
+        <p class="text-muted small mb-0">Select multiple files at once</p>
+    </div>
+    <input type="file" id="rob-pdf-files" class="d-none" accept=".pdf" multiple>
+
+    <div id="rob-pdf-result" class="d-none mb-3">
+        <div class="alert alert-success d-flex align-items-center gap-2 mb-0">
+            <i class="bi bi-check-circle-fill"></i>
+            <div>Uploaded <strong id="rob-pdf-count">—</strong> PDF(s)</div>
+        </div>
+    </div>
+
+    <button class="btn btn-primary" id="rob-upload-btn" disabled>
+        <i class="bi bi-upload me-1"></i>Upload PDFs &amp; Continue
+    </button>
+</div>
+
+<!-- ── Step 3: Run + Results ───────────────────────────────── -->
+<div class="section-card" id="qstep3" style="display:none;">
+    <h3>Step 3 — Run Assessment</h3>
+    <p class="text-muted small" id="rob-info">Ready to assess.</p>
+
+    <button class="btn btn-primary btn-lg mb-3" id="rob-run-btn">
+        <i class="bi bi-cpu me-1"></i>Assess Quality
+    </button>
+
+    <div id="rob-progress" class="d-none">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="spinner-border spinner-border-sm text-primary"></div>
+            <span class="small text-muted">Assessing with multi-LLM consensus…</span>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="rob-results" style="display:none;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <strong id="rob-result-title">Risk of Bias Results</strong>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary btn-sm" onclick="exportRoB('csv')">
+                    <i class="bi bi-download me-1"></i>CSV
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="exportRoB('json')">
+                    <i class="bi bi-download me-1"></i>JSON
+                </button>
+            </div>
+        </div>
+
+        <!-- Colour legend -->
+        <div class="d-flex gap-3 mb-2 flex-wrap small">
+            <span><span class="badge rob-low text-dark">LOW</span></span>
+            <span><span class="badge rob-concerns text-dark">SOME CONCERNS / MODERATE</span></span>
+            <span><span class="badge rob-high text-dark">HIGH / SERIOUS / CRITICAL</span></span>
+            <span><span class="badge rob-unclear text-dark">UNCLEAR</span></span>
+        </div>
+
+        <div class="table-scroll">
+            <table class="table table-sm table-bordered mb-0" id="rob-table">
+                <thead id="rob-thead"></thead>
+                <tbody id="rob-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/quality.js"></script>
+{% endblock %}

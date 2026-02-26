@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<h2><i class="bi bi-gear me-2"></i>Settings</h2>
+<p class="text-muted">Configure API keys and review available models.</p>
+
+<!-- ── API Keys ───────────────────────────────────────────── -->
+<div class="section-card">
+    <h3>API Keys</h3>
+    <p class="text-muted small">
+        MetaScreener uses <a href="https://openrouter.ai" target="_blank">OpenRouter</a> or
+        <a href="https://www.together.ai" target="_blank">Together AI</a> to access LLMs.
+        Keys are stored locally in <code>~/.metascreener/config.yaml</code>.
+    </p>
+
+    <div class="mb-3">
+        <label class="form-label fw-medium">OpenRouter API Key</label>
+        <div class="input-group">
+            <input type="password" id="key-openrouter" class="form-control font-monospace"
+                   placeholder="sk-or-..." autocomplete="off">
+            <button class="btn btn-outline-secondary" type="button" onclick="toggleKey('key-openrouter', this)">
+                <i class="bi bi-eye"></i>
+            </button>
+            <button class="btn btn-outline-primary" type="button" onclick="testKey('openrouter')" id="test-or-btn">
+                Test
+            </button>
+        </div>
+        <div id="test-or-result" class="mt-1 small"></div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label fw-medium">Together AI API Key</label>
+        <div class="input-group">
+            <input type="password" id="key-together" class="form-control font-monospace"
+                   placeholder="..." autocomplete="off">
+            <button class="btn btn-outline-secondary" type="button" onclick="toggleKey('key-together', this)">
+                <i class="bi bi-eye"></i>
+            </button>
+            <button class="btn btn-outline-primary" type="button" onclick="testKey('together')" id="test-tg-btn">
+                Test
+            </button>
+        </div>
+        <div id="test-tg-result" class="mt-1 small"></div>
+    </div>
+
+    <button class="btn btn-primary" onclick="saveSettings()" id="save-btn">
+        <i class="bi bi-floppy me-1"></i>Save Keys
+    </button>
+    <span id="save-result" class="ms-2 small"></span>
+</div>
+
+<!-- ── Available Models ────────────────────────────────────── -->
+<div class="section-card">
+    <h3>Available Models</h3>
+    <p class="text-muted small">
+        These four open-source models form the Hierarchical Consensus Network (HCN).
+        All use <code>temperature=0.0</code> for full reproducibility.
+    </p>
+    <div id="models-list">
+        <div class="text-muted small"><i class="bi bi-hourglass-split me-1"></i>Loading models…</div>
+    </div>
+</div>
+
+<!-- ── Inference Settings ──────────────────────────────────── -->
+<div class="section-card">
+    <h3>Inference Settings <span class="badge bg-secondary ms-2" style="font-size:0.7rem;">Read-only</span></h3>
+    <p class="text-muted small">
+        These settings are fixed to guarantee reproducibility across all runs.
+    </p>
+    <div class="row g-3">
+        <div class="col-sm-3 col-6">
+            <div class="metric-card">
+                <div class="metric-value">0.0</div>
+                <div class="metric-label">Temperature</div>
+            </div>
+        </div>
+        <div class="col-sm-3 col-6">
+            <div class="metric-card">
+                <div class="metric-value">42</div>
+                <div class="metric-label">Random Seed</div>
+            </div>
+        </div>
+        <div class="col-sm-3 col-6">
+            <div class="metric-card">
+                <div class="metric-value">120 s</div>
+                <div class="metric-label">Timeout</div>
+            </div>
+        </div>
+        <div class="col-sm-3 col-6">
+            <div class="metric-card">
+                <div class="metric-value">3</div>
+                <div class="metric-label">Max Retries</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Load current settings on page load
+window.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const cfg = await apiGet('/settings');
+        document.getElementById('key-openrouter').value = cfg.api_keys?.openrouter || '';
+        document.getElementById('key-together').value   = cfg.api_keys?.together   || '';
+    } catch (e) {
+        showAlert('Could not load settings: ' + e.message);
+    }
+    loadModels();
+});
+
+async function loadModels() {
+    const el = document.getElementById('models-list');
+    try {
+        const models = await apiGet('/settings/models');
+        if (!models.length) { el.innerHTML = '<p class="text-muted">No models configured.</p>'; return; }
+        el.innerHTML = `<div class="list-group list-group-flush">` +
+            models.map(m => `
+                <div class="list-group-item d-flex justify-content-between align-items-start px-0">
+                    <div>
+                        <div class="fw-medium">${escapeHtml(m.name)}</div>
+                        <div class="small text-muted">
+                            Provider: ${escapeHtml(m.provider)} &nbsp;·&nbsp;
+                            License: ${escapeHtml(m.license || '—')} &nbsp;·&nbsp;
+                            Version: ${escapeHtml(m.version || '—')}
+                        </div>
+                    </div>
+                    <span class="badge ${m.enabled ? 'bg-success' : 'bg-secondary'} ms-2">
+                        ${m.enabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                </div>`).join('') +
+            `</div>`;
+    } catch (e) {
+        el.innerHTML = `<p class="text-danger small">${escapeHtml(e.message)}</p>`;
+    }
+}
+
+function toggleKey(inputId, btn) {
+    const inp = document.getElementById(inputId);
+    const showing = inp.type === 'text';
+    inp.type = showing ? 'password' : 'text';
+    btn.innerHTML = `<i class="bi bi-eye${showing ? '' : '-slash'}"></i>`;
+}
+
+async function testKey(provider) {
+    const keyMap = { openrouter: 'key-openrouter', together: 'key-together' };
+    const resMap = { openrouter: 'test-or-result', together: 'test-tg-result' };
+    const btnMap = { openrouter: 'test-or-btn', together: 'test-tg-btn' };
+    const key = document.getElementById(keyMap[provider]).value.trim();
+    if (!key) { showAlert('Please enter a key first.', 'warning'); return; }
+    const btn = document.getElementById(btnMap[provider]);
+    const res = document.getElementById(resMap[provider]);
+    btnLoading(btn, 'Testing…');
+    try {
+        const data = await apiPost('/settings/test-key', { provider, api_key: key });
+        res.innerHTML = `<span class="text-${data.valid ? 'success' : 'danger'}">
+            <i class="bi bi-${data.valid ? 'check-circle' : 'x-circle'} me-1"></i>${escapeHtml(data.message)}
+        </span>`;
+    } catch (e) {
+        res.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle me-1"></i>${escapeHtml(e.message)}</span>`;
+    } finally {
+        btnReset(btn);
+    }
+}
+
+async function saveSettings() {
+    const btn = document.getElementById('save-btn');
+    const result = document.getElementById('save-result');
+    btnLoading(btn, 'Saving…');
+    try {
+        await apiPut('/settings', {
+            api_keys: {
+                openrouter: document.getElementById('key-openrouter').value.trim(),
+                together:   document.getElementById('key-together').value.trim(),
+            }
+        });
+        result.innerHTML = `<span class="text-success"><i class="bi bi-check-circle me-1"></i>Saved.</span>`;
+        setTimeout(() => result.innerHTML = '', 3000);
+    } catch (e) {
+        showAlert('Save failed: ' + e.message);
+    } finally {
+        btnReset(btn);
+    }
+}
+</script>
+{% endblock %}

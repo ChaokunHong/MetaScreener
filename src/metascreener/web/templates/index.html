@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_head %}
+<style>
+    .hero-section {
+        padding: 3rem 2rem;
+        text-align: center;
+        background: linear-gradient(135deg, #EFF6FF 0%, #F9FAFB 100%);
+        border: 1px solid #DBEAFE;
+        border-radius: 0.3rem;
+        margin-bottom: 2rem;
+    }
+    .feature-grid { row-gap: 1.25rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<div class="hero-section">
+    <h1 class="display-5 fw-light">MetaScreener <span class="text-primary">2.0</span></h1>
+    <p class="lead text-muted mb-3">
+        AI-powered systematic review — screening, extraction, and quality assessment
+        with four open-source LLMs and calibrated consensus.
+    </p>
+    <a href="/screening" class="btn btn-primary btn-lg me-2">
+        <i class="bi bi-funnel me-1"></i> Start Screening
+    </a>
+    <a href="/settings" class="btn btn-outline-secondary btn-lg">
+        <i class="bi bi-gear me-1"></i> Configure API Keys
+    </a>
+</div>
+
+<!-- Feature cards -->
+<h3 class="mb-3">Workflow</h3>
+<div class="row g-3 feature-grid mb-4">
+
+    <div class="col-md-4">
+        <a href="/screening" class="section-card feature-card h-100">
+            <div class="feature-icon text-primary"><i class="bi bi-funnel-fill"></i></div>
+            <h5 class="mb-1">Literature Screening</h5>
+            <p class="text-muted small mb-0">
+                Upload RIS / BibTeX / CSV files. Hierarchical Consensus Network (HCN)
+                screens title &amp; abstract with 4 open-source LLMs.
+            </p>
+        </a>
+    </div>
+
+    <div class="col-md-4">
+        <a href="/evaluation" class="section-card feature-card h-100">
+            <div class="feature-icon text-success"><i class="bi bi-bar-chart-line-fill"></i></div>
+            <h5 class="mb-1">Evaluation</h5>
+            <p class="text-muted small mb-0">
+                Upload gold-standard labels and compute sensitivity, specificity, WSS@95,
+                AUROC, calibration (ECE), and Cohen's κ.
+            </p>
+        </a>
+    </div>
+
+    <div class="col-md-4">
+        <a href="/extraction" class="section-card feature-card h-100">
+            <div class="feature-icon" style="color:#6366F1;"><i class="bi bi-table"></i></div>
+            <h5 class="mb-1">Data Extraction</h5>
+            <p class="text-muted small mb-0">
+                Define a YAML extraction form. Multi-LLM parallel extraction from PDFs
+                with consensus validation.
+            </p>
+        </a>
+    </div>
+
+    <div class="col-md-4">
+        <a href="/quality" class="section-card feature-card h-100">
+            <div class="feature-icon text-warning"><i class="bi bi-clipboard-check-fill"></i></div>
+            <h5 class="mb-1">Quality Assessment</h5>
+            <p class="text-muted small mb-0">
+                Risk-of-bias assessment with RoB 2 (RCTs), ROBINS-I (observational),
+                and QUADAS-2 (diagnostic accuracy).
+            </p>
+        </a>
+    </div>
+
+    <div class="col-md-4">
+        <a href="/settings" class="section-card feature-card h-100">
+            <div class="feature-icon text-secondary"><i class="bi bi-gear-fill"></i></div>
+            <h5 class="mb-1">Settings</h5>
+            <p class="text-muted small mb-0">
+                Configure OpenRouter / Together AI API keys and review available LLM models.
+            </p>
+        </a>
+    </div>
+
+    <div class="col-md-4">
+        <div class="section-card h-100">
+            <div class="feature-icon text-info"><i class="bi bi-info-circle-fill"></i></div>
+            <h5 class="mb-1">System Info</h5>
+            <ul class="list-unstyled small text-muted mb-0">
+                <li><i class="bi bi-check-circle text-success me-1"></i> Version {{ version }}</li>
+                <li><i class="bi bi-check-circle text-success me-1"></i> 4 open-source LLMs (HCN)</li>
+                <li><i class="bi bi-check-circle text-success me-1"></i> Temperature locked at 0.0</li>
+                <li><i class="bi bi-check-circle text-success me-1"></i> TRIPOD-LLM compliant</li>
+                <li><i class="bi bi-check-circle text-success me-1"></i> Full audit trail</li>
+            </ul>
+        </div>
+    </div>
+
+</div>
+
+<!-- Quick-start note -->
+<div class="info-box">
+    <i class="bi bi-lightbulb me-1"></i>
+    <strong>Quick start:</strong>
+    Go to <strong>Settings</strong> to add your API key, then open
+    <strong>Screening</strong> to upload your search results file.
+</div>
+
+{% endblock %}

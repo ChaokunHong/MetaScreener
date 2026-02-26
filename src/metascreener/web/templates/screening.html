@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Screening{% endblock %}
+
+{% block content %}
+<h2><i class="bi bi-funnel me-2"></i>Literature Screening</h2>
+<p class="text-muted">Upload your search results and screen with the Hierarchical Consensus Network.</p>
+
+<!-- Step indicator -->
+<div class="step-indicator mb-4">
+    <div class="step-circle active" id="s1-circle">1</div>
+    <span class="step-label active" id="s1-label">Upload File</span>
+    <div class="step-line" id="line-12"></div>
+    <div class="step-circle" id="s2-circle">2</div>
+    <span class="step-label" id="s2-label">Set Criteria</span>
+    <div class="step-line" id="line-23"></div>
+    <div class="step-circle" id="s3-circle">3</div>
+    <span class="step-label" id="s3-label">Run Screening</span>
+    <div class="step-line" id="line-34"></div>
+    <div class="step-circle" id="s4-circle">4</div>
+    <span class="step-label" id="s4-label">Results</span>
+</div>
+
+<!-- ── Step 1: Upload ──────────────────────────────────────── -->
+<div class="section-card" id="step1">
+    <h3>Step 1 — Upload Search Results</h3>
+    <p class="text-muted small">Supported formats: <code>.ris</code>, <code>.bib</code>, <code>.csv</code>, <code>.xlsx</code>, <code>.xml</code></p>
+
+    <div class="upload-zone mb-3" id="upload-zone" onclick="document.getElementById('file-input').click()">
+        <div class="upload-icon"><i class="bi bi-file-earmark-arrow-up"></i></div>
+        <p class="mb-1">Click or drag &amp; drop your search results file here</p>
+        <p class="text-muted small mb-0">RIS · BibTeX · CSV · Excel · PubMed XML</p>
+    </div>
+    <input type="file" id="file-input" class="d-none"
+           accept=".ris,.bib,.csv,.xlsx,.xls,.xml">
+
+    <div id="upload-result" class="d-none">
+        <div class="alert alert-success d-flex align-items-center gap-2 mb-0">
+            <i class="bi bi-check-circle-fill"></i>
+            <div>
+                Loaded <strong id="record-count">—</strong> records from
+                <strong id="filename-display">—</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <button class="btn btn-primary" id="upload-btn" disabled>
+            <i class="bi bi-upload me-1"></i>Upload & Continue
+        </button>
+    </div>
+</div>
+
+<!-- ── Step 2: Criteria ────────────────────────────────────── -->
+<div class="section-card" id="step2" style="display:none;">
+    <h3>Step 2 — Set Screening Criteria</h3>
+
+    <!-- Tabs -->
+    <ul class="nav nav-pills mb-3" id="criteria-tabs">
+        <li class="nav-item">
+            <button class="nav-link active" onclick="switchCriteriaTab('topic', this)">
+                <i class="bi bi-magic me-1"></i>Generate from Topic
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="switchCriteriaTab('upload', this)">
+                <i class="bi bi-file-earmark-code me-1"></i>Upload YAML
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="switchCriteriaTab('manual', this)">
+                <i class="bi bi-pencil me-1"></i>Manual JSON
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab: topic -->
+    <div id="tab-topic">
+        <label class="form-label fw-medium">Research Topic / Question</label>
+        <textarea class="form-control" id="topic-text" rows="3"
+                  placeholder="e.g. Antimicrobial resistance in hospital-acquired infections in adults"></textarea>
+        <div class="form-text">The AI will automatically detect the appropriate framework (PICO, PEO, etc.) and generate criteria.</div>
+    </div>
+
+    <!-- Tab: upload -->
+    <div id="tab-upload" style="display:none;">
+        <label class="form-label fw-medium">Criteria YAML File</label>
+        <input type="file" class="form-control mb-2" id="yaml-file" accept=".yaml,.yml">
+        <label class="form-label fw-medium">Or paste YAML directly</label>
+        <textarea class="form-control font-monospace" id="yaml-text" rows="8"
+                  placeholder="framework: pico&#10;elements:&#10;  - category: population&#10;    include: [...]"></textarea>
+    </div>
+
+    <!-- Tab: manual -->
+    <div id="tab-manual" style="display:none;">
+        <label class="form-label fw-medium">Criteria JSON</label>
+        <textarea class="form-control font-monospace" id="manual-json" rows="8"
+                  placeholder='{"framework": "PICO", "elements": [...]}'></textarea>
+    </div>
+
+    <div class="mt-3">
+        <button class="btn btn-primary" id="criteria-btn">
+            <i class="bi bi-arrow-right-circle me-1"></i>Apply Criteria & Continue
+        </button>
+    </div>
+</div>
+
+<!-- ── Step 3: Run ─────────────────────────────────────────── -->
+<div class="section-card" id="step3" style="display:none;">
+    <h3>Step 3 — Run Screening</h3>
+
+    <div class="info-box mb-3">
+        <i class="bi bi-cpu me-1"></i>
+        <strong>Hierarchical Consensus Network:</strong> 4 open-source LLMs will screen your records
+        in parallel, then a calibrated ensemble aggregates the decisions.
+    </div>
+
+    <p class="mb-1"><strong>Records to screen:</strong> <span id="run-record-count">—</span></p>
+    <p class="mb-3 text-muted small">Seed: 42 &nbsp;·&nbsp; Temperature: 0.0 &nbsp;·&nbsp; Fully reproducible</p>
+
+    <button class="btn btn-primary btn-lg" id="run-btn">
+        <i class="bi bi-play-fill me-1"></i>Start Screening
+    </button>
+
+    <div id="run-progress" class="mt-3 d-none">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <div class="spinner-border spinner-border-sm text-primary"></div>
+            <span id="run-status" class="small text-muted">Initialising…</span>
+        </div>
+        <div class="progress mb-2" style="height:6px;">
+            <div id="run-progress-bar" class="progress-bar bg-primary progress-bar-striped progress-bar-animated"
+                 style="width:5%"></div>
+        </div>
+        <div id="progress-log"></div>
+    </div>
+</div>
+
+<!-- ── Step 4: Results ─────────────────────────────────────── -->
+<div class="section-card" id="step4" style="display:none;">
+    <h3>Step 4 — Results</h3>
+
+    <!-- Summary row -->
+    <div class="row g-3 mb-3" id="results-summary"></div>
+
+    <!-- Actions -->
+    <div class="d-flex gap-2 mb-3 flex-wrap">
+        <button class="btn btn-outline-secondary btn-sm" onclick="exportResults('csv')">
+            <i class="bi bi-download me-1"></i>Export CSV
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="exportResults('json')">
+            <i class="bi bi-download me-1"></i>Export JSON
+        </button>
+        <button class="btn btn-outline-primary btn-sm ms-auto" onclick="resetScreening()">
+            <i class="bi bi-arrow-clockwise me-1"></i>New Screening
+        </button>
+    </div>
+
+    <!-- Results table -->
+    <div class="table-scroll">
+        <table class="table table-sm table-hover mb-0" id="results-table">
+            <thead>
+                <tr>
+                    <th style="width:2.5rem">#</th>
+                    <th>Title</th>
+                    <th style="width:8rem">Decision</th>
+                    <th style="width:4rem">Tier</th>
+                    <th style="width:5rem">Score</th>
+                    <th style="width:5rem">Confidence</th>
+                </tr>
+            </thead>
+            <tbody id="results-tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/screening.js"></script>
+{% endblock %}
