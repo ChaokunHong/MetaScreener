@@ -74,6 +74,15 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/metascreener"]
 
+[tool.hatch.build.targets.sdist]
+include = ["src/", "configs/", "README.md", "pyproject.toml"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/metascreener/web/dist" = "metascreener/web/dist"
+
+[tool.hatch.build.targets.sdist.force-include]
+"src/metascreener/web/dist" = "src/metascreener/web/dist"
+
 [tool.ruff]
 line-length = 100
 src = ["src"]

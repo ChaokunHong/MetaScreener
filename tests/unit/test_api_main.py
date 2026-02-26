@@ -29,8 +29,8 @@ class TestFastAPIApp:
 
     def test_static_file_serving_returns_404_without_dist(self) -> None:
         """Without web/dist, non-API routes return 404."""
-        from unittest.mock import patch
         from pathlib import Path
+        from unittest.mock import patch
 
         from metascreener.api.main import create_app
 
