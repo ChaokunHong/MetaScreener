@@ -11,11 +11,13 @@ from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
+from metascreener import __version__
+
 logger = structlog.get_logger(__name__)
 
 console = Console()
 
-VERSION = "2.0.0a3"
+VERSION = __version__
 
 BANNER = f"""\
 [bold cyan]MetaScreener {VERSION}[/bold cyan]
