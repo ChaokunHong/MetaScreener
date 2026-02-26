@@ -1,6 +1,8 @@
 """Pydantic schemas for API request/response models."""
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -210,3 +212,87 @@ class EvaluationResponse(BaseModel):
     metrics: EvaluationMetrics
     total_records: int
     gold_label_count: int
+
+
+# --- Extraction API schemas ---
+
+
+class ExtractionUploadResponse(BaseModel):
+    """Response after uploading PDFs for extraction.
+
+    Attributes:
+        session_id: Unique session identifier for this upload.
+        pdf_count: Number of PDFs uploaded.
+    """
+
+    session_id: str
+    pdf_count: int
+
+
+class ExtractionResultItem(BaseModel):
+    """Single field extraction result.
+
+    Attributes:
+        field_name: Name of the extracted field.
+        value: Extracted value (None if not found).
+        consensus: Whether models reached consensus on this field.
+    """
+
+    field_name: str
+    value: str | None = None
+    consensus: bool = False
+
+
+class ExtractionResultsResponse(BaseModel):
+    """Response containing extraction results.
+
+    Attributes:
+        session_id: Session identifier.
+        results: List of per-paper extraction result dictionaries.
+    """
+
+    session_id: str
+    results: list[dict[str, Any]]
+
+
+# --- Quality / Risk of Bias API schemas ---
+
+
+class QualityUploadResponse(BaseModel):
+    """Response after uploading PDFs for quality assessment.
+
+    Attributes:
+        session_id: Unique session identifier for this upload.
+        pdf_count: Number of PDFs uploaded.
+    """
+
+    session_id: str
+    pdf_count: int
+
+
+class QualityResultItem(BaseModel):
+    """Single domain assessment result.
+
+    Attributes:
+        domain: Risk of bias domain name.
+        judgement: Assessment judgement (e.g. LOW, HIGH, SOME_CONCERNS).
+        rationale: Explanation for the judgement.
+    """
+
+    domain: str
+    judgement: str
+    rationale: str = ""
+
+
+class QualityResultsResponse(BaseModel):
+    """Response containing quality assessment results.
+
+    Attributes:
+        session_id: Session identifier.
+        tool: Assessment tool used (rob2, robins_i, quadas2).
+        results: List of per-paper assessment result dictionaries.
+    """
+
+    session_id: str
+    tool: str
+    results: list[dict[str, Any]]
