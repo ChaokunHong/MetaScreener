@@ -63,9 +63,36 @@ export interface EvaluationMetrics {
   kappa: number | null
 }
 
+export interface EvaluationUploadResponse {
+  session_id: string
+  total_records: number
+  gold_label_count: number
+}
+
 export interface EvaluationResponse {
   session_id: string
   metrics: EvaluationMetrics
   total_records: number
   gold_label_count: number
+}
+
+export interface ExtractionUploadResponse {
+  session_id: string
+  pdf_count: number
+}
+
+export interface ExtractionResultsResponse {
+  session_id: string
+  results: Record<string, unknown>[]
+}
+
+export interface QualityUploadResponse {
+  session_id: string
+  pdf_count: number
+}
+
+export interface QualityResultsResponse {
+  session_id: string
+  tool: string
+  results: Record<string, unknown>[]
 }
