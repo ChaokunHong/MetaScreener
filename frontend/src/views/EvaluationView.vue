@@ -133,9 +133,20 @@ interface EvalMetrics {
   wss_at_95?: number
   auroc?: number
   ece?: number
-  brier_score?: number
+  brier?: number
   kappa?: number
-  roc_curve?: { fpr: number[]; tpr: number[] }
+}
+
+interface EvalResponse {
+  session_id: string
+  metrics: EvalMetrics
+  total_records: number
+  gold_label_count: number
+  charts?: {
+    roc: { fpr: number; tpr: number }[]
+    calibration: { predicted: number; actual: number }[]
+    distribution: { bin: string; include: number; exclude: number }[]
+  }
 }
 
 const metrics = ref<EvalMetrics | null>(null)
@@ -148,14 +159,16 @@ async function doRunEval() {
   running.value = true
   evalError.value = ''
   try {
-    await apiPost(`/evaluation/run/${evalSessionId.value}`, {
+    const data = await apiPost<EvalResponse>(`/evaluation/run/${evalSessionId.value}`, {
       screening_session_id: screeningSessionId.value,
       seed: 42,
     })
-    const data = await apiGet<EvalMetrics>(`/evaluation/results/${evalSessionId.value}`)
-    metrics.value = data
-    if (data.roc_curve) {
-      rocData.value = data.roc_curve
+    metrics.value = data.metrics
+    if (data.charts?.roc?.length) {
+      rocData.value = {
+        fpr: data.charts.roc.map(p => p.fpr),
+        tpr: data.charts.roc.map(p => p.tpr),
+      }
       nextTick(() => renderRoc())
     }
   } catch (e: unknown) {
@@ -177,7 +190,7 @@ const metricCards = computed(() => [
   { label: 'WSS@95', value: fmt(metrics.value?.wss_at_95) },
   { label: 'AUROC', value: fmt(metrics.value?.auroc) },
   { label: 'ECE', value: fmt(metrics.value?.ece) },
-  { label: 'Brier Score', value: fmt(metrics.value?.brier_score) },
+  { label: 'Brier Score', value: fmt(metrics.value?.brier) },
   { label: 'κ (Kappa)', value: fmt(metrics.value?.kappa) },
 ])
 
@@ -188,7 +201,7 @@ const lancetText = computed(() => {
   return [
     `Sensitivity ${fmt3(m.sensitivity)} · Specificity ${fmt3(m.specificity)}`,
     `F1 ${fmt3(m.f1)} · WSS@95 ${fmt3(m.wss_at_95)}`,
-    `AUROC ${fmt3(m.auroc)} · ECE ${fmt3(m.ece)} · Brier ${fmt3(m.brier_score)}`,
+    `AUROC ${fmt3(m.auroc)} · ECE ${fmt3(m.ece)} · Brier ${fmt3(m.brier)}`,
     `κ ${fmt3(m.kappa)}`,
   ].join('\n')
 })
