@@ -6,6 +6,9 @@ import sys
 from pathlib import Path
 
 import structlog
+from prompt_toolkit import prompt as pt_prompt
+from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.styles import Style
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
@@ -17,13 +20,16 @@ logger = structlog.get_logger(__name__)
 
 console = Console()
 
+# prompt_toolkit style — subtle grey prompt
+_PT_STYLE = Style.from_dict({"prompt": "ansibrightcyan bold"})
+
 VERSION = __version__
 
 BANNER = f"""\
 [bold cyan]MetaScreener {VERSION}[/bold cyan]
 [dim]AI-assisted systematic review tool[/dim]
 [dim]Hierarchical Consensus Network (HCN) with 4 open-source LLMs[/dim]
-[dim]Tip: Enter [bold]7[/bold] or [bold]/serve[/bold] to open the web UI[/dim]
+[dim]Tip: Type [bold]/[/bold] to see commands  ·  [bold]Ctrl+C[/bold] to cancel any step[/dim]
 """
 
 # Numbered menu items: (number, slash_cmd, description, handler_name)
@@ -61,6 +67,13 @@ _HANDLERS: dict[str, str] = {
     "/serve": "_handle_serve",
 }
 
+# Autocompleter: triggers on "/" — shows all slash commands
+_COMPLETER = WordCompleter(
+    list(COMMANDS.keys()),
+    sentence=True,
+    match_middle=False,
+)
+
 
 def run_interactive() -> None:
     """Launch the interactive REPL."""
@@ -70,9 +83,12 @@ def run_interactive() -> None:
     while True:
         console.print()
         try:
-            user_input = Prompt.ask(
-                "[bold cyan]>>>[/bold cyan] Enter a number (1-7), "
-                "a command (/help), or /quit",
+            user_input = pt_prompt(
+                ">>> ",
+                completer=_COMPLETER,
+                complete_while_typing=True,
+                style=_PT_STYLE,
+                placeholder="Type a number or / for commands…",
             ).strip()
         except (KeyboardInterrupt, EOFError):
             console.print("\n[dim]Goodbye![/dim]")
@@ -89,7 +105,10 @@ def run_interactive() -> None:
                 cmd_name, desc, handler_name = MENU_ITEMS[idx - 1]
                 console.print(f"\n[bold green]{cmd_name}[/bold green] — {desc}\n")
                 handler = globals()[handler_name]
-                handler()
+                try:
+                    handler()
+                except KeyboardInterrupt:
+                    console.print("\n[yellow]↩  Cancelled — returning to menu.[/yellow]")
                 console.print()
                 _show_main_menu()
                 continue
@@ -112,7 +131,10 @@ def run_interactive() -> None:
             _show_main_menu()
         elif cmd in _HANDLERS:
             handler = globals()[_HANDLERS[cmd]]
-            handler()
+            try:
+                handler()
+            except KeyboardInterrupt:
+                console.print("\n[yellow]↩  Cancelled — returning to menu.[/yellow]")
             console.print()
             _show_main_menu()
         elif cmd.startswith("/"):
@@ -122,8 +144,7 @@ def run_interactive() -> None:
             )
         else:
             console.print(
-                "[yellow]Tip: Enter a number (1-7) to select a command, "
-                "or type /help for all options.[/yellow]"
+                "[yellow]Tip: Enter a number (1-7) or type / to see commands.[/yellow]"
             )
 
 
