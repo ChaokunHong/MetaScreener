@@ -41,11 +41,14 @@ class ConsensusMerger:
         if n_models == 1:
             return ConsensusMerger._single_model_result(model_outputs[0], framework)
 
-        # Collect all element keys across models
+        # Collect all element keys across models (guard against non-dict outputs)
         all_element_keys: set[str] = set()
         for output in model_outputs:
+            if not isinstance(output, dict):
+                continue
             elements = output.get("elements", {})
-            all_element_keys.update(elements.keys())
+            if isinstance(elements, dict):
+                all_element_keys.update(elements.keys())
 
         # Merge each element
         merged_elements: dict[str, CriteriaElement] = {}
@@ -62,8 +65,9 @@ class ConsensusMerger:
             model_outputs, "study_design_exclude"
         )
 
-        # Take research question from first model
-        research_question = model_outputs[0].get("research_question", "")
+        # Take research question from first dict-type model output
+        first_dict = next((o for o in model_outputs if isinstance(o, dict)), {})
+        research_question = first_dict.get("research_question", "")
 
         required = ConsensusMerger._required_elements(framework, merged_elements)
 
@@ -142,6 +146,8 @@ class ConsensusMerger:
         seen: set[str] = set()
         result: list[str] = []
         for output in model_outputs:
+            if not isinstance(output, dict):
+                continue
             for item in output.get(field, []):
                 if item not in seen:
                     seen.add(item)
@@ -162,6 +168,9 @@ class ConsensusMerger:
         Returns:
             ReviewCriteria from a single model.
         """
+        if not isinstance(output, dict):
+            logger.warning("single_model_non_dict", type=type(output).__name__)
+            return ReviewCriteria(framework=framework)
         elements: dict[str, CriteriaElement] = {}
         for key, elem_data in output.get("elements", {}).items():
             if isinstance(elem_data, dict):

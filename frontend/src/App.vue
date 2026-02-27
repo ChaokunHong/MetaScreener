@@ -3,10 +3,9 @@
     <!-- Glass Navbar -->
     <header class="app-navbar">
       <div class="navbar-container">
-        <!-- Brand -->
+        <!-- Brand: logo only -->
         <router-link to="/" class="navbar-brand">
           <img src="/logo.svg" alt="MetaScreener" />
-          <span>MetaScreener</span>
         </router-link>
 
         <!-- Nav Links -->
@@ -22,10 +21,9 @@
           </router-link>
         </nav>
 
-        <!-- Settings -->
-        <router-link to="/settings" class="nav-btn">
+        <!-- Settings: icon only -->
+        <router-link to="/settings" class="nav-icon-btn">
           <i class="fas fa-cog"></i>
-          Settings
         </router-link>
       </div>
     </header>

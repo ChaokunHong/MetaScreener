@@ -1,6 +1,7 @@
 """Screening API routes for file upload, criteria, and execution."""
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import os
@@ -9,6 +10,10 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+# Max papers screened concurrently. Each paper calls 4 models in parallel,
+# so CONCURRENT_PAPERS=10 → up to 40 simultaneous API calls.
+_CONCURRENT_PAPERS = 10
 
 import structlog
 import yaml
@@ -437,49 +442,68 @@ async def _run_screening_background(
     session: dict[str, Any],
     records: list[Record],
     backends: list[Any],
-    criteria: ReviewCriteria | PICOCriteria,
+    criteria_payload: dict[str, Any],
     seed: int,
 ) -> None:
     """Screen records incrementally in the background, writing results as they complete."""
     from metascreener.api.deps import get_config  # noqa: PLC0415
+    from metascreener.module1_screening.layer4.router import DecisionRouter  # noqa: PLC0415
     from metascreener.module1_screening.ta_screener import TAScreener  # noqa: PLC0415
 
     try:
+        # Re-use cached criteria if already resolved (avoids expensive LLM re-generation).
+        cached = session.get("criteria_obj")
+        if isinstance(cached, ReviewCriteria):
+            criteria = cached
+        else:
+            criteria = await _resolve_review_criteria(criteria_payload, backends, seed)
+            session["criteria_obj"] = criteria
         cfg = get_config()
-        screener = TAScreener(backends=backends, timeout_s=cfg.inference.timeout_s)
-        for i, record in enumerate(records):
-            logger.info(
-                "screening_progress",
-                current=i + 1,
-                total=len(records),
-                record_id=record.record_id,
-            )
-            try:
-                decision = await screener.screen_single(record, criteria, seed=seed)
-                summary = ScreeningRecordSummary(
-                    record_id=decision.record_id,
-                    title=record.title or "(untitled record)",
-                    decision=decision.decision.value,
-                    tier=str(int(decision.tier)),
-                    score=decision.final_score,
-                    confidence=decision.ensemble_confidence,
-                )
-                session["results"].append(summary.model_dump())
-                session["raw_decisions"].append(decision.model_dump(mode="json"))
-            except Exception as exc:  # noqa: BLE001
-                logger.error(
-                    "record_screening_error",
+        router = DecisionRouter(
+            tau_high=cfg.thresholds.tau_high,
+            tau_mid=cfg.thresholds.tau_mid,
+            tau_low=cfg.thresholds.tau_low,
+        )
+        screener = TAScreener(backends=backends, timeout_s=cfg.inference.timeout_s, router=router)
+
+        sem = asyncio.Semaphore(_CONCURRENT_PAPERS)
+
+        async def _screen_one(i: int, record: Record) -> None:
+            async with sem:
+                logger.info(
+                    "screening_progress",
+                    current=i + 1,
+                    total=len(records),
                     record_id=record.record_id,
-                    error=str(exc),
                 )
-                session["results"].append({
-                    "record_id": str(record.record_id),
-                    "title": record.title or "(untitled record)",
-                    "decision": "HUMAN_REVIEW",
-                    "tier": "3",
-                    "score": 0.0,
-                    "confidence": 0.0,
-                })
+                try:
+                    decision = await screener.screen_single(record, criteria, seed=seed)
+                    summary = ScreeningRecordSummary(
+                        record_id=decision.record_id,
+                        title=record.title or "(untitled record)",
+                        decision=decision.decision.value,
+                        tier=str(int(decision.tier)),
+                        score=decision.final_score,
+                        confidence=decision.ensemble_confidence,
+                    )
+                    session["results"].append(summary.model_dump())
+                    session["raw_decisions"].append(decision.model_dump(mode="json"))
+                except Exception as exc:  # noqa: BLE001
+                    logger.error(
+                        "record_screening_error",
+                        record_id=record.record_id,
+                        error=str(exc),
+                    )
+                    session["results"].append({
+                        "record_id": str(record.record_id),
+                        "title": record.title or "(untitled record)",
+                        "decision": "HUMAN_REVIEW",
+                        "tier": "3",
+                        "score": 0.0,
+                        "confidence": 0.0,
+                    })
+
+        await asyncio.gather(*[_screen_one(i, record) for i, record in enumerate(records)])
         session["status"] = "completed"
     except Exception as exc:  # noqa: BLE001
         logger.error("background_screening_error", error=str(exc))
@@ -553,15 +577,13 @@ async def run_screening(
             "message": "No models configured. Check configs/models.yaml.",
         }
 
-    criteria = await _get_session_review_criteria(session, backends, req.seed)
-
     # Reset results and mark as running before launching background task
     session["results"] = []
     session["raw_decisions"] = []
     session["status"] = "running"
 
     background_tasks.add_task(
-        _run_screening_background, session, records, backends, criteria, req.seed
+        _run_screening_background, session, records, backends, criteria_payload, req.seed
     )
 
     return {

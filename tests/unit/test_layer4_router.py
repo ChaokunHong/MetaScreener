@@ -53,11 +53,13 @@ class TestDecisionRouter:
     """Tests for hierarchical tier-based decision routing."""
 
     def test_default_thresholds(self) -> None:
-        """Default thresholds match design spec."""
+        """Default thresholds calibrated for 4-model binary entropy confidence.
+        With 4 models: unanimous → C=1.0, 3/4 majority → C=0.189, 2/2 split → C=0.0.
+        """
         router = DecisionRouter()
-        assert router.tau_high == 0.85
-        assert router.tau_mid == 0.65
-        assert router.tau_low == 0.45
+        assert router.tau_high == 0.50
+        assert router.tau_mid == 0.10
+        assert router.tau_low == 0.05
 
     def test_tier0_hard_violation(self) -> None:
         """Hard rule violation → EXCLUDE at Tier 0."""
@@ -129,13 +131,14 @@ class TestDecisionRouter:
         assert tier == Tier.TWO
 
     def test_tier3_low_confidence(self) -> None:
-        """Low confidence → HUMAN_REVIEW at Tier 3."""
+        """Confidence below tau_low floor (2/2 split, C=0.0) → HUMAN_REVIEW."""
         router = DecisionRouter()
         outputs = [
-            _make_output(Decision.INCLUDE, 0.7, 0.5, "m1"),
-            _make_output(Decision.INCLUDE, 0.6, 0.5, "m2"),
+            _make_output(Decision.INCLUDE, 0.6, 0.5, "m1"),
+            _make_output(Decision.EXCLUDE, 0.4, 0.5, "m2"),
         ]
-        decision, tier = router.route(outputs, _clean_rules(), 0.65, 0.30)
+        # 2-model split → C=0.0, below tau_low=0.05
+        decision, tier = router.route(outputs, _clean_rules(), 0.5, 0.0)
         assert decision == Decision.HUMAN_REVIEW
         assert tier == Tier.THREE
 

@@ -107,6 +107,20 @@ class FrameworkDetector:
             cleaned = strip_code_fences(raw_response)
             parsed = json.loads(cleaned)
 
+            if not isinstance(parsed, dict):
+                logger.warning(
+                    "framework_detection_non_dict",
+                    model_id=self._backend.model_id,
+                    type=type(parsed).__name__,
+                )
+                return FrameworkDetectionResult(
+                    framework=CriteriaFramework.PICO,
+                    confidence=_FALLBACK_CONFIDENCE,
+                    reasoning=f"Fallback to PICO: response was {type(parsed).__name__}, not dict",
+                    alternatives=[],
+                    prompt_hash=prompt_hash,
+                )
+
             framework_str = parsed.get("recommended_framework", "")
             if not isinstance(framework_str, str):
                 framework_str = ""
@@ -151,7 +165,7 @@ class FrameworkDetector:
                 prompt_hash=prompt_hash,
             )
 
-        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as exc:
             logger.warning(
                 "framework_detection_fallback",
                 error=str(exc),
