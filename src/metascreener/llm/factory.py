@@ -11,7 +11,7 @@ from metascreener.llm.base import LLMBackend
 
 logger = structlog.get_logger(__name__)
 
-_DEFAULT_CONFIG = Path(__file__).parent.parent.parent.parent / "configs" / "models.yaml"
+_DEFAULT_CONFIG = Path(__file__).parent.parent / "configs" / "models.yaml"
 
 
 def create_backends(

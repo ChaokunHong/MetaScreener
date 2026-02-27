@@ -16,7 +16,7 @@ logger = structlog.get_logger(__name__)
 
 screen_app = typer.Typer(help="Screen literature (title/abstract or full-text).")
 
-_DEFAULT_CONFIG = Path(__file__).parent.parent.parent.parent / "configs" / "models.yaml"
+_DEFAULT_CONFIG = Path(__file__).parent.parent / "configs" / "models.yaml"
 
 
 class ScreenStage(StrEnum):

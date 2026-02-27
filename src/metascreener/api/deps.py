@@ -21,7 +21,7 @@ def get_config_path() -> Path:
     """
     candidates = [
         Path.cwd() / "configs" / "models.yaml",
-        Path(__file__).resolve().parents[2] / "configs" / "models.yaml",
+        Path(__file__).resolve().parents[1] / "configs" / "models.yaml",
     ]
     for p in candidates:
         if p.exists():
