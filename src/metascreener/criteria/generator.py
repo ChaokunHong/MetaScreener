@@ -170,8 +170,22 @@ class CriteriaGenerator:
             cleaned = strip_code_fences(raw)
             parsed = json.loads(cleaned)
             # Validate minimum expected structure
+            if not isinstance(parsed, dict):
+                logger.warning(
+                    "non_dict_response",
+                    backend=backend.model_id,
+                    type=type(parsed).__name__,
+                )
+                return None
             if "elements" not in parsed:
                 logger.warning("missing_elements_key", backend=backend.model_id)
+                return None
+            if not isinstance(parsed["elements"], dict):
+                logger.warning(
+                    "elements_not_dict",
+                    backend=backend.model_id,
+                    type=type(parsed["elements"]).__name__,
+                )
                 return None
             return parsed  # type: ignore[no-any-return]
         except json.JSONDecodeError as exc:

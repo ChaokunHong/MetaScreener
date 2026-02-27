@@ -31,12 +31,14 @@ models:
     huggingface_url: "https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503"
 
 thresholds:
-  tau_high: 0.85
-  tau_mid: 0.65
-  tau_low: 0.45
+  # Calibrated for 4-model binary voting with Shannon entropy confidence.
+  # With 4 models: unanimous → C=1.000, 3/4 majority → C=0.189, 2/2 split → C=0.000
+  tau_high: 0.50   # Tier 1: unanimous (C=1.0 passes, C=0.189 does not)
+  tau_mid: 0.10    # Tier 2: 3/4 majority (C=0.189 passes, C=0.0 does not)
+  tau_low: 0.05    # Tier 3 floor: true 2/2 split (C=0.0) → HUMAN_REVIEW
   target_sensitivity: 0.98
 
 inference:
   temperature: 0.0
-  timeout_s: 120.0
-  max_retries: 3
+  timeout_s: 45.0
+  max_retries: 2

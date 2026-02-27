@@ -33,9 +33,9 @@ class DecisionRouter:
 
     def __init__(
         self,
-        tau_high: float = 0.85,
-        tau_mid: float = 0.65,
-        tau_low: float = 0.45,
+        tau_high: float = 0.50,
+        tau_mid: float = 0.10,
+        tau_low: float = 0.05,
     ) -> None:
         self.tau_high = tau_high
         self.tau_mid = tau_mid

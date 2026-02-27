@@ -82,6 +82,7 @@ class OpenRouterAdapter(LLMBackend):
             "messages": [{"role": "user", "content": prompt}],
             "temperature": INFERENCE_TEMPERATURE,
             "seed": seed,
+            "max_tokens": 1024,
             "response_format": {"type": "json_object"},
         }
 
