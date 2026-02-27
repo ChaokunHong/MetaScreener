@@ -10,8 +10,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import structlog
 import yaml
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile
+
+logger = structlog.get_logger(__name__)
 
 from metascreener.api.schemas import (
     RunScreeningRequest,
@@ -430,12 +433,69 @@ async def set_criteria(
     return {"status": "ok"}
 
 
+async def _run_screening_background(
+    session: dict[str, Any],
+    records: list[Record],
+    backends: list[Any],
+    criteria: ReviewCriteria | PICOCriteria,
+    seed: int,
+) -> None:
+    """Screen records incrementally in the background, writing results as they complete."""
+    from metascreener.api.deps import get_config  # noqa: PLC0415
+    from metascreener.module1_screening.ta_screener import TAScreener  # noqa: PLC0415
+
+    try:
+        cfg = get_config()
+        screener = TAScreener(backends=backends, timeout_s=cfg.inference.timeout_s)
+        for i, record in enumerate(records):
+            logger.info(
+                "screening_progress",
+                current=i + 1,
+                total=len(records),
+                record_id=record.record_id,
+            )
+            try:
+                decision = await screener.screen_single(record, criteria, seed=seed)
+                summary = ScreeningRecordSummary(
+                    record_id=decision.record_id,
+                    title=record.title or "(untitled record)",
+                    decision=decision.decision.value,
+                    tier=str(int(decision.tier)),
+                    score=decision.final_score,
+                    confidence=decision.ensemble_confidence,
+                )
+                session["results"].append(summary.model_dump())
+                session["raw_decisions"].append(decision.model_dump(mode="json"))
+            except Exception as exc:  # noqa: BLE001
+                logger.error(
+                    "record_screening_error",
+                    record_id=record.record_id,
+                    error=str(exc),
+                )
+                session["results"].append({
+                    "record_id": str(record.record_id),
+                    "title": record.title or "(untitled record)",
+                    "decision": "HUMAN_REVIEW",
+                    "tier": "3",
+                    "score": 0.0,
+                    "confidence": 0.0,
+                })
+        session["status"] = "completed"
+    except Exception as exc:  # noqa: BLE001
+        logger.error("background_screening_error", error=str(exc))
+        session["status"] = "error"
+        session["error"] = str(exc)
+    finally:
+        await _close_backends(backends)
+
+
 @router.post("/run/{session_id}")
 async def run_screening(
     session_id: str,
     req: RunScreeningRequest,
+    background_tasks: BackgroundTasks,
 ) -> dict[str, Any]:
-    """Start screening for a session and persist results in-memory."""
+    """Start screening for a session; returns immediately and processes in background."""
     if session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found")
     if req.session_id != session_id:
@@ -452,6 +512,7 @@ async def run_screening(
     if len(records) == 0:
         session["results"] = []
         session["raw_decisions"] = []
+        session["status"] = "completed"
         return {
             "status": "completed",
             "message": "No records to screen",
@@ -492,35 +553,25 @@ async def run_screening(
             "message": "No models configured. Check configs/models.yaml.",
         }
 
-    try:
-        criteria = await _get_session_review_criteria(session, backends, req.seed)
+    criteria = await _get_session_review_criteria(session, backends, req.seed)
 
-        from metascreener.api.deps import get_config  # noqa: PLC0415
-        from metascreener.module1_screening.ta_screener import TAScreener  # noqa: PLC0415
+    # Reset results and mark as running before launching background task
+    session["results"] = []
+    session["raw_decisions"] = []
+    session["status"] = "running"
 
-        cfg = get_config()
-        screener = TAScreener(
-            backends=backends,
-            timeout_s=cfg.inference.timeout_s,
-        )
-        decisions = await screener.screen_batch(records, criteria, seed=req.seed)
+    background_tasks.add_task(
+        _run_screening_background, session, records, backends, criteria, req.seed
+    )
 
-        summaries = _summarize_results(records, decisions)
-        session["results"] = [item.model_dump() for item in summaries]
-        session["raw_decisions"] = [d.model_dump(mode="json") for d in decisions]
-
-        return {
-            "status": "completed",
-            "message": f"Screened {len(decisions)} records successfully",
-            "total": len(records),
-            "completed": len(decisions),
-            "framework": criteria.framework.value,
-        }
-    finally:
-        await _close_backends(backends)
+    return {
+        "status": "started",
+        "total": len(records),
+        "message": f"Screening {len(records)} records in the background",
+    }
 
 
-@router.get("/results/{session_id}", response_model=ScreeningResultsResponse)
+@router.get("/results/{session_id}")
 async def get_results(session_id: str) -> ScreeningResultsResponse:
     """Get screening results for a session.
 
@@ -546,6 +597,8 @@ async def get_results(session_id: str) -> ScreeningResultsResponse:
         total=len(session["records"]),
         completed=len(results),
         results=results,
+        status=session.get("status", "idle"),
+        error=session.get("error"),
     )
 
 

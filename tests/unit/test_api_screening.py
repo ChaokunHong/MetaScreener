@@ -305,8 +305,9 @@ class TestScreeningRun:
         )
         assert run_resp.status_code == 200
         run_data = run_resp.json()
-        assert run_data["status"] == "completed"
-        assert run_data["completed"] >= 1
+        # Endpoint returns immediately; status is "started" (background task runs async)
+        assert run_data["status"] in {"started", "completed"}
+        assert run_data["total"] >= 1
 
         results_resp = client.get(f"/api/screening/results/{session_id}")
         assert results_resp.status_code == 200

@@ -120,15 +120,37 @@ document.getElementById('run-btn').addEventListener('click', async () => {
 });
 
 function startPolling() {
+    let lastCompleted = 0;
     pollTimer = setInterval(async () => {
         try {
             const data = await apiGet('/screening/results/' + sessionId);
             const total     = data.total     || 0;
             const completed = data.completed || 0;
-            const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-            updateStatus(`Processed ${completed} / ${total} records`, pct);
-            addLog(`${completed}/${total} records processed`);
-            if (completed >= total && total > 0) {
+            const pct = total > 0 ? Math.round((completed / total) * 100) : 5;
+            updateStatus(`Screening… ${completed} / ${total} records`, pct);
+
+            // Log newly completed records
+            if (completed > lastCompleted && data.results) {
+                const newOnes = data.results.slice(lastCompleted);
+                newOnes.forEach(r => {
+                    const icon = r.decision === 'INCLUDE' ? '✓' :
+                                 r.decision === 'EXCLUDE' ? '✗' : '?';
+                    addLog(`[${icon}] ${r.title ? r.title.substring(0, 60) : 'Record'} — ${r.decision}`);
+                });
+                lastCompleted = completed;
+            }
+
+            // Detect error
+            if (data.status === 'error') {
+                clearInterval(pollTimer);
+                showAlert('Screening error: ' + (data.error || 'Unknown error'));
+                document.getElementById('run-btn').disabled = false;
+                document.getElementById('run-btn').innerHTML =
+                    '<i class="bi bi-play-fill me-1"></i>Start Screening';
+                return;
+            }
+
+            if (data.status === 'completed' || (completed >= total && total > 0)) {
                 clearInterval(pollTimer);
                 rawResults = data.results || [];
                 renderResults(rawResults);
@@ -138,7 +160,7 @@ function startPolling() {
                     '<i class="bi bi-play-fill me-1"></i>Start Screening';
             }
         } catch (e) {
-            // keep polling
+            // keep polling on transient errors
         }
     }, 2000);
 }

@@ -151,12 +151,16 @@ class ScreeningResultsResponse(BaseModel):
         total: Total number of records in the session.
         completed: Number of records that have been screened.
         results: Per-record screening decision summaries.
+        status: Run status: idle | running | completed | error.
+        error: Error message if status is error.
     """
 
     session_id: str
     total: int
     completed: int
     results: list[ScreeningRecordSummary]
+    status: str = "idle"
+    error: str | None = None
 
 
 class ScreeningSessionInfo(BaseModel):
