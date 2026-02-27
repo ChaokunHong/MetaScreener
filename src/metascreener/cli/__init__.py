@@ -67,7 +67,7 @@ def serve(
         False, "--api-only", help="Only start API server, skip frontend."
     ),
 ) -> None:
-    """Launch the FastAPI web server with React UI."""
+    """Launch the FastAPI web server."""
     import uvicorn  # noqa: PLC0415
 
     typer.echo(f"Starting MetaScreener server on http://{host}:{port}")

@@ -23,7 +23,7 @@ BANNER = f"""\
 [bold cyan]MetaScreener {VERSION}[/bold cyan]
 [dim]AI-assisted systematic review tool[/dim]
 [dim]Hierarchical Consensus Network (HCN) with 4 open-source LLMs[/dim]
-[dim]Tip: Enter [bold]7[/bold] or [bold]/ui[/bold] to open the web dashboard[/dim]
+[dim]Tip: Enter [bold]7[/bold] or [bold]/serve[/bold] to open the web UI[/dim]
 """
 
 # Numbered menu items: (number, slash_cmd, description, handler_name)
@@ -34,7 +34,7 @@ MENU_ITEMS: list[tuple[str, str, str]] = [
     ("/assess-rob", "Assess risk of bias (RoB 2 / ROBINS-I / QUADAS-2)", "_handle_assess_rob"),
     ("/evaluate", "Evaluate screening performance", "_handle_evaluate"),
     ("/export", "Export results (CSV, JSON, Excel, RIS)", "_handle_export"),
-    ("/ui", "Open web dashboard (Streamlit)", "_handle_ui"),
+    ("/serve", "Open web UI (http://localhost:8000)", "_handle_serve"),
 ]
 
 COMMANDS: dict[str, str] = {
@@ -44,7 +44,7 @@ COMMANDS: dict[str, str] = {
     "/assess-rob": "Assess risk of bias (RoB 2 / ROBINS-I / QUADAS-2)",
     "/evaluate": "Evaluate screening performance and compute metrics",
     "/export": "Export results (CSV, JSON, Excel, RIS)",
-    "/ui": "Open web dashboard (Streamlit)",
+    "/serve": "Launch web server and open browser (http://localhost:8000)",
     "/help": "Show this help message",
     "/status": "Show current working files and project state",
     "/quit": "Exit MetaScreener",
@@ -58,7 +58,7 @@ _HANDLERS: dict[str, str] = {
     "/assess-rob": "_handle_assess_rob",
     "/evaluate": "_handle_evaluate",
     "/export": "_handle_export",
-    "/ui": "_handle_ui",
+    "/serve": "_handle_serve",
 }
 
 
@@ -571,28 +571,32 @@ def _handle_export() -> None:
 
 
 # ---------------------------------------------------------------------------
-# /ui — Launch Streamlit Web Dashboard
+# /serve — Launch FastAPI Web UI
 # ---------------------------------------------------------------------------
-def _handle_ui() -> None:
-    """Launch the Streamlit web dashboard in the user's browser."""
-    app_path = Path(__file__).parent.parent / "app" / "main.py"
-    if not app_path.exists():
-        console.print("[red]Streamlit app not found. Reinstall MetaScreener.[/red]")
-        return
+def _handle_serve() -> None:
+    """Launch the FastAPI web server and open the browser."""
+    import webbrowser  # noqa: PLC0415
+
+    port = 8000
+    url = f"http://localhost:{port}"
 
     console.print(
-        "[cyan]Launching Streamlit dashboard...[/cyan]\n"
-        "[dim]Opening http://localhost:8501 in your browser.[/dim]\n"
+        f"[cyan]Launching MetaScreener web UI...[/cyan]\n"
+        f"[dim]Opening {url} in your browser.[/dim]\n"
         "[dim]Press Ctrl+C to stop the server and return here.[/dim]"
     )
     try:
+        webbrowser.open(url)
         subprocess.run(
-            [sys.executable, "-m", "streamlit", "run", str(app_path),
-             "--server.headless=true"],
+            [sys.executable, "-m", "uvicorn",
+             "metascreener.api.main:create_app",
+             "--factory",
+             "--host", "127.0.0.1",
+             "--port", str(port)],
             check=False,
         )
     except KeyboardInterrupt:
-        console.print("\n[dim]Streamlit server stopped.[/dim]")
+        console.print("\n[dim]Web server stopped.[/dim]")
 
 
 # ---------------------------------------------------------------------------
