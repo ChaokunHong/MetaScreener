@@ -36,6 +36,11 @@ interface UploadedFile {
   size: number
 }
 
+interface ExtractionRunResponse {
+  status: string
+  message: string
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -156,7 +161,11 @@ export function Extraction() {
     setRunning(true)
     setError(null)
     try {
-      await apiPost(`/extraction/run/${sessionId}`)
+      const resp = await apiPost<ExtractionRunResponse>(`/extraction/run/${sessionId}`)
+      if (resp.status !== 'completed') {
+        setError(resp.message || 'Extraction not completed')
+        return
+      }
       setEditedResults(null)
       void queryClient.invalidateQueries({ queryKey: ['extraction-results'] })
     } catch (err) {

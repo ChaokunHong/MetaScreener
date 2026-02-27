@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- PyInstaller bundles often need this under hardened runtime to load packaged Python extensions. -->
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+  <!-- Some Python/native libraries may allocate executable memory at runtime. -->
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+</dict>
+</plist>
+

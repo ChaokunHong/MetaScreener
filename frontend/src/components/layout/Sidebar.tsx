@@ -7,6 +7,8 @@ import {
   Shield,
   Settings,
 } from 'lucide-react'
+import brandLogo from '../../assets/brand/meta-screener-main-logo.svg'
+import brandIcon from '../../assets/brand/meta-screener-icon.svg'
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -23,8 +25,20 @@ export function Sidebar() {
   return (
     <aside className="glass-strong w-64 min-h-screen p-4 flex flex-col border-r border-white/10">
       <div className="mb-8 px-3">
-        <h1 className="text-xl font-bold text-white">MetaScreener</h1>
-        <p className="text-xs text-white/50 mt-1">AI-Assisted Systematic Review</p>
+        <div className="flex items-center gap-3">
+          <img
+            src={brandIcon}
+            alt=""
+            aria-hidden="true"
+            className="w-9 h-9 object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.2)]"
+          />
+          <img
+            src={brandLogo}
+            alt="Meta Screener"
+            className="h-7 object-contain brightness-110"
+          />
+        </div>
+        <p className="text-xs text-white/50 mt-2">AI-Assisted Systematic Review</p>
       </div>
       <nav className="flex-1 space-y-1">
         {navItems.map((item) => {

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 
+import pytest
 from fastapi.testclient import TestClient
 
 
@@ -22,8 +23,14 @@ class TestFullScreeningWorkflow:
         assert resp.status_code == 200
         assert resp.json()["status"] == "ok"
 
-    def test_full_screening_workflow(self) -> None:
+    def test_full_screening_workflow(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Upload file -> store criteria -> attempt run -> get results."""
+        from metascreener.api.routes import screening as screening_routes
+
+        monkeypatch.setattr(screening_routes, "_get_openrouter_api_key", lambda: "")
         client = self._client()
 
         # Step 1: Upload RIS file
@@ -113,8 +120,14 @@ class TestFullScreeningWorkflow:
         results_resp = client.get(f"/api/evaluation/results/{sid}")
         assert results_resp.status_code == 200
 
-    def test_extraction_workflow(self) -> None:
+    def test_extraction_workflow(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Upload PDFs -> attempt extraction."""
+        from metascreener.api.routes import extraction as extraction_routes
+
+        monkeypatch.setattr(extraction_routes, "_get_openrouter_api_key", lambda: "")
         client = self._client()
 
         upload_resp = client.post(
@@ -129,11 +142,32 @@ class TestFullScreeningWorkflow:
         assert upload_resp.status_code == 200
         sid = upload_resp.json()["session_id"]
 
+        form_resp = client.post(
+            f"/api/extraction/upload-form/{sid}",
+            files={
+                "file": (
+                    "form.yaml",
+                    io.BytesIO(
+                        b'form_name: Test\nform_version: "1.0"\nfields:\n'
+                        b'  study_id:\n    type: text\n    description: Study ID\n'
+                    ),
+                    "application/yaml",
+                )
+            },
+        )
+        assert form_resp.status_code == 200
+
         run_resp = client.post(f"/api/extraction/run/{sid}")
         assert run_resp.status_code == 200
 
-    def test_quality_workflow(self) -> None:
+    def test_quality_workflow(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Upload PDFs -> attempt quality assessment."""
+        from metascreener.api.routes import quality as quality_routes
+
+        monkeypatch.setattr(quality_routes, "_get_openrouter_api_key", lambda: "")
         client = self._client()
 
         upload_resp = client.post(

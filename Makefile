@@ -1,5 +1,5 @@
 # MetaScreener 2.0 — Build Commands
-.PHONY: build-frontend build-backend build dev-frontend dev-backend dev clean test lint
+.PHONY: build-frontend build-backend build build-desktop build-desktop-dmg sign-desktop-macos notarize-desktop-macos release-desktop-macos dev-frontend dev-backend dev clean test lint
 
 # Build React frontend to src/metascreener/web/dist/
 build-frontend:
@@ -11,6 +11,25 @@ build-backend: build-frontend
 
 # Full build: frontend + Python wheel
 build: build-backend
+
+# Build packaged desktop shell (PyInstaller onedir bundle)
+build-desktop: build-frontend
+	uv run python scripts/build_desktop.py --clean
+
+# Build packaged desktop shell + macOS DMG (macOS only)
+build-desktop-dmg: build-frontend
+	uv run python scripts/build_desktop.py --clean --dmg
+
+# Sign macOS desktop artifacts (.app/.dmg) using codesign
+sign-desktop-macos:
+	uv run python scripts/sign_macos_desktop.py
+
+# Notarize macOS desktop DMG (staples DMG and .app by default)
+notarize-desktop-macos:
+	uv run python scripts/notarize_macos_desktop.py
+
+# One-shot macOS desktop release flow: build -> sign -> notarize
+release-desktop-macos: build-desktop-dmg sign-desktop-macos notarize-desktop-macos
 
 # Development: run frontend dev server (Vite with HMR)
 dev-frontend:

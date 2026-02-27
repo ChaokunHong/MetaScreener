@@ -37,3 +37,8 @@ def test_assess_rob_command_exists() -> None:
 def test_export_command_exists() -> None:
     result = runner.invoke(app, ["export", "--help"])
     assert result.exit_code == 0
+
+
+def test_desktop_command_exists() -> None:
+    result = runner.invoke(app, ["desktop", "--help"])
+    assert result.exit_code == 0

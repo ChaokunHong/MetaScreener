@@ -1,10 +1,10 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Header } from '../components/layout/Header'
 import { GlassCard } from '../components/glass/GlassCard'
 import { GlassButton } from '../components/glass/GlassButton'
 import { apiUpload, apiPost } from '../api/client'
-import { useEvaluationResults } from '../api/queries'
+import { useEvaluationResults, useScreeningSessions } from '../api/queries'
 import type { EvaluationUploadResponse, EvaluationMetrics } from '../api/types'
 import {
   Upload,
@@ -15,7 +15,7 @@ import {
   Check,
   Download,
   Loader2,
-  Image,
+  Image as ImageIcon,
   FileCode,
 } from 'lucide-react'
 import {
@@ -37,52 +37,118 @@ type ChartTab = 'roc' | 'calibration' | 'distribution'
 
 function downloadBlob(content: string, filename: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType })
+  downloadBinaryBlob(blob, filename)
+}
+
+function downloadBinaryBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   a.download = filename
   a.click()
-  URL.revokeObjectURL(url)
+  setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-// Sample data for chart placeholders (populated after evaluation runs)
-const ROC_DATA = [
-  { fpr: 0, tpr: 0 },
-  { fpr: 0.02, tpr: 0.45 },
-  { fpr: 0.05, tpr: 0.72 },
-  { fpr: 0.1, tpr: 0.85 },
-  { fpr: 0.15, tpr: 0.91 },
-  { fpr: 0.2, tpr: 0.94 },
-  { fpr: 0.3, tpr: 0.96 },
-  { fpr: 0.5, tpr: 0.98 },
-  { fpr: 0.7, tpr: 0.99 },
-  { fpr: 1, tpr: 1 },
-]
+function chartFilename(tab: ChartTab, ext: 'png' | 'svg'): string {
+  const base =
+    tab === 'roc'
+      ? 'roc_curve'
+      : tab === 'calibration'
+        ? 'calibration_plot'
+        : 'score_distribution'
+  return `evaluation_${base}.${ext}`
+}
 
-const CALIBRATION_DATA = [
-  { predicted: 0.1, actual: 0.08 },
-  { predicted: 0.2, actual: 0.18 },
-  { predicted: 0.3, actual: 0.32 },
-  { predicted: 0.4, actual: 0.38 },
-  { predicted: 0.5, actual: 0.52 },
-  { predicted: 0.6, actual: 0.57 },
-  { predicted: 0.7, actual: 0.72 },
-  { predicted: 0.8, actual: 0.78 },
-  { predicted: 0.9, actual: 0.92 },
-]
+function parseSvgPxDimension(value: string | null): number | null {
+  if (!value) return null
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.endsWith('%')) return null
+  const n = Number.parseFloat(trimmed)
+  return Number.isFinite(n) ? n : null
+}
 
-const DISTRIBUTION_DATA = [
-  { bin: '0.0-0.1', include: 2, exclude: 45 },
-  { bin: '0.1-0.2', include: 3, exclude: 38 },
-  { bin: '0.2-0.3', include: 5, exclude: 22 },
-  { bin: '0.3-0.4', include: 8, exclude: 15 },
-  { bin: '0.4-0.5', include: 12, exclude: 10 },
-  { bin: '0.5-0.6', include: 15, exclude: 8 },
-  { bin: '0.6-0.7', include: 22, exclude: 5 },
-  { bin: '0.7-0.8', include: 35, exclude: 3 },
-  { bin: '0.8-0.9', include: 42, exclude: 2 },
-  { bin: '0.9-1.0', include: 50, exclude: 1 },
-]
+function serializeChartSvg(container: HTMLDivElement): { svgText: string; width: number; height: number } {
+  const svg = container.querySelector('svg')
+  if (!(svg instanceof SVGSVGElement)) {
+    throw new Error('No chart SVG found to export')
+  }
+
+  const rect = container.getBoundingClientRect()
+  const attrWidth = parseSvgPxDimension(svg.getAttribute('width'))
+  const attrHeight = parseSvgPxDimension(svg.getAttribute('height'))
+  const widthFallback = rect.width > 0 ? rect.width : 800
+  const heightFallback = rect.height > 0 ? rect.height : 320
+  const width = Math.max(1, Math.round(attrWidth ?? widthFallback))
+  const height = Math.max(1, Math.round(attrHeight ?? heightFallback))
+
+  const clone = svg.cloneNode(true) as SVGSVGElement
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+  clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink')
+  clone.setAttribute('width', String(width))
+  clone.setAttribute('height', String(height))
+  if (!clone.getAttribute('viewBox')) {
+    clone.setAttribute('viewBox', `0 0 ${width} ${height}`)
+  }
+
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+  bg.setAttribute('x', '0')
+  bg.setAttribute('y', '0')
+  bg.setAttribute('width', String(width))
+  bg.setAttribute('height', String(height))
+  bg.setAttribute('fill', '#080b12')
+  clone.insertBefore(bg, clone.firstChild)
+
+  const svgText = new XMLSerializer().serializeToString(clone)
+  return { svgText, width, height }
+}
+
+function loadImageFromUrl(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('Failed to render chart image'))
+    img.src = url
+  })
+}
+
+async function exportChartAsSvg(container: HTMLDivElement, filename: string): Promise<void> {
+  const { svgText } = serializeChartSvg(container)
+  const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' })
+  downloadBinaryBlob(blob, filename)
+}
+
+async function exportChartAsPng(container: HTMLDivElement, filename: string): Promise<void> {
+  const { svgText, width, height } = serializeChartSvg(container)
+  const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' })
+  const svgUrl = URL.createObjectURL(svgBlob)
+
+  try {
+    const img = await loadImageFromUrl(svgUrl)
+    const scale = 300 / 96 // Approximate 300 DPI raster output from CSS px units.
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(width * scale))
+    canvas.height = Math.max(1, Math.round(height * scale))
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      throw new Error('Canvas rendering context unavailable')
+    }
+
+    ctx.fillStyle = '#080b12'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+    const pngBlob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/png')
+    })
+    if (!pngBlob) {
+      throw new Error('Failed to encode PNG export')
+    }
+    downloadBinaryBlob(pngBlob, filename)
+  } finally {
+    URL.revokeObjectURL(svgUrl)
+  }
+}
 
 const METRIC_CARDS: { key: keyof EvaluationMetrics; label: string; description: string }[] = [
   { key: 'sensitivity', label: 'Sensitivity', description: 'True positive rate (recall)' },
@@ -116,10 +182,22 @@ export function Evaluation() {
   const [uploadedFilename, setUploadedFilename] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<ChartTab>('roc')
   const [copied, setCopied] = useState(false)
+  const [selectedScreeningSessionId, setSelectedScreeningSessionId] = useState('')
+  const chartContainerRef = useRef<HTMLDivElement | null>(null)
 
+  const { data: screeningSessions = [] } = useScreeningSessions()
   const { data: evalData } = useEvaluationResults(sessionId)
 
   const metrics = evalData?.metrics ?? null
+  const rocData = evalData?.charts?.roc ?? []
+  const calibrationData = evalData?.charts?.calibration ?? []
+  const distributionData = evalData?.charts?.distribution ?? []
+  const hasEvaluationResults = (evalData?.total_records ?? 0) > 0
+  const hasChartData =
+    rocData.length > 0 || calibrationData.length > 0 || distributionData.length > 0
+  const runnableScreeningSessions = screeningSessions.filter(
+    (session) => session.completed_records > 0,
+  )
 
   const handleUpload = useCallback(async (file: File) => {
     setError(null)
@@ -131,10 +209,12 @@ export function Evaluation() {
         '/evaluation/upload-labels',
         formData,
       )
+      const resolvedGoldCount = resp.gold_label_count ?? resp.label_count ?? 0
+      const resolvedTotalRecords = resp.total_records ?? resp.label_count ?? 0
       setSessionId(resp.session_id)
-      setGoldLabelCount(resp.gold_label_count)
-      setTotalRecords(resp.total_records)
-      setUploadedFilename(file.name)
+      setGoldLabelCount(resolvedGoldCount)
+      setTotalRecords(resolvedTotalRecords)
+      setUploadedFilename(resp.filename ?? file.name)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
@@ -162,7 +242,10 @@ export function Evaluation() {
     setRunning(true)
     setError(null)
     try {
-      await apiPost(`/evaluation/run/${sessionId}`)
+      const body = selectedScreeningSessionId
+        ? { screening_session_id: selectedScreeningSessionId }
+        : undefined
+      await apiPost(`/evaluation/run/${sessionId}`, body)
       void queryClient.invalidateQueries({ queryKey: ['evaluation-results'] })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Evaluation failed')
@@ -181,14 +264,26 @@ export function Evaluation() {
     downloadBlob(csv, 'evaluation_metrics.csv', 'text/csv')
   }
 
-  const handleExportPNG = () => {
-    // Requires html-to-image / canvas library for chart export
-    alert('PNG export requires a canvas rendering library. Use browser screenshot or export as CSV.')
+  const handleExportPNG = async () => {
+    const container = chartContainerRef.current
+    if (!container || !hasChartData) return
+    setError(null)
+    try {
+      await exportChartAsPng(container, chartFilename(activeTab, 'png'))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'PNG export failed')
+    }
   }
 
-  const handleExportSVG = () => {
-    // Requires html-to-image / canvas library for chart export
-    alert('SVG export requires a canvas rendering library. Use browser screenshot or export as CSV.')
+  const handleExportSVG = async () => {
+    const container = chartContainerRef.current
+    if (!container || !hasChartData) return
+    setError(null)
+    try {
+      await exportChartAsSvg(container, chartFilename(activeTab, 'svg'))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'SVG export failed')
+    }
   }
 
   const lancetText = metrics
@@ -228,34 +323,65 @@ export function Evaluation() {
           </div>
 
           {uploadedFilename ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <FileUp size={20} className="text-green-400" />
+            <>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FileUp size={20} className="text-green-400" />
+                  <div>
+                    <p className="text-white font-medium">{uploadedFilename}</p>
+                    <p className="text-white/50 text-sm">
+                      {goldLabelCount} gold labels across {totalRecords} records
+                    </p>
+                  </div>
+                </div>
+                <GlassButton
+                  onClick={() => { void handleRun() }}
+                  disabled={running}
+                >
+                  <span className="flex items-center gap-2">
+                    {running ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Running...
+                      </>
+                    ) : (
+                      <>
+                        <Play size={16} /> Run Evaluation
+                      </>
+                    )}
+                  </span>
+                </GlassButton>
+              </div>
+              <div className="mt-4 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 items-end">
                 <div>
-                  <p className="text-white font-medium">{uploadedFilename}</p>
-                  <p className="text-white/50 text-sm">
-                    {goldLabelCount} gold labels across {totalRecords} records
+                  <label className="block text-white/60 text-xs uppercase tracking-wider mb-2">
+                    Screening Session Source
+                  </label>
+                  <select
+                    value={selectedScreeningSessionId}
+                    onChange={(e) => setSelectedScreeningSessionId(e.target.value)}
+                    className="glass-input w-full text-sm"
+                  >
+                    <option value="">Automatic (best `record_id` overlap)</option>
+                    {runnableScreeningSessions.map((session) => (
+                      <option key={session.session_id} value={session.session_id}>
+                        {session.filename} | {session.completed_records}/{session.total_records} screened
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-white/40 text-xs mt-2">
+                    {runnableScreeningSessions.length > 0
+                      ? 'Select a screening run explicitly to avoid ambiguity when multiple runs exist.'
+                      : 'No completed screening sessions found yet. Run Screening first, or use automatic and evaluate later.'}
                   </p>
                 </div>
+                {evalData?.screening_session_id && (
+                  <div className="text-white/50 text-xs">
+                    Using session: <span className="font-mono">{evalData.screening_session_id}</span>
+                  </div>
+                )}
               </div>
-              <GlassButton
-                onClick={() => { void handleRun() }}
-                disabled={running}
-              >
-                <span className="flex items-center gap-2">
-                  {running ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      Running...
-                    </>
-                  ) : (
-                    <>
-                      <Play size={16} /> Run Evaluation
-                    </>
-                  )}
-                </span>
-              </GlassButton>
-            </div>
+            </>
           ) : (
             <div
               onDrop={handleDrop}
@@ -275,12 +401,12 @@ export function Evaluation() {
                 Drag & drop your gold standard file
               </p>
               <p className="text-white/40 text-sm mb-4">
-                Supports RIS, CSV, JSON with label annotations
+                Supports RIS, BibTeX, CSV, Excel, XML (labels are read from CSV/Excel label columns)
               </p>
               <label>
                 <input
                   type="file"
-                  accept=".ris,.csv,.json"
+                  accept=".ris,.bib,.csv,.xlsx,.xml"
                   onChange={handleInputChange}
                   className="hidden"
                 />
@@ -294,8 +420,17 @@ export function Evaluation() {
           {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
         </GlassCard>
 
+        {evalData && !hasEvaluationResults && (
+          <GlassCard variant="subtle">
+            <p className="text-white/70 text-sm">
+              No matched screening results were found for these labels (matching is based on
+              `record_id`), or the uploaded file did not contain parseable gold-label columns.
+            </p>
+          </GlassCard>
+        )}
+
         {/* Section 2: Metrics Summary Cards */}
-        {metrics && (
+        {metrics && hasEvaluationResults && (
           <div>
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <BarChart3 size={20} className="text-purple-400" />
@@ -320,7 +455,7 @@ export function Evaluation() {
         )}
 
         {/* Section 3: Interactive Charts */}
-        {metrics && (
+        {metrics && hasEvaluationResults && (
           <GlassCard>
             <div className="flex items-center gap-4 mb-6">
               <button
@@ -355,10 +490,16 @@ export function Evaluation() {
               </button>
             </div>
 
-            <div className="h-80">
-              {activeTab === 'roc' && (
+            <div ref={chartContainerRef} className="h-80">
+              {!hasChartData && (
+                <div className="h-full flex items-center justify-center text-white/50 text-sm">
+                  Chart data unavailable for this run.
+                </div>
+              )}
+
+              {activeTab === 'roc' && hasChartData && (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={ROC_DATA}>
+                  <AreaChart data={rocData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                     <XAxis
                       dataKey="fpr"
@@ -391,9 +532,9 @@ export function Evaluation() {
                 </ResponsiveContainer>
               )}
 
-              {activeTab === 'calibration' && (
+              {activeTab === 'calibration' && hasChartData && (
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={CALIBRATION_DATA}>
+                  <LineChart data={calibrationData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                     <XAxis
                       dataKey="predicted"
@@ -425,9 +566,9 @@ export function Evaluation() {
                 </ResponsiveContainer>
               )}
 
-              {activeTab === 'distribution' && (
+              {activeTab === 'distribution' && hasChartData && (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={DISTRIBUTION_DATA}>
+                  <BarChart data={distributionData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                     <XAxis
                       dataKey="bin"
@@ -452,7 +593,7 @@ export function Evaluation() {
         )}
 
         {/* Section 4: Lancet-Formatted Text */}
-        {metrics && (
+        {metrics && hasEvaluationResults && (
           <GlassCard>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-semibold text-white">
@@ -478,7 +619,7 @@ export function Evaluation() {
         )}
 
         {/* Section 5: Export */}
-        {metrics && (
+        {metrics && hasEvaluationResults && (
           <GlassCard variant="subtle">
             <div className="flex items-center justify-between">
               <div>
@@ -488,12 +629,22 @@ export function Evaluation() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <GlassButton variant="outline" size="sm" onClick={handleExportPNG}>
+                <GlassButton
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { void handleExportPNG() }}
+                  disabled={!hasChartData}
+                >
                   <span className="flex items-center gap-2">
-                    <Image size={14} /> Export PNG (300 DPI)
+                    <ImageIcon size={14} /> Export PNG (300 DPI)
                   </span>
                 </GlassButton>
-                <GlassButton variant="outline" size="sm" onClick={handleExportSVG}>
+                <GlassButton
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { void handleExportSVG() }}
+                  disabled={!hasChartData}
+                >
                   <span className="flex items-center gap-2">
                     <FileCode size={14} /> Export SVG
                   </span>

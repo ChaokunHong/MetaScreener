@@ -52,6 +52,15 @@ export interface ScreeningResultsResponse {
   results: ScreeningRecordSummary[]
 }
 
+export interface ScreeningSessionInfo {
+  session_id: string
+  filename: string
+  total_records: number
+  completed_records: number
+  has_criteria: boolean
+  created_at?: string | null
+}
+
 export interface EvaluationMetrics {
   sensitivity: number | null
   specificity: number | null
@@ -63,10 +72,34 @@ export interface EvaluationMetrics {
   kappa: number | null
 }
 
+export interface EvaluationROCPoint {
+  fpr: number
+  tpr: number
+}
+
+export interface EvaluationCalibrationPoint {
+  predicted: number
+  actual: number
+}
+
+export interface EvaluationDistributionBin {
+  bin: string
+  include: number
+  exclude: number
+}
+
+export interface EvaluationCharts {
+  roc: EvaluationROCPoint[]
+  calibration: EvaluationCalibrationPoint[]
+  distribution: EvaluationDistributionBin[]
+}
+
 export interface EvaluationUploadResponse {
   session_id: string
-  total_records: number
-  gold_label_count: number
+  total_records?: number
+  gold_label_count?: number
+  label_count?: number
+  filename?: string
 }
 
 export interface EvaluationResponse {
@@ -74,6 +107,8 @@ export interface EvaluationResponse {
   metrics: EvaluationMetrics
   total_records: number
   gold_label_count: number
+  charts?: EvaluationCharts | null
+  screening_session_id?: string | null
 }
 
 export interface ExtractionUploadResponse {
