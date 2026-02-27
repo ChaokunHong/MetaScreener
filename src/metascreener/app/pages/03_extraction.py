@@ -150,9 +150,9 @@ def _run_extraction(
     from metascreener.config import load_model_config  # noqa: PLC0415
     from metascreener.llm.adapters.openrouter import OpenRouterAdapter  # noqa: PLC0415
 
-    config_path = Path(__file__).resolve().parents[3] / "configs" / "models.yaml"
+    config_path = Path(__file__).resolve().parents[2] / "configs" / "models.yaml"
     if not config_path.exists():
-        # Fallback: try project root
+        # Fallback: try project root (developer mode)
         config_path = Path.cwd() / "configs" / "models.yaml"
 
     config = load_model_config(config_path)

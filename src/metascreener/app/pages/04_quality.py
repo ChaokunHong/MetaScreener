@@ -198,7 +198,7 @@ def _create_backends(api_key: str) -> list[Any]:
     from metascreener.config import load_model_config  # noqa: PLC0415
     from metascreener.llm.adapters.openrouter import OpenRouterAdapter  # noqa: PLC0415
 
-    config_path = Path(__file__).resolve().parents[4] / "configs" / "models.yaml"
+    config_path = Path(__file__).resolve().parents[2] / "configs" / "models.yaml"
     if not config_path.exists():
         st.error(f"Model config not found at {config_path}")
         return []
