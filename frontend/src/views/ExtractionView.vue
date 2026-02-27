@@ -5,7 +5,7 @@
 
     <!-- Step 1: Upload PDFs -->
     <div class="glass-card">
-      <div class="section-title">① Upload PDFs</div>
+      <div class="section-title"><i class="fas fa-file-pdf"></i> Upload PDFs</div>
       <div
         class="upload-zone"
         @click="pdfInput?.click()"
@@ -16,25 +16,25 @@
         style="margin-bottom: 1rem;"
       >
         <input ref="pdfInput" type="file" accept=".pdf" multiple @change="onPdfChange" />
-        <div style="font-size: 2rem; margin-bottom: 0.25rem;">📄</div>
-        <div style="font-weight: 500;">
-          {{ pdfFiles.length ? `${pdfFiles.length} file(s) selected` : 'Drop PDFs here or click to browse' }}
-        </div>
+        <i class="fas fa-file-pdf zone-icon"></i>
+        <div class="zone-title">{{ pdfFiles.length ? `${pdfFiles.length} file(s) selected` : 'Drop PDFs here or click to browse' }}</div>
       </div>
 
       <div v-if="pdfInfo" class="alert alert-success">
-        ✓ Uploaded {{ pdfInfo.pdf_count }} PDFs — session: <code>{{ pdfInfo.session_id }}</code>
+        <i class="fas fa-check-circle"></i>
+        Uploaded {{ pdfInfo.pdf_count }} PDFs — session: <code>{{ pdfInfo.session_id }}</code>
       </div>
 
       <button class="btn btn-primary" :disabled="!pdfFiles.length || uploadingPdfs" @click="doUploadPdfs">
-        <span v-if="uploadingPdfs">⏳ Uploading…</span>
-        <span v-else>Upload PDFs</span>
+        <i v-if="uploadingPdfs" class="fas fa-spinner fa-spin"></i>
+        <i v-else class="fas fa-upload"></i>
+        {{ uploadingPdfs ? 'Uploading…' : 'Upload PDFs' }}
       </button>
     </div>
 
     <!-- Step 2: Upload Extraction Form -->
     <div v-if="sessionId" class="glass-card">
-      <div class="section-title">② Upload Extraction Form (YAML)</div>
+      <div class="section-title"><i class="fas fa-file-code"></i> Upload Extraction Form (YAML)</div>
       <div class="form-group">
         <label class="form-label">YAML extraction form</label>
         <input ref="formInput" type="file" accept=".yaml,.yml" class="form-control" style="padding: 0.5rem;" @change="onFormChange" />
@@ -44,29 +44,33 @@
         <textarea v-model="formYaml" class="form-control" rows="6" placeholder="fields:&#10;  - name: sample_size&#10;    type: integer&#10;  - name: outcome&#10;    type: text"></textarea>
       </div>
 
-      <div v-if="formInfo" class="alert alert-success">✓ Form uploaded: {{ formInfo.form_name }}</div>
+      <div v-if="formInfo" class="alert alert-success">
+        <i class="fas fa-check-circle"></i> Form uploaded: {{ formInfo.form_name }}
+      </div>
 
       <button class="btn btn-primary" :disabled="!formYaml.trim() || uploadingForm" @click="doUploadForm">
-        <span v-if="uploadingForm">⏳ Uploading…</span>
-        <span v-else>Upload Form</span>
+        <i v-if="uploadingForm" class="fas fa-spinner fa-spin"></i>
+        <i v-else class="fas fa-upload"></i>
+        {{ uploadingForm ? 'Uploading…' : 'Upload Form' }}
       </button>
     </div>
 
     <!-- Step 3: Run + Results -->
     <div v-if="formReady" class="glass-card">
-      <div class="section-title">③ Extract Data</div>
+      <div class="section-title"><i class="fas fa-table"></i> Extract Data</div>
       <div v-if="extractError" class="alert alert-danger">{{ extractError }}</div>
 
       <button class="btn btn-primary" :disabled="running" @click="doExtract" style="margin-bottom: 1rem;">
-        <span v-if="running">⏳ Extracting…</span>
-        <span v-else>▶ Extract Data</span>
+        <i v-if="running" class="fas fa-spinner fa-spin"></i>
+        <i v-else class="fas fa-play"></i>
+        {{ running ? 'Extracting…' : 'Extract Data' }}
       </button>
 
       <!-- Results table -->
       <div v-if="rows.length" style="margin-top: 1rem;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
-          <div class="section-title" style="margin-bottom: 0;">Extracted Data</div>
-          <button class="btn btn-secondary btn-sm" @click="exportCSV">⬇ CSV</button>
+          <div class="section-title" style="margin-bottom: 0;"><i class="fas fa-list-alt"></i> Extracted Data</div>
+          <button class="btn btn-secondary btn-sm" @click="exportCSV"><i class="fas fa-download"></i> CSV</button>
         </div>
         <div class="table-wrap">
           <table>
@@ -82,8 +86,8 @@
                 <td style="white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis;">{{ row.paper_id }}</td>
                 <td v-for="col in columns" :key="col">{{ row.fields?.[col] ?? '—' }}</td>
                 <td>
-                  <span v-if="row.consensus" style="color: #10b981;" title="All models agree">✓</span>
-                  <span v-else style="color: #f59e0b;" title="Discrepancy between models">⚠</span>
+                  <i v-if="row.consensus" class="fas fa-check-circle" style="color: #10b981;" title="All models agree"></i>
+                  <i v-else class="fas fa-exclamation-triangle" style="color: #f59e0b;" title="Discrepancy between models"></i>
                 </td>
               </tr>
             </tbody>

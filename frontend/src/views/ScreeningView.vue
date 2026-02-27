@@ -8,7 +8,7 @@
       <template v-for="(s, i) in steps" :key="i">
         <div class="step" :class="{ active: currentStep === i + 1, done: currentStep > i + 1 }">
           <div class="step-circle">
-            <span v-if="currentStep > i + 1">✓</span>
+            <i v-if="currentStep > i + 1" class="fas fa-check" style="font-size: 0.65rem;"></i>
             <span v-else>{{ i + 1 }}</span>
           </div>
           <span class="step-label">{{ s }}</span>
@@ -19,7 +19,7 @@
 
     <!-- STEP 1: Upload -->
     <div v-if="currentStep >= 1" class="glass-card">
-      <div class="section-title">① Upload Search Results</div>
+      <div class="section-title"><i class="fas fa-upload"></i> Upload Search Results</div>
       <div
         class="upload-zone"
         :class="{ dragover: dragging }"
@@ -30,26 +30,26 @@
         style="margin-bottom: 1rem;"
       >
         <input ref="fileInput" type="file" accept=".ris,.bib,.csv,.xlsx,.xml" @change="onFileChange" />
-        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📄</div>
-        <div style="font-weight: 500; color: var(--text-primary);">
-          {{ selectedFile ? selectedFile.name : 'Drop file here or click to browse' }}
-        </div>
-        <div class="text-muted" style="font-size: 0.8rem; margin-top: 0.25rem;">RIS, BibTeX, CSV, Excel, PubMed XML</div>
+        <i class="fas fa-file-alt zone-icon"></i>
+        <div class="zone-title">{{ selectedFile ? selectedFile.name : 'Drop file here or click to browse' }}</div>
+        <div class="zone-hint">RIS, BibTeX, CSV, Excel, PubMed XML</div>
       </div>
 
       <div v-if="uploadInfo" class="alert alert-success">
-        ✓ Loaded <strong>{{ uploadInfo.record_count }}</strong> records
+        <i class="fas fa-check-circle"></i>
+        Loaded <strong>{{ uploadInfo.record_count }}</strong> records
       </div>
 
       <button class="btn btn-primary" :disabled="!selectedFile || uploading" @click="doUpload">
-        <span v-if="uploading">⏳ Uploading…</span>
-        <span v-else>Upload File</span>
+        <i v-if="uploading" class="fas fa-spinner fa-spin"></i>
+        <i v-else class="fas fa-upload"></i>
+        {{ uploading ? 'Uploading…' : 'Upload File' }}
       </button>
     </div>
 
     <!-- STEP 2: Criteria -->
     <div v-if="currentStep >= 2" class="glass-card">
-      <div class="section-title">② Set Inclusion/Exclusion Criteria</div>
+      <div class="section-title"><i class="fas fa-filter"></i> Set Inclusion/Exclusion Criteria</div>
 
       <!-- Tabs -->
       <div class="tabs">
@@ -96,14 +96,15 @@
       </div>
 
       <button class="btn btn-primary" :disabled="settingCriteria" @click="doSetCriteria">
-        <span v-if="settingCriteria">⏳ Applying…</span>
-        <span v-else>Apply Criteria</span>
+        <i v-if="settingCriteria" class="fas fa-spinner fa-spin"></i>
+        <i v-else class="fas fa-check"></i>
+        {{ settingCriteria ? 'Applying…' : 'Apply Criteria' }}
       </button>
     </div>
 
     <!-- STEP 3: Run -->
     <div v-if="currentStep >= 3" class="glass-card">
-      <div class="section-title">③ Run Screening</div>
+      <div class="section-title"><i class="fas fa-play-circle"></i> Run Screening</div>
       <p class="text-muted" style="margin-bottom: 1rem;">
         Ready to screen <strong>{{ uploadInfo?.record_count }}</strong> records using 4 open-source LLMs (seed=42, temperature=0.0).
       </p>
@@ -123,19 +124,20 @@
       <div v-if="runError" class="alert alert-danger">{{ runError }}</div>
 
       <button class="btn btn-primary" :disabled="running" @click="doRun">
-        <span v-if="running">⏳ Screening…</span>
-        <span v-else>▶ Start Screening</span>
+        <i v-if="running" class="fas fa-spinner fa-spin"></i>
+        <i v-else class="fas fa-play"></i>
+        {{ running ? 'Screening…' : 'Start Screening' }}
       </button>
     </div>
 
     <!-- STEP 4: Results -->
     <div v-if="currentStep >= 4 && results.length" class="glass-card">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
-        <div class="section-title" style="margin-bottom: 0;">④ Results</div>
+        <div class="section-title" style="margin-bottom: 0;"><i class="fas fa-list-alt"></i> Results</div>
         <div style="display: flex; gap: 0.5rem;">
-          <button class="btn btn-secondary btn-sm" @click="exportJSON">⬇ JSON</button>
-          <button class="btn btn-secondary btn-sm" @click="exportCSV">⬇ CSV</button>
-          <button class="btn btn-secondary btn-sm" @click="resetAll">↺ Reset</button>
+          <button class="btn btn-secondary btn-sm" @click="exportJSON"><i class="fas fa-download"></i> JSON</button>
+          <button class="btn btn-secondary btn-sm" @click="exportCSV"><i class="fas fa-download"></i> CSV</button>
+          <button class="btn btn-secondary btn-sm" @click="resetAll"><i class="fas fa-redo"></i> Reset</button>
         </div>
       </div>
 

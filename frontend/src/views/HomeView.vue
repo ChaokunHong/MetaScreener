@@ -9,7 +9,7 @@
         Complete reproducibility. No proprietary models.
       </p>
       <router-link to="/screening" class="btn btn-primary" style="font-size: 1rem; padding: 0.75rem 2rem;">
-        🔍 Start Screening →
+        <i class="fas fa-search"></i> Start Screening
       </router-link>
     </div>
 
@@ -25,7 +25,7 @@
         <div class="glass-section" style="height: 100%; margin-bottom: 0; transition: transform 0.2s ease; cursor: pointer;"
              @mouseover="(e) => (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)'"
              @mouseleave="(e) => (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'">
-          <div style="font-size: 2rem; margin-bottom: 0.75rem;">{{ f.icon }}</div>
+          <div style="font-size: 1.5rem; margin-bottom: 0.75rem; color: var(--primary-purple);"><i :class="f.icon"></i></div>
           <div class="section-title" style="margin-bottom: 0.4rem;">{{ f.title }}</div>
           <div class="text-muted">{{ f.desc }}</div>
         </div>
@@ -50,10 +50,10 @@ import { ref, onMounted } from 'vue'
 import { apiGet } from '@/api'
 
 const features = [
-  { path: '/screening', icon: '🔍', title: 'Literature Screening', desc: 'Upload RIS/BibTeX/CSV, set PICO criteria, run HCN screening with 4 LLMs.' },
-  { path: '/evaluation', icon: '📊', title: 'Evaluation', desc: 'Upload gold labels and measure sensitivity, specificity, WSS@95, AUROC.' },
-  { path: '/extraction', icon: '📋', title: 'Data Extraction', desc: 'Define a YAML extraction form and extract structured data from PDFs.' },
-  { path: '/quality', icon: '✅', title: 'Quality Assessment', desc: 'Assess risk of bias using RoB 2, ROBINS-I, or QUADAS-2 tools.' },
+  { path: '/screening',  icon: 'fas fa-search',         title: 'Literature Screening', desc: 'Upload RIS/BibTeX/CSV, set PICO criteria, run HCN screening with 4 LLMs.' },
+  { path: '/evaluation', icon: 'fas fa-chart-bar',       title: 'Evaluation',           desc: 'Upload gold labels and measure sensitivity, specificity, WSS@95, AUROC.' },
+  { path: '/extraction', icon: 'fas fa-table',           title: 'Data Extraction',      desc: 'Define a YAML extraction form and extract structured data from PDFs.' },
+  { path: '/quality',    icon: 'fas fa-clipboard-check', title: 'Quality Assessment',   desc: 'Assess risk of bias using RoB 2, ROBINS-I, or QUADAS-2 tools.' },
 ]
 
 const version = ref('—')

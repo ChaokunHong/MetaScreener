@@ -5,7 +5,7 @@
 
     <!-- Step 1: Tool selection -->
     <div class="glass-card">
-      <div class="section-title">① Select Assessment Tool</div>
+      <div class="section-title"><i class="fas fa-tools"></i> Select Assessment Tool</div>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 0.75rem;">
         <div
           v-for="tool in tools"
@@ -19,7 +19,7 @@
           }"
           @click="selectedTool = tool.id"
         >
-          <div style="font-size: 2rem; margin-bottom: 0.5rem;">{{ tool.icon }}</div>
+          <div style="font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--primary-purple);"><i :class="tool.icon"></i></div>
           <div style="font-weight: 600; color: var(--text-primary);">{{ tool.name }}</div>
           <div class="text-muted" style="font-size: 0.8rem; margin-top: 0.25rem;">{{ tool.desc }}</div>
         </div>
@@ -28,7 +28,7 @@
 
     <!-- Step 2: Upload PDFs -->
     <div class="glass-card">
-      <div class="section-title">② Upload PDFs</div>
+      <div class="section-title"><i class="fas fa-file-pdf"></i> Upload PDFs</div>
       <div
         class="upload-zone"
         @click="pdfInput?.click()"
@@ -39,25 +39,25 @@
         style="margin-bottom: 1rem;"
       >
         <input ref="pdfInput" type="file" accept=".pdf" multiple @change="onPdfChange" />
-        <div style="font-size: 2rem; margin-bottom: 0.25rem;">📄</div>
-        <div style="font-weight: 500;">
-          {{ pdfFiles.length ? `${pdfFiles.length} PDF(s) selected` : 'Drop PDFs here or click to browse' }}
-        </div>
+        <i class="fas fa-file-pdf zone-icon"></i>
+        <div class="zone-title">{{ pdfFiles.length ? `${pdfFiles.length} PDF(s) selected` : 'Drop PDFs here or click to browse' }}</div>
       </div>
 
       <div v-if="uploadInfo" class="alert alert-success">
-        ✓ {{ uploadInfo.pdf_count }} PDFs uploaded — session: <code>{{ uploadInfo.session_id }}</code>
+        <i class="fas fa-check-circle"></i>
+        {{ uploadInfo.pdf_count }} PDFs uploaded — session: <code>{{ uploadInfo.session_id }}</code>
       </div>
 
       <button class="btn btn-primary" :disabled="!pdfFiles.length || uploadingPdfs" @click="doUploadPdfs">
-        <span v-if="uploadingPdfs">⏳ Uploading…</span>
-        <span v-else>Upload PDFs</span>
+        <i v-if="uploadingPdfs" class="fas fa-spinner fa-spin"></i>
+        <i v-else class="fas fa-upload"></i>
+        {{ uploadingPdfs ? 'Uploading…' : 'Upload PDFs' }}
       </button>
     </div>
 
     <!-- Step 3: Run -->
     <div v-if="sessionId" class="glass-card">
-      <div class="section-title">③ Assess Quality</div>
+      <div class="section-title"><i class="fas fa-clipboard-list"></i> Assess Quality</div>
       <p class="text-muted" style="margin-bottom: 1rem;">
         Tool: <strong>{{ selectedTool }}</strong> — {{ pdfFiles.length }} papers to assess
       </p>
@@ -65,15 +65,16 @@
       <div v-if="robError" class="alert alert-danger">{{ robError }}</div>
 
       <button class="btn btn-primary" :disabled="running || !selectedTool" @click="doAssess" style="margin-bottom: 1rem;">
-        <span v-if="running">⏳ Assessing…</span>
-        <span v-else>▶ Assess Quality</span>
+        <i v-if="running" class="fas fa-spinner fa-spin"></i>
+        <i v-else class="fas fa-play"></i>
+        {{ running ? 'Assessing…' : 'Assess Quality' }}
       </button>
 
       <!-- Traffic-light results table -->
       <div v-if="results.length">
         <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
-          <div class="section-title" style="margin-bottom: 0;">Results — Traffic Light</div>
-          <button class="btn btn-secondary btn-sm" @click="exportCSV">⬇ CSV</button>
+          <div class="section-title" style="margin-bottom: 0;"><i class="fas fa-traffic-light"></i> Results — Traffic Light</div>
+          <button class="btn btn-secondary btn-sm" @click="exportCSV"><i class="fas fa-download"></i> CSV</button>
         </div>
         <div class="table-wrap">
           <table>
@@ -111,9 +112,9 @@ import { ref, computed } from 'vue'
 import { apiUpload, apiPost, apiGet } from '@/api'
 
 const tools = [
-  { id: 'rob2', icon: '🎲', name: 'RoB 2', desc: 'Randomised trials — 5 domains' },
-  { id: 'robins_i', icon: '🔬', name: 'ROBINS-I', desc: 'Observational studies — 7 domains' },
-  { id: 'quadas2', icon: '🔍', name: 'QUADAS-2', desc: 'Diagnostic accuracy — 4 domains' },
+  { id: 'rob2',     icon: 'fas fa-dice',       name: 'RoB 2',     desc: 'Randomised trials — 5 domains' },
+  { id: 'robins_i', icon: 'fas fa-microscope', name: 'ROBINS-I',  desc: 'Observational studies — 7 domains' },
+  { id: 'quadas2',  icon: 'fas fa-search',     name: 'QUADAS-2',  desc: 'Diagnostic accuracy — 4 domains' },
 ]
 const selectedTool = ref('rob2')
 
