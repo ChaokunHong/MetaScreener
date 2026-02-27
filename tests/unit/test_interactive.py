@@ -34,7 +34,7 @@ class TestCommandRegistry:
     def test_all_commands_defined(self) -> None:
         expected = {
             "/init", "/screen", "/extract", "/assess-rob",
-            "/evaluate", "/export", "/ui", "/help", "/status", "/quit",
+            "/evaluate", "/export", "/serve", "/help", "/status", "/quit",
         }
         assert set(COMMANDS.keys()) == expected
 
