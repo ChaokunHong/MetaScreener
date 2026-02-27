@@ -15,7 +15,7 @@
         <label class="form-label">OpenRouter API Key</label>
         <div style="display: flex; gap: 0.5rem;">
           <input
-            v-model="settings.openrouter_api_key"
+            v-model="settings.api_keys.openrouter"
             :type="showOpenRouter ? 'text' : 'password'"
             class="form-control"
             placeholder="sk-or-..."
@@ -40,7 +40,7 @@
         <label class="form-label">Together AI API Key</label>
         <div style="display: flex; gap: 0.5rem;">
           <input
-            v-model="settings.together_api_key"
+            v-model="settings.api_keys.together"
             :type="showTogether ? 'text' : 'password'"
             class="form-control"
             placeholder="..."
@@ -73,9 +73,9 @@
         >
           <div style="font-size: 1.25rem; color: var(--primary-purple);"><i class="fas fa-microchip"></i></div>
           <div style="flex: 1;">
-            <div style="font-weight: 600; color: var(--text-primary);">{{ m.display_name || m.model_id }}</div>
+            <div style="font-weight: 600; color: var(--text-primary);">{{ m.name || m.model_id }}</div>
             <div class="text-muted" style="font-size: 0.8rem;">
-              {{ m.provider }} · {{ m.parameters || '' }} · License: {{ m.license || 'unknown' }}
+              {{ m.provider }} · v{{ m.version || '' }} · License: {{ m.license || 'unknown' }}
             </div>
           </div>
           <div>
@@ -106,20 +106,25 @@
 import { ref, onMounted } from 'vue'
 import { apiGet, apiPut, apiPost } from '@/api'
 
+interface ApiKeys {
+  openrouter?: string
+  together?: string
+}
+
 interface Settings {
-  openrouter_api_key?: string
-  together_api_key?: string
+  api_keys: ApiKeys
 }
 
 interface ModelInfo {
   model_id: string
-  display_name?: string
+  name: string
   provider?: string
-  parameters?: string
+  version?: string
   license?: string
+  enabled?: boolean
 }
 
-const settings = ref<Settings>({})
+const settings = ref<Settings>({ api_keys: {} })
 const saving = ref(false)
 const saveSuccess = ref(false)
 const saveError = ref('')
@@ -135,11 +140,11 @@ const loadingModels = ref(true)
 
 onMounted(async () => {
   try {
-    settings.value = await apiGet<Settings>('/settings')
+    const data = await apiGet<Settings>('/settings')
+    settings.value = { api_keys: data.api_keys || {} }
   } catch { /* no settings yet */ }
   try {
-    const data = await apiGet<{ models: ModelInfo[] }>('/settings/models')
-    models.value = data.models || []
+    models.value = await apiGet<ModelInfo[]>('/settings/models')
   } catch { /* no models */ }
   loadingModels.value = false
 })
@@ -149,7 +154,7 @@ async function doSave() {
   saveSuccess.value = false
   saveError.value = ''
   try {
-    await apiPut('/settings', settings.value)
+    await apiPut('/settings', { api_keys: settings.value.api_keys })
     saveSuccess.value = true
     setTimeout(() => { saveSuccess.value = false }, 3000)
   } catch (e: unknown) {
@@ -163,11 +168,11 @@ async function testKey(provider: string) {
   testingOR.value = true
   orTestResult.value = ''
   try {
-    const data = await apiPost<{ ok: boolean; message: string }>('/settings/test-key', {
+    const data = await apiPost<{ valid: boolean; message: string }>('/settings/test-key', {
       provider,
-      api_key: provider === 'openrouter' ? settings.value.openrouter_api_key : settings.value.together_api_key,
+      api_key: provider === 'openrouter' ? settings.value.api_keys.openrouter : settings.value.api_keys.together,
     })
-    orTestOk.value = data.ok
+    orTestOk.value = data.valid
     orTestResult.value = data.message
   } catch (e: unknown) {
     orTestOk.value = false
