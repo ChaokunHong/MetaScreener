@@ -1,0 +1,151 @@
+/**
+ * Design System Variables
+ * Based on LLM Configuration Page Standards
+ * 
+ * This file defines the core design tokens for the entire application
+ */
+
+:root {
+  /* ===== Container Standards ===== */
+  --container-max-width: 1100px;
+  --container-padding-x: 2.5rem;  /* 40px */
+  --container-padding-y: 2rem;    /* 32px */
+  --container-margin-y: 2rem;     /* 32px */
+  
+  /* ===== Glass Design Standards ===== */
+  --glass-section-padding-x: 2rem;     /* 32px */
+  --glass-section-padding-y: 1.5rem;   /* 24px */
+  --glass-section-margin-bottom: 1.5rem; /* 24px */
+  --glass-border-radius-large: 20px;
+  --glass-border-radius-medium: 16px;
+  --glass-border-radius-small: 12px;
+  
+  /* ===== Typography Scale ===== */
+  /* Page Titles */
+  --font-size-page-title: 1.875rem;    /* 30px */
+  --font-weight-page-title: 600;
+  --line-height-page-title: 1.3;
+  --letter-spacing-page-title: -0.02em;
+  
+  /* Section Titles */
+  --font-size-section-title: 1.125rem;  /* 18px */
+  --font-weight-section-title: 600;
+  --line-height-section-title: 1.4;
+  
+  /* Body Text */
+  --font-size-body: 0.875rem;          /* 14px */
+  --font-weight-body: 400;
+  --line-height-body: 1.5;
+  
+  /* Labels */
+  --font-size-label: 0.875rem;         /* 14px */
+  --font-weight-label: 500;
+  
+  /* Small Text */
+  --font-size-small: 0.8125rem;        /* 13px */
+  --font-weight-small: 400;
+  
+  /* Button Text */
+  --font-size-button: 0.9375rem;       /* 15px */
+  --font-weight-button: 500;
+  
+  /* ===== Spacing Scale ===== */
+  --spacing-xs: 0.5rem;    /* 8px */
+  --spacing-sm: 0.75rem;   /* 12px */
+  --spacing-md: 1rem;      /* 16px */
+  --spacing-lg: 1.5rem;    /* 24px */
+  --spacing-xl: 2rem;      /* 32px */
+  --spacing-2xl: 2.5rem;   /* 40px */
+  --spacing-3xl: 3rem;     /* 48px */
+  
+  /* ===== Component Specific ===== */
+  /* Buttons */
+  --button-padding-x: 2.5rem;
+  --button-padding-y: 0.875rem;
+  --button-border-radius: 12px;
+  
+  /* Inputs */
+  --input-padding-x: 1rem;
+  --input-padding-y: 0.75rem;
+  --input-border-radius: 10px;
+  --input-font-size: 1rem;
+  
+  /* Forms */
+  --form-group-margin-bottom: 2rem;    /* 32px - mb-8 */
+  --form-label-margin-bottom: 0.5rem;  /* 8px */
+}
+
+/* ===== Standard Component Classes ===== */
+
+/* Main Container */
+.std-container {
+  max-width: var(--container-max-width);
+  padding: var(--container-padding-y) var(--container-padding-x);
+  margin: var(--container-margin-y) auto;
+}
+
+/* Glass Sections */
+.std-glass-section {
+  padding: var(--glass-section-padding-y) var(--glass-section-padding-x);
+  margin-bottom: var(--glass-section-margin-bottom);
+  border-radius: var(--glass-border-radius-medium);
+}
+
+/* Typography Classes */
+.std-page-title {
+  font-size: var(--font-size-page-title);
+  font-weight: var(--font-weight-page-title);
+  line-height: var(--line-height-page-title);
+  letter-spacing: var(--letter-spacing-page-title);
+}
+
+.std-section-title {
+  font-size: var(--font-size-section-title);
+  font-weight: var(--font-weight-section-title);
+  line-height: var(--line-height-section-title);
+}
+
+.std-body-text {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
+}
+
+.std-label {
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-label);
+}
+
+/* Spacing Utilities */
+.std-form-group {
+  margin-bottom: var(--form-group-margin-bottom);
+}
+
+.std-label-spacing {
+  margin-bottom: var(--form-label-margin-bottom);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1200px) {
+  :root {
+    --container-padding-x: 2rem;  /* 32px on smaller screens */
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --container-padding-x: 1.5rem;  /* 24px on mobile */
+    --container-padding-y: 1.5rem;
+    --glass-section-padding-x: 1.5rem;
+    --glass-section-padding-y: 1.25rem;
+    --font-size-page-title: 1.5rem;  /* 24px on mobile */
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --container-padding-x: 1rem;  /* 16px on small mobile */
+    --glass-section-padding-x: 1rem;
+    --glass-section-padding-y: 1rem;
+  }
+}
