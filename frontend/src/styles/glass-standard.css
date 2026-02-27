@@ -1,0 +1,596 @@
+/**
+ * Glass Design Standard Based on LLM Config Page
+ * 
+ * This is the MANDATORY glass design system that ALL pages must use.
+ * DO NOT create custom glass implementations!
+ */
+
+/* ========================================
+   1. Page Layout Structure
+   ======================================== */
+
+.page-wrapper {
+  padding-top: 1rem;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* ========================================
+   2. Main Glass Container
+   ======================================== */
+
+.main-container {
+  max-width: 1000px;
+  margin: 2rem auto 2rem;
+  background: linear-gradient(
+    135deg,
+    var(--glass-bg-strong) 0%,
+    var(--glass-bg) 25%,
+    var(--glass-bg-subtle) 75%,
+    var(--glass-bg) 100%
+  );
+  backdrop-filter: blur(20px) saturate(140%) brightness(1.08);
+  -webkit-backdrop-filter: blur(20px) saturate(140%) brightness(1.08);
+  border: 1px solid var(--glass-border);
+  border-top: 2px solid var(--glass-border-light);
+  border-radius: 20px;
+  padding: 2rem 2.5rem;
+  box-shadow: 
+    0 12px 40px rgba(31, 38, 135, 0.15),
+    0 6px 20px rgba(var(--text-primary-rgb), 0.1),
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+
+/* ========================================
+   3. Form Sections (Sub Glass)
+   ======================================== */
+
+.form-section {
+  background: linear-gradient(
+    135deg,
+    var(--glass-bg) 0%,
+    var(--glass-bg-subtle) 50%,
+    var(--glass-bg) 100%
+  );
+  backdrop-filter: blur(12px) saturate(130%) brightness(1.06);
+  -webkit-backdrop-filter: blur(12px) saturate(130%) brightness(1.06);
+  border: 1px solid var(--glass-border);
+  border-top: 1px solid var(--glass-border-light);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2.5rem;
+  box-shadow: 
+    0 6px 20px rgba(31, 38, 135, 0.08),
+    0 3px 10px rgba(var(--text-primary-rgb), 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+  transition: none; /* IMPORTANT: No hover transitions! */
+}
+
+
+/* ========================================
+   4. Headers and Titles (Updated to match typography system)
+   ======================================== */
+
+.config-header {
+  margin-bottom: 2.5rem;
+  text-align: center;
+}
+
+/* Main titles - now using typography system */
+.config-title {
+  font-size: 1.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+
+/* ========================================
+   5. Form Elements
+   ======================================== */
+
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #4a5568;
+  margin-bottom: 0.5rem;
+}
+
+
+.apple-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(203, 213, 224, 0.6);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #2d3748;
+  transition: all 0.2s ease;
+}
+
+.apple-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
+
+/* ========================================
+   6. Messages and Alerts
+   ======================================== */
+
+.form-message {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  display: none;
+}
+
+.form-message.success {
+  background: rgba(72, 187, 120, 0.1);
+  border: 1px solid rgba(72, 187, 120, 0.3);
+  color: #22543d;
+  display: block;
+}
+
+.form-message.error {
+  background: rgba(245, 101, 101, 0.1);
+  border: 1px solid rgba(245, 101, 101, 0.3);
+  color: #742a2a;
+  display: block;
+}
+
+/* ========================================
+   7. Status Cards
+   ======================================== */
+
+.config-status-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding: 2rem;
+  /* Use standard glass effect instead of green background */
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0.10) 50%,
+    rgba(255, 255, 255, 0.15) 100%
+  );
+  backdrop-filter: blur(12px) saturate(130%) brightness(1.06);
+  -webkit-backdrop-filter: blur(12px) saturate(130%) brightness(1.06);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  box-shadow: 
+    0 6px 20px rgba(31, 38, 135, 0.08),
+    0 3px 10px rgba(var(--text-primary-rgb), 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.status-icon {
+  font-size: 2.5rem;
+}
+
+.status-icon.success {
+  color: #48bb78;
+}
+
+.status-content h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+
+.status-description {
+  margin: 0;
+  color: #718096;
+  line-height: 1.6;
+}
+
+
+/* ========================================
+   8. Detail Items
+   ======================================== */
+
+.connected-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+}
+
+
+.detail-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #4a5568;
+  min-width: 140px;
+}
+
+
+.detail-value {
+  font-size: 0.875rem;
+  color: #2d3748;
+  font-weight: 600;
+}
+
+
+/* ========================================
+   9. Actions Container
+   ======================================== */
+
+.connected-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+/* ========================================
+   10. Responsive Design
+   ======================================== */
+
+@media (max-width: 768px) {
+  .main-container {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+  
+  .connected-actions {
+    flex-direction: column;
+  }
+  
+  .detail-label {
+    min-width: 120px;
+  }
+}
+
+/* ========================================
+   11. Loading States
+   ======================================== */
+
+.loading-config {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.loading-spinner {
+  font-size: 3rem;
+  color: #4299e1;
+  margin-bottom: 1rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ========================================
+   12. Glass Component Base
+   ======================================== */
+
+/* Reusable glass component style for buttons, modals, dropdowns etc */
+.glass-component {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(255, 255, 255, 0.18) 25%,
+    rgba(255, 255, 255, 0.12) 75%,
+    rgba(255, 255, 255, 0.20) 100%
+  );
+  backdrop-filter: blur(20px) saturate(140%) brightness(1.08);
+  -webkit-backdrop-filter: blur(20px) saturate(140%) brightness(1.08);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 16px;
+  box-shadow: 
+    0 8px 20px rgba(31, 38, 135, 0.12),
+    0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+}
+
+
+/* ========================================
+   13. Navbar Glass Style
+   ======================================== */
+
+/* Standard glass navbar - for AppHeader and similar navigation bars */
+.glass-navbar {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(255, 255, 255, 0.18) 25%,
+    rgba(255, 255, 255, 0.12) 75%,
+    rgba(255, 255, 255, 0.20) 100%
+  );
+  backdrop-filter: blur(20px) saturate(140%) brightness(1.08);
+  -webkit-backdrop-filter: blur(20px) saturate(140%) brightness(1.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 
+    0 2px 8px rgba(var(--text-primary-rgb), 0.02),
+    0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+
+/* ========================================
+   12. Glass Button Variants (Consolidated)
+   ======================================== */
+
+/* Primary button with realistic glass refraction */
+.glass-button--primary {
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
+  
+  /* Glass base - crystal clear with subtle tint */
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.12) 12%,
+    rgba(240, 242, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.02) 37%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(245, 247, 255, 0.08) 62%,
+    rgba(255, 255, 255, 0.11) 75%,
+    rgba(255, 255, 255, 0.14) 87%,
+    rgba(255, 255, 255, 0.09) 100%
+  );
+  
+  /* Strong glass blur and refraction */
+  backdrop-filter: blur(40px) saturate(150%) brightness(1.05) contrast(1.1);
+  -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(1.05) contrast(1.1);
+  
+  /* Glass edges with beveled effect */
+  border: 1px solid transparent;
+  border-image: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.6) 20%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0.6) 80%,
+    rgba(255, 255, 255, 0.9) 100%
+  ) 1;
+  
+  /* Unified sizing */
+  min-width: 240px;
+  width: auto;
+  
+  /* Text with improved clarity */
+  color: var(--text-primary);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: -0.01em;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Complex shadow for glass depth and caustics */
+  box-shadow: 
+    0 20px 40px -12px rgba(50, 50, 93, 0.25),
+    0 10px 20px -8px rgba(0, 0, 0, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.9),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.15),
+    inset 2px 0 3px rgba(255, 255, 255, 0.5),
+    inset -2px 0 3px rgba(255, 255, 255, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 2px 8px rgba(59, 130, 246, 0.3),
+    0 4px 16px rgba(139, 92, 246, 0.2);
+    
+  /* Clear text */
+  text-shadow: 
+    0 1px 0 rgba(255, 255, 255, 0.5),
+    0 -1px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Secondary button - same as primary but neutral colors */
+.glass-button--secondary {
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
+  
+  /* Same glass base as primary */
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.12) 12%,
+    rgba(240, 242, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.02) 37%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(245, 247, 255, 0.08) 62%,
+    rgba(255, 255, 255, 0.11) 75%,
+    rgba(255, 255, 255, 0.14) 87%,
+    rgba(255, 255, 255, 0.09) 100%
+  );
+  
+  backdrop-filter: blur(40px) saturate(150%) brightness(1.05) contrast(1.1);
+  -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(1.05) contrast(1.1);
+  
+  border: 1px solid transparent;
+  border-image: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.6) 20%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0.6) 80%,
+    rgba(255, 255, 255, 0.9) 100%
+  ) 1;
+  
+  color: var(--text-primary);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: -0.01em;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Neutral shadows */
+  box-shadow: 
+    0 20px 40px -12px rgba(50, 50, 93, 0.25),
+    0 10px 20px -8px rgba(0, 0, 0, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.9),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.15),
+    inset 2px 0 3px rgba(255, 255, 255, 0.5),
+    inset -2px 0 3px rgba(255, 255, 255, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 2px 8px rgba(100, 100, 100, 0.15),
+    0 4px 16px rgba(100, 100, 100, 0.1);
+    
+  text-shadow: 
+    0 1px 0 rgba(255, 255, 255, 0.5),
+    0 -1px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Light refraction effect for both button variants */
+.glass-button--primary::before,
+.glass-button--secondary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.3) 0%,
+    rgba(255, 255, 255, 0.1) 30%,
+    transparent 100%
+  );
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Primary hover state */
+.glass-button--primary:hover:not(:disabled):not(.glass-button--loading) {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.18) 12%,
+    rgba(245, 248, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.04) 37%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(248, 250, 255, 0.12) 62%,
+    rgba(255, 255, 255, 0.16) 75%,
+    rgba(255, 255, 255, 0.20) 87%,
+    rgba(255, 255, 255, 0.14) 100%
+  );
+  
+  backdrop-filter: blur(45px) saturate(170%) brightness(1.1) contrast(1.2);
+  -webkit-backdrop-filter: blur(45px) saturate(170%) brightness(1.1) contrast(1.2);
+  
+  transform: translateY(-3px) scale(1.02);
+  
+  box-shadow: 
+    0 25px 50px -12px rgba(50, 50, 93, 0.3),
+    0 15px 30px -8px rgba(0, 0, 0, 0.35),
+    inset 0 3px 6px rgba(255, 255, 255, 0.95),
+    inset 0 -3px 4px rgba(0, 0, 0, 0.2),
+    inset 3px 0 4px rgba(255, 255, 255, 0.6),
+    inset -3px 0 4px rgba(255, 255, 255, 0.6),
+    0 0 0 2px rgba(255, 255, 255, 0.2),
+    0 4px 12px rgba(59, 130, 246, 0.4),
+    0 8px 24px rgba(139, 92, 246, 0.3),
+    0 0 40px rgba(139, 92, 246, 0.2),
+    0 0 80px rgba(59, 130, 246, 0.1);
+}
+
+/* Secondary hover state */
+.glass-button--secondary:hover:not(:disabled):not(.glass-button--loading) {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.18) 12%,
+    rgba(245, 248, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.04) 37%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(248, 250, 255, 0.12) 62%,
+    rgba(255, 255, 255, 0.16) 75%,
+    rgba(255, 255, 255, 0.20) 87%,
+    rgba(255, 255, 255, 0.14) 100%
+  );
+  
+  backdrop-filter: blur(45px) saturate(170%) brightness(1.1) contrast(1.2);
+  -webkit-backdrop-filter: blur(45px) saturate(170%) brightness(1.1) contrast(1.2);
+  
+  transform: translateY(-3px) scale(1.02);
+  
+  box-shadow: 
+    0 25px 50px -12px rgba(50, 50, 93, 0.3),
+    0 15px 30px -8px rgba(0, 0, 0, 0.35),
+    inset 0 3px 6px rgba(255, 255, 255, 0.95),
+    inset 0 -3px 4px rgba(0, 0, 0, 0.2),
+    inset 3px 0 4px rgba(255, 255, 255, 0.6),
+    inset -3px 0 4px rgba(255, 255, 255, 0.6),
+    0 0 0 2px rgba(255, 255, 255, 0.2),
+    0 4px 12px rgba(100, 100, 100, 0.2),
+    0 8px 24px rgba(100, 100, 100, 0.15);
+}
+
+/* Active states for both variants */
+.glass-button--primary:active:not(:disabled):not(.glass-button--loading),
+.glass-button--secondary:active:not(:disabled):not(.glass-button--loading) {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(255, 255, 255, 0.12) 20%,
+    rgba(255, 255, 255, 0.10) 40%,
+    rgba(255, 255, 255, 0.08) 60%,
+    rgba(255, 255, 255, 0.10) 80%,
+    rgba(255, 255, 255, 0.12) 100%
+  );
+  transform: translateY(0);
+}
+
+.glass-button--primary:active:not(:disabled):not(.glass-button--loading) {
+  box-shadow: 
+    0 4px 16px rgba(139, 92, 246, 0.15),
+    0 2px 8px rgba(99, 102, 241, 0.1),
+    inset 0 2px 4px rgba(0, 0, 0, 0.1),
+    inset 0 1px 2px rgba(255, 255, 255, 0.5),
+    0 0 15px rgba(139, 92, 246, 0.2);
+}
+
+.glass-button--secondary:active:not(:disabled):not(.glass-button--loading) {
+  box-shadow: 
+    0 4px 16px rgba(100, 100, 100, 0.15),
+    0 2px 8px rgba(100, 100, 100, 0.1),
+    inset 0 2px 4px rgba(0, 0, 0, 0.1),
+    inset 0 1px 2px rgba(255, 255, 255, 0.5),
+    0 0 15px rgba(100, 100, 100, 0.1);
+}
+
+/* Size adjustments for navbar context */
+.app-navbar .glass-button--primary,
+.app-navbar .glass-button--secondary,
+.navbar-container .glass-button--primary,
+.navbar-container .glass-button--secondary {
+  min-width: auto;
+  width: auto;
+  max-width: none;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+}
+
+/* ========================================
+   End of Glass Design Standard
+   ======================================== */

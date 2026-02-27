@@ -1,0 +1,181 @@
+/* Fonts are now imported in typography.css */
+
+/* Global Aurora Dream Theme */
+:root {
+  /* Aurora Dream Colors - From old frontend */
+  --aurora-green: rgba(0, 255, 146, 0.18);
+  --aurora-blue: rgba(79, 172, 254, 0.15);
+  --aurora-purple: rgba(147, 51, 234, 0.15);
+  --aurora-pink: rgba(236, 72, 153, 0.12);
+  --aurora-cyan: rgba(34, 211, 238, 0.12);
+  --aurora-yellow: rgba(255, 235, 59, 0.10);
+  --aurora-orange: rgba(255, 152, 0, 0.08);
+  
+  /* Glass Material Properties */
+  --glass-blur: 20px;
+  --glass-blur-subtle: 12px;
+  --glass-bg: rgba(255, 255, 255, 0.18);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.10);
+  --glass-bg-strong: rgba(255, 255, 255, 0.25);
+  --glass-bg-very-subtle: rgba(255, 255, 255, 0.05);
+  --glass-white: rgba(255, 255, 255, 0.18);
+  --glass-white-subtle: rgba(255, 255, 255, 0.10);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-border-light: rgba(255, 255, 255, 0.6);
+  --glass-border-subtle: rgba(255, 255, 255, 0.2);
+  --glass-shadow: rgba(31, 38, 135, 0.15);
+  
+  /* Primary Purple Theme - From old frontend */
+  --primary-purple: #8b5cf6;
+  --primary-purple-hover: #7c3aed;
+  --primary-purple-active: #6b46c1;
+  --primary-purple-deep: #553c9a;
+  --secondary-purple: #a78bfa;
+
+  /* Text color variables for dark mode compatibility */
+  --text-primary: #1F2937;
+  --text-secondary: #6B7280;
+  --text-primary-rgb: 31, 41, 55;
+  --text-secondary-rgb: 107, 114, 128;
+}
+
+
+/* Container utility class */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+@media (min-width: 576px) {
+  .container {
+    padding: 0 30px;
+  }
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding: 0 40px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .container {
+    padding: 0 50px;
+  }
+}
+
+/* Padding utilities */
+.py-5 {
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+}
+
+/* Remove focus outlines from glass interactions */
+*:focus {
+  --tw-ring-color: transparent !important;
+  --tw-ring-offset-color: transparent !important;
+}
+
+*:focus-visible {
+  outline: none !important;
+  --tw-ring-color: transparent !important;
+  --tw-ring-offset-color: transparent !important;
+}
+
+/* Clean background for Aurora overlay */
+body {
+  position: relative;
+  overflow-x: hidden;
+  background: var(--bg-color, #ffffff);
+  min-height: 100vh;
+}
+
+
+
+/* Glass Button Animation */
+@keyframes lightFlow {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 200%;
+  }
+}
+
+@keyframes subtleGlow {
+  0%, 100% {
+    filter: brightness(1) contrast(1);
+  }
+  50% {
+    filter: brightness(1.1) contrast(1.1);
+  }
+}
+
+/* Floating animation for aurora elements */
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -30px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+}
+
+
+
+body {
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'liga' 1, 'kern' 1;
+}
+
+/* Additional color variables for LLM config */
+:root {
+  /* Primary Color Palette */
+  --primary-color: #6b46c1;
+  --primary-dark: #553c9a;
+  --primary-light: #9f7aea;
+  --primary-lighter: #e9d8fd;
+  --primary-lightest: #f9f5ff;
+  --hover-color: #553c9a;
+  
+  /* Secondary Colors */
+  --secondary-color: #4a5568;
+  --secondary-light: #718096;
+  --secondary-dark: #2d3748;
+  
+  /* Text Colors */
+  --text-muted: #94a3b8;
+  --text-light: #cbd5e1;
+  
+  /* Status Colors */
+  --success-color: #10b981;
+  --error-color: #f87171;
+  --warning-color: #fbbf24;
+  
+  /* Color variables for Tailwind CSS */
+  --color-primary: 107 70 193;  /* primary-600 */
+  --color-secondary: 75 85 99;  /* gray-600 */
+  --color-accent: 147 51 234;   /* purple-600 */
+  --color-success: 16 185 129;  /* emerald-500 */
+  --color-warning: 251 191 36;  /* amber-400 */
+  --color-error: 239 68 68;     /* red-500 */
+  --color-background: 255 255 255; /* white */
+  --color-surface: 248 250 252;    /* slate-50 */
+  --color-text: 30 41 59;          /* slate-800 */
+  --color-text-secondary: 100 116 139; /* slate-500 */
+  
+  /* Background and panel colors */
+  --bg-color: #ffffff;
+  --bg-panel: #ffffff;
+  --panel-bg: #ffffff;
+}
+
+
