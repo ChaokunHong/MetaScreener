@@ -80,3 +80,28 @@ def serve(
         port=port,
         factory=True,
     )
+
+
+@app.command()
+def desktop(
+    port: int = typer.Option(0, help="Port for local server (0 = auto-select free port)."),  # noqa: B008
+    host: str = typer.Option("127.0.0.1", help="Host to bind local server."),  # noqa: B008
+    width: int = typer.Option(1440, help="Desktop window width (px)."),  # noqa: B008
+    height: int = typer.Option(960, help="Desktop window height (px)."),  # noqa: B008
+    debug: bool = typer.Option(False, help="Enable pywebview debug mode."),  # noqa: B008
+) -> None:
+    """Launch the desktop shell (embedded Web UI window)."""
+    from metascreener.desktop.launcher import launch_desktop  # noqa: PLC0415
+
+    typer.echo("Starting MetaScreener desktop shell...")
+    try:
+        launch_desktop(
+            host=host,
+            port=port,
+            width=width,
+            height=height,
+            debug=debug,
+        )
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc

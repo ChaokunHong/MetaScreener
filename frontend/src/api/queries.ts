@@ -5,6 +5,7 @@ import type {
   ModelInfo,
   TestKeyResponse,
   ScreeningResultsResponse,
+  ScreeningSessionInfo,
   EvaluationResponse,
   ExtractionResultsResponse,
   QualityResultsResponse,
@@ -48,6 +49,13 @@ export function useScreeningResults(sessionId: string | null) {
     queryFn: () =>
       apiGet<ScreeningResultsResponse>(`/screening/results/${sessionId}`),
     enabled: !!sessionId,
+  })
+}
+
+export function useScreeningSessions() {
+  return useQuery({
+    queryKey: ['screening-sessions'],
+    queryFn: () => apiGet<ScreeningSessionInfo[]>('/screening/sessions'),
   })
 }
 

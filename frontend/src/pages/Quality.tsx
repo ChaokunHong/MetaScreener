@@ -76,6 +76,11 @@ interface UploadedFile {
   size: number
 }
 
+interface QualityRunResponse {
+  status: string
+  message: string
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -141,7 +146,12 @@ export function Quality() {
     setRunning(true)
     setError(null)
     try {
-      await apiPost(`/quality/run/${sessionId}?tool=${selectedTool}`)
+      const resp = await apiPost<QualityRunResponse>(`/quality/run/${sessionId}?tool=${selectedTool}`)
+      if (resp.status !== 'completed') {
+        setError(resp.message || 'Assessment not completed')
+        setHasRun(false)
+        return
+      }
       setHasRun(true)
       void queryClient.invalidateQueries({ queryKey: ['quality-results'] })
     } catch (err) {

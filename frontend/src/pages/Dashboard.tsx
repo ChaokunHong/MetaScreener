@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import { Header } from '../components/layout/Header'
 import { GlassCard } from '../components/glass/GlassCard'
 import { GlassButton } from '../components/glass/GlassButton'
+import brandIcon from '../assets/brand/meta-screener-icon.svg'
+import brandLogo from '../assets/brand/meta-screener-main-logo.svg'
 import {
   Search,
   BarChart3,
@@ -97,7 +99,20 @@ export function Dashboard() {
         <GlassCard variant="subtle">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-white/50 text-sm">MetaScreener v2.0</p>
+              <div className="flex items-center gap-3">
+                <img
+                  src={brandIcon}
+                  alt=""
+                  aria-hidden="true"
+                  className="w-7 h-7 object-contain opacity-90"
+                />
+                <img
+                  src={brandLogo}
+                  alt="Meta Screener"
+                  className="h-5 object-contain opacity-90"
+                />
+                <span className="text-white/40 text-xs">v2.0</span>
+              </div>
               <p className="text-white/30 text-xs mt-0.5">
                 4 open-source LLMs · Hierarchical Consensus Network · TRIPOD-LLM compliant
               </p>

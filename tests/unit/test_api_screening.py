@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import io
 
+import pytest
 from fastapi.testclient import TestClient
+
+from metascreener.llm.adapters.mock import MockLLMAdapter
 
 
 class TestScreeningUpload:
@@ -124,6 +127,29 @@ class TestScreeningResults:
         assert data["completed"] == 0
         assert data["results"] == []
 
+    def test_list_sessions_returns_metadata(self) -> None:
+        """GET /api/screening/sessions returns session summaries."""
+        client = self._client()
+        ris_content = b"TY  - JOUR\nTI  - Test Study\nAB  - An abstract\nER  - \n"
+        upload_resp = client.post(
+            "/api/screening/upload",
+            files={
+                "file": (
+                    "test.ris",
+                    io.BytesIO(ris_content),
+                    "application/x-research-info-systems",
+                )
+            },
+        )
+        assert upload_resp.status_code == 200
+        session_id = upload_resp.json()["session_id"]
+
+        sessions_resp = client.get("/api/screening/sessions")
+        assert sessions_resp.status_code == 200
+        sessions = sessions_resp.json()
+        assert isinstance(sessions, list)
+        assert any(item["session_id"] == session_id for item in sessions)
+
 
 class TestScreeningRun:
     """Test screening run endpoints."""
@@ -147,9 +173,16 @@ class TestScreeningRun:
         )
         assert resp.status_code == 404
 
-    def test_run_with_valid_session_returns_stub(self) -> None:
-        """POST /api/screening/run with valid session returns stub response."""
+    def test_run_without_key_returns_not_configured(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """POST /api/screening/run returns not_configured when no API key is set."""
         client = self._client()
+        from metascreener.api.routes import screening as screening_routes  # noqa: PLC0415
+
+        monkeypatch.setattr(screening_routes, "_get_openrouter_api_key", lambda: "")
+
         # Upload first
         ris_content = b"TY  - JOUR\nTI  - Test Study\nAB  - An abstract\nER  - \n"
         upload_resp = client.post(
@@ -164,6 +197,34 @@ class TestScreeningRun:
         )
         session_id = upload_resp.json()["session_id"]
 
+        # Store criteria (required before run)
+        criteria_resp = client.post(
+            f"/api/screening/criteria/{session_id}",
+            json={
+                "framework": "pico",
+                "research_question": "Does X improve Y?",
+                "elements": {
+                    "population": {
+                        "name": "Population",
+                        "include": ["adult patients"],
+                        "exclude": [],
+                    },
+                    "intervention": {
+                        "name": "Intervention",
+                        "include": ["x"],
+                        "exclude": [],
+                    },
+                    "outcome": {
+                        "name": "Outcome",
+                        "include": ["y"],
+                        "exclude": [],
+                    },
+                },
+                "required_elements": ["population", "intervention", "outcome"],
+            },
+        )
+        assert criteria_resp.status_code == 200
+
         resp = client.post(
             f"/api/screening/run/{session_id}",
             json={"session_id": session_id, "seed": 42},
@@ -171,6 +232,90 @@ class TestScreeningRun:
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "screening_not_configured"
+
+    def test_run_with_mock_backend_completes(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_responses: dict,
+    ) -> None:
+        """POST /api/screening/run executes screening and stores summaries."""
+        client = self._client()
+        from metascreener.api.routes import screening as screening_routes  # noqa: PLC0415
+
+        monkeypatch.setattr(screening_routes, "_get_openrouter_api_key", lambda: "test-key")
+        monkeypatch.setattr(
+            screening_routes,
+            "_build_screening_backends",
+            lambda _api_key: [
+                MockLLMAdapter(
+                    model_id="mock-a",
+                    response_json=mock_responses["screening_include_high_conf"],
+                ),
+                MockLLMAdapter(
+                    model_id="mock-b",
+                    response_json=mock_responses["screening_include_high_conf"],
+                ),
+            ],
+        )
+
+        ris_content = b"TY  - JOUR\nTI  - Test Study\nAB  - An abstract\nER  - \n"
+        upload_resp = client.post(
+            "/api/screening/upload",
+            files={
+                "file": (
+                    "test.ris",
+                    io.BytesIO(ris_content),
+                    "application/x-research-info-systems",
+                )
+            },
+        )
+        assert upload_resp.status_code == 200
+        session_id = upload_resp.json()["session_id"]
+
+        criteria_resp = client.post(
+            f"/api/screening/criteria/{session_id}",
+            json={
+                "framework": "pico",
+                "research_question": "Does X improve Y?",
+                "elements": {
+                    "population": {
+                        "name": "Population",
+                        "include": ["adult patients"],
+                        "exclude": [],
+                    },
+                    "intervention": {
+                        "name": "Intervention",
+                        "include": ["x"],
+                        "exclude": [],
+                    },
+                    "outcome": {
+                        "name": "Outcome",
+                        "include": ["y"],
+                        "exclude": [],
+                    },
+                },
+                "required_elements": ["population", "intervention", "outcome"],
+            },
+        )
+        assert criteria_resp.status_code == 200
+
+        run_resp = client.post(
+            f"/api/screening/run/{session_id}",
+            json={"session_id": session_id, "seed": 42},
+        )
+        assert run_resp.status_code == 200
+        run_data = run_resp.json()
+        assert run_data["status"] == "completed"
+        assert run_data["completed"] >= 1
+
+        results_resp = client.get(f"/api/screening/results/{session_id}")
+        assert results_resp.status_code == 200
+        results_data = results_resp.json()
+        assert results_data["completed"] >= 1
+        assert len(results_data["results"]) >= 1
+        first = results_data["results"][0]
+        assert first["decision"] in {"INCLUDE", "EXCLUDE", "HUMAN_REVIEW"}
+        assert "title" in first
 
 
 class TestScreeningCriteria:

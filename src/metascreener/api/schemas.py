@@ -159,6 +159,17 @@ class ScreeningResultsResponse(BaseModel):
     results: list[ScreeningRecordSummary]
 
 
+class ScreeningSessionInfo(BaseModel):
+    """Summary metadata for a screening session (for UI selection lists)."""
+
+    session_id: str
+    filename: str
+    total_records: int
+    completed_records: int
+    has_criteria: bool = False
+    created_at: str | None = None
+
+
 class RunScreeningRequest(BaseModel):
     """Request to start a screening run.
 
@@ -198,6 +209,36 @@ class EvaluationMetrics(BaseModel):
     kappa: float | None = None
 
 
+class EvaluationROCPoint(BaseModel):
+    """Single ROC curve point."""
+
+    fpr: float
+    tpr: float
+
+
+class EvaluationCalibrationPoint(BaseModel):
+    """Single calibration plot point."""
+
+    predicted: float
+    actual: float
+
+
+class EvaluationDistributionBin(BaseModel):
+    """Single score distribution histogram bin."""
+
+    bin: str
+    include: int
+    exclude: int
+
+
+class EvaluationCharts(BaseModel):
+    """Chart-ready evaluation data for the React UI."""
+
+    roc: list[EvaluationROCPoint] = Field(default_factory=list)
+    calibration: list[EvaluationCalibrationPoint] = Field(default_factory=list)
+    distribution: list[EvaluationDistributionBin] = Field(default_factory=list)
+
+
 class EvaluationResponse(BaseModel):
     """Response from evaluation computation.
 
@@ -206,12 +247,22 @@ class EvaluationResponse(BaseModel):
         metrics: Computed evaluation metrics.
         total_records: Total records evaluated.
         gold_label_count: Number of gold-standard labels.
+        charts: Chart-ready data for ROC/calibration/distribution views.
     """
 
     session_id: str
     metrics: EvaluationMetrics
     total_records: int
     gold_label_count: int
+    charts: EvaluationCharts | None = None
+    screening_session_id: str | None = None
+
+
+class RunEvaluationRequest(BaseModel):
+    """Request body for evaluation execution."""
+
+    screening_session_id: str | None = None
+    seed: int = 42
 
 
 # --- Extraction API schemas ---
