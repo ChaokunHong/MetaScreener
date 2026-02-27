@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from threading import Thread
 from types import ModuleType
+from typing import cast
 
 import httpx
 
@@ -51,7 +52,7 @@ def _import_webview() -> ModuleType:
             "Desktop UI requires optional dependency 'pywebview'. "
             "Install with: uv pip install 'metascreener[desktop]'"
         ) from exc
-    return webview
+    return cast(ModuleType, webview)
 
 
 def _ensure_built_frontend() -> None:
@@ -85,7 +86,7 @@ def launch_desktop(
     app = create_app()
     config = uvicorn.Config(app, host=host, port=resolved_port, log_level="warning")
     server = uvicorn.Server(config)
-    server.install_signal_handlers = lambda: None  # type: ignore[method-assign]
+    server.install_signal_handlers = lambda: None  # type: ignore[attr-defined]
 
     thread = Thread(target=server.run, daemon=True, name="metascreener-desktop-server")
     thread.start()
