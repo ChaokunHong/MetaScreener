@@ -5,7 +5,7 @@
 
     <!-- Upload Section -->
     <div class="glass-card">
-      <div class="section-title">Upload Gold Labels</div>
+      <div class="section-title"><i class="fas fa-tags"></i> Upload Gold Labels</div>
 
       <div class="form-group">
         <label class="form-label">Gold labels file (RIS / CSV)</label>
@@ -19,8 +19,8 @@
           style="margin-bottom: 0.5rem;"
         >
           <input ref="labelInput" type="file" accept=".ris,.csv" @change="onLabelChange" />
-          <div style="font-size: 2rem; margin-bottom: 0.25rem;">🏷️</div>
-          <div style="font-weight: 500;">{{ labelFile ? labelFile.name : 'Drop labels file here or click to browse' }}</div>
+          <i class="fas fa-tags zone-icon"></i>
+          <div class="zone-title">{{ labelFile ? labelFile.name : 'Drop labels file here or click to browse' }}</div>
         </div>
       </div>
 
@@ -33,18 +33,21 @@
       </div>
 
       <div v-if="labelInfo" class="alert alert-success">
-        ✓ Loaded <strong>{{ labelInfo.gold_label_count }}</strong> gold labels (session: {{ labelInfo.session_id }})
+        <i class="fas fa-check-circle"></i>
+        Loaded <strong>{{ labelInfo.gold_label_count }}</strong> gold labels (session: {{ labelInfo.session_id }})
       </div>
       <div v-if="evalError" class="alert alert-danger">{{ evalError }}</div>
 
       <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
         <button class="btn btn-secondary" :disabled="!labelFile || uploadingLabels" @click="doUploadLabels">
-          <span v-if="uploadingLabels">⏳ Uploading…</span>
-          <span v-else>Upload Labels</span>
+          <i v-if="uploadingLabels" class="fas fa-spinner fa-spin"></i>
+          <i v-else class="fas fa-upload"></i>
+          {{ uploadingLabels ? 'Uploading…' : 'Upload Labels' }}
         </button>
         <button class="btn btn-primary" :disabled="!evalSessionId || !screeningSessionId || running" @click="doRunEval">
-          <span v-if="running">⏳ Evaluating…</span>
-          <span v-else>▶ Run Evaluation</span>
+          <i v-if="running" class="fas fa-spinner fa-spin"></i>
+          <i v-else class="fas fa-play"></i>
+          {{ running ? 'Evaluating…' : 'Run Evaluation' }}
         </button>
       </div>
     </div>
@@ -53,7 +56,7 @@
     <template v-if="metrics">
       <!-- Metric Cards -->
       <div class="glass-card">
-        <div class="section-title" style="margin-bottom: 1rem;">Performance Metrics</div>
+        <div class="section-title" style="margin-bottom: 1rem;"><i class="fas fa-chart-line"></i> Performance Metrics</div>
         <div class="metric-grid">
           <div class="metric-card" v-for="m in metricCards" :key="m.label">
             <div class="metric-value" :style="{ color: m.color || 'var(--text-primary)' }">{{ m.value }}</div>
@@ -64,8 +67,8 @@
         <!-- Lancet format output -->
         <div class="glass-section">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-            <div class="section-title" style="margin-bottom: 0;">Lancet Format Output</div>
-            <button class="btn btn-secondary btn-sm" @click="copyLancet">📋 Copy</button>
+            <div class="section-title" style="margin-bottom: 0;"><i class="fas fa-file-medical-alt"></i> Lancet Format Output</div>
+            <button class="btn btn-secondary btn-sm" @click="copyLancet"><i class="fas fa-copy"></i> Copy</button>
           </div>
           <pre style="font-size: 0.8rem; color: var(--text-primary); white-space: pre-wrap; margin: 0;">{{ lancetText }}</pre>
         </div>
@@ -73,7 +76,7 @@
 
       <!-- Charts -->
       <div class="glass-card" v-if="rocData">
-        <div class="section-title" style="margin-bottom: 1rem;">ROC Curve</div>
+        <div class="section-title" style="margin-bottom: 1rem;"><i class="fas fa-chart-area"></i> ROC Curve</div>
         <canvas ref="rocCanvas" height="300"></canvas>
       </div>
     </template>

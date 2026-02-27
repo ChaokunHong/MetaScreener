@@ -5,8 +5,10 @@
 
     <!-- API Keys -->
     <div class="glass-card">
-      <div class="section-title">API Keys</div>
-      <div v-if="saveSuccess" class="alert alert-success">✓ Settings saved successfully</div>
+      <div class="section-title"><i class="fas fa-key"></i> API Keys</div>
+      <div v-if="saveSuccess" class="alert alert-success">
+        <i class="fas fa-check-circle"></i> Settings saved successfully
+      </div>
       <div v-if="saveError" class="alert alert-danger">{{ saveError }}</div>
 
       <div class="form-group">
@@ -20,11 +22,13 @@
             style="flex: 1;"
           />
           <button class="btn btn-secondary btn-sm" @click="showOpenRouter = !showOpenRouter" style="white-space: nowrap;">
-            {{ showOpenRouter ? '🙈 Hide' : '👁 Show' }}
+            <i :class="showOpenRouter ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+            {{ showOpenRouter ? 'Hide' : 'Show' }}
           </button>
           <button class="btn btn-secondary btn-sm" :disabled="testingOR" @click="testKey('openrouter')" style="white-space: nowrap;">
-            <span v-if="testingOR">⏳</span>
-            <span v-else>Test</span>
+            <i v-if="testingOR" class="fas fa-spinner fa-spin"></i>
+            <i v-else class="fas fa-plug"></i>
+            {{ testingOR ? '' : 'Test' }}
           </button>
         </div>
         <div v-if="orTestResult" class="text-muted" style="margin-top: 0.25rem; font-size: 0.8rem;" :class="orTestOk ? 'text-success' : 'text-danger'">
@@ -43,20 +47,22 @@
             style="flex: 1;"
           />
           <button class="btn btn-secondary btn-sm" @click="showTogether = !showTogether" style="white-space: nowrap;">
-            {{ showTogether ? '🙈 Hide' : '👁 Show' }}
+            <i :class="showTogether ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+            {{ showTogether ? 'Hide' : 'Show' }}
           </button>
         </div>
       </div>
 
       <button class="btn btn-primary" :disabled="saving" @click="doSave">
-        <span v-if="saving">⏳ Saving…</span>
-        <span v-else>💾 Save Settings</span>
+        <i v-if="saving" class="fas fa-spinner fa-spin"></i>
+        <i v-else class="fas fa-save"></i>
+        {{ saving ? 'Saving…' : 'Save Settings' }}
       </button>
     </div>
 
     <!-- Available Models -->
     <div class="glass-card">
-      <div class="section-title">Available Models</div>
+      <div class="section-title"><i class="fas fa-robot"></i> Available Models</div>
       <div v-if="loadingModels" class="text-muted" style="padding: 1rem 0;">Loading models…</div>
       <div v-else style="display: flex; flex-direction: column; gap: 0.75rem;">
         <div
@@ -65,7 +71,7 @@
           class="glass-section"
           style="margin-bottom: 0; display: flex; align-items: flex-start; gap: 1rem;"
         >
-          <div style="font-size: 1.5rem;">🤖</div>
+          <div style="font-size: 1.25rem; color: var(--primary-purple);"><i class="fas fa-microchip"></i></div>
           <div style="flex: 1;">
             <div style="font-weight: 600; color: var(--text-primary);">{{ m.display_name || m.model_id }}</div>
             <div class="text-muted" style="font-size: 0.8rem;">
@@ -81,7 +87,7 @@
 
     <!-- Inference Config -->
     <div class="glass-card">
-      <div class="section-title">Inference Configuration</div>
+      <div class="section-title"><i class="fas fa-sliders-h"></i> Inference Configuration</div>
       <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem;">
         <span class="badge badge-unclear">temperature = 0.0</span>
         <span class="badge badge-unclear">seed = 42</span>

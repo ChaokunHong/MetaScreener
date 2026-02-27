@@ -1,8 +1,5 @@
 <template>
   <div id="app">
-    <!-- Aurora Background -->
-    <div class="aurora-background" aria-hidden="true"></div>
-
     <!-- Glass Navbar -->
     <header class="app-navbar">
       <div class="navbar-container">
@@ -18,29 +15,28 @@
             v-for="item in navItems"
             :key="item.path"
             :to="item.path"
-            class="nav-link"
+            class="nav-btn"
           >
-            <span>{{ item.icon }}</span>
+            <i :class="item.icon"></i>
             {{ item.label }}
           </router-link>
         </nav>
 
-        <!-- Right side -->
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <router-link to="/settings" class="nav-link">
-            ⚙️ Settings
-          </router-link>
-        </div>
+        <!-- Settings -->
+        <router-link to="/settings" class="nav-btn">
+          <i class="fas fa-cog"></i>
+          Settings
+        </router-link>
       </div>
     </header>
 
     <!-- Alert Container -->
-    <div id="alert-container" v-if="alert" style="
-      position: fixed; top: 68px; left: 50%; transform: translateX(-50%);
-      z-index: 999; min-width: 320px; max-width: 600px; padding: 0 1rem;">
-      <div :class="`alert alert-${alert.type}`" style="display: flex; align-items: center; justify-content: space-between;">
+    <div v-if="alert" class="alert-container-fixed">
+      <div :class="`alert alert-${alert.type}`">
         <span>{{ alert.message }}</span>
-        <button @click="alert = null" style="background: none; border: none; cursor: pointer; font-size: 1.1rem;">✕</button>
+        <button class="alert-close" @click="alert = null">
+          <i class="fas fa-times"></i>
+        </button>
       </div>
     </div>
 
@@ -61,10 +57,10 @@
 import { ref, provide } from 'vue'
 
 const navItems = [
-  { path: '/screening', icon: '🔍', label: 'Screening' },
-  { path: '/evaluation', icon: '📊', label: 'Evaluation' },
-  { path: '/extraction', icon: '📋', label: 'Extraction' },
-  { path: '/quality', icon: '✅', label: 'Quality' },
+  { path: '/screening',  icon: 'fas fa-search',         label: 'Screening'  },
+  { path: '/evaluation', icon: 'fas fa-chart-bar',       label: 'Evaluation' },
+  { path: '/extraction', icon: 'fas fa-table',           label: 'Extraction' },
+  { path: '/quality',    icon: 'fas fa-clipboard-check', label: 'Quality'    },
 ]
 
 interface AlertState {
