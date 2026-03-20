@@ -1,13 +1,6 @@
 """Shared pytest fixtures for MetaScreener 2.0 tests."""
 from __future__ import annotations
 
-import os
-import re
-
-# Prevent Rich/Typer from emitting ANSI escape codes in CLI output.
-os.environ["NO_COLOR"] = "1"
-os.environ["TERM"] = "dumb"
-
 import json
 from pathlib import Path
 
@@ -128,7 +121,7 @@ def peo_review_criteria() -> ReviewCriteria:
         elements={
             "population": CriteriaElement(
                 name="Population",
-                include=["adults", "\u226518 years"],
+                include=["adults", "≥18 years"],
                 exclude=["children"],
             ),
             "exposure": CriteriaElement(
@@ -299,15 +292,3 @@ def sample_gold_labels() -> dict[str, Decision]:
     for i in range(10, 20):
         labels[f"eval_r{i}"] = Decision.EXCLUDE
     return labels
-
-
-_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
-
-
-def strip_ansi(text: str) -> str:
-    """Remove ANSI escape sequences from text.
-
-    Typer/Rich may emit ANSI codes on some platforms even with NO_COLOR=1.
-    Use this in CLI help tests to make assertions platform-independent.
-    """
-    return _ANSI_RE.sub("", text)

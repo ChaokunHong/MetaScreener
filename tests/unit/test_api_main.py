@@ -59,18 +59,3 @@ class TestFastAPIApp:
             headers={"Origin": "http://localhost:5173"},
         )
         assert resp.status_code in (200, 405)
-
-
-class TestServeCommand:
-    """Test the 'metascreener serve' CLI command."""
-
-    def test_serve_command_exists(self) -> None:
-        """Verify serve command is registered and shows help."""
-        from typer.testing import CliRunner
-
-        from metascreener.cli import app
-
-        runner = CliRunner()
-        result = runner.invoke(app, ["serve", "--help"])
-        assert result.exit_code == 0
-        assert "serve" in result.output.lower() or "fastapi" in result.output.lower()

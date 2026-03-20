@@ -1,7 +1,12 @@
-"""Entry point for python -m metascreener."""
+"""Entry point for python -m metascreener — launches the FastAPI server."""
 from __future__ import annotations
 
-from metascreener.cli import app
-
 if __name__ == "__main__":
-    app()
+    import uvicorn
+
+    uvicorn.run(
+        "metascreener.api.main:create_app",
+        host="127.0.0.1",
+        port=8000,
+        factory=True,
+    )
