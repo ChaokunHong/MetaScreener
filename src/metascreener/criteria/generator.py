@@ -20,6 +20,11 @@ import structlog
 from metascreener.core.enums import CriteriaFramework
 from metascreener.core.models import ReviewCriteria
 from metascreener.criteria.consensus import ConsensusMerger
+from metascreener.criteria.models import GenerationResult, build_term_origin
+from metascreener.criteria.prompts.cross_evaluate_v1 import (
+    build_cross_evaluate_prompt,
+    validate_cross_evaluate_response,
+)
 from metascreener.criteria.prompts.generate_from_topic_v1 import (
     build_generate_from_topic_prompt,
 )
@@ -94,8 +99,186 @@ class CriteriaGenerator:
         return await self._generate(prompt, framework, seed)
 
     # ------------------------------------------------------------------
+    # Round 2 (cross-evaluation) public API
+    # ------------------------------------------------------------------
+
+    async def generate_from_topic_with_dedup(
+        self,
+        topic: str,
+        framework: CriteriaFramework,
+        language: str = "en",
+        seed: int = DEFAULT_SEED,
+    ) -> GenerationResult:
+        """Generate criteria from topic with Round 2 cross-evaluation.
+
+        Args:
+            topic: Research topic description.
+            framework: SR framework (e.g. ``CriteriaFramework.PICO``).
+            language: ISO 639-1 language code for response.
+            seed: Random seed for reproducibility.
+
+        Returns:
+            ``GenerationResult`` with merged criteria, per-model outputs,
+            term origin mapping, and optional Round 2 evaluations.
+        """
+        prompt = build_generate_from_topic_prompt(topic, framework.value, language)
+        return await self._generate_with_dedup(prompt, framework, seed)
+
+    async def parse_text_with_dedup(
+        self,
+        criteria_text: str,
+        framework: CriteriaFramework,
+        language: str = "en",
+        seed: int = DEFAULT_SEED,
+    ) -> GenerationResult:
+        """Parse free-text criteria with Round 2 cross-evaluation.
+
+        Args:
+            criteria_text: User-provided criteria text.
+            framework: SR framework (e.g. ``CriteriaFramework.PICO``).
+            language: ISO 639-1 language code for response.
+            seed: Random seed for reproducibility.
+
+        Returns:
+            ``GenerationResult`` with merged criteria, per-model outputs,
+            term origin mapping, and optional Round 2 evaluations.
+        """
+        prompt = build_parse_text_prompt(criteria_text, framework.value, language)
+        return await self._generate_with_dedup(prompt, framework, seed)
+
+    # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    async def _generate_with_dedup(
+        self,
+        prompt: str,
+        framework: CriteriaFramework,
+        seed: int,
+    ) -> GenerationResult:
+        """Run 2-round generation: Round 1 consensus + Round 2 cross-eval.
+
+        Round 1 mirrors ``_generate()`` but retains per-model outputs.
+        Round 2 sends the merged criteria back to each backend for
+        semantic dedup and quality scoring (skipped for single-model).
+
+        Args:
+            prompt: The prompt to send to each backend.
+            framework: SR framework.
+            seed: Random seed.
+
+        Returns:
+            ``GenerationResult`` with all pipeline artefacts.
+        """
+        prompt_hash = hash_prompt(prompt)
+
+        # --- Round 1: parallel generation ---
+        tasks = [
+            self._call_backend(backend, prompt, seed) for backend in self._backends
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        model_outputs: list[dict[str, Any]] = []
+        model_ids: list[str] = []
+        for i, result in enumerate(results):
+            if isinstance(result, BaseException):
+                logger.warning(
+                    "backend_failed",
+                    backend=self._backends[i].model_id,
+                    error=str(result),
+                )
+                continue
+            if result is not None:
+                model_outputs.append(result)
+                model_ids.append(self._backends[i].model_id)
+
+        if not model_outputs:
+            logger.error("all_backends_failed")
+            return GenerationResult(
+                raw_merged=ReviewCriteria(framework=framework),
+            )
+
+        # Merge via ConsensusMerger
+        criteria = ConsensusMerger.merge(model_outputs, framework)
+        criteria.prompt_hash = prompt_hash
+
+        # Build term origin mapping
+        term_origin = build_term_origin(model_outputs, model_ids)
+
+        logger.info(
+            "round1_complete",
+            n_models=len(model_outputs),
+            n_elements=len(criteria.elements),
+            prompt_hash=prompt_hash,
+        )
+
+        # --- Round 2: cross-evaluation (only with >= 2 backends) ---
+        round2_evaluations: dict[str, Any] | None = None
+        if len(model_outputs) >= 2:
+            round2_evaluations = await self._run_round2(criteria, seed)
+
+        return GenerationResult(
+            raw_merged=criteria,
+            per_model_outputs=model_outputs,
+            term_origin=term_origin,
+            round2_evaluations=round2_evaluations,
+        )
+
+    async def _run_round2(
+        self,
+        criteria: ReviewCriteria,
+        seed: int,
+    ) -> dict[str, Any]:
+        """Execute Round 2 cross-evaluation across all backends.
+
+        Args:
+            criteria: Merged criteria from Round 1.
+            seed: Random seed for reproducibility.
+
+        Returns:
+            Dict mapping model_id to validated evaluation result.
+        """
+        cross_prompt = build_cross_evaluate_prompt(criteria)
+
+        async def _eval_one(backend: LLMBackend) -> tuple[str, dict[str, Any] | None]:
+            """Call one backend for cross-eval and validate response."""
+            try:
+                raw = await backend.complete(cross_prompt, seed)
+                cleaned = strip_code_fences(raw)
+                parsed = json.loads(cleaned)
+                if validate_cross_evaluate_response(parsed):
+                    return backend.model_id, parsed
+                logger.warning(
+                    "round2_invalid_response",
+                    backend=backend.model_id,
+                )
+                return backend.model_id, None
+            except (json.JSONDecodeError, Exception) as exc:  # noqa: BLE001
+                logger.warning(
+                    "round2_backend_error",
+                    backend=backend.model_id,
+                    error=str(exc),
+                )
+                return backend.model_id, None
+
+        eval_tasks = [_eval_one(b) for b in self._backends]
+        eval_results = await asyncio.gather(*eval_tasks, return_exceptions=True)
+
+        evaluations: dict[str, Any] = {}
+        for result in eval_results:
+            if isinstance(result, BaseException):
+                logger.warning("round2_gather_error", error=str(result))
+                continue
+            model_id, parsed = result
+            if parsed is not None:
+                evaluations[model_id] = parsed
+
+        logger.info(
+            "round2_complete",
+            n_valid=len(evaluations),
+            n_total=len(self._backends),
+        )
+        return evaluations
 
     async def _generate(
         self,
