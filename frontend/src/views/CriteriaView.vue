@@ -131,7 +131,7 @@
         </div>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+      <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.25rem;">
         <button
           class="btn btn-primary"
           :disabled="generatingCriteria || !topicText.trim()"
