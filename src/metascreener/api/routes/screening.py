@@ -159,6 +159,7 @@ async def _resolve_review_criteria(
         if not topic:
             raise HTTPException(status_code=400, detail="Topic criteria text is empty")
 
+        from metascreener.criteria.dedup_merger import DedupMerger  # noqa: PLC0415
         from metascreener.criteria.framework_detector import FrameworkDetector  # noqa: PLC0415
         from metascreener.criteria.generator import CriteriaGenerator  # noqa: PLC0415
         from metascreener.criteria.preprocessor import InputPreprocessor  # noqa: PLC0415
@@ -171,12 +172,27 @@ async def _resolve_review_criteria(
             framework = (await detector.detect(cleaned, seed=seed)).framework
 
         generator_backends = backends[: min(2, len(backends))]
-        criteria = await CriteriaGenerator(list(generator_backends)).generate_from_topic(
+        gen_result = await CriteriaGenerator(
+            list(generator_backends)
+        ).generate_from_topic_with_dedup(
             cleaned,
             framework=framework,
             language=language,
             seed=seed,
         )
+
+        criteria = gen_result.raw_merged
+        if (
+            gen_result.round2_evaluations
+            and len(generator_backends) >= 2
+        ):
+            dedup_result = DedupMerger().merge(
+                criteria,
+                gen_result.round2_evaluations,
+                gen_result.term_origin,
+            )
+            criteria = dedup_result.criteria
+
         criteria.detected_language = language
         if not criteria.elements:
             raise HTTPException(
@@ -190,6 +206,7 @@ async def _resolve_review_criteria(
         if not text:
             raise HTTPException(status_code=400, detail="Criteria text is empty")
 
+        from metascreener.criteria.dedup_merger import DedupMerger  # noqa: PLC0415
         from metascreener.criteria.framework_detector import FrameworkDetector  # noqa: PLC0415
         from metascreener.criteria.generator import CriteriaGenerator  # noqa: PLC0415
         from metascreener.criteria.preprocessor import InputPreprocessor  # noqa: PLC0415
@@ -202,12 +219,27 @@ async def _resolve_review_criteria(
             framework = (await detector.detect(cleaned, seed=seed)).framework
 
         generator_backends = backends[: min(2, len(backends))]
-        criteria = await CriteriaGenerator(list(generator_backends)).parse_text(
+        gen_result = await CriteriaGenerator(
+            list(generator_backends)
+        ).parse_text_with_dedup(
             cleaned,
             framework=framework,
             language=language,
             seed=seed,
         )
+
+        criteria = gen_result.raw_merged
+        if (
+            gen_result.round2_evaluations
+            and len(generator_backends) >= 2
+        ):
+            dedup_result = DedupMerger().merge(
+                criteria,
+                gen_result.round2_evaluations,
+                gen_result.term_origin,
+            )
+            criteria = dedup_result.criteria
+
         criteria.detected_language = language
         if not criteria.elements:
             raise HTTPException(
@@ -316,6 +348,118 @@ def _summarize_results(
             )
         )
     return summaries
+
+
+@router.post("/criteria-preview")
+async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
+    """Generate a stateless criteria preview from a research topic.
+
+    Runs the full dedup pipeline (Round 1 consensus + Round 2 cross-eval +
+    DedupMerger) and returns the generated criteria with generation metadata.
+    Does NOT write to any session.
+
+    Args:
+        body: JSON body with ``"topic"`` (required) and optional
+            ``"framework"`` override.
+
+    Returns:
+        Serialised criteria fields plus ``generation_meta`` dict.
+
+    Raises:
+        HTTPException: On validation or backend errors.
+    """
+    topic = str(body.get("topic") or "").strip()
+    if not topic:
+        raise HTTPException(status_code=400, detail="Topic is required")
+
+    api_key = _get_openrouter_api_key()
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="OpenRouter API key not configured",
+        )
+
+    try:
+        backends = _build_screening_backends(api_key)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to initialize backends: {exc}",
+        ) from exc
+
+    if not backends:
+        raise HTTPException(
+            status_code=503,
+            detail="No models configured. Check configs/models.yaml.",
+        )
+
+    seed = 42
+
+    try:
+        from metascreener.criteria.dedup_merger import DedupMerger  # noqa: PLC0415
+        from metascreener.criteria.framework_detector import FrameworkDetector  # noqa: PLC0415
+        from metascreener.criteria.generator import CriteriaGenerator  # noqa: PLC0415
+        from metascreener.criteria.preprocessor import InputPreprocessor  # noqa: PLC0415
+
+        cleaned = InputPreprocessor.clean_text(topic)
+        language = InputPreprocessor.detect_language(cleaned)
+
+        framework_override = _parse_framework(body.get("framework"))
+        if framework_override is not None:
+            framework = framework_override
+        else:
+            detector = FrameworkDetector(backends[0])
+            framework = (await detector.detect(cleaned, seed=seed)).framework
+
+        generator_backends = backends[: min(2, len(backends))]
+        gen_result = await CriteriaGenerator(
+            list(generator_backends)
+        ).generate_from_topic_with_dedup(
+            cleaned,
+            framework=framework,
+            language=language,
+            seed=seed,
+        )
+
+        criteria = gen_result.raw_merged
+        n_dedup_merges = 0
+        n_ambiguity_flags = 0
+
+        if (
+            gen_result.round2_evaluations
+            and len(generator_backends) >= 2
+        ):
+            dedup_result = DedupMerger().merge(
+                criteria,
+                gen_result.round2_evaluations,
+                gen_result.term_origin,
+            )
+            criteria = dedup_result.criteria
+            n_dedup_merges = len(dedup_result.dedup_log)
+            n_ambiguity_flags = sum(
+                len(elem.ambiguity_flags)
+                for elem in criteria.elements.values()
+            )
+
+        criteria.detected_language = language
+
+        if not criteria.elements:
+            raise HTTPException(
+                status_code=502,
+                detail="Criteria generation failed (empty criteria returned)",
+            )
+
+        result = criteria.model_dump(mode="json")
+        result["generation_meta"] = {
+            "consensus_method": "multi_model" if len(generator_backends) >= 2 else "single_model",
+            "n_models": len(generator_backends),
+            "n_dedup_merges": n_dedup_merges,
+            "n_ambiguity_flags": n_ambiguity_flags,
+        }
+        return result
+
+    finally:
+        await _close_backends(backends)
 
 
 @router.post("/upload", response_model=UploadResponse)
