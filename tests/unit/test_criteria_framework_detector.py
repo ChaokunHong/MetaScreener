@@ -11,6 +11,23 @@ from metascreener.criteria.framework_detector import (
 from metascreener.llm.adapters.mock import MockLLMAdapter
 
 
+def _mock_adapter(
+    model_id: str,
+    framework: str = "pico",
+    confidence: float = 0.92,
+) -> MockLLMAdapter:
+    """Create a mock adapter that returns a specific framework."""
+    return MockLLMAdapter(
+        model_id=model_id,
+        response_json={
+            "recommended_framework": framework,
+            "confidence": confidence,
+            "reasoning": f"Mock reasoning for {framework}",
+            "alternatives": [],
+        },
+    )
+
+
 @pytest.fixture
 def detector_with_mock() -> FrameworkDetector:
     """Detector backed by a mock that returns a valid PICO detection."""
@@ -95,3 +112,81 @@ async def test_detect_alternatives_preserved(
     """Alternative frameworks from the LLM response are preserved."""
     result = await detector_with_mock.detect("Effect of drug X on mortality")
     assert result.alternatives == ["peo"]
+
+
+# =====================================================================
+# Multi-model voting tests
+# =====================================================================
+
+
+@pytest.mark.asyncio
+async def test_detect_with_voting_majority() -> None:
+    """Majority framework wins in multi-model voting."""
+    backends = [
+        _mock_adapter("m1", "pico", 0.9),
+        _mock_adapter("m2", "pico", 0.85),
+        _mock_adapter("m3", "spider", 0.8),
+        _mock_adapter("m4", "pico", 0.7),
+    ]
+    detector = FrameworkDetector(backend=backends)
+    result = await detector.detect("Effect of drug X on mortality")
+
+    assert result.framework == CriteriaFramework.PICO
+    # 3 out of 4 agree → confidence = 0.75
+    assert result.confidence == pytest.approx(0.75)
+    assert "spider" in result.alternatives
+    assert "Majority voting" in result.reasoning
+
+
+@pytest.mark.asyncio
+async def test_detect_with_voting_single_backend() -> None:
+    """Single backend falls back to normal detection (no voting)."""
+    adapter = _mock_adapter("solo", "spider", 0.88)
+    detector = FrameworkDetector(backend=[adapter])
+    result = await detector.detect("Qualitative experiences of patients")
+
+    assert result.framework == CriteriaFramework.SPIDER
+    assert result.confidence == pytest.approx(0.88)
+    # Single model path: no "Majority voting" prefix
+    assert "Majority voting" not in result.reasoning
+
+
+@pytest.mark.asyncio
+async def test_detect_with_voting_tie_breaks_by_confidence() -> None:
+    """On a tie, the framework with higher average confidence wins."""
+    backends = [
+        _mock_adapter("m1", "pico", 0.6),
+        _mock_adapter("m2", "peo", 0.95),
+    ]
+    detector = FrameworkDetector(backend=backends)
+    result = await detector.detect("Exposure to pollution")
+
+    # Tie 1-1, peo has higher confidence → peo wins
+    assert result.framework == CriteriaFramework.PEO
+    assert result.confidence == pytest.approx(0.5)
+
+
+@pytest.mark.asyncio
+async def test_detect_with_voting_backward_compat_single() -> None:
+    """Passing a single backend (not a list) still works."""
+    adapter = _mock_adapter("compat", "pico", 0.9)
+    detector = FrameworkDetector(backend=adapter)
+    result = await detector.detect("Drug trial")
+
+    assert result.framework == CriteriaFramework.PICO
+
+
+@pytest.mark.asyncio
+async def test_detect_with_voting_override_skips_voting() -> None:
+    """Override framework still bypasses voting entirely."""
+    backends = [
+        _mock_adapter("m1", "pico", 0.9),
+        _mock_adapter("m2", "spider", 0.9),
+    ]
+    detector = FrameworkDetector(backend=backends)
+    result = await detector.detect(
+        "some text",
+        override_framework=CriteriaFramework.PEO,
+    )
+    assert result.framework == CriteriaFramework.PEO
+    assert result.confidence == 1.0

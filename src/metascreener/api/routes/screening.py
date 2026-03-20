@@ -37,6 +37,7 @@ from metascreener.api.schemas import (
     ValidateMeshResponse,
 )
 from metascreener.core.enums import CriteriaFramework
+from metascreener.criteria.frameworks import FRAMEWORK_ELEMENTS
 from metascreener.core.models import (
     CriteriaElement,
     PICOCriteria,
@@ -140,7 +141,7 @@ async def _run_criteria_dedup_pipeline(
     language = InputPreprocessor.detect_language(cleaned)
     framework = framework_override
     if framework is None:
-        detector = FrameworkDetector(backends[0])
+        detector = FrameworkDetector(backends)
         framework = (await detector.detect(cleaned, seed=seed)).framework
 
     n = max(1, min(n_models, len(backends)))
@@ -430,7 +431,7 @@ async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
         if framework_override is not None:
             framework = framework_override
         else:
-            detector = FrameworkDetector(backends[0])
+            detector = FrameworkDetector(backends)
             framework = (await detector.detect(cleaned, seed=seed)).framework
 
         raw_n_models = body.get("n_models", 4)
@@ -473,12 +474,134 @@ async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
                 detail="Criteria generation failed (empty criteria returned)",
             )
 
+        # --- Optional post-pipeline steps (config-gated, non-blocking) ---
+        from metascreener.api.deps import get_config as _get_cfg  # noqa: PLC0415
+
+        _cfg = _get_cfg()
+        search_expansion_terms: dict[str, list[str]] | None = None
+        auto_refine_changes: list[str] | None = None
+
+        # Step A: Terminology Enhancement (audit-only, not merged into criteria)
+        if _cfg.criteria.enable_terminology_enhancement:
+            try:
+                from metascreener.criteria.prompts.enhance_terminology_v1 import (  # noqa: PLC0415
+                    build_enhance_terminology_prompt,
+                )
+                from metascreener.llm.base import strip_code_fences  # noqa: PLC0415
+
+                enh_prompt = build_enhance_terminology_prompt(
+                    criteria, language=language,
+                )
+                enh_raw = await backends[0].complete(enh_prompt, seed)
+                enh_data = json.loads(strip_code_fences(enh_raw))
+                _exp: dict[str, list[str]] = {}
+                for ekey, einfo in enh_data.get("elements", {}).items():
+                    terms: list[str] = []
+                    terms.extend(einfo.get("improved_terms", []))
+                    terms.extend(einfo.get("suggested_mesh", []))
+                    if terms:
+                        _exp[ekey] = terms
+                if _exp:
+                    search_expansion_terms = _exp
+                    if criteria.generation_audit is not None:
+                        criteria.generation_audit.search_expansion_terms = (
+                            search_expansion_terms
+                        )
+                logger.info(
+                    "terminology_enhancement_done",
+                    n_elements=len(search_expansion_terms or {}),
+                )
+            except Exception:  # noqa: BLE001
+                logger.warning(
+                    "terminology_enhancement_failed", exc_info=True,
+                )
+
+        # Step B: Auto-Refine (runs only when validation finds issues)
+        if _cfg.criteria.enable_auto_refine:
+            try:
+                from metascreener.criteria.prompts.auto_refine_v1 import (  # noqa: PLC0415
+                    build_auto_refine_prompt,
+                )
+                from metascreener.criteria.validator import (  # noqa: PLC0415
+                    CriteriaValidator,
+                )
+                from metascreener.llm.base import (  # noqa: PLC0415
+                    strip_code_fences as _strip,
+                )
+
+                rule_issues = CriteriaValidator.validate_rules(criteria)
+                if rule_issues:
+                    refine_prompt = build_auto_refine_prompt(
+                        criteria,
+                        issues=rule_issues,
+                        framework=framework.value,
+                        language=language,
+                    )
+                    refine_raw = await backends[0].complete(
+                        refine_prompt, seed,
+                    )
+                    refine_data = json.loads(_strip(refine_raw))
+
+                    # Apply refinements to criteria
+                    if "research_question" in refine_data:
+                        criteria.research_question = refine_data[
+                            "research_question"
+                        ]
+                    for ekey, einfo in refine_data.get(
+                        "elements", {}
+                    ).items():
+                        if ekey in criteria.elements and isinstance(
+                            einfo, dict,
+                        ):
+                            elem = criteria.elements[ekey]
+                            if "include" in einfo:
+                                elem.include = list(einfo["include"])
+                            if "exclude" in einfo:
+                                elem.exclude = list(einfo["exclude"])
+                            if "name" in einfo:
+                                elem.name = einfo["name"]
+                    if "study_design_include" in refine_data:
+                        criteria.study_design_include = list(
+                            refine_data["study_design_include"],
+                        )
+                    if "study_design_exclude" in refine_data:
+                        criteria.study_design_exclude = list(
+                            refine_data["study_design_exclude"],
+                        )
+                    auto_refine_changes = refine_data.get("changes_made")
+                    logger.info(
+                        "auto_refine_done",
+                        n_issues=len(rule_issues),
+                        n_changes=len(auto_refine_changes or []),
+                    )
+            except Exception:  # noqa: BLE001
+                logger.warning("auto_refine_failed", exc_info=True)
+
         result = criteria.model_dump(mode="json")
+
+        # --- Element completeness check ---
+        fw_info = FRAMEWORK_ELEMENTS.get(framework)
+        missing_required: list[str] = []
+        missing_optional: list[str] = []
+        if fw_info is not None:
+            for key in fw_info.get("required", []):
+                elem = criteria.elements.get(key)
+                if elem is None or not elem.include:
+                    missing_required.append(key)
+            for key in fw_info.get("optional", []):
+                elem = criteria.elements.get(key)
+                if elem is None or not elem.include:
+                    missing_optional.append(key)
+
         result["generation_meta"] = {
             "consensus_method": "multi_model" if len(generator_backends) >= 2 else "single_model",
             "n_models": len(generator_backends),
             "n_dedup_merges": n_dedup_merges,
             "n_ambiguity_flags": n_ambiguity_flags,
+            "missing_required": missing_required,
+            "missing_optional": missing_optional,
+            "search_expansion_terms": search_expansion_terms,
+            "auto_refine_changes": auto_refine_changes,
         }
         return result
 

@@ -1,7 +1,9 @@
 """Auto-detect the best SR framework for user input via LLM classification."""
 from __future__ import annotations
 
+import asyncio
 import json
+from collections import Counter
 from dataclasses import dataclass, field
 
 import structlog
@@ -38,14 +40,25 @@ class FrameworkDetectionResult:
 
 
 class FrameworkDetector:
-    """Detect the most appropriate SR framework using an LLM.
+    """Detect the most appropriate SR framework using LLM(s).
+
+    Supports single-backend (backward-compatible) and multi-backend
+    majority-voting modes.
 
     Args:
-        backend: LLM backend for inference.
+        backend: Single LLM backend or list of backends for voting.
     """
 
-    def __init__(self, backend: LLMBackend) -> None:
-        self._backend = backend
+    def __init__(self, backend: LLMBackend | list[LLMBackend]) -> None:
+        if isinstance(backend, list):
+            if not backend:
+                msg = "At least one LLM backend is required"
+                raise ValueError(msg)
+            self._backends: list[LLMBackend] = backend
+        else:
+            self._backends = [backend]
+        # Keep a convenience reference for _parse_response logging
+        self._backend = self._backends[0]
 
     async def detect(
         self,
@@ -57,6 +70,9 @@ class FrameworkDetector:
 
         When ``override_framework`` is provided the LLM call is skipped
         entirely and the override is returned with confidence 1.0.
+
+        Uses multi-model majority voting when multiple backends are
+        available; falls back to single-model detection otherwise.
 
         Args:
             user_input: User text describing their review topic.
@@ -75,12 +91,104 @@ class FrameworkDetector:
                 alternatives=[],
             )
 
+        if len(self._backends) > 1:
+            return await self._detect_with_voting(user_input, seed)
+
+        # Single backend — original behaviour
+        prompt = self._build_prompt(user_input)
+        prompt_hash = hash_prompt(prompt)
+        raw_response = await self._backend.complete(prompt, seed)
+        return self._parse_response(raw_response, prompt_hash)
+
+    # ------------------------------------------------------------------
+    # Multi-model voting
+    # ------------------------------------------------------------------
+
+    async def _detect_with_voting(
+        self,
+        user_input: str,
+        seed: int,
+    ) -> FrameworkDetectionResult:
+        """Run detection on all backends in parallel and apply majority voting.
+
+        Voting rules:
+        1. The framework with the most votes wins.
+        2. Final confidence = fraction of backends that agree.
+        3. On tie, the framework with the highest average confidence wins.
+
+        Args:
+            user_input: User text describing their review topic.
+            seed: Random seed for reproducibility.
+
+        Returns:
+            Aggregated detection result.
+        """
         prompt = self._build_prompt(user_input)
         prompt_hash = hash_prompt(prompt)
 
-        raw_response = await self._backend.complete(prompt, seed)
+        async def _query_one(backend: LLMBackend) -> FrameworkDetectionResult:
+            """Query a single backend and parse its response."""
+            saved = self._backend
+            self._backend = backend
+            try:
+                raw = await backend.complete(prompt, seed)
+                return self._parse_response(raw, prompt_hash)
+            finally:
+                self._backend = saved
 
-        return self._parse_response(raw_response, prompt_hash)
+        results: list[FrameworkDetectionResult] = await asyncio.gather(
+            *[_query_one(b) for b in self._backends],
+        )
+
+        # --- Tally votes ---
+        votes: Counter[CriteriaFramework] = Counter()
+        confidence_sums: dict[CriteriaFramework, float] = {}
+        for r in results:
+            votes[r.framework] += 1
+            confidence_sums[r.framework] = (
+                confidence_sums.get(r.framework, 0.0) + r.confidence
+            )
+
+        max_count = max(votes.values())
+        tied = [fw for fw, cnt in votes.items() if cnt == max_count]
+
+        if len(tied) == 1:
+            winner = tied[0]
+        else:
+            # Tie-break by highest average confidence
+            winner = max(tied, key=lambda fw: confidence_sums[fw] / votes[fw])
+
+        agreement = votes[winner] / len(results)
+
+        # Collect alternative frameworks (all non-winners that got votes)
+        alternatives = sorted(
+            {fw.value for fw in votes if fw != winner},
+        )
+
+        # Build combined reasoning
+        model_votes = [
+            f"{b.model_id}={r.framework.value}" for b, r in zip(self._backends, results)
+        ]
+        reasoning = (
+            f"Majority voting ({votes[winner]}/{len(results)} agree): "
+            f"{', '.join(model_votes)}"
+        )
+
+        logger.info(
+            "framework_voting_result",
+            winner=winner.value,
+            agreement=agreement,
+            votes=dict(votes),
+            n_backends=len(self._backends),
+        )
+
+        return FrameworkDetectionResult(
+            framework=winner,
+            confidence=agreement,
+            reasoning=reasoning,
+            alternatives=alternatives,
+            prompt_hash=prompt_hash,
+        )
 
     # ------------------------------------------------------------------
     # Private helpers
