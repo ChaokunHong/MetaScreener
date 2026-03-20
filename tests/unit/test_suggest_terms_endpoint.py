@@ -66,3 +66,18 @@ def test_suggest_terms_response_with_data() -> None:
     response = SuggestTermsResponse(suggestions=[suggestion])
     assert len(response.suggestions) == 1
     assert response.suggestions[0].term == "metformin"
+
+
+def test_n_models_clamping_logic():
+    """Verify n_models clamping: [1, len(backends)]."""
+    def clamp(n_models: int, n_backends: int) -> int:
+        return max(1, min(int(n_models), n_backends))
+
+    assert clamp(0, 4) == 1
+    assert clamp(1, 4) == 1
+    assert clamp(2, 4) == 2
+    assert clamp(3, 4) == 3
+    assert clamp(4, 4) == 4
+    assert clamp(99, 4) == 4
+    assert clamp(4, 2) == 2
+    assert clamp(-1, 4) == 1

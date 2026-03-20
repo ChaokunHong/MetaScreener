@@ -80,6 +80,7 @@ async def _run_criteria_dedup_pipeline(
     seed: int,
     *,
     mode: str,
+    n_models: int = 4,
 ) -> ReviewCriteria:
     """Run the full criteria generation/parsing pipeline with dedup.
 
@@ -112,7 +113,8 @@ async def _run_criteria_dedup_pipeline(
         detector = FrameworkDetector(backends[0])
         framework = (await detector.detect(cleaned, seed=seed)).framework
 
-    generator_backends = backends[: min(2, len(backends))]
+    n = max(1, min(n_models, len(backends)))
+    generator_backends = backends[:n]
     generator = CriteriaGenerator(list(generator_backends))
 
     if mode == "topic":
@@ -227,7 +229,7 @@ async def _resolve_review_criteria(
         if not topic:
             raise HTTPException(status_code=400, detail="Topic criteria text is empty")
         return await _run_criteria_dedup_pipeline(
-            topic, backends, framework_override, seed, mode="topic",
+            topic, backends, framework_override, seed, mode="topic", n_models=4,
         )
 
     if mode == "text":
@@ -235,7 +237,7 @@ async def _resolve_review_criteria(
         if not text:
             raise HTTPException(status_code=400, detail="Criteria text is empty")
         return await _run_criteria_dedup_pipeline(
-            text, backends, framework_override, seed, mode="text",
+            text, backends, framework_override, seed, mode="text", n_models=4,
         )
 
     if mode == "upload":
@@ -401,7 +403,9 @@ async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
             detector = FrameworkDetector(backends[0])
             framework = (await detector.detect(cleaned, seed=seed)).framework
 
-        generator_backends = backends[: min(2, len(backends))]
+        raw_n_models = body.get("n_models", 4)
+        n_models = max(1, min(int(raw_n_models), len(backends)))
+        generator_backends = backends[:n_models]
         gen_result = await CriteriaGenerator(
             list(generator_backends)
         ).generate_from_topic_with_dedup(
