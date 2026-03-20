@@ -51,12 +51,12 @@ def build_enhance_terminology_prompt(
 Respond in {language}.
 
 ## TASK
-Review the following systematic review criteria and suggest more precise,
-MeSH-compatible terminology for each element. Your suggestions should:
-1. Replace vague terms with specific, operationalizable medical terminology
-2. Suggest standard MeSH headings where applicable
-3. Add commonly used synonyms and alternative spellings
-4. Ensure terms are precise enough for reproducible screening
+Review the following systematic review criteria and suggest additional
+MeSH-compatible terminology for search strategy purposes. Your suggestions should:
+1. Suggest standard MeSH headings where applicable
+2. Add commonly used synonyms and alternative spellings
+3. Provide terms useful for database search strategies
+4. Do NOT remove or replace any existing terms — only suggest additions
 
 ## CURRENT CRITERIA
 {criteria_json}

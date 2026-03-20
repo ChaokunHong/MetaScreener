@@ -5,7 +5,21 @@
 import { reactive, toRefs } from 'vue'
 
 export interface CriteriaElements {
-  [key: string]: { name?: string; include: string[]; exclude: string[] }
+  [key: string]: {
+    name?: string
+    include: string[]
+    exclude: string[]
+    element_quality?: number | null
+    ambiguity_flags?: string[]
+    model_votes?: Record<string, number>
+  }
+}
+
+export interface GenerationMeta {
+  consensus_method: string
+  n_models: number
+  n_dedup_merges: number
+  n_ambiguity_flags: number
 }
 
 export interface SavedCriteria {
@@ -19,6 +33,7 @@ export interface SavedCriteria {
   language_restriction?: string[] | null
   date_from?: string | null
   date_to?: string | null
+  generation_meta?: GenerationMeta
 }
 
 const STORAGE_KEY = 'metascreener_criteria'

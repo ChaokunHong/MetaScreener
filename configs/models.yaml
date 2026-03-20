@@ -42,3 +42,8 @@ inference:
   temperature: 0.0
   timeout_s: 45.0
   max_retries: 2
+
+criteria:
+  dedup_quorum_fraction: 0.5
+  enable_terminology_enhancement: true
+  enable_auto_refine: true
