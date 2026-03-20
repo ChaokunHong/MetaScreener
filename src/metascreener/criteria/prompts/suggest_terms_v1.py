@@ -6,7 +6,10 @@ is bulk/audit-only for search strategy expansion.
 """
 from __future__ import annotations
 
-SYSTEM_ROLE = "You are a systematic review methodologist specializing in eligibility criteria development."
+SYSTEM_ROLE = (
+    "You are a systematic review methodologist "
+    "specializing in eligibility criteria development."
+)
 
 
 def build_suggest_terms_prompt(
