@@ -44,10 +44,6 @@ validation/datasets/*.bib
 # Frontend
 frontend/node_modules/
 frontend/dist/
-frontend/.vscode/
-frontend/src/assets/
-frontend/src/components/HelloWorld.vue
-frontend/src/style.css
 
 # Non-core directories (kept locally, not in repo)
 .github/
@@ -62,11 +58,6 @@ paper/
 model_icon/
 metascreener1.0/
 backend/
-
-# Desktop build scripts
-scripts/build_desktop.py
-scripts/notarize_macos_desktop.py
-scripts/sign_macos_desktop.py
 
 # Claude Code / dev tooling
 CLAUDE.md

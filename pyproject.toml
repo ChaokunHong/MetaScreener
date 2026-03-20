@@ -26,7 +26,6 @@ dependencies = [
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
     "typer>=0.12",
-    "streamlit>=1.40",
     "plotly>=5.0",
     "pymupdf>=1.24",
     "rispy>=0.8",
@@ -59,8 +58,6 @@ dev = [
 ]
 gpu = ["vllm>=0.6"]
 viz = ["matplotlib>=3.9", "seaborn>=0.13", "kaleido>=0.2"]
-desktop = ["pywebview>=5.3"]
-desktop-build = ["pywebview>=5.3", "pyinstaller>=6.11"]
 
 [project.scripts]
 metascreener = "metascreener.cli:app"
@@ -88,10 +85,6 @@ src = ["src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "ANN", "B", "C4", "PT"]
-
-[tool.ruff.lint.per-file-ignores]
-# Streamlit pages use numeric prefixes for ordering (e.g., 00_criteria.py)
-"src/metascreener/app/pages/*" = ["N999"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -123,7 +116,6 @@ addopts = "--tb=short"
 source = ["src/metascreener"]
 branch = true
 omit = [
-    "src/metascreener/app/*",
     "src/metascreener/__main__.py",
 ]
 
