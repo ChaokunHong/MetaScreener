@@ -480,6 +480,21 @@
               <div class="criteria-chips-wrap">
                 <span v-for="(term, idx) in elem.include" :key="idx" class="criteria-chip include editable">
                   {{ term }}
+                  <span v-if="meshResults[term]" style="margin-left:0.25rem;">
+                    <i v-if="meshResults[term].is_valid" class="fas fa-check-circle" style="color:#22c55e;font-size:0.65rem;" title="Valid MeSH heading"></i>
+                    <span v-else>
+                      <i class="fas fa-exclamation-triangle" style="color:#f59e0b;font-size:0.65rem;"
+                        :title="meshResults[term].suggested_mesh
+                          ? `Not MeSH. Suggested: ${meshResults[term].suggested_mesh}`
+                          : 'Not a recognized MeSH heading'"
+                      ></i>
+                      <button
+                        v-if="meshResults[term].suggested_mesh"
+                        style="background:none;border:none;cursor:pointer;color:#f59e0b;font-size:0.6rem;text-decoration:underline;padding:0 0.15rem;"
+                        @click="replaceMeshTerm(String(key), term, meshResults[term].suggested_mesh!)"
+                      >Replace</button>
+                    </span>
+                  </span>
                   <button class="chip-remove" @click="removeTerm(String(key), 'include', idx)" title="Remove">&times;</button>
                 </span>
                 <button v-if="!(addingTerm?.key === key && addingTerm?.type === 'include')" class="add-chip-btn" @click="startAdd(String(key), 'include')">
@@ -572,6 +587,66 @@
                   </div>
                 </div>
               </details>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pilot Search -->
+        <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid rgba(255,255,255,0.1);">
+          <button class="btn btn-secondary" :disabled="pilotLoading" @click="runPilotSearch">
+            <i :class="pilotLoading ? 'fas fa-spinner fa-spin' : 'fas fa-search'"></i>
+            {{ pilotLoading ? 'Searching PubMed...' : 'Pilot Search' }}
+          </button>
+
+          <div v-if="pilotResult" style="margin-top:1rem;">
+            <div style="font-size:0.95rem;margin-bottom:0.75rem;">
+              Found <strong>{{ pilotResult.search_result.total_hits }}</strong> articles on PubMed
+              <a :href="pilotResult.search_result.pubmed_url" target="_blank" style="margin-left:0.5rem;font-size:0.8rem;">
+                View on PubMed <i class="fas fa-external-link-alt"></i>
+              </a>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1rem;">
+              <div
+                v-for="(art, idx) in pilotResult.search_result.articles.slice(0, 5)"
+                :key="art.pmid"
+                style="padding:0.75rem 1rem;border-radius:12px;background:rgba(255,255,255,0.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.1);"
+              >
+                <div style="display:flex;align-items:start;gap:0.5rem;">
+                  <i
+                    v-if="pilotResult.assessments[idx]"
+                    class="fas fa-circle"
+                    :style="{ color: pilotResult.assessments[idx].is_relevant ? '#22c55e' : '#ef4444', fontSize: '0.5rem', marginTop: '0.4rem' }"
+                    :title="pilotResult.assessments[idx]?.reason || ''"
+                  ></i>
+                  <div>
+                    <div style="font-weight:600;font-size:0.85rem;">{{ art.title }}</div>
+                    <div style="font-size:0.75rem;opacity:0.7;">
+                      {{ art.authors }} {{ art.year ? `(${art.year})` : '' }} &middot; PMID: {{ art.pmid }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="pilotResult.estimated_precision !== null && pilotResult.estimated_precision !== undefined"
+              style="padding:0.75rem 1rem;border-radius:12px;font-size:0.9rem;"
+              :style="{
+                background: pilotResult.estimated_precision > 0.8 ? 'rgba(34,197,94,0.1)' :
+                            pilotResult.estimated_precision >= 0.5 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
+                border: '1px solid ' + (pilotResult.estimated_precision > 0.8 ? 'rgba(34,197,94,0.3)' :
+                        pilotResult.estimated_precision >= 0.5 ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)')
+              }"
+            >
+              <strong>Estimated Precision:</strong>
+              {{ Math.round(pilotResult.estimated_precision * 100) }}%
+              ({{ pilotResult.assessments.filter(a => a.is_relevant).length }}/{{ pilotResult.assessments.length }} relevant)
+              <span v-if="pilotResult.estimated_precision < 0.5" style="margin-left:0.5rem;"> — Consider narrowing your criteria</span>
+              <span v-else-if="pilotResult.estimated_precision > 0.8" style="margin-left:0.5rem;"> — Good precision</span>
+            </div>
+            <div v-else-if="pilotResult.assessments.length === 0 && pilotResult.search_result.articles.length > 0"
+              style="padding:0.5rem;font-size:0.85rem;opacity:0.6;">
+              Could not assess relevance (LLM unavailable)
             </div>
           </div>
         </div>
@@ -1091,6 +1166,7 @@ async function doGenerateCriteria() {
       )
     }
     loadFiltersFromCriteria(result)
+    validateMeshTerms()
   } catch (e: unknown) {
     stopCriteriaProgressSim(false)
     const msg = (e as Error).message || 'Generation failed'
@@ -1317,6 +1393,83 @@ function confirmCriteria() {
 
 function capitalise(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ')
+}
+
+// ── MeSH Validation ────────────────────────────────────────
+interface MeSHResult {
+  term: string
+  is_valid: boolean
+  mesh_uid: string | null
+  suggested_mesh: string | null
+  suggestion_uid: string | null
+}
+
+const meshResults = ref<Record<string, MeSHResult>>({})
+const meshLoading = ref(false)
+
+async function validateMeshTerms() {
+  const allTerms = new Set<string>()
+  for (const elem of Object.values(editableCriteria.value.elements)) {
+    for (const t of (elem.include || [])) allTerms.add(t)
+    for (const t of (elem.exclude || [])) allTerms.add(t)
+  }
+  if (allTerms.size === 0) return
+
+  meshLoading.value = true
+  try {
+    const resp = await apiPost<{ results: MeSHResult[] }>('/screening/validate-mesh', {
+      terms: [...allTerms],
+    })
+    const map: Record<string, MeSHResult> = {}
+    for (const r of resp.results) map[r.term] = r
+    meshResults.value = map
+  } catch (e) {
+    console.warn('MeSH validation failed', e)
+  } finally {
+    meshLoading.value = false
+  }
+}
+
+function replaceMeshTerm(elemKey: string, oldTerm: string, newTerm: string) {
+  const elem = editableCriteria.value.elements[elemKey]
+  if (!elem) return
+  const idx = elem.include.indexOf(oldTerm)
+  if (idx >= 0) elem.include[idx] = newTerm
+  validateMeshTerms()
+}
+
+// ── Pilot Search ───────────────────────────────────────────
+interface PilotArticle {
+  pmid: string; title: string; authors: string; year: number | null; abstract: string | null
+}
+interface PilotAssessment {
+  pmid: string; title: string; is_relevant: boolean; reason: string
+}
+interface PilotDiagnostic {
+  search_result: { query: string; total_hits: number; articles: PilotArticle[]; pubmed_url: string }
+  assessments: PilotAssessment[]
+  estimated_precision: number | null
+  model_used: string
+}
+
+const pilotLoading = ref(false)
+const pilotResult = ref<PilotDiagnostic | null>(null)
+
+async function runPilotSearch() {
+  pilotLoading.value = true
+  pilotResult.value = null
+  try {
+    const meshList = Object.values(meshResults.value)
+    const result = await apiPost<PilotDiagnostic>('/screening/pilot-search', {
+      criteria: editableCriteria.value,
+      mesh_results: meshList.length > 0 ? meshList : null,
+    })
+    pilotResult.value = result
+  } catch (e: any) {
+    criteriaError.value = `Pilot search failed: ${e?.response?.data?.detail || e.message}`
+  } finally {
+    pilotLoading.value = false
+  }
 }
 </script>
 
