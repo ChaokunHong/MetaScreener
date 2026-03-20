@@ -102,9 +102,24 @@ async def list_models() -> list[ModelInfo]:
     ]
 
 
+@router.delete("/keys")
+async def clear_api_keys() -> dict[str, str]:
+    """Clear all stored API keys.
+
+    Returns:
+        Status acknowledgement dict.
+    """
+    current = _load_user_settings()
+    current["api_keys"] = {"openrouter": "", "together": ""}
+    _save_user_settings(current)
+    return {"status": "ok"}
+
+
 @router.post("/test-key", response_model=TestKeyResponse)
 async def test_api_key(req: TestKeyRequest) -> TestKeyResponse:
-    """Test an API key for basic validity.
+    """Test an API key by making a real API call to the provider.
+
+    Sends a minimal request to verify the key is valid and has credits.
 
     Args:
         req: Test key request with provider and api_key.
@@ -112,8 +127,48 @@ async def test_api_key(req: TestKeyRequest) -> TestKeyResponse:
     Returns:
         Validation result with valid flag and message.
     """
+    import httpx  # noqa: PLC0415
+
     if not req.api_key or not req.api_key.strip():
         return TestKeyResponse(valid=False, message="API key is empty")
     if len(req.api_key) < 10:
         return TestKeyResponse(valid=False, message="Key too short")
+
+    if req.provider == "openrouter":
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {req.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "openrouter/auto",
+                        "messages": [{"role": "user", "content": "hi"}],
+                        "max_tokens": 1,
+                    },
+                )
+                if resp.status_code == 200:
+                    return TestKeyResponse(
+                        valid=True, message="Key verified — connected to OpenRouter"
+                    )
+                if resp.status_code == 401:
+                    return TestKeyResponse(valid=False, message="Invalid API key")
+                if resp.status_code == 402:
+                    return TestKeyResponse(
+                        valid=False, message="Key valid but no credits remaining"
+                    )
+                return TestKeyResponse(
+                    valid=False,
+                    message=f"Unexpected response ({resp.status_code})",
+                )
+        except httpx.TimeoutException:
+            return TestKeyResponse(valid=False, message="Connection timed out")
+        except Exception as exc:  # noqa: BLE001
+            return TestKeyResponse(
+                valid=False, message=f"Connection error: {exc!s}"
+            )
+
+    # Fallback for unknown providers: format check only
     return TestKeyResponse(valid=True, message="Key format looks valid")
