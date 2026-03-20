@@ -26,6 +26,9 @@ from metascreener.api.schemas import (
     ScreeningRecordSummary,
     ScreeningResultsResponse,
     ScreeningSessionInfo,
+    SuggestTermsRequest,
+    SuggestTermsResponse,
+    TermSuggestion,
     UploadResponse,
 )
 from metascreener.core.enums import CriteriaFramework
@@ -452,6 +455,89 @@ async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
         }
         return result
 
+    finally:
+        await _close_backends(backends)
+
+
+def _require_api_key() -> str:
+    """Return the OpenRouter API key or raise HTTP 503."""
+    api_key = _get_openrouter_api_key()
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="OpenRouter API key not configured",
+        )
+    return api_key
+
+
+@router.post("/suggest-terms", response_model=SuggestTermsResponse)
+async def suggest_terms(req: SuggestTermsRequest) -> SuggestTermsResponse:
+    """Suggest additional terms for a single criteria element.
+
+    Uses a single LLM backend to generate 5-10 term suggestions
+    with rationale. Filters out terms already in the current lists.
+
+    Args:
+        req: Element context with current terms and topic.
+
+    Returns:
+        Filtered list of term suggestions.
+
+    Raises:
+        HTTPException: If no API key, backend init fails, or LLM call fails.
+    """
+    api_key = _require_api_key()
+    try:
+        backends = _build_screening_backends(api_key)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to initialize backends: {exc}",
+        ) from exc
+
+    if not backends:
+        raise HTTPException(status_code=503, detail="No models configured.")
+
+    backend = backends[0]
+    try:
+        from metascreener.criteria.prompts.suggest_terms_v1 import (  # noqa: PLC0415
+            build_suggest_terms_prompt,
+        )
+
+        prompt = build_suggest_terms_prompt(
+            element_key=req.element_key,
+            element_name=req.element_name,
+            current_include=req.current_include,
+            current_exclude=req.current_exclude,
+            topic=req.topic,
+            framework=req.framework,
+        )
+        raw = await backend.complete(prompt, seed=42)
+        data = json.loads(raw)
+        suggestions_raw = data.get("suggestions", [])
+
+        existing = {
+            t.strip().lower()
+            for t in req.current_include + req.current_exclude
+        }
+        filtered = [
+            TermSuggestion(term=s["term"], rationale=s["rationale"])
+            for s in suggestions_raw
+            if isinstance(s, dict)
+            and "term" in s
+            and "rationale" in s
+            and s["term"].strip().lower() not in existing
+        ]
+        return SuggestTermsResponse(suggestions=filtered)
+
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=502, detail="Failed to parse suggestions from LLM",
+        ) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=502, detail=f"Suggestion generation failed: {exc}",
+        ) from exc
     finally:
         await _close_backends(backends)
 
