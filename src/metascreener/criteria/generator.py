@@ -23,6 +23,7 @@ from metascreener.criteria.consensus import ConsensusMerger
 from metascreener.criteria.models import GenerationResult, build_term_origin
 from metascreener.criteria.prompts.cross_evaluate_v1 import (
     build_cross_evaluate_prompt,
+    transform_cross_evaluate_response,
     validate_cross_evaluate_response,
 )
 from metascreener.criteria.prompts.generate_from_topic_v1 import (
@@ -271,7 +272,7 @@ class CriteriaGenerator:
                 continue
             model_id, parsed = result
             if parsed is not None:
-                evaluations[model_id] = parsed
+                evaluations[model_id] = transform_cross_evaluate_response(parsed)
 
         logger.info(
             "round2_complete",

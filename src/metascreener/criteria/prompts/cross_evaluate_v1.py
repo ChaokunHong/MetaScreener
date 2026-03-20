@@ -143,7 +143,57 @@ def validate_cross_evaluate_response(response: dict[str, Any]) -> bool:
             return False
 
         for score in quality.values():
-            if not isinstance(score, int) or score < 0 or score > 10:
+            if not isinstance(score, (int, float)) or score < 0 or score > 10:
                 return False
 
     return True
+
+
+def transform_cross_evaluate_response(
+    response: dict[str, Any],
+) -> dict[str, Any]:
+    """Transform a validated LLM cross-evaluate response into DedupMerger format.
+
+    The LLM returns::
+
+        {"element_evaluations": {"<element_key>": {"duplicate_pairs": [...], "quality": {...}}}}
+
+    ``DedupMerger`` expects per-model data as::
+
+        {"dedup_edges": [...], "quality": {"<element_key>": {"precision": float, ...}}}
+
+    Quality scores are normalised from the LLM's 0-10 integer scale to 0.0-1.0
+    floats so that ``DedupMerger._compute_quality_scores`` (which multiplies by 10)
+    maps them back to a 0-100 integer scale.
+
+    Args:
+        response: Validated LLM response with ``element_evaluations`` key.
+
+    Returns:
+        Dict with ``dedup_edges`` (list) and ``quality`` (dict) keys.
+    """
+    evaluations = response.get("element_evaluations", {})
+
+    dedup_edges: list[dict[str, Any]] = []
+    quality: dict[str, dict[str, float]] = {}
+
+    for element_key, element_data in evaluations.items():
+        # Transform duplicate_pairs → dedup_edges
+        for pair in element_data.get("duplicate_pairs", []):
+            dedup_edges.append({
+                "element": element_key,
+                "polarity": pair["polarity"],
+                "term_a": pair["term_a"],
+                "term_b": pair["term_b"],
+                "is_duplicate": True,
+                "preferred": pair["preferred"],
+            })
+
+        # Transform quality scores: 0-10 → 0.0-1.0
+        raw_quality = element_data.get("quality", {})
+        quality[element_key] = {
+            dim: float(raw_quality.get(dim, 0)) / 10.0
+            for dim in ("precision", "completeness", "actionability")
+        }
+
+    return {"dedup_edges": dedup_edges, "quality": quality}
