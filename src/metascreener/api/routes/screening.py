@@ -22,6 +22,9 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile
 logger = structlog.get_logger(__name__)
 
 from metascreener.api.schemas import (
+    PilotDiagnostic,
+    PilotSearchRequest,
+    RelevanceAssessment,
     RunScreeningRequest,
     ScreeningRecordSummary,
     ScreeningResultsResponse,
@@ -30,6 +33,8 @@ from metascreener.api.schemas import (
     SuggestTermsResponse,
     TermSuggestion,
     UploadResponse,
+    ValidateMeshRequest,
+    ValidateMeshResponse,
 )
 from metascreener.core.enums import CriteriaFramework
 from metascreener.core.models import (
@@ -74,6 +79,28 @@ def _get_openrouter_api_key() -> str:
         return ""
     raw = api_keys.get("openrouter", "")
     return str(raw).strip() if raw is not None else ""
+
+
+def _get_ncbi_api_key() -> str | None:
+    """Resolve optional NCBI API key from env or UI settings file.
+
+    Returns None if no key configured — NCBI features still work
+    but with lower rate limits.
+    """
+    env_key = os.environ.get("NCBI_API_KEY", "").strip()
+    if env_key:
+        return env_key
+
+    path = _user_settings_path()
+    if not path.exists():
+        return None
+    try:
+        with open(path) as f:
+            settings = yaml.safe_load(f) or {}
+        key = settings.get("api_keys", {}).get("ncbi", "").strip()
+        return key if key else None
+    except Exception:  # noqa: BLE001
+        return None
 
 
 async def _run_criteria_dedup_pipeline(
@@ -538,6 +565,128 @@ async def suggest_terms(req: SuggestTermsRequest) -> SuggestTermsResponse:
         raise HTTPException(
             status_code=502, detail=f"Suggestion generation failed: {exc}",
         ) from exc
+    finally:
+        await _close_backends(backends)
+
+
+@router.post("/validate-mesh", response_model=ValidateMeshResponse)
+async def validate_mesh(req: ValidateMeshRequest) -> ValidateMeshResponse:
+    """Validate terms against the NCBI MeSH database.
+
+    Does not require OpenRouter API key. NCBI API key is optional.
+
+    Args:
+        req: List of terms to validate.
+
+    Returns:
+        Validation results with MeSH UIDs and spelling suggestions.
+    """
+    from metascreener.criteria.mesh_validator import MeSHValidator  # noqa: PLC0415
+
+    ncbi_key = _get_ncbi_api_key()
+    validator = MeSHValidator(ncbi_api_key=ncbi_key)
+    try:
+        results = await validator.validate_terms(req.terms)
+        return ValidateMeshResponse(results=results)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=502, detail=f"MeSH validation failed: {exc}",
+        ) from exc
+
+
+@router.post("/pilot-search", response_model=PilotDiagnostic)
+async def pilot_search(req: PilotSearchRequest) -> PilotDiagnostic:
+    """Run a PubMed pilot search with LLM relevance assessment.
+
+    Args:
+        req: Criteria and optional MeSH results.
+
+    Returns:
+        Complete pilot diagnostic with precision estimate.
+    """
+    from metascreener.api.deps import get_config  # noqa: PLC0415
+    from metascreener.criteria.pilot_search import PilotSearcher  # noqa: PLC0415
+    from metascreener.criteria.prompts.pilot_relevance_v1 import (  # noqa: PLC0415
+        build_pilot_relevance_prompt,
+    )
+    from metascreener.llm.factory import get_strongest_backend  # noqa: PLC0415
+
+    ncbi_key = _get_ncbi_api_key()
+    criteria = ReviewCriteria(**req.criteria)
+    mesh_results = req.mesh_results
+
+    searcher = PilotSearcher(ncbi_api_key=ncbi_key)
+    query = searcher.build_pubmed_query(criteria, mesh_results=mesh_results)
+
+    if not query.strip():
+        raise HTTPException(status_code=400, detail="No searchable terms in criteria")
+
+    try:
+        search_result = await searcher.search(query, max_results=10)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=502, detail=f"PubMed search failed: {exc}",
+        ) from exc
+
+    if not search_result.articles:
+        return PilotDiagnostic(
+            search_result=search_result,
+            assessments=[],
+            estimated_precision=None,
+            model_used="none",
+        )
+
+    # LLM relevance assessment
+    api_key = _get_openrouter_api_key()
+    if not api_key:
+        return PilotDiagnostic(
+            search_result=search_result,
+            assessments=[],
+            estimated_precision=None,
+            model_used="none (no API key)",
+        )
+
+    backends = _build_screening_backends(api_key)
+    cfg = get_config()
+    backend = get_strongest_backend(backends, cfg)
+
+    try:
+        articles_dicts = [a.model_dump() for a in search_result.articles]
+        criteria_dict = criteria.model_dump(mode="json")
+        prompt = build_pilot_relevance_prompt(articles_dicts, criteria_dict)
+        raw = await backend.complete(prompt, seed=42)
+
+        data = json.loads(raw)
+        assessments_raw = data.get("assessments", [])
+        assessments = [
+            RelevanceAssessment(
+                pmid=a.get("pmid", ""),
+                title=a.get("title", ""),
+                is_relevant=bool(a.get("is_relevant", False)),
+                reason=a.get("reason", ""),
+            )
+            for a in assessments_raw
+            if isinstance(a, dict)
+        ]
+
+        relevant = sum(1 for a in assessments if a.is_relevant)
+        total = len(assessments)
+        precision = relevant / total if total > 0 else None
+
+        return PilotDiagnostic(
+            search_result=search_result,
+            assessments=assessments,
+            estimated_precision=precision,
+            model_used=backend.model_id,
+        )
+    except Exception:
+        logger.warning("pilot_relevance_failed", exc_info=True)
+        return PilotDiagnostic(
+            search_result=search_result,
+            assessments=[],
+            estimated_precision=None,
+            model_used=backend.model_id,
+        )
     finally:
         await _close_backends(backends)
 
