@@ -86,6 +86,27 @@
         Describe what your systematic review is about. The AI will generate structured inclusion and exclusion criteria that you can review and edit.
       </p>
 
+      <!-- Model Count Selector -->
+      <div style="display:flex;gap:0.75rem;margin-bottom:1rem;align-items:center;">
+        <button
+          class="btn btn-sm"
+          :class="selectedModelCount === 2 ? 'btn-primary' : 'btn-secondary'"
+          @click="selectedModelCount = 2"
+        >
+          <i class="fas fa-bolt"></i> Fast (2 models)
+        </button>
+        <button
+          class="btn btn-sm"
+          :class="selectedModelCount === 4 ? 'btn-primary' : 'btn-secondary'"
+          @click="selectedModelCount = 4"
+        >
+          <i class="fas fa-microscope"></i> Thorough (4 models)
+        </button>
+        <span style="font-size:0.8rem;opacity:0.7;">
+          {{ selectedModelCount === 2 ? '~15-30s' : '~30-60s' }}
+        </span>
+      </div>
+
       <div class="form-group" style="margin-bottom: 0.75rem;">
         <label class="form-label">Your research topic</label>
         <textarea
@@ -681,6 +702,7 @@ onMounted(async () => {
 // ── State ──────────────────────────────────────────────────
 type CriteriaMode = 'ai' | 'manual' | 'import'
 const mode = ref<CriteriaMode>('ai')
+const selectedModelCount = ref<2 | 4>(4)
 const sourceMode = ref<'ai' | 'manual' | 'import' | 'restored'>('ai')
 
 const topicText = ref('')
@@ -1002,6 +1024,7 @@ async function doGenerateCriteria() {
   try {
     const result = await apiPost<GeneratedCriteria>('/screening/criteria-preview', {
       topic: topicText.value.trim(),
+      n_models: selectedModelCount.value,
     })
     stopCriteriaProgressSim(true)
     if (result.generation_meta) {
