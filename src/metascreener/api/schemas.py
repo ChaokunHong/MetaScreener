@@ -422,3 +422,30 @@ class HistoryListResponse(BaseModel):
 
     items: list[HistoryItemSummary]
     total: int
+
+
+# --- Criteria suggest-terms API schemas ---
+
+
+class SuggestTermsRequest(BaseModel):
+    """Request body for the suggest-terms endpoint."""
+
+    element_key: str = Field(..., description="Element key, e.g. 'population'")
+    element_name: str = Field(..., description="Human-readable element name")
+    current_include: list[str] = Field(default_factory=list)
+    current_exclude: list[str] = Field(default_factory=list)
+    topic: str = Field(..., description="Research topic")
+    framework: str = Field(..., description="Framework code, e.g. 'pico'")
+
+
+class TermSuggestion(BaseModel):
+    """A single term suggestion with rationale."""
+
+    term: str
+    rationale: str
+
+
+class SuggestTermsResponse(BaseModel):
+    """Response from the suggest-terms endpoint."""
+
+    suggestions: list[TermSuggestion] = Field(default_factory=list)
