@@ -60,10 +60,10 @@
           <i v-else class="fas fa-save"></i>
           {{ saving ? 'Saving...' : 'Save & Continue' }}
         </button>
-        <button class="btn btn-danger btn-sm" @click="clearKeys" :disabled="clearing">
+        <button class="btn btn-danger" @click="clearKeys" :disabled="clearing">
           <i v-if="clearing" class="fas fa-spinner fa-spin"></i>
           <i v-else class="fas fa-trash-can"></i>
-          {{ clearing ? '' : 'Clear All Keys' }}
+          {{ clearing ? 'Clearing...' : 'Clear All Keys' }}
         </button>
       </div>
     </div>
@@ -150,20 +150,12 @@ const orTestOk = ref(false)
 const models = ref<ModelInfo[]>([])
 const loadingModels = ref(true)
 
-// Model logo URLs (official or recognizable)
+// Local model logos from /public/model_icon/
 const modelLogos: Record<string, string> = {
-  qwen3: 'https://cdn.openai.com/API/images/qwen.png',
-  deepseek: 'https://cdn.openai.com/API/images/deepseek.png',
-  llama: 'https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png',
-  mistral: 'https://avatars.githubusercontent.com/u/132372032?s=200&v=4',
-}
-
-// Fallback: use a colored circle with first letter
-const modelColors: Record<string, string> = {
-  qwen3: '#6366f1',
-  deepseek: '#0ea5e9',
-  llama: '#3b82f6',
-  mistral: '#f97316',
+  qwen3: '/model_icon/qwen2.png',
+  deepseek: '/model_icon/deepseek.png',
+  llama: '/model_icon/llama.png',
+  mistral: '/model_icon/mistralai.png',
 }
 
 function getModelLogo(modelId: string): string {
