@@ -21,6 +21,7 @@ class ModelEntry(BaseModel):
         model_id: Provider-specific model identifier.
         license_: Model license (e.g., "Apache-2.0").
         huggingface_url: HuggingFace model page URL for reproducibility.
+        tier: Model capability tier (1=strongest, 2=standard). Defaults to 2.
     """
 
     name: str
@@ -29,6 +30,7 @@ class ModelEntry(BaseModel):
     model_id: str
     license_: str = Field(alias="license")
     huggingface_url: str | None = None
+    tier: int = 2
 
     model_config = {"populate_by_name": True}
 

@@ -67,3 +67,31 @@ def create_backends(
         models=[b.model_id for b in backends],
     )
     return backends
+
+
+def get_strongest_backend(
+    backends: list[LLMBackend],
+    cfg: MetaScreenerConfig,
+) -> LLMBackend:
+    """Return the first tier-1 backend, or first available.
+
+    Args:
+        backends: Available LLM backend instances.
+        cfg: MetaScreener configuration with model tier info.
+
+    Returns:
+        The strongest available backend.
+
+    Raises:
+        ValueError: If backends list is empty.
+    """
+    if not backends:
+        msg = "No backends available"
+        raise ValueError(msg)
+
+    for backend in backends:
+        entry = cfg.models.get(backend.model_id)
+        if entry and entry.tier == 1:
+            return backend
+
+    return backends[0]
