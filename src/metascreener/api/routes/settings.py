@@ -110,7 +110,7 @@ async def clear_api_keys() -> dict[str, str]:
         Status acknowledgement dict.
     """
     current = _load_user_settings()
-    current["api_keys"] = {"openrouter": "", "together": ""}
+    current["api_keys"] = {"openrouter": "", "together": "", "ncbi": ""}
     _save_user_settings(current)
     return {"status": "ok"}
 

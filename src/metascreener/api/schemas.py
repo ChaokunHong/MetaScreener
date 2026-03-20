@@ -16,6 +16,7 @@ class APIKeysConfig(BaseModel):
 
     openrouter: str = ""
     together: str = ""
+    ncbi: str = ""
 
 
 class InferenceSettings(BaseModel):
@@ -449,3 +450,72 @@ class SuggestTermsResponse(BaseModel):
     """Response from the suggest-terms endpoint."""
 
     suggestions: list[TermSuggestion] = Field(default_factory=list)
+
+
+# --- MeSH validation + Pilot search schemas ---
+
+
+class ValidateMeshRequest(BaseModel):
+    """Request for MeSH term validation."""
+
+    terms: list[str] = Field(..., min_length=1)
+
+
+class MeSHValidationResult(BaseModel):
+    """Single term MeSH validation result."""
+
+    term: str
+    is_valid: bool
+    mesh_uid: str | None = None
+    suggested_mesh: str | None = None
+    suggestion_uid: str | None = None
+
+
+class ValidateMeshResponse(BaseModel):
+    """Response from validate-mesh endpoint."""
+
+    results: list[MeSHValidationResult] = Field(default_factory=list)
+
+
+class PubMedArticle(BaseModel):
+    """Lightweight article for pilot search preview."""
+
+    pmid: str
+    title: str
+    authors: str
+    year: int | None = None
+    abstract: str | None = None
+
+
+class PilotSearchResult(BaseModel):
+    """PubMed search results."""
+
+    query: str
+    total_hits: int
+    articles: list[PubMedArticle] = Field(default_factory=list)
+    pubmed_url: str
+
+
+class RelevanceAssessment(BaseModel):
+    """LLM relevance assessment for one article."""
+
+    pmid: str
+    title: str
+    is_relevant: bool
+    reason: str
+
+
+class PilotSearchRequest(BaseModel):
+    """Request for pilot search."""
+
+    criteria: dict[str, Any]
+    mesh_results: list[MeSHValidationResult] | None = None
+
+
+class PilotDiagnostic(BaseModel):
+    """Complete pilot search diagnostic."""
+
+    search_result: PilotSearchResult
+    assessments: list[RelevanceAssessment] = Field(default_factory=list)
+    estimated_precision: float | None = None
+    model_used: str

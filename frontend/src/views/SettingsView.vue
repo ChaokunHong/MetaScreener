@@ -59,6 +59,27 @@
         </div>
       </div>
 
+      <div class="form-group">
+        <label class="form-label">NCBI API Key <span style="font-weight: 400; color: var(--text-secondary);">(optional)</span></label>
+        <div style="display: flex; gap: 0.5rem;">
+          <input
+            v-model="settings.api_keys.ncbi"
+            :type="showNCBI ? 'text' : 'password'"
+            class="form-control"
+            placeholder="Enter your NCBI API key..."
+            style="flex: 1;"
+          />
+          <button class="btn btn-secondary btn-sm" @click="showNCBI = !showNCBI" style="white-space: nowrap;">
+            <i :class="showNCBI ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+            {{ showNCBI ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
+          <i class="fas fa-circle-info" style="font-size: 0.7rem;"></i>
+          Without a key, NCBI limits requests to 3/second. With a key, the limit increases to 10/second — recommended for pilot searches.
+        </div>
+      </div>
+
       <div style="display: flex; gap: 0.75rem; align-items: center;">
         <button class="btn btn-primary" :disabled="saving" @click="doSave">
           <i v-if="saving" class="fas fa-spinner fa-spin"></i>
@@ -282,6 +303,7 @@ const router = useRouter()
 interface ApiKeys {
   openrouter?: string
   together?: string
+  ncbi?: string
 }
 
 interface Settings {
@@ -303,6 +325,7 @@ const saveSuccessMsg = ref('')
 const saveError = ref('')
 const showOpenRouter = ref(false)
 const showTogether = ref(false)
+const showNCBI = ref(false)
 const clearing = ref(false)
 
 const testingOR = ref(false)
@@ -411,7 +434,7 @@ async function clearKeys() {
   clearing.value = true
   try {
     await apiDelete('/settings/keys')
-    settings.value.api_keys = { openrouter: '', together: '' }
+    settings.value.api_keys = { openrouter: '', together: '', ncbi: '' }
     orTestResult.value = ''
     saveSuccess.value = false
     saveError.value = ''
