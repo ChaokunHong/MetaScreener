@@ -385,6 +385,12 @@ class GenerationAudit(BaseModel):
     model_outputs: dict[str, str] | None = None
     consensus_method: str = "semantic_union"
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    per_model_outputs: list[dict[str, Any]] | None = None
+    term_origin: dict[str, dict[str, dict[str, list[str]]]] | None = None
+    round2_evaluations: dict[str, Any] | None = None
+    quality_scores_per_element: dict[str, dict[str, int]] | None = None
+    semantic_dedup_log: list[dict[str, Any]] | None = None
+    search_expansion_terms: dict[str, list[str]] | None = None
 
 
 class ReviewCriteria(BaseModel):

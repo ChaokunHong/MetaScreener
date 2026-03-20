@@ -64,6 +64,21 @@ class InferenceConfig(BaseModel):
     max_retries: int = 3
 
 
+class CriteriaConfig(BaseModel):
+    """Criteria generation pipeline configuration.
+
+    Attributes:
+        dedup_quorum_fraction: Fraction of surviving models needed
+            to confirm a duplicate pair (0.0-1.0).
+        enable_terminology_enhancement: Run enhance_terminology after merge.
+        enable_auto_refine: Run auto_refine when validation finds issues.
+    """
+
+    dedup_quorum_fraction: float = 0.5
+    enable_terminology_enhancement: bool = True
+    enable_auto_refine: bool = True
+
+
 class MetaScreenerConfig(BaseModel):
     """Root configuration for MetaScreener.
 
@@ -71,11 +86,13 @@ class MetaScreenerConfig(BaseModel):
         models: Registry of available LLM models.
         thresholds: Decision router threshold settings.
         inference: LLM inference settings.
+        criteria: Criteria generation pipeline settings.
     """
 
     models: dict[str, ModelEntry] = Field(default_factory=dict)
     thresholds: ThresholdConfig = Field(default_factory=ThresholdConfig)
     inference: InferenceConfig = Field(default_factory=InferenceConfig)
+    criteria: CriteriaConfig = Field(default_factory=CriteriaConfig)
 
 
 def load_model_config(path: Path) -> MetaScreenerConfig:
@@ -105,4 +122,5 @@ def load_model_config(path: Path) -> MetaScreenerConfig:
         models=models,
         thresholds=ThresholdConfig(**data.get("thresholds", {})),
         inference=InferenceConfig(**data.get("inference", {})),
+        criteria=CriteriaConfig(**data.get("criteria", {})),
     )
