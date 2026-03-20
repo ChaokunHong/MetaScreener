@@ -522,6 +522,43 @@
               </div>
             </div>
 
+            <!-- AI Suggest Button -->
+            <button
+              class="btn btn-secondary btn-sm"
+              style="margin-top:0.5rem;"
+              :disabled="suggestLoading[String(key)]"
+              @click="suggestTerms(String(key), String(elem.name || key))"
+            >
+              <i :class="suggestLoading[String(key)] ? 'fas fa-spinner fa-spin' : 'fas fa-magic'"></i>
+              {{ suggestLoading[String(key)] ? 'Suggesting...' : 'AI Suggest' }}
+            </button>
+
+            <!-- Suggestion Chips -->
+            <div v-if="suggestions[String(key)]?.length" style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;">
+              <span
+                v-for="s in suggestions[String(key)]"
+                :key="s.term"
+                :title="s.rationale"
+                style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.6rem;border-radius:999px;font-size:0.82rem;background:rgba(129,216,208,0.15);border:1px solid rgba(129,216,208,0.3);backdrop-filter:blur(6px);"
+              >
+                {{ s.term }}
+                <button
+                  style="background:none;border:none;cursor:pointer;color:var(--tiffany-green,#81d8d0);font-weight:bold;padding:0.1rem 0.25rem;font-size:0.8rem;"
+                  title="Adopt this term"
+                  @click="adoptSuggestion(String(key), s.term)"
+                >+</button>
+                <button
+                  style="background:none;border:none;cursor:pointer;opacity:0.5;padding:0.1rem 0.25rem;font-size:0.8rem;"
+                  title="Dismiss"
+                  @click="dismissSuggestion(String(key), s.term)"
+                >&times;</button>
+              </span>
+              <button
+                style="background:none;border:none;cursor:pointer;font-size:0.75rem;opacity:0.6;color:inherit;text-decoration:underline;"
+                @click="dismissAllSuggestions(String(key))"
+              >Dismiss all</button>
+            </div>
+
             <!-- Ambiguity flags -->
             <div v-if="elem.ambiguity_flags?.length" class="ambiguity-section">
               <details>
@@ -1188,6 +1225,52 @@ function dismissFlag(elementKey: string, flagIndex: number) {
   if (elem?.ambiguity_flags) {
     elem.ambiguity_flags.splice(flagIndex, 1)
   }
+}
+
+// ── AI Suggest ────────────────────────────────────────────
+interface TermSuggestion {
+  term: string
+  rationale: string
+}
+
+const suggestLoading = reactive<Record<string, boolean>>({})
+const suggestions = reactive<Record<string, TermSuggestion[]>>({})
+
+async function suggestTerms(elemKey: string, elemName: string) {
+  if (suggestLoading[elemKey]) return
+  suggestLoading[elemKey] = true
+  try {
+    const elem = editableCriteria.value.elements[elemKey]
+    const resp = await apiPost<{ suggestions: TermSuggestion[] }>('/screening/suggest-terms', {
+      element_key: elemKey,
+      element_name: elemName,
+      current_include: elem?.include || [],
+      current_exclude: elem?.exclude || [],
+      topic: topicText.value.trim(),
+      framework: selectedFramework.value,
+    })
+    suggestions[elemKey] = resp.suggestions
+  } catch (e: any) {
+    criteriaError.value = `Suggest failed for ${elemName}: ${e?.response?.data?.detail || e.message}`
+  } finally {
+    suggestLoading[elemKey] = false
+  }
+}
+
+function adoptSuggestion(elemKey: string, term: string) {
+  if (!editableCriteria.value.elements[elemKey]) {
+    editableCriteria.value.elements[elemKey] = { include: [], exclude: [] }
+  }
+  editableCriteria.value.elements[elemKey].include.push(term)
+  suggestions[elemKey] = (suggestions[elemKey] || []).filter(s => s.term !== term)
+}
+
+function dismissSuggestion(elemKey: string, term: string) {
+  suggestions[elemKey] = (suggestions[elemKey] || []).filter(s => s.term !== term)
+}
+
+function dismissAllSuggestions(elemKey: string) {
+  suggestions[elemKey] = []
 }
 
 async function doRegenerateCriteria() {
