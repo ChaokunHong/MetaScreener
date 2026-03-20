@@ -442,7 +442,16 @@
             :key="key"
             class="criteria-element-editor-card"
           >
-            <div class="criteria-element-name">{{ capitalise(String(elem.name || key)) }}</div>
+            <div class="criteria-element-name">
+              {{ capitalise(String(elem.name || key)) }}
+              <span v-if="elem.element_quality != null"
+                    :class="['quality-badge',
+                             elem.element_quality >= 70 ? 'quality-high' :
+                             elem.element_quality >= 40 ? 'quality-mid' : 'quality-low']">
+                {{ elem.element_quality >= 70 ? 'High quality' :
+                   elem.element_quality >= 40 ? 'Review recommended' : 'Needs attention' }}
+              </span>
+            </div>
 
             <!-- Include row -->
             <div class="criteria-editor-row">
@@ -490,6 +499,21 @@
                   @blur="cancelAdd"
                 />
               </div>
+            </div>
+
+            <!-- Ambiguity flags -->
+            <div v-if="elem.ambiguity_flags?.length" class="ambiguity-section">
+              <details>
+                <summary class="ambiguity-toggle">
+                  Review flagged items ({{ elem.ambiguity_flags.length }})
+                </summary>
+                <div class="ambiguity-items">
+                  <div v-for="(flag, i) in elem.ambiguity_flags" :key="i" class="ambiguity-item">
+                    <span class="ambiguity-text">{{ flag }}</span>
+                    <button @click="dismissFlag(String(key), Number(i))" class="btn-sm btn-muted">Dismiss</button>
+                  </div>
+                </div>
+              </details>
             </div>
           </div>
         </div>
@@ -612,7 +636,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
 import { apiGet, apiPost } from '@/api'
-import { useCriteriaStore, type SavedCriteria, type CriteriaElements } from '@/stores/criteria'
+import { useCriteriaStore, type SavedCriteria, type CriteriaElements, type GenerationMeta } from '@/stores/criteria'
 
 const { criteria: savedCriteria, topic: savedTopic, setCriteria, setTopic } = useCriteriaStore()
 
@@ -635,7 +659,14 @@ onMounted(async () => {
     editableCriteria.value = {
       elements: Object.fromEntries(
         Object.entries(savedCriteria.value.elements).map(([k, v]) => [
-          k, { name: v.name, include: [...v.include], exclude: [...v.exclude] }
+          k, {
+            name: v.name,
+            include: [...v.include],
+            exclude: [...v.exclude],
+            element_quality: v.element_quality ?? null,
+            ambiguity_flags: v.ambiguity_flags ? [...v.ambiguity_flags] : [],
+            model_votes: v.model_votes ? { ...v.model_votes } : undefined,
+          }
         ])
       )
     }
@@ -718,6 +749,7 @@ interface GeneratedCriteria {
   language_restriction?: string[] | null
   date_from?: string | null
   date_to?: string | null
+  generation_meta?: GenerationMeta
 }
 
 const generatedCriteria = ref<GeneratedCriteria | null>(null)
@@ -972,12 +1004,29 @@ async function doGenerateCriteria() {
       topic: topicText.value.trim(),
     })
     stopCriteriaProgressSim(true)
+    if (result.generation_meta) {
+      const meta = result.generation_meta
+      criteriaGenLog.value += `Consensus: ${meta.consensus_method} (${meta.n_models} models)\n`
+      if (meta.n_dedup_merges > 0) {
+        criteriaGenLog.value += `Semantic dedup: merged ${meta.n_dedup_merges} term groups\n`
+      }
+      if (meta.n_ambiguity_flags > 0) {
+        criteriaGenLog.value += `${meta.n_ambiguity_flags} items flagged for review\n`
+      }
+    }
     generatedCriteria.value = result
     sourceMode.value = 'ai'
     editableCriteria.value = {
       elements: Object.fromEntries(
         Object.entries(result.elements).map(([k, v]) => [
-          k, { name: v.name, include: [...v.include], exclude: [...v.exclude] }
+          k, {
+            name: v.name,
+            include: [...v.include],
+            exclude: [...v.exclude],
+            element_quality: v.element_quality ?? null,
+            ambiguity_flags: v.ambiguity_flags ? [...v.ambiguity_flags] : [],
+            model_votes: v.model_votes ? { ...v.model_votes } : undefined,
+          }
         ])
       )
     }
@@ -1111,6 +1160,13 @@ function cancelAdd() {
   newTermText.value = ''
 }
 
+function dismissFlag(elementKey: string, flagIndex: number) {
+  const elem = editableCriteria.value.elements[elementKey]
+  if (elem?.ambiguity_flags) {
+    elem.ambiguity_flags.splice(flagIndex, 1)
+  }
+}
+
 async function doRegenerateCriteria() {
   generatedCriteria.value = null
   editableCriteria.value = { elements: {} }
@@ -1157,3 +1213,25 @@ function capitalise(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ')
 }
 </script>
+
+<style scoped>
+/* Quality badges */
+.quality-badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: 8px;
+  font-weight: 500;
+}
+.quality-high { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+.quality-mid  { background: rgba(234, 179, 8, 0.15);  color: #ca8a04; }
+.quality-low  { background: rgba(239, 68, 68, 0.15);  color: #dc2626; }
+
+/* Ambiguity flags */
+.ambiguity-section { margin-top: 8px; }
+.ambiguity-toggle  { cursor: pointer; color: var(--text-muted); font-size: 0.85rem; }
+.ambiguity-items   { padding: 8px 0; }
+.ambiguity-item    { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 0.85rem; color: var(--text-muted); }
+.btn-sm            { font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border-color, #ddd); background: transparent; cursor: pointer; }
+.btn-muted         { opacity: 0.7; }
+</style>
