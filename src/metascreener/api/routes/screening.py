@@ -516,7 +516,8 @@ async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
                     "terminology_enhancement_failed", exc_info=True,
                 )
 
-        # Step B: Auto-Refine (runs only when validation finds issues)
+        # Step B: Auto-Refine (rules + quality checks)
+        auto_refine_triggers: list[str] | None = None
         if _cfg.criteria.enable_auto_refine:
             try:
                 from metascreener.criteria.prompts.auto_refine_v1 import (  # noqa: PLC0415
@@ -524,16 +525,59 @@ async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
                 )
                 from metascreener.criteria.validator import (  # noqa: PLC0415
                     CriteriaValidator,
+                    ValidationIssue,
                 )
                 from metascreener.llm.base import (  # noqa: PLC0415
                     strip_code_fences as _strip,
                 )
 
                 rule_issues = CriteriaValidator.validate_rules(criteria)
-                if rule_issues:
+
+                # Quality checks (pure Python, no LLM cost)
+                _VAGUE_TERMS = frozenset({
+                    "people", "patients", "disease", "treatment",
+                    "study", "outcomes", "results", "data", "analysis",
+                })
+                quality_issues: list[ValidationIssue] = []
+                for _qkey, _qelem in criteria.elements.items():
+                    for _term in _qelem.include:
+                        if (
+                            len(_term.split()) <= 1
+                            and _term.lower() in _VAGUE_TERMS
+                        ):
+                            quality_issues.append(
+                                ValidationIssue(
+                                    severity="warning",
+                                    element=_qkey,
+                                    message=(
+                                        f"Term '{_term}' is too vague "
+                                        f"— consider more specific "
+                                        f"terminology"
+                                    ),
+                                )
+                            )
+                    if len(_qelem.include) < 2:
+                        quality_issues.append(
+                            ValidationIssue(
+                                severity="warning",
+                                element=_qkey,
+                                message=(
+                                    f"Only {len(_qelem.include)} include "
+                                    f"term(s) — consider adding synonyms "
+                                    f"and MeSH headings"
+                                ),
+                            )
+                        )
+
+                all_issues = rule_issues + quality_issues
+                if all_issues:
+                    auto_refine_triggers = [
+                        f"[{i.severity}] {i.element}: {i.message}"
+                        for i in all_issues
+                    ]
                     refine_prompt = build_auto_refine_prompt(
                         criteria,
-                        issues=rule_issues,
+                        issues=all_issues,
                         framework=framework.value,
                         language=language,
                     )
@@ -571,7 +615,8 @@ async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
                     auto_refine_changes = refine_data.get("changes_made")
                     logger.info(
                         "auto_refine_done",
-                        n_issues=len(rule_issues),
+                        n_rule_issues=len(rule_issues),
+                        n_quality_issues=len(quality_issues),
                         n_changes=len(auto_refine_changes or []),
                     )
             except Exception:  # noqa: BLE001
@@ -602,6 +647,7 @@ async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
             "missing_optional": missing_optional,
             "search_expansion_terms": search_expansion_terms,
             "auto_refine_changes": auto_refine_changes,
+            "auto_refine_triggers": auto_refine_triggers,
         }
         return result
 
