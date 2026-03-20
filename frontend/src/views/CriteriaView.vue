@@ -456,6 +456,13 @@
           Review and refine below, then confirm to proceed to screening.
         </div>
 
+        <!-- Missing elements warning -->
+        <div v-if="missingRequiredElements.length > 0" class="criteria-missing-warning">
+          <i class="fas fa-triangle-exclamation"></i>
+          Missing required elements: <strong>{{ missingRequiredElements.map(k => capitalise(k.replace(/_/g, ' '))).join(', ') }}</strong>.
+          Click "AI Suggest" on each to generate terms.
+        </div>
+
         <!-- Editable element cards -->
         <div class="criteria-elements-editor">
           <div
@@ -888,6 +895,8 @@ interface GeneratedCriteria {
 
 const generatedCriteria = ref<GeneratedCriteria | null>(null)
 const editableCriteria = ref<{ elements: CriteriaElements }>({ elements: {} })
+const missingRequiredElements = ref<string[]>([])
+const missingOptionalElements = ref<string[]>([])
 
 // ── Screening filters (shared by all modes) ─────────────
 const DEFAULT_PUB_TYPE_EXCLUDE = ['review', 'editorial', 'letter', 'comment', 'erratum']
@@ -1148,23 +1157,41 @@ async function doGenerateCriteria() {
       if (meta.n_ambiguity_flags > 0) {
         criteriaGenLog.value += `${meta.n_ambiguity_flags} items flagged for review\n`
       }
+      // Track missing elements
+      missingRequiredElements.value = meta.missing_required ?? []
+      missingOptionalElements.value = meta.missing_optional ?? []
+      if (missingRequiredElements.value.length > 0) {
+        criteriaGenLog.value += `Missing required elements: ${missingRequiredElements.value.join(', ')}\n`
+      }
+    } else {
+      missingRequiredElements.value = []
+      missingOptionalElements.value = []
     }
     generatedCriteria.value = result
     sourceMode.value = 'ai'
-    editableCriteria.value = {
-      elements: Object.fromEntries(
-        Object.entries(result.elements).map(([k, v]) => [
-          k, {
-            name: v.name,
-            include: [...v.include],
-            exclude: [...v.exclude],
-            element_quality: v.element_quality ?? null,
-            ambiguity_flags: v.ambiguity_flags ? [...v.ambiguity_flags] : [],
-            model_votes: v.model_votes ? { ...v.model_votes } : undefined,
-          }
-        ])
-      )
+    // Build editable elements from returned result
+    const editableElements: CriteriaElements = Object.fromEntries(
+      Object.entries(result.elements).map(([k, v]) => [
+        k, {
+          name: v.name,
+          include: [...v.include],
+          exclude: [...v.exclude],
+          element_quality: v.element_quality ?? null,
+          ambiguity_flags: v.ambiguity_flags ? [...v.ambiguity_flags] : [],
+          model_votes: v.model_votes ? { ...v.model_votes } : undefined,
+        }
+      ])
+    )
+    // Ensure missing elements appear in editor (empty) so user can AI-Suggest them
+    const fw = FRAMEWORKS.find(f => f.value === result.framework?.toLowerCase())
+    if (fw) {
+      for (const fwElem of fw.elements) {
+        if (!editableElements[fwElem.key]) {
+          editableElements[fwElem.key] = { name: fwElem.label, include: [], exclude: [] }
+        }
+      }
     }
+    editableCriteria.value = { elements: editableElements }
     loadFiltersFromCriteria(result)
     validateMeshTerms()
   } catch (e: unknown) {
@@ -1824,6 +1851,23 @@ async function runPilotSearch() {
   color: #0f766e;
   background: rgba(236, 253, 245, 0.66);
   border: 1px solid rgba(167, 243, 208, 0.62);
+}
+
+.criteria-missing-warning {
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 0.82rem;
+  color: #92400e;
+  background: rgba(255, 237, 213, 0.72);
+  border: 1px solid rgba(251, 191, 36, 0.55);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.criteria-missing-warning i {
+  color: #d97706;
+  font-size: 1rem;
 }
 
 .criteria-elements-editor {

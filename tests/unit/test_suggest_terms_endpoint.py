@@ -68,6 +68,63 @@ def test_suggest_terms_response_with_data() -> None:
     assert response.suggestions[0].term == "metformin"
 
 
+def test_missing_elements_detection() -> None:
+    """Required elements with no include terms should be flagged."""
+    from metascreener.criteria.frameworks import FRAMEWORK_ELEMENTS
+    from metascreener.core.enums import CriteriaFramework
+
+    fw_info = FRAMEWORK_ELEMENTS[CriteriaFramework.PICO]
+    required = fw_info["required"]
+
+    # Simulate criteria with only population
+    elements = {"population": {"include": ["adults"], "exclude": []}}
+
+    missing_req = [
+        k for k in required
+        if k not in elements or not elements[k].get("include")
+    ]
+    assert "intervention" in missing_req  # intervention is required for PICO
+    assert "population" not in missing_req  # population has include terms
+
+
+def test_missing_elements_all_present() -> None:
+    """No missing elements when all required elements have include terms."""
+    from metascreener.criteria.frameworks import FRAMEWORK_ELEMENTS
+    from metascreener.core.enums import CriteriaFramework
+
+    fw_info = FRAMEWORK_ELEMENTS[CriteriaFramework.PICO]
+    required = fw_info["required"]
+
+    elements = {
+        "population": {"include": ["adults"], "exclude": []},
+        "intervention": {"include": ["surgery"], "exclude": []},
+    }
+
+    missing_req = [
+        k for k in required
+        if k not in elements or not elements[k].get("include")
+    ]
+    assert missing_req == []
+
+
+def test_missing_optional_elements_detection() -> None:
+    """Optional elements with no include terms should be flagged as missing_optional."""
+    from metascreener.criteria.frameworks import FRAMEWORK_ELEMENTS
+    from metascreener.core.enums import CriteriaFramework
+
+    fw_info = FRAMEWORK_ELEMENTS[CriteriaFramework.PICO]
+    optional = fw_info["optional"]
+
+    elements = {"population": {"include": ["adults"], "exclude": []}}
+
+    missing_opt = [
+        k for k in optional
+        if k not in elements or not elements[k].get("include")
+    ]
+    assert "comparison" in missing_opt
+    assert "outcome" in missing_opt
+
+
 def test_n_models_clamping_logic():
     """Verify n_models clamping: [1, len(backends)]."""
     def clamp(n_models: int, n_backends: int) -> int:

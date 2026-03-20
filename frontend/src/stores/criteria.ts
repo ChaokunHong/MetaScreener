@@ -20,6 +20,8 @@ export interface GenerationMeta {
   n_models: number
   n_dedup_merges: number
   n_ambiguity_flags: number
+  missing_required?: string[]
+  missing_optional?: string[]
 }
 
 export interface SavedCriteria {
