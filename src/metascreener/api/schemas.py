@@ -351,3 +351,74 @@ class QualityResultsResponse(BaseModel):
     session_id: str
     tool: str
     results: list[dict[str, Any]]
+
+
+# ---------------------------------------------------------------------------
+# History schemas
+# ---------------------------------------------------------------------------
+
+
+class HistoryItemSummary(BaseModel):
+    """Summary of a history item (no data payload).
+
+    Attributes:
+        id: Unique item identifier.
+        module: Module name (criteria, screening, etc.).
+        name: Human-readable label.
+        created_at: ISO timestamp of creation.
+        updated_at: ISO timestamp of last update.
+        summary: Optional short description.
+    """
+
+    id: str
+    module: str
+    name: str
+    created_at: str
+    updated_at: str
+    summary: str = ""
+
+
+class HistoryItemFull(HistoryItemSummary):
+    """Full history item including data payload.
+
+    Attributes:
+        data: Module-specific payload dictionary.
+    """
+
+    data: dict[str, Any]
+
+
+class HistoryCreateRequest(BaseModel):
+    """Request body for creating a history item.
+
+    Attributes:
+        name: Optional human-readable label.
+        summary: Optional short description.
+        data: Module-specific payload.
+    """
+
+    name: str | None = None
+    summary: str | None = None
+    data: dict[str, Any] = Field(default_factory=dict)
+
+
+class HistoryRenameRequest(BaseModel):
+    """Request body for renaming a history item.
+
+    Attributes:
+        name: New name for the item.
+    """
+
+    name: str
+
+
+class HistoryListResponse(BaseModel):
+    """Response containing a list of history items.
+
+    Attributes:
+        items: List of item summaries.
+        total: Total number of items.
+    """
+
+    items: list[HistoryItemSummary]
+    total: int
