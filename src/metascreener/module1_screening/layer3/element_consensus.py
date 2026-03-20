@@ -1,0 +1,229 @@
+"""Element-level consensus aggregation for multi-model screening.
+
+Provides both the per-element consensus summary (informational) and
+the scalar Element Consensus Score (ECS) used by the decision router
+for asymmetric EXCLUDE gating.
+"""
+from __future__ import annotations
+
+from math import ceil
+
+import structlog
+
+from metascreener.core.enums import ConflictPattern
+from metascreener.core.models import (
+    ECSResult,
+    ElementConsensus,
+    ModelOutput,
+    PICOCriteria,
+    ReviewCriteria,
+)
+
+logger = structlog.get_logger(__name__)
+
+
+def build_element_consensus(
+    criteria: ReviewCriteria | PICOCriteria,
+    model_outputs: list[ModelOutput],
+) -> dict[str, ElementConsensus]:
+    """Aggregate per-element assessments across all successful model calls.
+
+    The resulting summaries provide structured PICO evidence for the
+    audit trail and UI display. The router uses vote counts and CCA
+    score for decisions; element consensus is informational.
+    """
+    if isinstance(criteria, PICOCriteria):
+        criteria = ReviewCriteria.from_pico_criteria(criteria)
+
+    valid_outputs = [output for output in model_outputs if output.error is None]
+    n_valid = len(valid_outputs)
+    # Strong threshold: ≥75% of valid models must agree, minimum 2.
+    # Previous minimum of 3 made decisive_mismatch impossible with
+    # fewer than 3 valid models (e.g., when models error out).
+    strong_threshold = max(2, ceil(n_valid * 0.75)) if n_valid else 0
+
+    consensus: dict[str, ElementConsensus] = {}
+    required = set(criteria.required_elements)
+    consensus_specs: list[tuple[str, str, bool, bool]] = []
+
+    for key, element in criteria.elements.items():
+        consensus_specs.append(
+            (
+                key,
+                element.name,
+                key in required,
+                key in required,
+            )
+        )
+
+    # Study design acts like an exclusion-capable criterion when the user
+    # specifies allowed or disallowed designs, even though it is not part
+    # of the framework's required element list.
+    if criteria.study_design_include or criteria.study_design_exclude:
+        consensus_specs.append(
+            ("study_design", "Study Design", False, True)
+        )
+
+    for key, name, is_required, exclusion_relevant in consensus_specs:
+        n_match = 0
+        n_mismatch = 0
+        n_unclear = 0
+
+        for output in valid_outputs:
+            assessment = output.element_assessment.get(key)
+            if assessment is None or assessment.match is None:
+                n_unclear += 1
+                continue
+            if assessment.match:
+                n_match += 1
+            else:
+                n_mismatch += 1
+
+        decided = n_match + n_mismatch
+        support_ratio = n_match / decided if decided else None
+        contradiction = n_match > 0 and n_mismatch > 0
+        decisive_match = (
+            n_valid >= 3 and n_match >= strong_threshold and n_mismatch == 0
+        )
+        decisive_mismatch = (
+            n_valid >= 3 and n_mismatch >= strong_threshold and n_match == 0
+        )
+
+        consensus[key] = ElementConsensus(
+            name=name,
+            required=is_required,
+            exclusion_relevant=exclusion_relevant,
+            n_match=n_match,
+            n_mismatch=n_mismatch,
+            n_unclear=n_unclear,
+            support_ratio=support_ratio,
+            contradiction=contradiction,
+            decisive_match=decisive_match,
+            decisive_mismatch=decisive_mismatch,
+        )
+
+    return consensus
+
+
+# Default element weights reflecting clinical importance in SR screening.
+# Population and intervention are most critical for eligibility.
+_DEFAULT_ELEMENT_WEIGHTS: dict[str, float] = {
+    "population": 1.0,
+    "intervention": 1.0,
+    "comparison": 0.6,
+    "outcome": 0.8,
+    "study_design": 0.7,
+}
+
+# Elements below this support_ratio are flagged as weak
+_WEAK_ELEMENT_THRESHOLD = 0.5
+
+
+def compute_ecs(
+    element_consensus: dict[str, ElementConsensus],
+    element_weights: dict[str, float] | None = None,
+) -> ECSResult:
+    """Compute scalar Element Consensus Score from per-element consensus.
+
+    ECS = Σ(w_e × support_ratio_e) / Σ(w_e)
+
+    Higher ECS means models consistently agree on element assessments.
+    Used by the decision router for asymmetric EXCLUDE gating: high
+    ECS on an EXCLUDE path suggests the paper actually matches criteria
+    and should go to HUMAN_REVIEW instead.
+
+    Args:
+        element_consensus: Per-element consensus from build_element_consensus().
+        element_weights: Custom element weights (element_key -> weight).
+            Defaults to population=1.0, intervention=1.0, outcome=0.8, etc.
+
+    Returns:
+        ECSResult with scalar score, conflict pattern, and weak elements.
+    """
+    if not element_consensus:
+        return ECSResult(score=0.0)
+
+    weights = element_weights or _DEFAULT_ELEMENT_WEIGHTS
+
+    numerator = 0.0
+    denominator = 0.0
+    element_scores: dict[str, float] = {}
+    weak_elements: list[str] = []
+
+    n_skipped = 0
+    for key, ec in element_consensus.items():
+        if ec.support_ratio is None:
+            # All models were unclear — no evidence to contribute
+            n_skipped += 1
+            continue
+
+        w = weights.get(key, 0.5)
+        ratio = ec.support_ratio
+        element_scores[key] = ratio
+
+        numerator += w * ratio
+        denominator += w
+
+        if ratio < _WEAK_ELEMENT_THRESHOLD:
+            weak_elements.append(key)
+
+    score = numerator / denominator if denominator > 0 else 0.0
+    score = max(0.0, min(1.0, score))
+
+    conflict = classify_conflict(element_consensus)
+
+    logger.debug(
+        "ecs_computed",
+        score=round(score, 4),
+        conflict_pattern=conflict.value,
+        weak_elements=weak_elements,
+        n_elements=len(element_consensus),
+        n_skipped_unclear=n_skipped,
+    )
+
+    return ECSResult(
+        score=score,
+        conflict_pattern=conflict,
+        weak_elements=weak_elements,
+        element_scores=element_scores,
+    )
+
+
+def classify_conflict(
+    element_consensus: dict[str, ElementConsensus],
+) -> ConflictPattern:
+    """Identify the dominant conflict pattern from element-level data.
+
+    Checks for decisive_mismatch on specific elements. If multiple
+    elements have conflicts, returns MULTI_ELEMENT_CONFLICT.
+
+    Args:
+        element_consensus: Per-element consensus from build_element_consensus().
+
+    Returns:
+        The dominant ConflictPattern.
+    """
+    conflicting_elements: list[str] = []
+
+    for key, ec in element_consensus.items():
+        if ec.decisive_mismatch or (
+            ec.contradiction
+            and ec.support_ratio is not None
+            and ec.support_ratio < 0.5
+        ):
+            conflicting_elements.append(key)
+
+    if len(conflicting_elements) == 0:
+        return ConflictPattern.NONE
+
+    if len(conflicting_elements) >= 2:
+        return ConflictPattern.MULTI_ELEMENT_CONFLICT
+
+    # Single element conflict
+    elem = conflicting_elements[0]
+    conflict_map: dict[str, ConflictPattern] = {
+        "population": ConflictPattern.POPULATION_CONFLICT,
+        "outcome": ConflictPattern.OUTCOME_CONFLICT,
+        "intervention": ConflictPattern.INTERVENTION_CONFLICT,
+    }
+    return conflict_map.get(elem, ConflictPattern.MULTI_ELEMENT_CONFLICT)

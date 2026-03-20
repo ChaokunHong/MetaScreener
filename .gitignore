@@ -1,65 +1,79 @@
+# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
-dist/
-build/
+*.pkl
+*.whl
+*.tar.gz
+
+# Dev tooling caches
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
 .coverage
 htmlcov/
-*.db
-*.sqlite
+
+# Build artifacts
+dist/
+build/
+
+# Secrets
 .env
 .env.*
 !.env.example
 *.key
 configs/secrets.yaml
 configs/api_keys.yaml
+
+# Databases
+*.db
+*.sqlite
+
+# Validation data (regenerated via scripts/)
 validation/results/*
 !validation/results/.gitkeep
-paper/figures/*
-!paper/figures/.gitkeep
+validation/datasets/cohen/
+validation/datasets/asreview/
 validation/datasets/*.ris
 validation/datasets/*.csv
 validation/datasets/*.json
 validation/datasets/*.xml
 validation/datasets/*.bib
-backend/
-# v2.0 frontend
+
+# Frontend
 frontend/node_modules/
 frontend/dist/
+frontend/.vscode/
+frontend/src/assets/
+frontend/src/components/HelloWorld.vue
+frontend/src/style.css
 
-# Built web assets (generated)
-src/metascreener/web/dist/
-screen_webapp.db
-*.pkl
-backend/rag_data/
-backend/uploads/
-backend/data/
-
-# Validation outputs (regenerated via scripts/run_all_validations.sh)
-validation/datasets/cohen/
-validation/datasets/asreview/
-paper/figures/*.png
-paper/tables/*
-!paper/tables/.gitkeep
-
-# Legacy v1.0 codebase (kept for reference, not part of v2)
+# Non-core directories (kept locally, not in repo)
+.github/
+.zenodo.json
+CITATION.cff
+Makefile
+demo/
+docs/
+logo/
+packaging/
+paper/
+model_icon/
 metascreener1.0/
+backend/
+
+# Desktop build scripts
+scripts/build_desktop.py
+scripts/notarize_macos_desktop.py
+scripts/sign_macos_desktop.py
+
+# Claude Code / dev tooling
+CLAUDE.md
+.claude/
+.metascreener/
 
 # OS / editor junk
 .DS_Store
 .Rhistory
 *.swp
-
-# Claude Code / dev tooling (NOT part of the project)
-CLAUDE.md
-.claude/
-.metascreener/
-docs/plans/
-
-# Build artifacts
-*.whl
-*.tar.gz
