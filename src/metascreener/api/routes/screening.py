@@ -638,6 +638,122 @@ async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
                 if elem is None or not elem.include:
                     missing_optional.append(key)
 
+        # --- Auto-fill missing required elements via AI Suggest ---
+        auto_filled_elements: dict[str, list[str]] = {}
+        if missing_required:
+            from metascreener.criteria.prompts.suggest_terms_v1 import (  # noqa: PLC0415
+                build_suggest_terms_prompt,
+            )
+            from metascreener.llm.base import strip_code_fences  # noqa: PLC0415
+
+            for elem_key in list(missing_required):
+                try:
+                    elem_name = (
+                        fw_info["labels"].get(elem_key, elem_key.title())
+                        if fw_info
+                        else elem_key.title()
+                    )
+                    prompt = build_suggest_terms_prompt(
+                        element_key=elem_key,
+                        element_name=elem_name,
+                        current_include=[],
+                        current_exclude=[],
+                        topic=cleaned,
+                        framework=(
+                            framework.value
+                            if hasattr(framework, "value")
+                            else str(framework)
+                        ),
+                    )
+                    raw_suggest = await backends[0].complete(prompt, seed=42)
+                    suggest_data = json.loads(strip_code_fences(raw_suggest))
+                    suggestions = suggest_data.get("suggestions", [])
+                    terms = [
+                        s["term"]
+                        for s in suggestions
+                        if isinstance(s, dict) and "term" in s
+                    ]
+                    if terms:
+                        capped = terms[:8]
+                        criteria.elements[elem_key] = CriteriaElement(
+                            name=elem_name,
+                            include=capped,
+                            exclude=[],
+                        )
+                        auto_filled_elements[elem_key] = capped
+                except Exception:  # noqa: BLE001
+                    logger.warning(
+                        "auto_fill_element_failed",
+                        element=elem_key,
+                        exc_info=True,
+                    )
+
+            if auto_filled_elements:
+                # Recompute missing after auto-fill
+                missing_required = [
+                    k
+                    for k in (fw_info.get("required", []) if fw_info else [])
+                    if k not in criteria.elements
+                    or not criteria.elements[k].include
+                ]
+                # Re-serialise criteria with newly filled elements
+                result = criteria.model_dump(mode="json")
+                logger.info(
+                    "auto_fill_elements_done",
+                    n_filled=len(auto_filled_elements),
+                    elements=list(auto_filled_elements.keys()),
+                )
+
+        # --- Compute criteria readiness score (0-100) ---
+        readiness_factors: list[tuple[str, float]] = []
+
+        # Factor 1: Element completeness (0-100)
+        if fw_info:
+            required = fw_info.get("required", [])
+            filled_required = sum(
+                1 for k in required
+                if k in criteria.elements and criteria.elements[k].include
+            )
+            completeness = (
+                (filled_required / len(required) * 100) if required else 100
+            )
+        else:
+            completeness = 100
+        readiness_factors.append(("completeness", completeness))
+
+        # Factor 2: Term coverage — avg terms per element (target: 5+)
+        all_include_counts = [
+            len(e.include)
+            for e in criteria.elements.values()
+            if e.include
+        ]
+        avg_terms = (
+            sum(all_include_counts) / len(all_include_counts)
+            if all_include_counts
+            else 0
+        )
+        term_score = min(100, avg_terms * 20)  # 5+ terms = 100
+        readiness_factors.append(("term_coverage", round(term_score)))
+
+        # Factor 3: Consensus quality — n_models used
+        model_score = min(100, n_models * 25)  # 4 models = 100
+        readiness_factors.append(("model_consensus", model_score))
+
+        # Factor 4: Dedup quality — if dedup was performed
+        dedup_score = 80 if n_dedup_merges > 0 else 50
+        readiness_factors.append(("dedup_quality", dedup_score))
+
+        # Weighted average
+        weights = {
+            "completeness": 0.35,
+            "term_coverage": 0.30,
+            "model_consensus": 0.20,
+            "dedup_quality": 0.15,
+        }
+        readiness_score = sum(
+            score * weights[name] for name, score in readiness_factors
+        )
+
         result["generation_meta"] = {
             "consensus_method": "multi_model" if len(generator_backends) >= 2 else "single_model",
             "n_models": len(generator_backends),
@@ -648,6 +764,11 @@ async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
             "search_expansion_terms": search_expansion_terms,
             "auto_refine_changes": auto_refine_changes,
             "auto_refine_triggers": auto_refine_triggers,
+            "auto_filled_elements": auto_filled_elements if auto_filled_elements else None,
+            "readiness_score": round(readiness_score),
+            "readiness_factors": {
+                name: score for name, score in readiness_factors
+            },
         }
         return result
 

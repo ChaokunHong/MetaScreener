@@ -456,11 +456,33 @@
           Review and refine below, then confirm to proceed to screening.
         </div>
 
-        <!-- Missing elements warning -->
+        <!-- Auto-filled elements notice -->
+        <div v-if="Object.keys(autoFilledElements).length > 0 && missingRequiredElements.length === 0" class="criteria-autofill-notice">
+          <i class="fas fa-circle-check" style="color: #059669;"></i>
+          Auto-filled elements: <strong>{{ Object.keys(autoFilledElements).map(k => capitalise(k.replace(/_/g, ' '))).join(', ') }}</strong> — please review the suggested terms below.
+        </div>
+        <!-- Missing elements warning (some still missing after auto-fill) -->
         <div v-if="missingRequiredElements.length > 0" class="criteria-missing-warning">
           <i class="fas fa-triangle-exclamation"></i>
           Missing required elements: <strong>{{ missingRequiredElements.map(k => capitalise(k.replace(/_/g, ' '))).join(', ') }}</strong>.
           Click "AI Suggest" on each to generate terms.
+        </div>
+
+        <!-- Readiness Score -->
+        <div v-if="readinessScore !== null" style="margin:1rem 0;padding:0.75rem 1rem;border-radius:12px;display:flex;align-items:center;gap:1rem;" :style="{ background: readinessScore >= 80 ? 'rgba(34,197,94,0.1)' : readinessScore >= 60 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)', border: '1px solid ' + (readinessScore >= 80 ? 'rgba(34,197,94,0.3)' : readinessScore >= 60 ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)') }">
+          <div style="font-size:1.8rem;font-weight:700;min-width:3rem;text-align:center;" :style="{ color: readinessScore >= 80 ? '#22c55e' : readinessScore >= 60 ? '#f59e0b' : '#ef4444' }">{{ readinessScore }}</div>
+          <div>
+            <div style="font-weight:600;font-size:0.9rem;">Criteria Readiness</div>
+            <div style="font-size:0.75rem;opacity:0.7;">
+              Completeness {{ readinessFactors.completeness || 0 }}% ·
+              Terms {{ readinessFactors.term_coverage || 0 }}% ·
+              Consensus {{ readinessFactors.model_consensus || 0 }}% ·
+              Dedup {{ readinessFactors.dedup_quality || 0 }}%
+            </div>
+            <div v-if="readinessScore < 60" style="font-size:0.78rem;color:#ef4444;margin-top:0.2rem;">Consider adding more terms and filling missing elements</div>
+            <div v-else-if="readinessScore < 80" style="font-size:0.78rem;color:#f59e0b;margin-top:0.2rem;">Good start — use AI Suggest and MeSH validation to improve</div>
+            <div v-else style="font-size:0.78rem;color:#22c55e;margin-top:0.2rem;">Ready for screening</div>
+          </div>
         </div>
 
         <!-- Editable element cards -->
@@ -921,6 +943,9 @@ const generatedCriteria = ref<GeneratedCriteria | null>(null)
 const editableCriteria = ref<{ elements: CriteriaElements }>({ elements: {} })
 const missingRequiredElements = ref<string[]>([])
 const missingOptionalElements = ref<string[]>([])
+const autoFilledElements = ref<Record<string, string[]>>({})
+const readinessScore = ref<number | null>(null)
+const readinessFactors = ref<Record<string, number>>({})
 const expansionTerms = ref<Record<string, string[]>>({})
 
 // ── Screening filters (shared by all modes) ─────────────
@@ -1183,6 +1208,7 @@ async function doGenerateCriteria() {
         criteriaGenLog.value += `${meta.n_ambiguity_flags} items flagged for review\n`
       }
       // Track auto-filled and missing elements
+      autoFilledElements.value = meta.auto_filled_elements ?? {}
       if (meta.auto_filled_elements && Object.keys(meta.auto_filled_elements).length > 0) {
         criteriaGenLog.value += `Auto-filled ${Object.keys(meta.auto_filled_elements).length} missing elements: ${Object.keys(meta.auto_filled_elements).join(', ')}\n`
       }
@@ -1201,10 +1227,21 @@ async function doGenerateCriteria() {
       } else {
         expansionTerms.value = {}
       }
+      // Extract readiness score
+      if (meta.readiness_score !== undefined) {
+        readinessScore.value = meta.readiness_score
+        readinessFactors.value = meta.readiness_factors || {}
+      } else {
+        readinessScore.value = null
+        readinessFactors.value = {}
+      }
     } else {
       missingRequiredElements.value = []
       missingOptionalElements.value = []
+      autoFilledElements.value = {}
       expansionTerms.value = {}
+      readinessScore.value = null
+      readinessFactors.value = {}
     }
     generatedCriteria.value = result
     sourceMode.value = 'ai'
@@ -1908,6 +1945,21 @@ async function runPilotSearch() {
   border: 1px solid rgba(167, 243, 208, 0.62);
 }
 
+.criteria-autofill-notice {
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 0.82rem;
+  color: #065f46;
+  background: rgba(209, 250, 229, 0.72);
+  border: 1px solid rgba(16, 185, 129, 0.55);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.criteria-autofill-notice i {
+  font-size: 1rem;
+}
 .criteria-missing-warning {
   border-radius: 10px;
   padding: 10px 12px;
