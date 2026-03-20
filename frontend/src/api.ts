@@ -17,6 +17,11 @@ export async function apiPut<T>(path: string, payload?: unknown): Promise<T> {
   return data
 }
 
+export async function apiDelete<T>(path: string): Promise<T> {
+  const { data } = await api.delete<T>(path)
+  return data
+}
+
 export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
   const { data } = await api.post<T>(path, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },

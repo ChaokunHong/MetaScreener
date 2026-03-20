@@ -1,14 +1,14 @@
 <template>
   <div id="app">
-    <!-- Glass Navbar -->
+    <!-- Navbar -->
     <header class="app-navbar">
       <div class="navbar-container">
-        <!-- Brand: logo only -->
+        <!-- Logo (left) -->
         <router-link to="/" class="navbar-brand">
           <img src="/logo.svg" alt="MetaScreener" />
         </router-link>
 
-        <!-- Nav Links -->
+        <!-- Nav Links (center, evenly spaced) -->
         <nav class="navbar-nav">
           <router-link
             v-for="item in navItems"
@@ -17,14 +17,10 @@
             class="nav-btn"
           >
             <i :class="item.icon"></i>
-            {{ item.label }}
+            <span>{{ item.label }}</span>
           </router-link>
         </nav>
 
-        <!-- Settings: icon only -->
-        <router-link to="/settings" class="nav-icon-btn">
-          <i class="fas fa-cog"></i>
-        </router-link>
       </div>
     </header>
 
@@ -55,10 +51,13 @@
 import { ref, provide } from 'vue'
 
 const navItems = [
-  { path: '/screening',  icon: 'fas fa-search',         label: 'Screening'  },
-  { path: '/evaluation', icon: 'fas fa-chart-bar',       label: 'Evaluation' },
-  { path: '/extraction', icon: 'fas fa-table',           label: 'Extraction' },
-  { path: '/quality',    icon: 'fas fa-clipboard-check', label: 'Quality'    },
+  { path: '/settings',   icon: 'fas fa-microchip',         label: 'LLM Config' },
+  { path: '/criteria',   icon: 'fas fa-list-check',        label: 'Criteria'   },
+  { path: '/screening',  icon: 'fas fa-filter',             label: 'Screening'  },
+  { path: '/extraction', icon: 'fas fa-table',              label: 'Extraction' },
+  { path: '/quality',    icon: 'fas fa-clipboard-check',    label: 'Quality'    },
+  { path: '/evaluation', icon: 'fas fa-chart-bar',          label: 'Evaluation' },
+  { path: '/history',    icon: 'fas fa-clock-rotate-left',  label: 'History'    },
 ]
 
 interface AlertState {
@@ -73,7 +72,6 @@ function showAlert(message: string, type: AlertState['type'] = 'danger') {
   setTimeout(() => { alert.value = null }, 5000)
 }
 
-// Provide showAlert to child components
 provide('showAlert', showAlert)
 </script>
 
