@@ -581,6 +581,30 @@
               >Dismiss all</button>
             </div>
 
+            <!-- Terminology Expansion Suggestions -->
+            <div v-if="expansionTerms[String(key)]?.length" style="margin-top:0.5rem;">
+              <details>
+                <summary style="font-size:0.78rem;cursor:pointer;opacity:0.7;">
+                  <i class="fas fa-book-medical"></i> Terminology suggestions
+                  ({{ expansionTerms[String(key)].length }})
+                </summary>
+                <div style="margin-top:0.4rem;display:flex;flex-wrap:wrap;gap:0.3rem;">
+                  <span
+                    v-for="term in expansionTerms[String(key)]"
+                    :key="term"
+                    style="display:inline-flex;align-items:center;gap:0.25rem;padding:0.2rem 0.5rem;border-radius:999px;font-size:0.78rem;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);backdrop-filter:blur(6px);"
+                  >
+                    {{ term }}
+                    <button
+                      style="background:none;border:none;cursor:pointer;color:#8b5cf6;font-weight:bold;padding:0 0.2rem;font-size:0.75rem;"
+                      title="Add to include terms"
+                      @click="adoptExpansionTerm(String(key), term)"
+                    >+</button>
+                  </span>
+                </div>
+              </details>
+            </div>
+
             <!-- Ambiguity flags -->
             <div v-if="elem.ambiguity_flags?.length" class="ambiguity-section">
               <details>
@@ -897,6 +921,7 @@ const generatedCriteria = ref<GeneratedCriteria | null>(null)
 const editableCriteria = ref<{ elements: CriteriaElements }>({ elements: {} })
 const missingRequiredElements = ref<string[]>([])
 const missingOptionalElements = ref<string[]>([])
+const expansionTerms = ref<Record<string, string[]>>({})
 
 // ── Screening filters (shared by all modes) ─────────────
 const DEFAULT_PUB_TYPE_EXCLUDE = ['review', 'editorial', 'letter', 'comment', 'erratum']
@@ -1157,15 +1182,29 @@ async function doGenerateCriteria() {
       if (meta.n_ambiguity_flags > 0) {
         criteriaGenLog.value += `${meta.n_ambiguity_flags} items flagged for review\n`
       }
-      // Track missing elements
+      // Track auto-filled and missing elements
+      if (meta.auto_filled_elements && Object.keys(meta.auto_filled_elements).length > 0) {
+        criteriaGenLog.value += `Auto-filled ${Object.keys(meta.auto_filled_elements).length} missing elements: ${Object.keys(meta.auto_filled_elements).join(', ')}\n`
+      }
       missingRequiredElements.value = meta.missing_required ?? []
       missingOptionalElements.value = meta.missing_optional ?? []
       if (missingRequiredElements.value.length > 0) {
         criteriaGenLog.value += `Missing required elements: ${missingRequiredElements.value.join(', ')}\n`
       }
+      // Extract terminology expansion suggestions
+      if (meta.search_expansion_terms) {
+        expansionTerms.value = { ...meta.search_expansion_terms }
+        const nTerms = Object.values(meta.search_expansion_terms).reduce((s, t) => s + t.length, 0)
+        if (nTerms > 0) {
+          criteriaGenLog.value += `Terminology expansion: ${nTerms} suggestions across ${Object.keys(meta.search_expansion_terms).length} elements\n`
+        }
+      } else {
+        expansionTerms.value = {}
+      }
     } else {
       missingRequiredElements.value = []
       missingOptionalElements.value = []
+      expansionTerms.value = {}
     }
     generatedCriteria.value = result
     sourceMode.value = 'ai'
@@ -1368,6 +1407,20 @@ function adoptSuggestion(elemKey: string, term: string) {
   suggestions[elemKey] = (suggestions[elemKey] || []).filter(s => s.term !== term)
 }
 
+function adoptExpansionTerm(elemKey: string, term: string) {
+  if (!editableCriteria.value.elements[elemKey]) {
+    editableCriteria.value.elements[elemKey] = { include: [], exclude: [] }
+  }
+  if (!editableCriteria.value.elements[elemKey].include.includes(term)) {
+    editableCriteria.value.elements[elemKey].include.push(term)
+  }
+  // Remove from expansion list
+  const terms = expansionTerms.value[elemKey]
+  if (terms) {
+    expansionTerms.value[elemKey] = terms.filter(t => t !== term)
+  }
+}
+
 function dismissSuggestion(elemKey: string, term: string) {
   suggestions[elemKey] = (suggestions[elemKey] || []).filter(s => s.term !== term)
 }
@@ -1379,6 +1432,7 @@ function dismissAllSuggestions(elemKey: string) {
 async function doRegenerateCriteria() {
   generatedCriteria.value = null
   editableCriteria.value = { elements: {} }
+  expansionTerms.value = {}
   criteriaSaved.value = false
   criteriaGenLog.value = ''
   await doGenerateCriteria()
@@ -1387,6 +1441,7 @@ async function doRegenerateCriteria() {
 function resetCriteriaEditor() {
   generatedCriteria.value = null
   editableCriteria.value = { elements: {} }
+  expansionTerms.value = {}
   criteriaSaved.value = false
   sourceMode.value = mode.value
   resetFilters()

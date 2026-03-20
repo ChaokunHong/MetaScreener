@@ -22,6 +22,10 @@ export interface GenerationMeta {
   n_ambiguity_flags: number
   missing_required?: string[]
   missing_optional?: string[]
+  search_expansion_terms?: Record<string, string[]>
+  auto_filled_elements?: Record<string, string[]> | null
+  readiness_score?: number
+  readiness_factors?: Record<string, number>
 }
 
 export interface SavedCriteria {
