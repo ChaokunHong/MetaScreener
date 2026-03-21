@@ -337,8 +337,8 @@
                   <p>Optimised for <strong>lowest cost</strong> while maintaining quality. Uses DeepSeek V3.2 (strong + cheap) with Llama Maverick, Mistral Small 4, and MiniMax M1. Ideal for large-scale screening with thousands of papers where API costs matter.</p>
                 </div>
                 <div class="modal-sub-glass">
-                  <h3><i class="fas fa-expand"></i> Comprehensive (6 models)</h3>
-                  <p>Maximum model diversity with <strong>6 models from 6 vendors</strong>. More models = more robust consensus, but also more API calls per paper. Use for critical reviews where accuracy is paramount and cost is not a concern.</p>
+                  <h3><i class="fas fa-expand"></i> Comprehensive (8 models)</h3>
+                  <p>Maximum consensus strength with <strong>8 models (4 thinking + 4 fast)</strong>. More models = more robust consensus, but also more API calls per paper (~$0.019/paper). Use for critical reviews where accuracy is paramount and cost is not a concern.</p>
                 </div>
                 <div class="modal-sub-glass full-width">
                   <h3><i class="fas fa-user-gear"></i> Custom Selection</h3>
