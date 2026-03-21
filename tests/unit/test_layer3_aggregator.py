@@ -223,6 +223,21 @@ class TestWeightOptimizer:
             assert abs(original_w[mid] - loaded_w[mid]) < 1e-9
 
 
+def test_single_model_confidence() -> None:
+    """Single model → ensemble confidence = 1.0."""
+    from metascreener.core.enums import Decision
+    from metascreener.core.models import ModelOutput
+    from metascreener.module1_screening.layer3.aggregator import CCAggregator
+    outputs = [
+        ModelOutput(model_id="a", decision=Decision.INCLUDE,
+                    score=0.8, confidence=0.7, rationale=""),
+    ]
+    agg = CCAggregator()
+    s, c = agg.aggregate(outputs)
+    assert c == 1.0
+    assert 0.0 <= s <= 1.0
+
+
 def test_aggregate_with_calibration_overrides() -> None:
     """calibration_overrides should override per-model calibration factors."""
     from metascreener.core.enums import Decision

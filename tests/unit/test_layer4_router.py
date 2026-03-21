@@ -200,6 +200,98 @@ class TestDecisionRouter:
         assert tier == Tier.THREE
 
 
+def _make_outputs(n_include: int, n_exclude: int) -> list:
+    from metascreener.core.enums import Decision
+    from metascreener.core.models import ModelOutput
+    outputs = []
+    for i in range(n_include):
+        outputs.append(ModelOutput(
+            model_id=f"m{i}", decision=Decision.INCLUDE,
+            score=0.9, confidence=0.9, rationale="",
+        ))
+    for i in range(n_exclude):
+        outputs.append(ModelOutput(
+            model_id=f"x{i}", decision=Decision.EXCLUDE,
+            score=0.1, confidence=0.9, rationale="",
+        ))
+    return outputs
+
+
+def test_router_single_model() -> None:
+    """n=1: single model → Tier 1."""
+    from metascreener.core.enums import Decision, Tier
+    from metascreener.core.models import RuleCheckResult
+    from metascreener.module1_screening.layer4.router import DecisionRouter
+    router = DecisionRouter()
+    outputs = _make_outputs(1, 0)
+    decision, tier = router.route(outputs, RuleCheckResult(), 0.9, 1.0)
+    assert decision == Decision.INCLUDE
+    assert tier == Tier.ONE
+
+
+def test_router_two_models_agree() -> None:
+    """n=2: two models agree → Tier 1."""
+    from metascreener.core.enums import Decision, Tier
+    from metascreener.core.models import RuleCheckResult
+    from metascreener.module1_screening.layer4.router import DecisionRouter
+    router = DecisionRouter()
+    outputs = _make_outputs(2, 0)
+    decision, tier = router.route(outputs, RuleCheckResult(), 0.9, 1.0)
+    assert decision == Decision.INCLUDE
+    assert tier == Tier.ONE
+
+
+def test_router_two_models_disagree() -> None:
+    """n=2: two models disagree → confidence=0 → Tier 3."""
+    from metascreener.core.enums import Tier
+    from metascreener.core.models import RuleCheckResult
+    from metascreener.module1_screening.layer4.router import DecisionRouter
+    router = DecisionRouter()
+    outputs = _make_outputs(1, 1)
+    _, tier = router.route(outputs, RuleCheckResult(), 0.5, 0.0)
+    assert tier == Tier.THREE
+
+
+def test_router_seven_models_one_dissent() -> None:
+    """n=7: 6 agree + 1 dissent, floor(7*0.15)=1 → Tier 1."""
+    from metascreener.core.enums import Decision, Tier
+    from metascreener.core.models import RuleCheckResult
+    from metascreener.module1_screening.layer3.aggregator import CCAggregator
+    from metascreener.module1_screening.layer4.router import DecisionRouter
+    router = DecisionRouter()
+    outputs = _make_outputs(6, 1)
+    _, c = CCAggregator().aggregate(outputs)
+    decision, tier = router.route(outputs, RuleCheckResult(), 0.85, c)
+    assert decision == Decision.INCLUDE
+    assert tier == Tier.ONE
+
+
+def test_router_fifteen_models_unanimous() -> None:
+    """n=15: all agree → Tier 1."""
+    from metascreener.core.enums import Decision, Tier
+    from metascreener.core.models import RuleCheckResult
+    from metascreener.module1_screening.layer4.router import DecisionRouter
+    router = DecisionRouter()
+    outputs = _make_outputs(15, 0)
+    decision, tier = router.route(outputs, RuleCheckResult(), 0.9, 1.0)
+    assert decision == Decision.INCLUDE
+    assert tier == Tier.ONE
+
+
+def test_router_fifteen_models_two_dissent() -> None:
+    """n=15: 13+2, floor(15*0.15)=2 → Tier 1."""
+    from metascreener.core.enums import Decision, Tier
+    from metascreener.core.models import RuleCheckResult
+    from metascreener.module1_screening.layer3.aggregator import CCAggregator
+    from metascreener.module1_screening.layer4.router import DecisionRouter
+    router = DecisionRouter()
+    outputs = _make_outputs(13, 2)
+    _, c = CCAggregator().aggregate(outputs)
+    decision, tier = router.route(outputs, RuleCheckResult(), 0.85, c)
+    assert decision == Decision.INCLUDE
+    assert tier == Tier.ONE
+
+
 def test_route_accepts_optional_ecs_params() -> None:
     """route() should accept optional element_consensus, ecs_result, disagreement_result."""
     from metascreener.core.enums import Decision
