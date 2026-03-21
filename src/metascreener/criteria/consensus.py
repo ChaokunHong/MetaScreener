@@ -145,9 +145,26 @@ class ConsensusMerger:
             model_outputs, "study_design_exclude"
         )
 
-        # Take research question from first dict-type model output
-        first_dict = next((o for o in model_outputs if isinstance(o, dict)), {})
-        research_question = first_dict.get("research_question", "")
+        # Select best research question by voting, then length
+        research_question = ConsensusMerger._select_research_question(
+            normalized_outputs
+        )
+
+        # Flag low-agreement terms (proposed by < 50% of models)
+        if n_models >= 2:
+            for key, element in merged_elements.items():
+                if element.model_votes is None:
+                    continue
+                for term, ratio in element.model_votes.items():
+                    if ratio < 0.5 and not term.startswith("exclude:"):
+                        flag = f"low agreement: {term} ({int(ratio * n_models)}/{n_models} models)"
+                        if flag not in element.ambiguity_flags:
+                            element.ambiguity_flags.append(flag)
+                    elif ratio < 0.5 and term.startswith("exclude:"):
+                        raw_term = term[len("exclude:"):]
+                        flag = f"low agreement (exclude): {raw_term} ({int(ratio * n_models)}/{n_models} models)"
+                        if flag not in element.ambiguity_flags:
+                            element.ambiguity_flags.append(flag)
 
         required = ConsensusMerger._required_elements(framework, merged_elements)
 
@@ -167,12 +184,61 @@ class ConsensusMerger:
         )
 
     @staticmethod
+    def _select_research_question(model_outputs: list[dict[str, Any]]) -> str:
+        """Select the best research question from multiple model outputs.
+
+        Selection strategy:
+        1. If multiple models produce identical questions, prefer the majority.
+        2. Among tied candidates, prefer the longest (most detailed).
+        3. Fall back to the first non-empty question.
+
+        Args:
+            model_outputs: Parsed model output dicts.
+
+        Returns:
+            Selected research question, or empty string if none found.
+        """
+        questions: list[str] = []
+        for output in model_outputs:
+            if not isinstance(output, dict):
+                continue
+            rq = output.get("research_question", "")
+            if isinstance(rq, str) and rq.strip():
+                questions.append(rq.strip())
+
+        if not questions:
+            return ""
+
+        # Count exact duplicates
+        counter = Counter(questions)
+        max_count = max(counter.values())
+        # Among those with max votes, pick the longest
+        candidates = [q for q, c in counter.items() if c == max_count]
+        return max(candidates, key=len)
+
+    @staticmethod
+    def _normalize_term(term: str) -> str:
+        """Normalize whitespace in a term (strip + collapse internal spaces).
+
+        Args:
+            term: Raw term string.
+
+        Returns:
+            Term with leading/trailing whitespace stripped and internal
+            runs of whitespace collapsed to a single space.
+        """
+        return " ".join(term.split())
+
+    @staticmethod
     def _merge_element(
         key: str,
         model_outputs: list[dict[str, Any]],
         n_models: int,
     ) -> CriteriaElement:
         """Merge a single element across all models.
+
+        Uses case-insensitive comparison for deduplication but preserves
+        the casing of the first occurrence of each term.
 
         Args:
             key: Element key (e.g., 'population').
@@ -182,7 +248,10 @@ class ConsensusMerger:
         Returns:
             Merged CriteriaElement with model_votes.
         """
-        include_counter: Counter[str] = Counter()
+        # Track: normalized_lower -> (first_seen_form, count)
+        include_seen: dict[str, str] = {}  # norm_lower -> first_seen
+        include_counter: Counter[str] = Counter()  # norm_lower -> count
+        exclude_seen: dict[str, str] = {}
         exclude_counter: Counter[str] = Counter()
         name = key.title()
 
@@ -191,21 +260,31 @@ class ConsensusMerger:
             if isinstance(element, dict):
                 name = element.get("name", key.title())
                 for term in element.get("include", []):
-                    include_counter[term] += 1
+                    norm = ConsensusMerger._normalize_term(term)
+                    norm_lower = norm.lower()
+                    include_counter[norm_lower] += 1
+                    if norm_lower not in include_seen:
+                        include_seen[norm_lower] = norm
                 for term in element.get("exclude", []):
-                    exclude_counter[term] += 1
+                    norm = ConsensusMerger._normalize_term(term)
+                    norm_lower = norm.lower()
+                    exclude_counter[norm_lower] += 1
+                    if norm_lower not in exclude_seen:
+                        exclude_seen[norm_lower] = norm
 
-        # Build model_votes: term -> agreement ratio
+        # Build model_votes using preserved casing
         model_votes: dict[str, float] = {}
-        for term, count in include_counter.items():
-            model_votes[term] = count / n_models
-        for term, count in exclude_counter.items():
-            model_votes[f"exclude:{term}"] = count / n_models
+        for norm_lower, count in include_counter.items():
+            display = include_seen[norm_lower]
+            model_votes[display] = count / n_models
+        for norm_lower, count in exclude_counter.items():
+            display = exclude_seen[norm_lower]
+            model_votes[f"exclude:{display}"] = count / n_models
 
         return CriteriaElement(
             name=name,
-            include=list(include_counter.keys()),
-            exclude=list(exclude_counter.keys()),
+            include=[include_seen[k] for k in include_counter],
+            exclude=[exclude_seen[k] for k in exclude_counter],
             model_votes=model_votes,
         )
 
@@ -216,6 +295,9 @@ class ConsensusMerger:
     ) -> list[str]:
         """Merge a list field (e.g., study_design_include) as union.
 
+        Uses case-insensitive comparison for deduplication but preserves
+        the casing of the first occurrence.
+
         Args:
             model_outputs: All model output dicts.
             field: Field name to merge.
@@ -223,15 +305,17 @@ class ConsensusMerger:
         Returns:
             Deduplicated union of all values.
         """
-        seen: set[str] = set()
+        seen: dict[str, str] = {}  # norm_lower -> first_seen
         result: list[str] = []
         for output in model_outputs:
             if not isinstance(output, dict):
                 continue
             for item in output.get(field, []):
-                if item not in seen:
-                    seen.add(item)
-                    result.append(item)
+                norm = ConsensusMerger._normalize_term(item)
+                norm_lower = norm.lower()
+                if norm_lower not in seen:
+                    seen[norm_lower] = norm
+                    result.append(norm)
         return result
 
     @staticmethod
