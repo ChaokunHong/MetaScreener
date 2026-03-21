@@ -24,13 +24,17 @@ class ParallelRunner:
 
     Args:
         backends: Sequence of LLMBackend instances to run in parallel.
-        timeout_s: Per-model timeout in seconds.
+        timeout_s: Safety-net timeout in seconds applied via asyncio.wait_for().
+            This value should exceed the longest per-adapter timeout so that
+            individual adapter timeouts fire first under normal conditions.
+            Thinking models use a 120s adapter timeout, so this defaults to
+            180s to give the adapter's own timeout priority.
     """
 
     def __init__(
         self,
         backends: Sequence[LLMBackend],
-        timeout_s: float = 120.0,
+        timeout_s: float = 180.0,
     ) -> None:
         if not backends:
             raise ValueError("At least one LLM backend is required.")
