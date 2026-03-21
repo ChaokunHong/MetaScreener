@@ -620,12 +620,24 @@ async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
                         framework=framework.value,
                         language=language,
                     )
-                    refine_raw = await backends[0].complete(
-                        refine_prompt, seed,
-                    )
-                    refine_data = json.loads(_strip(refine_raw))
-                    if isinstance(refine_data, str):
-                        refine_data = json.loads(refine_data)
+                    # Try backends in tier order until one returns valid JSON
+                    from metascreener.llm.factory import sort_backends_by_tier  # noqa: PLC0415
+                    _refine_sorted = sort_backends_by_tier(backends, _cfg)
+                    refine_data = None
+                    for _rb in _refine_sorted:
+                        try:
+                            refine_raw = await _rb.complete(refine_prompt, seed)
+                            refine_data = json.loads(_strip(refine_raw))
+                            if isinstance(refine_data, str):
+                                refine_data = json.loads(refine_data)
+                            if isinstance(refine_data, dict):
+                                break
+                            refine_data = None
+                        except Exception:
+                            logger.warning("auto_refine_backend_failed", model=_rb.model_id, exc_info=True)
+                            continue
+                    if refine_data is None:
+                        raise TypeError("No backend returned valid refine JSON")
                     if not isinstance(refine_data, dict):
                         raise TypeError(f"Expected dict, got {type(refine_data).__name__}")
 
@@ -708,7 +720,18 @@ async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
                             else str(framework)
                         ),
                     )
-                    raw_suggest = await backends[0].complete(prompt, seed=42)
+                    # Try backends in tier order
+                    from metascreener.llm.factory import sort_backends_by_tier  # noqa: PLC0415
+                    _fill_sorted = sort_backends_by_tier(backends, _cfg)
+                    raw_suggest = None
+                    for _fb in _fill_sorted:
+                        try:
+                            raw_suggest = await _fb.complete(prompt, seed=42)
+                            break
+                        except Exception:
+                            continue
+                    if raw_suggest is None:
+                        raise RuntimeError("All backends failed for auto-fill")
                     suggest_data = json.loads(strip_code_fences(raw_suggest))
                     suggestions = suggest_data.get("suggestions", [])
                     terms = [
@@ -858,11 +881,13 @@ async def suggest_terms(req: SuggestTermsRequest) -> SuggestTermsResponse:
     if not backends:
         raise HTTPException(status_code=503, detail="No models configured.")
 
-    backend = backends[0]
     try:
+        from metascreener.api.deps import get_config as _gc  # noqa: PLC0415
         from metascreener.criteria.prompts.suggest_terms_v1 import (  # noqa: PLC0415
             build_suggest_terms_prompt,
         )
+        from metascreener.llm.base import strip_code_fences  # noqa: PLC0415
+        from metascreener.llm.factory import sort_backends_by_tier  # noqa: PLC0415
 
         prompt = build_suggest_terms_prompt(
             element_key=req.element_key,
@@ -872,33 +897,41 @@ async def suggest_terms(req: SuggestTermsRequest) -> SuggestTermsResponse:
             topic=req.topic,
             framework=req.framework,
         )
-        from metascreener.llm.base import strip_code_fences  # noqa: PLC0415
-
-        raw = await backend.complete(prompt, seed=42)
-        cleaned = strip_code_fences(raw)
-        data = json.loads(cleaned)
-        if isinstance(data, str):
-            data = json.loads(data)
-        suggestions_raw = data.get("suggestions", [])
 
         existing = {
             t.strip().lower()
             for t in req.current_include + req.current_exclude
         }
-        filtered = [
-            TermSuggestion(term=s["term"], rationale=s["rationale"])
-            for s in suggestions_raw
-            if isinstance(s, dict)
-            and "term" in s
-            and "rationale" in s
-            and s["term"].strip().lower() not in existing
-        ]
-        return SuggestTermsResponse(suggestions=filtered)
 
-    except json.JSONDecodeError as exc:
+        # Try backends in tier order until one succeeds
+        _sorted = sort_backends_by_tier(backends, _gc())
+        for _sb in _sorted:
+            try:
+                raw = await _sb.complete(prompt, seed=42)
+                cleaned = strip_code_fences(raw)
+                data = json.loads(cleaned)
+                if isinstance(data, str):
+                    data = json.loads(data)
+                suggestions_raw = data.get("suggestions", [])
+                filtered = [
+                    TermSuggestion(term=s["term"], rationale=s["rationale"])
+                    for s in suggestions_raw
+                    if isinstance(s, dict)
+                    and "term" in s
+                    and "rationale" in s
+                    and s["term"].strip().lower() not in existing
+                ]
+                return SuggestTermsResponse(suggestions=filtered)
+            except Exception:
+                logger.warning("suggest_terms_backend_failed", model=_sb.model_id, exc_info=True)
+                continue
+
         raise HTTPException(
-            status_code=502, detail="Failed to parse suggestions from LLM",
-        ) from exc
+            status_code=502, detail="All models failed to generate suggestions",
+        )
+
+    except HTTPException:
+        raise
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(
             status_code=502, detail=f"Suggestion generation failed: {exc}",

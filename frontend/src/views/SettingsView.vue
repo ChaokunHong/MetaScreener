@@ -80,18 +80,6 @@
         </div>
       </div>
 
-      <div style="display: flex; gap: 0.75rem; align-items: center;">
-        <button class="btn btn-primary" :disabled="saving" @click="doSave">
-          <i v-if="saving" class="fas fa-spinner fa-spin"></i>
-          <i v-else class="fas fa-save"></i>
-          {{ saving ? 'Saving...' : 'Save & Continue' }}
-        </button>
-        <button class="btn btn-danger" @click="clearKeys" :disabled="clearing">
-          <i v-if="clearing" class="fas fa-spinner fa-spin"></i>
-          <i v-else class="fas fa-trash-can"></i>
-          {{ clearing ? 'Clearing...' : 'Clear All Keys' }}
-        </button>
-      </div>
     </div>
 
     <!-- Model Selection -->
@@ -108,7 +96,10 @@
       <div v-if="presets.length > 0" style="margin-bottom: 1.5rem;">
         <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.6rem;">
           <i class="fas fa-wand-magic-sparkles" style="font-size: 0.75rem; margin-right: 4px;"></i>
-          Quick Setup — Preset Combinations
+          Preset Combinations
+          <button class="info-btn" @click="activeModal = 'presets'" title="About Presets" style="margin-left: 4px;">
+            <i class="fas fa-circle-info"></i>
+          </button>
         </div>
         <div class="preset-grid">
           <div
@@ -118,9 +109,15 @@
             :class="{ 'preset-active': isActivePreset(p) }"
             @click="applyPreset(p)"
           >
+            <div class="preset-icon">
+              <i :class="presetIcon(p.preset_id)"></i>
+            </div>
             <div class="preset-name">{{ p.name }}</div>
             <div class="preset-desc">{{ p.description }}</div>
-            <div class="preset-count">{{ p.models.length }} models</div>
+            <div class="preset-meta">
+              <span class="preset-count-chip">{{ p.models.length }} models</span>
+              <span v-if="isActivePreset(p)" class="preset-active-chip">Active</span>
+            </div>
           </div>
         </div>
       </div>
@@ -219,6 +216,20 @@
       </div>
     </div>
 
+    <!-- Action Buttons — at the very bottom after all settings -->
+    <div style="display: flex; gap: 0.75rem; align-items: center; justify-content: center; margin-top: 0.5rem;">
+      <button class="btn btn-primary" :disabled="saving" @click="doSave">
+        <i v-if="saving" class="fas fa-spinner fa-spin"></i>
+        <i v-else class="fas fa-save"></i>
+        {{ saving ? 'Saving...' : 'Save & Continue' }}
+      </button>
+      <button class="btn btn-danger" @click="clearKeys" :disabled="clearing">
+        <i v-if="clearing" class="fas fa-spinner fa-spin"></i>
+        <i v-else class="fas fa-trash-can"></i>
+        {{ clearing ? 'Clearing...' : 'Clear All Keys' }}
+      </button>
+    </div>
+
     <!-- Glass Modals -->
     <Teleport to="body">
       <Transition name="modal">
@@ -298,6 +309,40 @@
                 <div class="modal-sub-glass">
                   <h3><i class="fas fa-lock-open"></i> All Open-Source</h3>
                   <p>Every model is open-weight (Apache-2.0, MIT, or Llama license). No proprietary models are used, ensuring full reproducibility and transparency for publication.</p>
+                </div>
+              </div>
+            </template>
+
+            <!-- Presets Info -->
+            <template v-if="activeModal === 'presets'">
+              <div class="modal-header-row">
+                <div class="modal-icon-wrap modal-icon-purple"><i class="fas fa-wand-magic-sparkles"></i></div>
+                <h2 class="modal-title">Preset Combinations</h2>
+              </div>
+              <div class="modal-body-scroll">
+                <div class="modal-sub-glass full-width">
+                  <h3><i class="fas fa-lightbulb"></i> What are presets?</h3>
+                  <p>Presets are <strong>recommended model combinations</strong> curated for different use cases. Click a preset to instantly configure your model selection. You can always customise further by toggling individual models.</p>
+                </div>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-balance-scale"></i> Balanced (Recommended)</h3>
+                  <p>4 models from <strong>4 different vendors</strong> — DeepSeek, Qwen, Kimi, and Llama. This maximises diversity of training data and architecture, which is the most important factor for ensemble quality. Best for most systematic reviews.</p>
+                </div>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-crosshairs"></i> Maximum Precision</h3>
+                  <p>4 Tier-1 models including <strong>thinking models</strong> (Kimi K2.5). Thinking models use internal chain-of-thought reasoning before answering, which improves accuracy on complex eligibility decisions. Trade-off: <strong>slower and more expensive</strong> (~20s per call vs ~2s).</p>
+                </div>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-piggy-bank"></i> Budget Friendly</h3>
+                  <p>Optimised for <strong>lowest cost</strong> while maintaining quality. Uses DeepSeek V3.2 (strong + cheap) with Llama Maverick, Mistral Small 4, and MiniMax M1. Ideal for large-scale screening with thousands of papers where API costs matter.</p>
+                </div>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-expand"></i> Comprehensive (6 models)</h3>
+                  <p>Maximum model diversity with <strong>6 models from 6 vendors</strong>. More models = more robust consensus, but also more API calls per paper. Use for critical reviews where accuracy is paramount and cost is not a concern.</p>
+                </div>
+                <div class="modal-sub-glass full-width">
+                  <h3><i class="fas fa-user-gear"></i> Custom Selection</h3>
+                  <p>You can also build your own combination by toggling individual models below the presets. Minimum <strong>2 models</strong> required for ensemble voting. We recommend at least <strong>3-4 models</strong> from different vendors for reliable consensus.</p>
                 </div>
               </div>
             </template>
@@ -399,17 +444,24 @@ const activeModal = ref<string | null>(null)
 /* ── Icon mapping ──────────────────────────────────── */
 const iconMap: Record<string, string> = {
   'deepseek-v3': '/model_icon/deepseek.png',
-  'deepseek': '/model_icon/deepseek.png',
   'qwen3': '/model_icon/qwen2.png',
+  'kimi-k2.5': '/model_icon/moonshot.png',
+  'kimi-k2': '/model_icon/moonshot.png',
   'llama4-maverick': '/model_icon/llama.png',
-  'llama4-scout': '/model_icon/llama.png',
-  'llama': '/model_icon/llama.png',
+  'glm5-turbo': '/model_icon/chatglm-color.png',
+  'mimo-v2-pro': '/model_icon/xiaomimimo.png',
+  'minimax-m2.7': '/model_icon/minimax-color.png',
+  'nous-hermes4': '/model_icon/llama.png',       // Llama-based fine-tune
+  'nvidia-nemotron': '/model_icon/llama.png',     // Llama-based fine-tune
+  'cogito-671b': '/model_icon/deepseek.png',      // DeepSeek-based
+  'ai21-jamba': '',                                // Fallback to initial circle
+  'gemma3-27b': '',                                // Fallback to initial circle
   'mistral-small4': '/model_icon/mistralai.png',
-  'mistral': '/model_icon/mistralai.png',
+  'phi4': '',                                      // Fallback to initial circle
 }
 
 function hasIcon(modelId: string): boolean {
-  return !!iconMap[modelId]
+  return !!iconMap[modelId] && iconMap[modelId].length > 0
 }
 
 function iconPath(modelId: string): string {
@@ -427,6 +479,16 @@ function tierBg(tier?: number): string {
   if (tier === 1) return 'rgba(5,150,105,0.1)'
   if (tier === 2) return 'rgba(37,99,235,0.1)'
   return 'rgba(100,116,139,0.1)'
+}
+
+function presetIcon(presetId: string): string {
+  const icons: Record<string, string> = {
+    balanced: 'fas fa-balance-scale',
+    precision: 'fas fa-crosshairs',
+    budget: 'fas fa-piggy-bank',
+    comprehensive: 'fas fa-expand',
+  }
+  return icons[presetId] || 'fas fa-layer-group'
 }
 
 /* ── Model toggle ──────────────────────────────────── */
@@ -609,41 +671,81 @@ async function clearKeys() {
 
 .preset-card {
   cursor: pointer;
-  padding: 0.75rem;
-  border-radius: 12px;
-  background: rgba(255,255,255,0.6);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  border: 1.5px solid rgba(255,255,255,0.3);
-  transition: all 0.2s ease;
+  padding: 1rem 1rem 0.85rem;
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.18) 100%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  backdrop-filter: blur(12px) saturate(130%);
+  border: 1.5px solid rgba(148, 163, 184, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 2px 8px rgba(15,23,42,0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
 }
 .preset-card:hover {
-  background: rgba(255,255,255,0.75);
+  background: linear-gradient(145deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.3) 100%);
   border-color: rgba(129, 216, 208, 0.4);
-  box-shadow: 0 4px 12px rgba(15,23,42,0.06);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 6px 18px rgba(15,23,42,0.07);
+  transform: translateY(-2px);
 }
 .preset-active {
-  border-color: #81d8d0 !important;
-  background: rgba(129, 216, 208, 0.08);
-  box-shadow: 0 0 0 1px rgba(129, 216, 208, 0.3);
+  border-color: rgba(129, 216, 208, 0.5) !important;
+  background: linear-gradient(145deg, rgba(129,216,208,0.12) 0%, rgba(139,92,246,0.06) 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 4px 14px rgba(129,216,208,0.12),
+              0 0 0 1px rgba(129, 216, 208, 0.2);
+}
+
+.preset-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(129,216,208,0.15), rgba(139,92,246,0.1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 0.5rem;
+}
+.preset-active .preset-icon {
+  background: linear-gradient(135deg, rgba(129,216,208,0.25), rgba(139,92,246,0.18));
+  color: #0d9488;
 }
 
 .preset-name {
-  font-weight: 600;
+  font-weight: 650;
   font-size: 0.85rem;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 .preset-desc {
-  font-size: 0.75rem;
-  opacity: 0.7;
-  margin-top: 0.25rem;
+  font-size: 0.73rem;
+  opacity: 0.65;
+  margin-top: 0.3rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+.preset-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 0.5rem;
+}
+.preset-count-chip {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.08);
   color: var(--text-secondary);
 }
-.preset-count {
-  font-size: 0.7rem;
-  opacity: 0.5;
-  margin-top: 0.4rem;
-  color: var(--text-secondary);
+.preset-active-chip {
+  font-size: 0.6rem;
+  font-weight: 650;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(129, 216, 208, 0.15);
+  color: #0d9488;
+  letter-spacing: 0.03em;
 }
 
 /* ── Model Grid — 3x3 Glass Cards ──────────────────── */
@@ -657,25 +759,48 @@ async function clearKeys() {
   padding: 18px;
   border-radius: 16px;
   background: linear-gradient(145deg, var(--btn-frost-bg-strong) 0%, var(--btn-frost-bg-soft) 100%);
-  border: 1px solid var(--btn-frost-border);
+  border: 2px solid rgba(129, 216, 208, 0.45);
   -webkit-backdrop-filter: blur(14px) saturate(145%);
   backdrop-filter: blur(14px) saturate(145%);
-  box-shadow: 0 6px 18px var(--btn-frost-shadow), inset 0 1px 0 rgba(255,255,255,0.75);
-  transition: all 0.25s ease;
+  box-shadow: 0 6px 18px var(--btn-frost-shadow), inset 0 1px 0 rgba(255,255,255,0.75),
+              0 0 0 1px rgba(129, 216, 208, 0.15);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+/* Selected glow ring */
+.model-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 17px;
+  background: linear-gradient(135deg, rgba(129,216,208,0.35), rgba(139,92,246,0.25));
+  z-index: -1;
+  opacity: 1;
+  transition: opacity 0.3s ease;
 }
 .model-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 28px rgba(15,23,42,0.1), inset 0 1.5px 0 rgba(255,255,255,0.85);
-  border-color: rgba(129, 216, 208, 0.5);
+  box-shadow: 0 10px 28px rgba(15,23,42,0.1), inset 0 1.5px 0 rgba(255,255,255,0.85),
+              0 0 20px rgba(129, 216, 208, 0.15);
+  border-color: rgba(129, 216, 208, 0.6);
 }
 
 .model-card-disabled {
-  opacity: 0.5;
+  opacity: 0.45;
+  border-color: rgba(148, 163, 184, 0.2);
+  background: linear-gradient(145deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.08) 100%);
+  filter: grayscale(0.5);
+}
+.model-card-disabled::before {
+  opacity: 0;
 }
 .model-card-disabled:hover {
-  opacity: 0.75;
+  opacity: 0.7;
+  filter: grayscale(0.2);
+  border-color: rgba(148, 163, 184, 0.35);
 }
 
 .model-card-header {

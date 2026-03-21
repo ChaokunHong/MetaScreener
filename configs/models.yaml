@@ -1,5 +1,5 @@
 # MetaScreener 2.0 — Model Registry
-# 9 open-source LLMs across 7 vendors for maximum diversity
+# 15 open-source LLMs across 13 vendors for maximum diversity
 # Users select 4+ models for screening; system uses tier for fallback priority
 
 models:
@@ -26,17 +26,6 @@ models:
     cost_per_1m_tokens: 0.45
     description: "Largest active parameters (22B MoE), strong reasoning"
 
-  kimi-k2:
-    name: "Kimi K2"
-    version: "2025-07"
-    provider: "openrouter"
-    model_id: "moonshotai/kimi-k2"
-    license: "MIT"
-    tier: 1
-    thinking: false
-    cost_per_1m_tokens: 0.55
-    description: "Moonshot AI flagship, fast and accurate"
-
   kimi-k2.5:
     name: "Kimi K2.5"
     version: "2025-09"
@@ -46,9 +35,20 @@ models:
     tier: 1
     thinking: true
     cost_per_1m_tokens: 0.45
-    description: "Deep thinking model, most precise but slower (~20s)"
+    description: "Deep thinking model, most precise but slower (~10s)"
 
   # ─── Tier 2: Strong ──────────────────────────────────────────
+  kimi-k2:
+    name: "Kimi K2 0905"
+    version: "2025-09"
+    provider: "openrouter"
+    model_id: "moonshotai/kimi-k2-0905"
+    license: "MIT"
+    tier: 2
+    thinking: false
+    cost_per_1m_tokens: 0.40
+    description: "Moonshot AI fast model, non-thinking variant (~1s)"
+
   llama4-maverick:
     name: "Llama 4 Maverick"
     version: "2025-04"
@@ -82,18 +82,73 @@ models:
     cost_per_1m_tokens: 1.00
     description: "Xiaomi reasoning model, 1M context window"
 
-  minimax-m1:
-    name: "MiniMax M1"
-    version: "2025-12"
+  minimax-m2.7:
+    name: "MiniMax M2.7"
+    version: "2026-03"
     provider: "openrouter"
-    model_id: "minimax/minimax-m1"
+    model_id: "minimax/minimax-m2.7"
     license: "Custom"
     tier: 2
     thinking: true
-    cost_per_1m_tokens: 0.40
-    description: "MiniMax flagship, 1M context, good medical knowledge"
+    cost_per_1m_tokens: 0.30
+    description: "MiniMax latest, strong medical knowledge"
+
+  nous-hermes4:
+    name: "Nous Hermes 4 405B"
+    version: "2026-01"
+    provider: "openrouter"
+    model_id: "nousresearch/hermes-4-405b"
+    license: "Llama"
+    tier: 2
+    thinking: false
+    cost_per_1m_tokens: 1.00
+    description: "405B parameter community fine-tune, diverse perspective"
+
+  nvidia-nemotron:
+    name: "NVIDIA Nemotron 70B"
+    version: "2025-10"
+    provider: "openrouter"
+    model_id: "nvidia/llama-3.1-nemotron-70b-instruct"
+    license: "Llama"
+    tier: 2
+    thinking: false
+    cost_per_1m_tokens: 1.20
+    description: "NVIDIA-optimized Llama, fast and accurate"
+
+  cogito-671b:
+    name: "Cogito v2.1 671B"
+    version: "2026-02"
+    provider: "openrouter"
+    model_id: "deepcogito/cogito-v2.1-671b"
+    license: "MIT"
+    tier: 2
+    thinking: false
+    cost_per_1m_tokens: 1.25
+    description: "671B parameters, largest open-source model available"
+
+  ai21-jamba:
+    name: "AI21 Jamba Large 1.7"
+    version: "2025-12"
+    provider: "openrouter"
+    model_id: "ai21/jamba-large-1.7"
+    license: "Custom"
+    tier: 2
+    thinking: false
+    cost_per_1m_tokens: 2.00
+    description: "AI21 Labs SSM-Transformer hybrid, 256K context"
 
   # ─── Tier 3: Lightweight / Fallback ──────────────────────────
+  gemma3-27b:
+    name: "Google Gemma 3 27B"
+    version: "2025-09"
+    provider: "openrouter"
+    model_id: "google/gemma-3-27b-it"
+    license: "Gemma"
+    tier: 3
+    thinking: false
+    cost_per_1m_tokens: 0.08
+    description: "Google lightweight, extremely cheap, good fallback"
+
   mistral-small4:
     name: "Mistral Small 4"
     version: "2026-03"
@@ -105,6 +160,17 @@ models:
     cost_per_1m_tokens: 0.15
     description: "Fastest response (~1s), ideal for auxiliary tasks"
 
+  phi4:
+    name: "Microsoft Phi 4"
+    version: "2025-08"
+    provider: "openrouter"
+    model_id: "microsoft/phi-4"
+    license: "MIT"
+    tier: 3
+    thinking: false
+    cost_per_1m_tokens: 0.07
+    description: "Microsoft compact model, cheapest option available"
+
 # ─── Recommended Presets ─────────────────────────────────────────
 presets:
   balanced:
@@ -114,18 +180,18 @@ presets:
 
   precision:
     name: "Maximum Precision"
-    description: "4 tier-1 models including thinking models for highest accuracy (slower)"
-    models: ["deepseek-v3", "qwen3", "kimi-k2.5", "kimi-k2"]
+    description: "4 tier-1/2 models including thinking models for highest accuracy"
+    models: ["deepseek-v3", "qwen3", "kimi-k2.5", "glm5-turbo"]
 
   budget:
     name: "Budget Friendly"
     description: "Strong results at lowest cost"
-    models: ["deepseek-v3", "llama4-maverick", "mistral-small4", "minimax-m1"]
+    models: ["deepseek-v3", "llama4-maverick", "gemma3-27b", "mistral-small4"]
 
   comprehensive:
-    name: "Comprehensive (6 models)"
-    description: "Maximum model diversity for critical reviews"
-    models: ["deepseek-v3", "qwen3", "kimi-k2", "llama4-maverick", "glm5-turbo", "mimo-v2-pro"]
+    name: "Comprehensive (8 models)"
+    description: "Maximum model diversity across 8 vendors for critical reviews"
+    models: ["deepseek-v3", "qwen3", "kimi-k2.5", "llama4-maverick", "glm5-turbo", "nous-hermes4", "nvidia-nemotron", "minimax-m2.7"]
 
 # ─── Thresholds ──────────────────────────────────────────────────
 thresholds:
@@ -138,10 +204,10 @@ thresholds:
 inference:
   temperature: 0.0
   timeout_s: 45.0
-  timeout_thinking_s: 120.0    # Extended timeout for thinking models
+  timeout_thinking_s: 120.0
   max_retries: 2
   max_tokens_standard: 1024
-  max_tokens_thinking: 4096    # Higher for thinking models (internal CoT eats tokens)
+  max_tokens_thinking: 4096
 
 # ─── Criteria Pipeline ───────────────────────────────────────────
 criteria:
