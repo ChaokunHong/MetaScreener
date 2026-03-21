@@ -451,13 +451,13 @@ const iconMap: Record<string, string> = {
   'glm5-turbo': '/model_icon/chatglm-color.png',
   'mimo-v2-pro': '/model_icon/xiaomimimo.png',
   'minimax-m2.7': '/model_icon/minimax-color.png',
-  'nous-hermes4': '/model_icon/llama.png',       // Llama-based fine-tune
-  'nvidia-nemotron': '/model_icon/llama.png',     // Llama-based fine-tune
-  'cogito-671b': '/model_icon/deepseek.png',      // DeepSeek-based
-  'ai21-jamba': '',                                // Fallback to initial circle
-  'gemma3-27b': '',                                // Fallback to initial circle
+  'nous-hermes4': '/model_icon/nousresearch.png',
+  'nvidia-nemotron': '/model_icon/nvidia-color.png',
+  'cogito-671b': '/model_icon/deepcogito-color.png',
+  'ai21-jamba': '/model_icon/ai21-brand-color.png',
+  'gemma3-27b': '/model_icon/gemma-color.png',
   'mistral-small4': '/model_icon/mistralai.png',
-  'phi4': '',                                      // Fallback to initial circle
+  'phi4': '/model_icon/copilot-color.png',
 }
 
 function hasIcon(modelId: string): boolean {
