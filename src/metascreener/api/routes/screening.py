@@ -217,12 +217,35 @@ async def _close_backends(backends: list[Any]) -> None:
             continue
 
 
-def _build_screening_backends(api_key: str) -> list[Any]:
-    """Create configured screening backends using the shared model registry."""
+def _build_screening_backends(
+    api_key: str,
+    enabled_model_ids: list[str] | None = None,
+) -> list[Any]:
+    """Create configured screening backends using the shared model registry.
+
+    If the user has selected specific models in settings (enabled_models),
+    those are used. Otherwise all configured models are created.
+
+    Args:
+        api_key: OpenRouter API key.
+        enabled_model_ids: Override list of model keys to enable.
+            If None, reads from user settings; if user settings empty,
+            uses all models from config.
+    """
     from metascreener.api.deps import get_config  # noqa: PLC0415
     from metascreener.llm.factory import create_backends  # noqa: PLC0415
 
-    return create_backends(cfg=get_config(), api_key=api_key)
+    if enabled_model_ids is None:
+        # Check user settings for enabled models
+        from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
+        user = _load_user_settings()
+        enabled_model_ids = user.get("enabled_models") or None
+
+    return create_backends(
+        cfg=get_config(),
+        api_key=api_key,
+        enabled_model_ids=enabled_model_ids,
+    )
 
 
 async def _resolve_review_criteria(
@@ -492,8 +515,10 @@ async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
                 criteria, language=language,
             )
 
-            # Try each backend until one returns valid JSON
-            for _enh_backend in backends:
+            # Try each backend until one returns valid JSON (tier-1 first)
+            from metascreener.llm.factory import sort_backends_by_tier  # noqa: PLC0415
+            _enh_sorted = sort_backends_by_tier(backends, _cfg)
+            for _enh_backend in _enh_sorted:
                 try:
                     enh_raw = await _enh_backend.complete(enh_prompt, seed)
                     enh_data = json.loads(strip_code_fences(enh_raw))
@@ -971,9 +996,13 @@ async def pilot_search(req: PilotSearchRequest) -> PilotDiagnostic:
     criteria_dict = criteria.model_dump(mode="json")
     prompt = build_pilot_relevance_prompt(articles_dicts, criteria_dict)
 
+    # Sort backends: tier-1 first (avoids wasting time on weak models)
+    from metascreener.llm.factory import sort_backends_by_tier  # noqa: PLC0415
+    _sorted_backends = sort_backends_by_tier(backends, cfg)
+
     # Try each backend until one returns valid assessments
     _used_model = "none"
-    for _pilot_backend in backends:
+    for _pilot_backend in _sorted_backends:
         try:
             raw = await _pilot_backend.complete(prompt, seed=42)
             cleaned_raw = _strip_fences(raw)
@@ -999,7 +1028,7 @@ async def pilot_search(req: PilotSearchRequest) -> PilotDiagnostic:
             total = len(assessments)
             precision = relevant / total if total > 0 else None
             _used_model = _pilot_backend.model_id
-
+            await _close_backends(backends)
             return PilotDiagnostic(
                 search_result=search_result,
                 assessments=assessments,
@@ -1015,14 +1044,13 @@ async def pilot_search(req: PilotSearchRequest) -> PilotDiagnostic:
             continue
 
     # All backends failed
+    await _close_backends(backends)
     return PilotDiagnostic(
         search_result=search_result,
         assessments=[],
         estimated_precision=None,
         model_used="all_failed",
-        )
-    finally:
-        await _close_backends(backends)
+    )
 
 
 @router.post("/upload", response_model=UploadResponse)

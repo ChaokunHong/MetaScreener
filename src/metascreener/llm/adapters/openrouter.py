@@ -17,21 +17,26 @@ from metascreener.llm.base import INFERENCE_TEMPERATURE, LLMBackend
 logger = structlog.get_logger(__name__)
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_TIMEOUT_S = 120.0
-MAX_RETRIES = 3
+DEFAULT_TIMEOUT_S = 45.0
+DEFAULT_TIMEOUT_THINKING_S = 120.0
+MAX_RETRIES = 2
 RETRY_BASE_DELAY_S = 2.0
+MAX_TOKENS_STANDARD = 1024
+MAX_TOKENS_THINKING = 4096
 
 
 class OpenRouterAdapter(LLMBackend):
     """LLM adapter using the OpenRouter API.
 
     Args:
-        model_id: Internal model identifier (e.g., 'qwen3').
-        openrouter_model_name: OpenRouter model string (e.g., 'qwen/qwen3-235b-a22b').
+        model_id: Internal model identifier (e.g., 'deepseek-v3').
+        openrouter_model_name: OpenRouter model string (e.g., 'deepseek/deepseek-v3.2').
         api_key: OpenRouter API key.
         model_version: Version string for reproducibility audit trail.
+        thinking: Whether the model uses internal CoT (needs higher max_tokens).
         timeout_s: HTTP timeout in seconds.
         max_retries: Number of retry attempts on transient failures.
+        max_tokens: Maximum output tokens.
     """
 
     def __init__(
@@ -40,15 +45,27 @@ class OpenRouterAdapter(LLMBackend):
         openrouter_model_name: str,
         api_key: str,
         model_version: str = "latest",
-        timeout_s: float = DEFAULT_TIMEOUT_S,
+        thinking: bool = False,
+        timeout_s: float | None = None,
         max_retries: int = MAX_RETRIES,
+        max_tokens: int | None = None,
     ) -> None:
         super().__init__(model_id=model_id)
         self._openrouter_model_name = openrouter_model_name
         self._api_key = api_key
         self._model_version = model_version
-        self._timeout_s = timeout_s
+        self._thinking = thinking
         self._max_retries = max_retries
+
+        # Set defaults based on thinking flag
+        if timeout_s is None:
+            timeout_s = DEFAULT_TIMEOUT_THINKING_S if thinking else DEFAULT_TIMEOUT_S
+        self._timeout_s = timeout_s
+
+        if max_tokens is None:
+            max_tokens = MAX_TOKENS_THINKING if thinking else MAX_TOKENS_STANDARD
+        self._max_tokens = max_tokens
+
         self._client = httpx.AsyncClient(
             base_url=OPENROUTER_BASE_URL,
             headers={
@@ -62,6 +79,11 @@ class OpenRouterAdapter(LLMBackend):
     @property
     def model_version(self) -> str:
         return self._model_version
+
+    @property
+    def is_thinking(self) -> bool:
+        """Whether this model uses internal chain-of-thought tokens."""
+        return self._thinking
 
     async def _call_api(self, prompt: str, seed: int) -> str:
         """Call OpenRouter API with retry logic.
@@ -77,12 +99,12 @@ class OpenRouterAdapter(LLMBackend):
             LLMTimeoutError: If request times out after all retries.
             LLMRateLimitError: If rate limit is exceeded.
         """
-        payload = {
+        payload: dict = {
             "model": self._openrouter_model_name,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": INFERENCE_TEMPERATURE,
             "seed": seed,
-            "max_tokens": 1024,
+            "max_tokens": self._max_tokens,
             "response_format": {"type": "json_object"},
         }
 
@@ -99,9 +121,35 @@ class OpenRouterAdapter(LLMBackend):
                         model_id=self.model_id,
                     )
 
+                if response.status_code == 404:
+                    # Model not available (privacy settings or deprecated)
+                    logger.warning(
+                        "openrouter_model_unavailable",
+                        model_id=self.model_id,
+                        status=404,
+                    )
+                    raise LLMTimeoutError(
+                        f"Model {self._openrouter_model_name} unavailable (404)",
+                        model_id=self.model_id,
+                    )
+
                 response.raise_for_status()
                 data = response.json()
-                content: str = data["choices"][0]["message"]["content"]
+                content: str | None = data["choices"][0]["message"].get("content")
+
+                # Thinking models may return None content if max_tokens was consumed by CoT
+                if content is None:
+                    finish_reason = data["choices"][0].get("finish_reason", "unknown")
+                    logger.warning(
+                        "openrouter_empty_content",
+                        model_id=self.model_id,
+                        finish_reason=finish_reason,
+                        is_thinking=self._thinking,
+                    )
+                    raise LLMTimeoutError(
+                        f"Empty content from {self.model_id} (finish={finish_reason})",
+                        model_id=self.model_id,
+                    )
 
                 logger.info(
                     "openrouter_call_success",

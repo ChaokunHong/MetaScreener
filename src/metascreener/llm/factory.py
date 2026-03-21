@@ -17,18 +17,18 @@ _DEFAULT_CONFIG = Path(__file__).resolve().parents[3] / "configs" / "models.yaml
 def create_backends(
     cfg: MetaScreenerConfig | None = None,
     api_key: str | None = None,
+    enabled_model_ids: list[str] | None = None,
 ) -> list[LLMBackend]:
     """Create LLM backends from config and environment.
-
-    Reads ``OPENROUTER_API_KEY`` from environment if not provided.
-    Uses ``configs/models.yaml`` if no config is given.
 
     Args:
         cfg: Optional pre-loaded config. Loaded from default path if None.
         api_key: OpenRouter API key. Falls back to env var if None.
+        enabled_model_ids: If provided, only create backends for these model keys.
+            If None, creates backends for ALL configured models.
 
     Returns:
-        List of LLMBackend instances, one per configured model.
+        List of LLMBackend instances, one per configured/enabled model.
 
     Raises:
         SystemExit: If no API key is available.
@@ -51,13 +51,25 @@ def create_backends(
 
     backends: list[LLMBackend] = []
     for name, entry in cfg.models.items():
+        # Skip models not in enabled list (if a list was provided)
+        if enabled_model_ids is not None and name not in enabled_model_ids:
+            continue
+
         adapter = OpenRouterAdapter(
             model_id=name,
             openrouter_model_name=entry.model_id,
             api_key=key,
             model_version=entry.version,
-            timeout_s=cfg.inference.timeout_s,
+            thinking=entry.thinking,
+            timeout_s=(
+                cfg.inference.timeout_thinking_s if entry.thinking
+                else cfg.inference.timeout_s
+            ),
             max_retries=cfg.inference.max_retries,
+            max_tokens=(
+                cfg.inference.max_tokens_thinking if entry.thinking
+                else cfg.inference.max_tokens_standard
+            ),
         )
         backends.append(adapter)
 
@@ -95,3 +107,23 @@ def get_strongest_backend(
             return backend
 
     return backends[0]
+
+
+def sort_backends_by_tier(
+    backends: list[LLMBackend],
+    cfg: MetaScreenerConfig,
+) -> list[LLMBackend]:
+    """Sort backends by tier (tier-1 first, then tier-2, etc.).
+
+    Args:
+        backends: Available LLM backend instances.
+        cfg: MetaScreener configuration with model tier info.
+
+    Returns:
+        Backends sorted by tier, lowest (strongest) first.
+    """
+    def _tier(b: LLMBackend) -> int:
+        entry = cfg.models.get(b.model_id)
+        return entry.tier if entry else 99
+
+    return sorted(backends, key=_tier)

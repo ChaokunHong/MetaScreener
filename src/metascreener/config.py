@@ -6,6 +6,7 @@ YAML configuration files for reproducible screening.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, Field
@@ -15,13 +16,16 @@ class ModelEntry(BaseModel):
     """A single LLM model configuration entry.
 
     Attributes:
-        name: Full model name (e.g., "Qwen/Qwen3-235B-A22B-Instruct").
+        name: Full model name (e.g., "DeepSeek V3.2").
         version: Version date string for reproducibility.
         provider: API provider (e.g., "openrouter").
         model_id: Provider-specific model identifier.
         license_: Model license (e.g., "Apache-2.0").
         huggingface_url: HuggingFace model page URL for reproducibility.
-        tier: Model capability tier (1=strongest, 2=standard). Defaults to 2.
+        tier: Model capability tier (1=flagship, 2=strong, 3=lightweight).
+        thinking: Whether the model uses internal chain-of-thought tokens.
+        cost_per_1m_tokens: Cost per 1M input tokens in USD.
+        description: Short human-readable description of the model.
     """
 
     name: str
@@ -31,8 +35,25 @@ class ModelEntry(BaseModel):
     license_: str = Field(alias="license")
     huggingface_url: str | None = None
     tier: int = 2
+    thinking: bool = False
+    cost_per_1m_tokens: float = 0.0
+    description: str = ""
 
     model_config = {"populate_by_name": True}
+
+
+class PresetConfig(BaseModel):
+    """A recommended model combination preset.
+
+    Attributes:
+        name: Human-readable preset name.
+        description: What this preset is good for.
+        models: List of model keys to enable.
+    """
+
+    name: str
+    description: str
+    models: list[str]
 
 
 class ThresholdConfig(BaseModel):
@@ -57,13 +78,19 @@ class InferenceConfig(BaseModel):
 
     Attributes:
         temperature: Sampling temperature (0.0 for deterministic).
-        timeout_s: Timeout per LLM call in seconds.
+        timeout_s: Timeout per LLM call in seconds (standard models).
+        timeout_thinking_s: Timeout for thinking models (longer CoT).
         max_retries: Maximum retry attempts per call.
+        max_tokens_standard: Max output tokens for standard models.
+        max_tokens_thinking: Max output tokens for thinking models.
     """
 
     temperature: float = 0.0
-    timeout_s: float = 120.0
-    max_retries: int = 3
+    timeout_s: float = 45.0
+    timeout_thinking_s: float = 120.0
+    max_retries: int = 2
+    max_tokens_standard: int = 1024
+    max_tokens_thinking: int = 4096
 
 
 class CriteriaConfig(BaseModel):
@@ -86,12 +113,14 @@ class MetaScreenerConfig(BaseModel):
 
     Attributes:
         models: Registry of available LLM models.
+        presets: Recommended model combination presets.
         thresholds: Decision router threshold settings.
         inference: LLM inference settings.
         criteria: Criteria generation pipeline settings.
     """
 
     models: dict[str, ModelEntry] = Field(default_factory=dict)
+    presets: dict[str, PresetConfig] = Field(default_factory=dict)
     thresholds: ThresholdConfig = Field(default_factory=ThresholdConfig)
     inference: InferenceConfig = Field(default_factory=InferenceConfig)
     criteria: CriteriaConfig = Field(default_factory=CriteriaConfig)
@@ -120,8 +149,13 @@ def load_model_config(path: Path) -> MetaScreenerConfig:
         k: ModelEntry(**v) for k, v in data.get("models", {}).items()
     }
 
+    presets: dict[str, PresetConfig] = {}
+    for k, v in data.get("presets", {}).items():
+        presets[k] = PresetConfig(**v)
+
     return MetaScreenerConfig(
         models=models,
+        presets=presets,
         thresholds=ThresholdConfig(**data.get("thresholds", {})),
         inference=InferenceConfig(**data.get("inference", {})),
         criteria=CriteriaConfig(**data.get("criteria", {})),

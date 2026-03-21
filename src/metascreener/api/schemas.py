@@ -72,6 +72,10 @@ class ModelInfo(BaseModel):
         provider: API provider name.
         version: Version date string.
         license: Model license identifier.
+        tier: Capability tier (1=flagship, 2=strong, 3=lightweight).
+        thinking: Whether the model uses internal CoT tokens.
+        cost_per_1m_tokens: Cost per 1M input tokens in USD.
+        description: Short description of the model.
         enabled: Whether the model is currently enabled.
     """
 
@@ -80,7 +84,27 @@ class ModelInfo(BaseModel):
     provider: str
     version: str
     license: str
+    tier: int = 2
+    thinking: bool = False
+    cost_per_1m_tokens: float = 0.0
+    description: str = ""
     enabled: bool = True
+
+
+class PresetInfo(BaseModel):
+    """Recommended model preset combination.
+
+    Attributes:
+        preset_id: Internal preset key.
+        name: Human-readable preset name.
+        description: What this preset is good for.
+        models: List of model keys in this preset.
+    """
+
+    preset_id: str
+    name: str
+    description: str
+    models: list[str]
 
 
 class TestKeyRequest(BaseModel):

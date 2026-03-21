@@ -10,6 +10,7 @@ from fastapi import APIRouter
 from metascreener.api.deps import get_config
 from metascreener.api.schemas import (
     ModelInfo,
+    PresetInfo,
     SettingsResponse,
     SettingsUpdate,
     TestKeyRequest,
@@ -85,11 +86,15 @@ async def update_settings(update: SettingsUpdate) -> dict[str, str]:
 
 @router.get("/models", response_model=list[ModelInfo])
 async def list_models() -> list[ModelInfo]:
-    """List available LLM models from configuration."""
+    """List available LLM models from configuration with full metadata."""
     try:
         config = get_config()
     except FileNotFoundError:
         return []
+
+    user = _load_user_settings()
+    enabled = user.get("enabled_models", [])
+
     return [
         ModelInfo(
             model_id=key,
@@ -97,8 +102,31 @@ async def list_models() -> list[ModelInfo]:
             provider=entry.provider,
             version=entry.version,
             license=entry.license_,
+            tier=entry.tier,
+            thinking=entry.thinking,
+            cost_per_1m_tokens=entry.cost_per_1m_tokens,
+            description=entry.description,
+            enabled=(key in enabled) if enabled else True,
         )
         for key, entry in config.models.items()
+    ]
+
+
+@router.get("/presets", response_model=list[PresetInfo])
+async def list_presets() -> list[PresetInfo]:
+    """List recommended model combination presets."""
+    try:
+        config = get_config()
+    except FileNotFoundError:
+        return []
+    return [
+        PresetInfo(
+            preset_id=key,
+            name=preset.name,
+            description=preset.description,
+            models=preset.models,
+        )
+        for key, preset in config.presets.items()
     ]
 
 
@@ -118,8 +146,6 @@ async def clear_api_keys() -> dict[str, str]:
 @router.post("/test-key", response_model=TestKeyResponse)
 async def test_api_key(req: TestKeyRequest) -> TestKeyResponse:
     """Test an API key by making a real API call to the provider.
-
-    Sends a minimal request to verify the key is valid and has credits.
 
     Args:
         req: Test key request with provider and api_key.

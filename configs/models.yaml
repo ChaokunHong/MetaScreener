@@ -1,52 +1,149 @@
-# Version-locked model registry for MetaScreener 2.0
-# See CLAUDE.md for model selection rationale
+# MetaScreener 2.0 — Model Registry
+# 9 open-source LLMs across 7 vendors for maximum diversity
+# Users select 4+ models for screening; system uses tier for fallback priority
+
 models:
+  # ─── Tier 1: Flagship ────────────────────────────────────────
+  deepseek-v3:
+    name: "DeepSeek V3.2"
+    version: "2026-03"
+    provider: "openrouter"
+    model_id: "deepseek/deepseek-v3.2"
+    license: "MIT"
+    tier: 1
+    thinking: false
+    cost_per_1m_tokens: 0.26
+    description: "Most reliable JSON output, strong medical knowledge"
+
   qwen3:
-    name: "Qwen/Qwen3-235B-A22B-Instruct"
+    name: "Qwen3 235B-A22B"
     version: "2025-04-28"
     provider: "openrouter"
     model_id: "qwen/qwen3-235b-a22b"
     license: "Apache-2.0"
-    huggingface_url: "https://huggingface.co/Qwen/Qwen3-235B-A22B-Instruct"
     tier: 1
-  deepseek:
-    name: "DeepSeek-V3.2"
-    version: "2025-05-15"
-    provider: "openrouter"
-    model_id: "deepseek/deepseek-chat-v3-0324"
-    license: "MIT"
-    huggingface_url: "https://huggingface.co/deepseek-ai/DeepSeek-V3-0324"
-    tier: 1
-  llama:
-    name: "Llama 4 Scout"
-    version: "2025-04-05"
-    provider: "openrouter"
-    model_id: "meta-llama/llama-4-scout"
-    license: "Llama"
-    huggingface_url: "https://huggingface.co/meta-llama/Llama-4-Scout-17B-16E-Instruct"
-    tier: 2
-  mistral:
-    name: "Mistral Small 3.1 24B Instruct"
-    version: "2025-03-20"
-    provider: "openrouter"
-    model_id: "mistralai/mistral-small-3.1-24b-instruct"
-    license: "Apache-2.0"
-    huggingface_url: "https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503"
-    tier: 2
+    thinking: true
+    cost_per_1m_tokens: 0.45
+    description: "Largest active parameters (22B MoE), strong reasoning"
 
+  kimi-k2:
+    name: "Kimi K2"
+    version: "2025-07"
+    provider: "openrouter"
+    model_id: "moonshotai/kimi-k2"
+    license: "MIT"
+    tier: 1
+    thinking: false
+    cost_per_1m_tokens: 0.55
+    description: "Moonshot AI flagship, fast and accurate"
+
+  kimi-k2.5:
+    name: "Kimi K2.5"
+    version: "2025-09"
+    provider: "openrouter"
+    model_id: "moonshotai/kimi-k2.5"
+    license: "Custom"
+    tier: 1
+    thinking: true
+    cost_per_1m_tokens: 0.45
+    description: "Deep thinking model, most precise but slower (~20s)"
+
+  # ─── Tier 2: Strong ──────────────────────────────────────────
+  llama4-maverick:
+    name: "Llama 4 Maverick"
+    version: "2025-04"
+    provider: "openrouter"
+    model_id: "meta-llama/llama-4-maverick"
+    license: "Llama"
+    tier: 2
+    thinking: false
+    cost_per_1m_tokens: 0.15
+    description: "128-expert MoE, Western training data perspective"
+
+  glm5-turbo:
+    name: "GLM-5 Turbo"
+    version: "2026-01"
+    provider: "openrouter"
+    model_id: "z-ai/glm-5-turbo"
+    license: "Apache-2.0"
+    tier: 2
+    thinking: true
+    cost_per_1m_tokens: 0.96
+    description: "Zhipu AI flagship, strong Chinese medical literature"
+
+  mimo-v2-pro:
+    name: "MiMo V2 Pro"
+    version: "2026-02"
+    provider: "openrouter"
+    model_id: "xiaomi/mimo-v2-pro"
+    license: "Apache-2.0"
+    tier: 2
+    thinking: true
+    cost_per_1m_tokens: 1.00
+    description: "Xiaomi reasoning model, 1M context window"
+
+  minimax-m1:
+    name: "MiniMax M1"
+    version: "2025-12"
+    provider: "openrouter"
+    model_id: "minimax/minimax-m1"
+    license: "Custom"
+    tier: 2
+    thinking: true
+    cost_per_1m_tokens: 0.40
+    description: "MiniMax flagship, 1M context, good medical knowledge"
+
+  # ─── Tier 3: Lightweight / Fallback ──────────────────────────
+  mistral-small4:
+    name: "Mistral Small 4"
+    version: "2026-03"
+    provider: "openrouter"
+    model_id: "mistralai/mistral-small-2603"
+    license: "Apache-2.0"
+    tier: 3
+    thinking: false
+    cost_per_1m_tokens: 0.15
+    description: "Fastest response (~1s), ideal for auxiliary tasks"
+
+# ─── Recommended Presets ─────────────────────────────────────────
+presets:
+  balanced:
+    name: "Balanced (Recommended)"
+    description: "4 strong models from different vendors for maximum diversity"
+    models: ["deepseek-v3", "qwen3", "kimi-k2", "llama4-maverick"]
+
+  precision:
+    name: "Maximum Precision"
+    description: "4 tier-1 models including thinking models for highest accuracy (slower)"
+    models: ["deepseek-v3", "qwen3", "kimi-k2.5", "kimi-k2"]
+
+  budget:
+    name: "Budget Friendly"
+    description: "Strong results at lowest cost"
+    models: ["deepseek-v3", "llama4-maverick", "mistral-small4", "minimax-m1"]
+
+  comprehensive:
+    name: "Comprehensive (6 models)"
+    description: "Maximum model diversity for critical reviews"
+    models: ["deepseek-v3", "qwen3", "kimi-k2", "llama4-maverick", "glm5-turbo", "mimo-v2-pro"]
+
+# ─── Thresholds ──────────────────────────────────────────────────
 thresholds:
-  # Calibrated for 4-model binary voting with Shannon entropy confidence.
-  # With 4 models: unanimous → C=1.000, 3/4 majority → C=0.189, 2/2 split → C=0.000
-  tau_high: 0.50   # Tier 1: unanimous (C=1.0 passes, C=0.189 does not)
-  tau_mid: 0.10    # Tier 2: 3/4 majority (C=0.189 passes, C=0.0 does not)
-  tau_low: 0.05    # Tier 3 floor: true 2/2 split (C=0.0) → HUMAN_REVIEW
+  tau_high: 0.50
+  tau_mid: 0.10
+  tau_low: 0.05
   target_sensitivity: 0.98
 
+# ─── Inference ───────────────────────────────────────────────────
 inference:
   temperature: 0.0
   timeout_s: 45.0
+  timeout_thinking_s: 120.0    # Extended timeout for thinking models
   max_retries: 2
+  max_tokens_standard: 1024
+  max_tokens_thinking: 4096    # Higher for thinking models (internal CoT eats tokens)
 
+# ─── Criteria Pipeline ───────────────────────────────────────────
 criteria:
   dedup_quorum_fraction: 0.5
   enable_terminology_enhancement: true
