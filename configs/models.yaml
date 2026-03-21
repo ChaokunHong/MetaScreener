@@ -198,6 +198,7 @@ thresholds:
   tau_high: 0.50
   tau_mid: 0.10
   tau_low: 0.05
+  dissent_tolerance: 0.15   # Tier 1 allows floor(n*0.15) dissenters: n≤6 unanimous, n=7-13 one, n=14+ two
   target_sensitivity: 0.98
 
 # ─── Inference ───────────────────────────────────────────────────

@@ -1231,6 +1231,7 @@ async def _run_screening_background(
             tau_high=cfg.thresholds.tau_high,
             tau_mid=cfg.thresholds.tau_mid,
             tau_low=cfg.thresholds.tau_low,
+            dissent_tolerance=cfg.thresholds.dissent_tolerance,
         )
         screener = TAScreener(backends=backends, timeout_s=cfg.inference.timeout_s, router=router)
 
