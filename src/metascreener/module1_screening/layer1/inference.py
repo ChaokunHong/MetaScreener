@@ -37,6 +37,7 @@ class InferenceEngine:
         record: Record,
         criteria: ReviewCriteria | PICOCriteria,
         seed: int = 42,
+        stage: str | None = None,
     ) -> list[ModelOutput]:
         """Run all backends with a framework-specific prompt.
 
@@ -44,10 +45,14 @@ class InferenceEngine:
             record: The literature record to screen.
             criteria: Review criteria (auto-converts PICOCriteria).
             seed: Reproducibility seed.
+            stage: Screening stage identifier (e.g. "ta", "ft"). Reserved
+                for future stage-specific prompt dispatch.
 
         Returns:
             List of ModelOutput (one per backend).
         """
+        _ = stage  # Reserved for future stage-specific prompt dispatch
+
         criteria_type = type(criteria).__name__
         framework = (
             criteria.framework.value

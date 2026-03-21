@@ -202,3 +202,17 @@ class TestInferenceEngine:
         assert len(outputs) == 2
         failed = [o for o in outputs if o.error is not None]
         assert len(failed) == 1
+
+
+@pytest.mark.asyncio
+async def test_infer_accepts_stage_parameter(mock_include_adapter: MockLLMAdapter) -> None:
+    """infer() should accept an optional stage parameter without error."""
+    from metascreener.core.enums import CriteriaFramework
+    from metascreener.core.models import Record, ReviewCriteria
+    from metascreener.module1_screening.layer1.inference import InferenceEngine
+
+    engine = InferenceEngine(backends=[mock_include_adapter])
+    record = Record(title="Test")
+    criteria = ReviewCriteria(framework=CriteriaFramework.PICO)
+    outputs = await engine.infer(record, criteria, seed=42, stage="ft")
+    assert len(outputs) == 1
