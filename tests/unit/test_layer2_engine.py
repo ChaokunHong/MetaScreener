@@ -107,3 +107,16 @@ def test_accepts_pico_criteria(
         sample_record_include, amr_criteria, [_make_output()]
     )
     assert not result.has_hard_violation
+
+
+def test_check_accepts_optional_stage() -> None:
+    """check() should accept an optional stage parameter."""
+    from metascreener.core.models import Record, ReviewCriteria, RuleCheckResult
+    from metascreener.core.enums import CriteriaFramework
+    from metascreener.module1_screening.layer2.rule_engine import RuleEngine
+
+    engine = RuleEngine()
+    record = Record(title="Test record")
+    criteria = ReviewCriteria(framework=CriteriaFramework.PICO)
+    result = engine.check(record, criteria, [], stage="ta")
+    assert isinstance(result, RuleCheckResult)

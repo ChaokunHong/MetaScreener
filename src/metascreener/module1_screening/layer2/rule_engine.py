@@ -39,6 +39,7 @@ class RuleEngine:
         record: Record,
         criteria: ReviewCriteria | PICOCriteria,
         model_outputs: list[ModelOutput],
+        stage: str | None = None,
     ) -> RuleCheckResult:
         """Run all rules and produce a RuleCheckResult.
 
@@ -49,10 +50,14 @@ class RuleEngine:
             record: The literature record being screened.
             criteria: Review criteria (PICOCriteria auto-converted).
             model_outputs: LLM outputs from Layer 1.
+            stage: Screening stage identifier (e.g. "ta", "ft"). Reserved
+                for future stage-specific rule dispatch.
 
         Returns:
             RuleCheckResult with hard/soft violations and total penalty.
         """
+        _ = stage  # Reserved for future stage-specific rules
+
         if isinstance(criteria, PICOCriteria):
             criteria = ReviewCriteria.from_pico_criteria(criteria)
 
