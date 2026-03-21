@@ -180,12 +180,12 @@ presets:
 
   precision:
     name: "Maximum Precision"
-    description: "3 thinking models + 1 fast anchor, Chinese + Western diversity. Slower but most accurate (~$0.009/paper)"
-    models: ["deepseek-v3", "qwen3", "kimi-k2.5", "nous-hermes4"]
+    description: "3 thinking models + 1 fast anchor across 4 Chinese AI vendors. Slower but most accurate (~$0.009/paper)"
+    models: ["deepseek-v3", "qwen3", "kimi-k2.5", "glm5-turbo"]
 
   budget:
     name: "Budget Friendly"
-    description: "1 tier-1 anchor + 3 lightweight models. Lower quality but 5x cheaper (~$0.003/paper)"
+    description: "1 tier-1 anchor + 3 fast non-thinking models. Lower quality but 5x cheaper (~$0.003/paper)"
     models: ["deepseek-v3", "llama4-maverick", "gemma3-27b", "mistral-small4"]
 
   comprehensive:
