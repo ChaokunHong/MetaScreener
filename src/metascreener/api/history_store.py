@@ -53,6 +53,7 @@ class HistoryStore:
         data: dict[str, Any],
         name: str | None = None,
         summary: str | None = None,
+        tags: list[str] | None = None,
     ) -> dict[str, Any]:
         """Create a new history item.
 
@@ -61,6 +62,7 @@ class HistoryStore:
             data: Module-specific payload.
             name: Optional human-readable label.
             summary: Optional short description.
+            tags: Optional list of tag strings.
 
         Returns:
             The full history item envelope (including generated id and timestamps).
@@ -74,6 +76,7 @@ class HistoryStore:
             "created_at": now,
             "updated_at": now,
             "summary": summary or "",
+            "tags": tags or [],
             "data": data,
         }
         path = self._module_dir(module) / f"{item_id}.json"
@@ -102,6 +105,7 @@ class HistoryStore:
                     "created_at": raw["created_at"],
                     "updated_at": raw["updated_at"],
                     "summary": raw.get("summary", ""),
+                    "tags": raw.get("tags", []),
                 })
             except (json.JSONDecodeError, KeyError):
                 logger.warning("history_corrupt_file", path=str(path))

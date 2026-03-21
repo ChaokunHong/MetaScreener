@@ -84,6 +84,7 @@ async def create_history_item(module: str, body: HistoryCreateRequest) -> Histor
         data=body.data,
         name=body.name,
         summary=body.summary,
+        tags=body.tags,
     )
     return HistoryItemFull(**item)
 

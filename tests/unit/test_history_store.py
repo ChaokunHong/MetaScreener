@@ -222,3 +222,26 @@ class TestValidModules:
         item = store.create(module, data={"test": True})
         assert item["module"] == module
         assert len(store.list_items(module)) == 1
+
+
+def test_create_with_tags(tmp_path: Path) -> None:
+    """History items should store and return tags."""
+    store = HistoryStore(base_dir=tmp_path)
+    item = store.create(
+        module="criteria",
+        data={"framework": "pico"},
+        name="My Criteria",
+        tags=["cardiology", "RCT"],
+    )
+    assert item["tags"] == ["cardiology", "RCT"]
+    items = store.list_items("criteria")
+    assert items[0]["tags"] == ["cardiology", "RCT"]
+    full = store.get("criteria", item["id"])
+    assert full["tags"] == ["cardiology", "RCT"]
+
+
+def test_create_without_tags_defaults_empty(tmp_path: Path) -> None:
+    """Tags should default to empty list when not provided."""
+    store = HistoryStore(base_dir=tmp_path)
+    item = store.create(module="criteria", data={})
+    assert item["tags"] == []

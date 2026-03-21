@@ -401,6 +401,7 @@ class HistoryItemSummary(BaseModel):
     created_at: str
     updated_at: str
     summary: str = ""
+    tags: list[str] = Field(default_factory=list)
 
 
 class HistoryItemFull(HistoryItemSummary):
@@ -424,6 +425,7 @@ class HistoryCreateRequest(BaseModel):
 
     name: str | None = None
     summary: str | None = None
+    tags: list[str] = Field(default_factory=list)
     data: dict[str, Any] = Field(default_factory=dict)
 
 
