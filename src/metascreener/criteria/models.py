@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from metascreener.core.enums import CriteriaFramework
 from metascreener.core.models import ReviewCriteria
 
 
@@ -48,26 +49,36 @@ class DedupResult:
 def build_term_origin(
     per_model_outputs: list[dict[str, Any]],
     model_ids: list[str],
+    framework: CriteriaFramework | None = None,
 ) -> dict[str, dict[str, dict[str, list[str]]]]:
     """Build term_origin mapping from per-model parsed outputs.
 
     Args:
         per_model_outputs: Raw parsed JSON dicts from each model.
         model_ids: Corresponding model identifiers (same order).
+        framework: Optional framework for normalizing raw element keys
+            (e.g. "P" → "population", "I" → "intervention").
 
     Returns:
         Nested dict: element_key -> polarity -> term -> [model_ids].
         Polarity is "include" or "exclude".
     """
+    from metascreener.criteria.consensus import ConsensusMerger  # noqa: PLC0415
+
+    alias_map: dict[str, str] = {}
+    if framework is not None:
+        alias_map = ConsensusMerger._build_key_alias_map(framework)
+
     origin: dict[str, dict[str, dict[str, list[str]]]] = {}
 
     for output, model_id in zip(per_model_outputs, model_ids, strict=True):
         elements = output.get("elements", {})
         if not isinstance(elements, dict):
             continue
-        for key, elem_data in elements.items():
+        for raw_key, elem_data in elements.items():
             if not isinstance(elem_data, dict):
                 continue
+            key = alias_map.get(raw_key.lower(), raw_key.lower()) if alias_map else raw_key
             if key not in origin:
                 origin[key] = {"include": {}, "exclude": {}}
             for polarity in ("include", "exclude"):

@@ -204,7 +204,7 @@ class CriteriaGenerator:
         criteria.prompt_hash = prompt_hash
 
         # Build term origin mapping
-        term_origin = build_term_origin(model_outputs, model_ids)
+        term_origin = build_term_origin(model_outputs, model_ids, framework)
 
         logger.info(
             "round1_complete",
@@ -247,11 +247,15 @@ class CriteriaGenerator:
                 raw = await backend.complete(cross_prompt, seed)
                 cleaned = strip_code_fences(raw)
                 parsed = json.loads(cleaned)
+                if isinstance(parsed, str):
+                    parsed = json.loads(parsed)  # double-encoded JSON
                 if validate_cross_evaluate_response(parsed):
                     return backend.model_id, parsed
                 logger.warning(
                     "round2_invalid_response",
                     backend=backend.model_id,
+                    keys=list(parsed.keys()) if isinstance(parsed, dict) else type(parsed).__name__,
+                    sample=str(parsed)[:200],
                 )
                 return backend.model_id, None
             except (json.JSONDecodeError, Exception) as exc:  # noqa: BLE001

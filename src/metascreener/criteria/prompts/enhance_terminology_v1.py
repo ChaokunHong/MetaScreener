@@ -48,7 +48,7 @@ def build_enhance_terminology_prompt(
 
     return f"""{SYSTEM_ROLE}
 
-Respond in {language}.
+Respond in {language}. You must respond with a JSON object only.
 
 ## TASK
 Review the following systematic review criteria and suggest additional
@@ -70,7 +70,9 @@ For EACH element, provide:
 Do NOT remove existing terms that are already precise. Only improve vague ones
 and add missing synonyms.
 
-## REQUIRED OUTPUT (valid JSON only, no markdown)
+## REQUIRED OUTPUT FORMAT
+You MUST return a single valid JSON object with no markdown fences, no extra
+text, and no preamble. The JSON object must have exactly this structure:
 {{
   "elements": {{
     "<element_key>": {{
@@ -84,4 +86,6 @@ and add missing synonyms.
     "improved_exclude": ["term1", ...],
     "rationale": "brief explanation"
   }}
-}}"""
+}}
+
+Output valid JSON only."""
