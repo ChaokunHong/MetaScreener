@@ -1,7 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '@/views/HomeView.vue'
 import CriteriaView from '@/views/CriteriaView.vue'
-import ScreeningView from '@/views/ScreeningView.vue'
+import ScreeningLandingView from '@/views/ScreeningLandingView.vue'
+import TAScreeningView from '@/views/TAScreeningView.vue'
+import FTScreeningView from '@/views/FTScreeningView.vue'
 import EvaluationView from '@/views/EvaluationView.vue'
 import ExtractionView from '@/views/ExtractionView.vue'
 import QualityView from '@/views/QualityView.vue'
@@ -13,7 +15,9 @@ const router = createRouter({
   routes: [
     { path: '/', component: HomeView },
     { path: '/criteria', component: CriteriaView },
-    { path: '/screening', component: ScreeningView },
+    { path: '/screening', component: ScreeningLandingView },
+    { path: '/screening/ta', component: TAScreeningView },
+    { path: '/screening/ft', component: FTScreeningView },
     { path: '/evaluation', component: EvaluationView },
     { path: '/extraction', component: ExtractionView },
     { path: '/quality', component: QualityView },
