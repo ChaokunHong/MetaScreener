@@ -483,38 +483,52 @@ async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
 
         # Step A: Terminology Enhancement (audit-only, not merged into criteria)
         if _cfg.criteria.enable_terminology_enhancement:
-            try:
-                from metascreener.criteria.prompts.enhance_terminology_v1 import (  # noqa: PLC0415
-                    build_enhance_terminology_prompt,
-                )
-                from metascreener.llm.base import strip_code_fences  # noqa: PLC0415
+            from metascreener.criteria.prompts.enhance_terminology_v1 import (  # noqa: PLC0415
+                build_enhance_terminology_prompt,
+            )
+            from metascreener.llm.base import strip_code_fences  # noqa: PLC0415
 
-                enh_prompt = build_enhance_terminology_prompt(
-                    criteria, language=language,
-                )
-                enh_raw = await backends[0].complete(enh_prompt, seed)
-                enh_data = json.loads(strip_code_fences(enh_raw))
-                _exp: dict[str, list[str]] = {}
-                for ekey, einfo in enh_data.get("elements", {}).items():
-                    terms: list[str] = []
-                    terms.extend(einfo.get("improved_terms", []))
-                    terms.extend(einfo.get("suggested_mesh", []))
-                    if terms:
-                        _exp[ekey] = terms
-                if _exp:
-                    search_expansion_terms = _exp
-                    if criteria.generation_audit is not None:
-                        criteria.generation_audit.search_expansion_terms = (
-                            search_expansion_terms
-                        )
-                logger.info(
-                    "terminology_enhancement_done",
-                    n_elements=len(search_expansion_terms or {}),
-                )
-            except Exception:  # noqa: BLE001
-                logger.warning(
-                    "terminology_enhancement_failed", exc_info=True,
-                )
+            enh_prompt = build_enhance_terminology_prompt(
+                criteria, language=language,
+            )
+
+            # Try each backend until one returns valid JSON
+            for _enh_backend in backends:
+                try:
+                    enh_raw = await _enh_backend.complete(enh_prompt, seed)
+                    enh_data = json.loads(strip_code_fences(enh_raw))
+                    if isinstance(enh_data, str):
+                        enh_data = json.loads(enh_data)
+                    if not isinstance(enh_data, dict):
+                        raise TypeError(f"Expected dict, got {type(enh_data).__name__}")
+                    _exp: dict[str, list[str]] = {}
+                    for ekey, einfo in enh_data.get("elements", {}).items():
+                        if not isinstance(einfo, dict):
+                            continue
+                        terms: list[str] = []
+                        terms.extend(einfo.get("improved_terms", []))
+                        terms.extend(einfo.get("suggested_mesh", []))
+                        if terms:
+                            _exp[ekey] = terms
+                    if _exp:
+                        search_expansion_terms = _exp
+                        if criteria.generation_audit is not None:
+                            criteria.generation_audit.search_expansion_terms = (
+                                search_expansion_terms
+                            )
+                    logger.info(
+                        "terminology_enhancement_done",
+                        model=_enh_backend.model_id,
+                        n_elements=len(search_expansion_terms or {}),
+                    )
+                    break  # Success — stop trying other backends
+                except Exception:  # noqa: BLE001
+                    logger.warning(
+                        "terminology_enhancement_backend_failed",
+                        model=_enh_backend.model_id,
+                        exc_info=True,
+                    )
+                    continue  # Try next backend
 
         # Step B: Auto-Refine (rules + quality checks)
         auto_refine_triggers: list[str] | None = None
@@ -585,6 +599,10 @@ async def criteria_preview(body: dict[str, Any]) -> dict[str, Any]:
                         refine_prompt, seed,
                     )
                     refine_data = json.loads(_strip(refine_raw))
+                    if isinstance(refine_data, str):
+                        refine_data = json.loads(refine_data)
+                    if not isinstance(refine_data, dict):
+                        raise TypeError(f"Expected dict, got {type(refine_data).__name__}")
 
                     # Apply refinements to criteria
                     if "research_question" in refine_data:
@@ -829,8 +847,13 @@ async def suggest_terms(req: SuggestTermsRequest) -> SuggestTermsResponse:
             topic=req.topic,
             framework=req.framework,
         )
+        from metascreener.llm.base import strip_code_fences  # noqa: PLC0415
+
         raw = await backend.complete(prompt, seed=42)
-        data = json.loads(raw)
+        cleaned = strip_code_fences(raw)
+        data = json.loads(cleaned)
+        if isinstance(data, str):
+            data = json.loads(data)
         suggestions_raw = data.get("suggestions", [])
 
         existing = {
@@ -902,7 +925,10 @@ async def pilot_search(req: PilotSearchRequest) -> PilotDiagnostic:
     from metascreener.llm.factory import get_strongest_backend  # noqa: PLC0415
 
     ncbi_key = _get_ncbi_api_key()
-    criteria = ReviewCriteria(**req.criteria)
+    criteria_data = dict(req.criteria)
+    if "framework" not in criteria_data:
+        criteria_data["framework"] = "pico"
+    criteria = ReviewCriteria(**criteria_data)
     mesh_results = req.mesh_results
 
     searcher = PilotSearcher(ncbi_api_key=ncbi_key)
@@ -938,44 +964,62 @@ async def pilot_search(req: PilotSearchRequest) -> PilotDiagnostic:
 
     backends = _build_screening_backends(api_key)
     cfg = get_config()
-    backend = get_strongest_backend(backends, cfg)
 
-    try:
-        articles_dicts = [a.model_dump() for a in search_result.articles]
-        criteria_dict = criteria.model_dump(mode="json")
-        prompt = build_pilot_relevance_prompt(articles_dicts, criteria_dict)
-        raw = await backend.complete(prompt, seed=42)
+    from metascreener.llm.base import strip_code_fences as _strip_fences  # noqa: PLC0415
 
-        data = json.loads(raw)
-        assessments_raw = data.get("assessments", [])
-        assessments = [
-            RelevanceAssessment(
-                pmid=a.get("pmid", ""),
-                title=a.get("title", ""),
-                is_relevant=bool(a.get("is_relevant", False)),
-                reason=a.get("reason", ""),
+    articles_dicts = [a.model_dump() for a in search_result.articles]
+    criteria_dict = criteria.model_dump(mode="json")
+    prompt = build_pilot_relevance_prompt(articles_dicts, criteria_dict)
+
+    # Try each backend until one returns valid assessments
+    _used_model = "none"
+    for _pilot_backend in backends:
+        try:
+            raw = await _pilot_backend.complete(prompt, seed=42)
+            cleaned_raw = _strip_fences(raw)
+            data = json.loads(cleaned_raw)
+            if isinstance(data, str):
+                data = json.loads(data)
+            assessments_raw = data.get("assessments", [])
+            assessments = [
+                RelevanceAssessment(
+                    pmid=a.get("pmid", ""),
+                    title=a.get("title", ""),
+                    is_relevant=bool(a.get("is_relevant", False)),
+                    reason=a.get("reason", ""),
+                )
+                for a in assessments_raw
+                if isinstance(a, dict)
+            ]
+
+            if not assessments:
+                raise ValueError("No valid assessments parsed")
+
+            relevant = sum(1 for a in assessments if a.is_relevant)
+            total = len(assessments)
+            precision = relevant / total if total > 0 else None
+            _used_model = _pilot_backend.model_id
+
+            return PilotDiagnostic(
+                search_result=search_result,
+                assessments=assessments,
+                estimated_precision=precision,
+                model_used=_used_model,
             )
-            for a in assessments_raw
-            if isinstance(a, dict)
-        ]
+        except Exception:
+            logger.warning(
+                "pilot_relevance_backend_failed",
+                model=_pilot_backend.model_id,
+                exc_info=True,
+            )
+            continue
 
-        relevant = sum(1 for a in assessments if a.is_relevant)
-        total = len(assessments)
-        precision = relevant / total if total > 0 else None
-
-        return PilotDiagnostic(
-            search_result=search_result,
-            assessments=assessments,
-            estimated_precision=precision,
-            model_used=backend.model_id,
-        )
-    except Exception:
-        logger.warning("pilot_relevance_failed", exc_info=True)
-        return PilotDiagnostic(
-            search_result=search_result,
-            assessments=[],
-            estimated_precision=None,
-            model_used=backend.model_id,
+    # All backends failed
+    return PilotDiagnostic(
+        search_result=search_result,
+        assessments=[],
+        estimated_precision=None,
+        model_used="all_failed",
         )
     finally:
         await _close_backends(backends)

@@ -21,6 +21,57 @@ class ConsensusMerger:
     """
 
     @staticmethod
+    def _build_key_alias_map(
+        framework: CriteriaFramework,
+    ) -> dict[str, str]:
+        """Build a mapping from common aliases to canonical element keys.
+
+        Models may use single-letter keys (P, E, O), full names
+        (population, exposure, outcome), or labels (Population, Exposure).
+        This normalizes all to the canonical keys defined in FRAMEWORK_ELEMENTS.
+
+        Args:
+            framework: The criteria framework.
+
+        Returns:
+            Dict mapping alias (lowercased) -> canonical key.
+        """
+        defn = FRAMEWORK_ELEMENTS.get(framework)
+        if defn is None:
+            return {}
+
+        alias_map: dict[str, str] = {}
+        labels = defn.get("labels", {})
+        for canonical_key, label in labels.items():
+            # canonical key itself
+            alias_map[canonical_key.lower()] = canonical_key
+            # label (e.g., "Population" -> "population")
+            alias_map[label.lower()] = canonical_key
+            # first letter (e.g., "p" -> "population")
+            first_letter = canonical_key[0].lower()
+            # Only add single-letter alias if unambiguous
+            if first_letter not in alias_map:
+                alias_map[first_letter] = canonical_key
+
+        return alias_map
+
+    @staticmethod
+    def _normalize_key(
+        raw_key: str,
+        alias_map: dict[str, str],
+    ) -> str:
+        """Normalize an element key using the alias map.
+
+        Args:
+            raw_key: Key from model output (e.g., "P", "population", "Population").
+            alias_map: Alias -> canonical key mapping.
+
+        Returns:
+            Canonical key, or original key lowercased if no alias found.
+        """
+        return alias_map.get(raw_key.lower(), raw_key.lower())
+
+    @staticmethod
     def merge(
         model_outputs: list[dict[str, Any]],
         framework: CriteriaFramework,
@@ -41,9 +92,38 @@ class ConsensusMerger:
         if n_models == 1:
             return ConsensusMerger._single_model_result(model_outputs[0], framework)
 
-        # Collect all element keys across models (guard against non-dict outputs)
-        all_element_keys: set[str] = set()
+        alias_map = ConsensusMerger._build_key_alias_map(framework)
+
+        # Normalize element keys in all outputs before merging
+        normalized_outputs: list[dict[str, Any]] = []
         for output in model_outputs:
+            if not isinstance(output, dict):
+                normalized_outputs.append(output)
+                continue
+            norm = dict(output)
+            elements = output.get("elements", {})
+            if isinstance(elements, dict):
+                norm_elements: dict[str, Any] = {}
+                for raw_key, value in elements.items():
+                    canon_key = ConsensusMerger._normalize_key(raw_key, alias_map)
+                    if canon_key in norm_elements:
+                        # Merge into existing canonical element
+                        existing = norm_elements[canon_key]
+                        if isinstance(existing, dict) and isinstance(value, dict):
+                            for t in value.get("include", []):
+                                if t not in existing.get("include", []):
+                                    existing.setdefault("include", []).append(t)
+                            for t in value.get("exclude", []):
+                                if t not in existing.get("exclude", []):
+                                    existing.setdefault("exclude", []).append(t)
+                    else:
+                        norm_elements[canon_key] = value
+                norm["elements"] = norm_elements
+            normalized_outputs.append(norm)
+
+        # Collect all element keys across normalized outputs
+        all_element_keys: set[str] = set()
+        for output in normalized_outputs:
             if not isinstance(output, dict):
                 continue
             elements = output.get("elements", {})
@@ -54,7 +134,7 @@ class ConsensusMerger:
         merged_elements: dict[str, CriteriaElement] = {}
         for key in sorted(all_element_keys):
             merged_elements[key] = ConsensusMerger._merge_element(
-                key, model_outputs, n_models
+                key, normalized_outputs, n_models
             )
 
         # Merge study designs
@@ -171,14 +251,28 @@ class ConsensusMerger:
         if not isinstance(output, dict):
             logger.warning("single_model_non_dict", type=type(output).__name__)
             return ReviewCriteria(framework=framework)
+
+        alias_map = ConsensusMerger._build_key_alias_map(framework)
         elements: dict[str, CriteriaElement] = {}
-        for key, elem_data in output.get("elements", {}).items():
+        for raw_key, elem_data in output.get("elements", {}).items():
             if isinstance(elem_data, dict):
-                elements[key] = CriteriaElement(
-                    name=elem_data.get("name", key.title()),
-                    include=elem_data.get("include", []),
-                    exclude=elem_data.get("exclude", []),
-                )
+                key = ConsensusMerger._normalize_key(raw_key, alias_map)
+                if key in elements:
+                    # Merge into existing
+                    for t in elem_data.get("include", []):
+                        if t not in elements[key].include:
+                            elements[key].include.append(t)
+                    for t in elem_data.get("exclude", []):
+                        if t not in elements[key].exclude:
+                            elements[key].exclude.append(t)
+                else:
+                    defn = FRAMEWORK_ELEMENTS.get(framework)
+                    label = defn["labels"].get(key, key.title()) if defn else key.title()
+                    elements[key] = CriteriaElement(
+                        name=elem_data.get("name", label),
+                        include=elem_data.get("include", []),
+                        exclude=elem_data.get("exclude", []),
+                    )
 
         required = ConsensusMerger._required_elements(framework, elements)
 

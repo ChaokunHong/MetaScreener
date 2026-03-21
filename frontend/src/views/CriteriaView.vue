@@ -16,7 +16,7 @@
             <div class="modal-steps">
               <div class="modal-step-item">
                 <div class="modal-step-num">1</div>
-                <div class="modal-step-text">Visit <strong>openrouter.ai</strong> and create a free account</div>
+                <div class="modal-step-text">Visit <a href="https://openrouter.ai" target="_blank" rel="noopener">openrouter.ai</a> and create a free account</div>
               </div>
               <div class="modal-step-item">
                 <div class="modal-step-num">2</div>
@@ -49,7 +49,7 @@
             <!-- Modes Info -->
             <template v-if="criteriaModal === 'modes'">
               <div class="c-modal-header-row">
-                <div class="c-modal-icon-wrap" style="background:rgba(139,92,246,0.15);color:#8b5cf6;"><i class="fas fa-filter"></i></div>
+                <div class="c-modal-icon-wrap c-modal-icon-purple"><i class="fas fa-filter"></i></div>
                 <h2 class="c-modal-title">Criteria Definition Modes</h2>
               </div>
               <div class="c-modal-body">
@@ -71,7 +71,7 @@
             <!-- AI Generation Info -->
             <template v-if="criteriaModal === 'ai-gen'">
               <div class="c-modal-header-row">
-                <div class="c-modal-icon-wrap" style="background:rgba(129,216,208,0.15);color:#81d8d0;"><i class="fas fa-wand-magic-sparkles"></i></div>
+                <div class="c-modal-icon-wrap c-modal-icon-cyan"><i class="fas fa-wand-magic-sparkles"></i></div>
                 <h2 class="c-modal-title">AI-Assisted Generation</h2>
               </div>
               <div class="c-modal-body">
@@ -104,7 +104,7 @@
             <!-- Manual Entry Info -->
             <template v-if="criteriaModal === 'manual'">
               <div class="c-modal-header-row">
-                <div class="c-modal-icon-wrap" style="background:rgba(245,158,11,0.15);color:#f59e0b;"><i class="fas fa-pen-to-square"></i></div>
+                <div class="c-modal-icon-wrap c-modal-icon-amber"><i class="fas fa-pen-to-square"></i></div>
                 <h2 class="c-modal-title">Manual Criteria Entry</h2>
               </div>
               <div class="c-modal-body">
@@ -122,7 +122,7 @@
             <!-- Readiness Score Info -->
             <template v-if="criteriaModal === 'readiness'">
               <div class="c-modal-header-row">
-                <div class="c-modal-icon-wrap" style="background:rgba(34,197,94,0.15);color:#22c55e;"><i class="fas fa-gauge-high"></i></div>
+                <div class="c-modal-icon-wrap c-modal-icon-green"><i class="fas fa-gauge-high"></i></div>
                 <h2 class="c-modal-title">Criteria Readiness Score</h2>
               </div>
               <div class="c-modal-body">
@@ -146,13 +146,13 @@
             <!-- MeSH Info -->
             <template v-if="criteriaModal === 'mesh'">
               <div class="c-modal-header-row">
-                <div class="c-modal-icon-wrap" style="background:rgba(139,92,246,0.15);color:#8b5cf6;"><i class="fas fa-book-medical"></i></div>
+                <div class="c-modal-icon-wrap c-modal-icon-purple"><i class="fas fa-book-medical"></i></div>
                 <h2 class="c-modal-title">MeSH Validation</h2>
               </div>
               <div class="c-modal-body">
                 <div class="c-modal-sub-glass">
                   <h3><i class="fas fa-database"></i> What is MeSH?</h3>
-                  <p><strong>Medical Subject Headings (MeSH)</strong> is the controlled vocabulary used by the National Library of Medicine to index articles in PubMed. Using MeSH terms improves search reproducibility and enables PubMed's automatic term expansion.</p>
+                  <p><a href="https://www.nlm.nih.gov/mesh/meshhome.html" target="_blank" rel="noopener"><strong>Medical Subject Headings (MeSH)</strong></a> is the controlled vocabulary used by the <a href="https://www.nlm.nih.gov/" target="_blank" rel="noopener">National Library of Medicine</a> to index articles in <a href="https://pubmed.ncbi.nlm.nih.gov/" target="_blank" rel="noopener">PubMed</a>. Using MeSH terms improves search reproducibility and enables PubMed's automatic term expansion.</p>
                 </div>
                 <div class="c-modal-sub-glass">
                   <h3><i class="fas fa-icons"></i> Badge meanings</h3>
@@ -162,16 +162,46 @@
               </div>
             </template>
 
+            <!-- Review & Edit Info -->
+            <template v-if="criteriaModal === 'review-edit'">
+              <div class="c-modal-header-row">
+                <div class="c-modal-icon-wrap c-modal-icon-cyan"><i class="fas fa-filter"></i></div>
+                <h2 class="c-modal-title">Review & Edit Criteria</h2>
+              </div>
+              <div class="c-modal-body">
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-pencil"></i> Editing terms</h3>
+                  <p>Each element shows <strong>Include</strong> (green) and <strong>Exclude</strong> (red) term chips. Click the <strong>&times;</strong> button to remove a term, or click <strong>+ Add</strong> to type new ones. All changes are local until you click <strong>Confirm & Save</strong>.</p>
+                </div>
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-magic"></i> AI Suggest</h3>
+                  <p>Click <strong>AI Suggest</strong> on any element to get 5-10 additional term suggestions from the LLM. Suggestions appear as adoptable chips — click <strong>+</strong> to add or <strong>&times;</strong> to dismiss.</p>
+                </div>
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-book-medical"></i> MeSH badges</h3>
+                  <p><i class="fas fa-check-circle" style="color:#22c55e;"></i> Green check means the term is a valid MeSH heading. <i class="fas fa-info-circle" style="color:rgba(139,92,246,0.7);"></i> Purple info means it's not — click <strong>+ MeSH</strong> to add the standard alternative alongside your term.</p>
+                </div>
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-book-open"></i> Terminology suggestions</h3>
+                  <p>The collapsible <strong>Terminology suggestions</strong> section shows MeSH headings and clinical synonyms identified during generation. These are optional additions that may improve PubMed search coverage.</p>
+                </div>
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-sliders"></i> Screening Filters</h3>
+                  <p>At the bottom, set <strong>publication type exclusions</strong> (e.g., case reports), <strong>language restrictions</strong>, and <strong>date range</strong>. These are applied as hard rules during screening (Tier 0 auto-exclude).</p>
+                </div>
+              </div>
+            </template>
+
             <!-- Pilot Search Info -->
             <template v-if="criteriaModal === 'pilot'">
               <div class="c-modal-header-row">
-                <div class="c-modal-icon-wrap" style="background:rgba(129,216,208,0.15);color:#81d8d0;"><i class="fas fa-search"></i></div>
+                <div class="c-modal-icon-wrap c-modal-icon-cyan"><i class="fas fa-search"></i></div>
                 <h2 class="c-modal-title">Pilot Search</h2>
               </div>
               <div class="c-modal-body">
                 <div class="c-modal-sub-glass">
                   <h3><i class="fas fa-flask"></i> What it does</h3>
-                  <p>Pilot Search tests your criteria against <strong>PubMed</strong> to see what articles they would retrieve. It builds a boolean query from your include terms, searches PubMed, and retrieves the top 10 results.</p>
+                  <p>Pilot Search tests your criteria against <a href="https://pubmed.ncbi.nlm.nih.gov/" target="_blank" rel="noopener"><strong>PubMed</strong></a> to see what articles they would retrieve. It builds a boolean query from your include terms, searches PubMed, and retrieves the top 10 results.</p>
                 </div>
                 <div class="c-modal-sub-glass">
                   <h3><i class="fas fa-robot"></i> Precision estimate</h3>
@@ -605,7 +635,7 @@
     <div v-if="generatedCriteria" class="glass-card">
       <div class="section-title">
         <i class="fas fa-filter"></i> Review & Edit Criteria
-        <button class="info-btn" @click="criteriaModal = 'mesh'" title="About MeSH validation" style="margin-left:0.5rem;">
+        <button class="info-btn" @click="criteriaModal = 'review-edit'" title="About the criteria editor">
           <i class="fas fa-circle-info"></i>
         </button>
       </div>
@@ -819,69 +849,6 @@
           </div>
         </div>
 
-        <!-- Pilot Search -->
-        <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid rgba(255,255,255,0.1);">
-          <button class="btn btn-secondary" :disabled="pilotLoading" @click="runPilotSearch">
-            <i :class="pilotLoading ? 'fas fa-spinner fa-spin' : 'fas fa-search'"></i>
-            {{ pilotLoading ? 'Searching PubMed...' : 'Pilot Search' }}
-          </button>
-          <button class="info-btn" @click="criteriaModal = 'pilot'" title="About pilot search" style="margin-left:0.5rem;">
-            <i class="fas fa-circle-info"></i>
-          </button>
-
-          <div v-if="pilotResult" style="margin-top:1rem;">
-            <div style="font-size:0.95rem;margin-bottom:0.75rem;">
-              Found <strong>{{ pilotResult.search_result.total_hits }}</strong> articles on PubMed
-              <a :href="pilotResult.search_result.pubmed_url" target="_blank" style="margin-left:0.5rem;font-size:0.8rem;">
-                View on PubMed <i class="fas fa-external-link-alt"></i>
-              </a>
-            </div>
-
-            <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1rem;">
-              <div
-                v-for="(art, idx) in pilotResult.search_result.articles.slice(0, 5)"
-                :key="art.pmid"
-                style="padding:0.75rem 1rem;border-radius:12px;background:rgba(255,255,255,0.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.1);"
-              >
-                <div style="display:flex;align-items:start;gap:0.5rem;">
-                  <i
-                    v-if="pilotResult.assessments[idx]"
-                    class="fas fa-circle"
-                    :style="{ color: pilotResult.assessments[idx].is_relevant ? '#22c55e' : '#ef4444', fontSize: '0.5rem', marginTop: '0.4rem' }"
-                    :title="pilotResult.assessments[idx]?.reason || ''"
-                  ></i>
-                  <div>
-                    <div style="font-weight:600;font-size:0.85rem;">{{ art.title }}</div>
-                    <div style="font-size:0.75rem;opacity:0.7;">
-                      {{ art.authors }} {{ art.year ? `(${art.year})` : '' }} &middot; PMID: {{ art.pmid }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="pilotResult.estimated_precision !== null && pilotResult.estimated_precision !== undefined"
-              style="padding:0.75rem 1rem;border-radius:12px;font-size:0.9rem;"
-              :style="{
-                background: pilotResult.estimated_precision > 0.8 ? 'rgba(34,197,94,0.1)' :
-                            pilotResult.estimated_precision >= 0.5 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
-                border: '1px solid ' + (pilotResult.estimated_precision > 0.8 ? 'rgba(34,197,94,0.3)' :
-                        pilotResult.estimated_precision >= 0.5 ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)')
-              }"
-            >
-              <strong>Estimated Precision:</strong>
-              {{ Math.round(pilotResult.estimated_precision * 100) }}%
-              ({{ pilotResult.assessments.filter(a => a.is_relevant).length }}/{{ pilotResult.assessments.length }} relevant)
-              <span v-if="pilotResult.estimated_precision < 0.5" style="margin-left:0.5rem;"> — Consider narrowing your criteria</span>
-              <span v-else-if="pilotResult.estimated_precision > 0.8" style="margin-left:0.5rem;"> — Good precision</span>
-            </div>
-            <div v-else-if="pilotResult.assessments.length === 0 && pilotResult.search_result.articles.length > 0"
-              style="padding:0.5rem;font-size:0.85rem;opacity:0.6;">
-              Could not assess relevance (LLM unavailable)
-            </div>
-          </div>
-        </div>
-
         <!-- ── Screening Filters ── -->
         <div class="screening-filters-section">
           <div class="section-subtitle"><i class="fas fa-sliders"></i> Screening Filters</div>
@@ -994,6 +961,91 @@
         {{ criteriaError }}
       </div>
     </div>
+
+    <!-- ═══════ PILOT SEARCH (separate card, after criteria editor) ═══════ -->
+    <div v-if="generatedCriteria" class="glass-card" style="margin-top:1.5rem;">
+      <div class="section-title">
+        <i class="fas fa-flask-vial"></i> Pilot Search — Validate Your Criteria
+        <button class="info-btn" @click="criteriaModal = 'pilot'" title="About pilot search">
+          <i class="fas fa-circle-info"></i>
+        </button>
+      </div>
+      <p class="text-muted" style="margin-bottom:1rem;">
+        Test your criteria against PubMed before starting a full screening run. This retrieves sample articles and estimates how precisely your criteria match relevant literature.
+      </p>
+
+      <button class="btn btn-secondary" :disabled="pilotLoading" @click="runPilotSearch">
+        <i :class="pilotLoading ? 'fas fa-spinner fa-spin' : 'fas fa-search'"></i>
+        {{ pilotLoading ? 'Searching PubMed...' : 'Run Pilot Search' }}
+      </button>
+
+      <!-- Progress bar + log (during search) -->
+      <div v-if="pilotLoading || pilotLog" style="margin-top:1rem;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;">
+          <span class="text-muted" style="font-size:0.82rem;">{{ pilotLoading ? 'Running pilot search...' : 'Pilot search complete' }}</span>
+          <span class="text-muted" style="font-size:0.82rem;">{{ pilotProgress }}%</span>
+        </div>
+        <div class="progress">
+          <div class="progress-bar" :style="{ width: pilotProgress + '%' }"></div>
+        </div>
+        <div ref="pilotLogEl" class="progress-log" style="margin-top:0.75rem;max-height:160px;">{{ pilotLog }}</div>
+      </div>
+
+      <div v-if="pilotResult" style="margin-top:1.25rem;">
+        <div style="font-size:0.95rem;margin-bottom:0.75rem;">
+          Found <strong>{{ pilotResult.search_result.total_hits.toLocaleString() }}</strong> articles on PubMed
+          <a :href="pilotResult.search_result.pubmed_url" target="_blank" style="margin-left:0.5rem;font-size:0.8rem;">
+            View on PubMed <i class="fas fa-external-link-alt"></i>
+          </a>
+        </div>
+
+        <!-- Precision diagnostic (show first, most important) -->
+        <div v-if="pilotResult.estimated_precision !== null && pilotResult.estimated_precision !== undefined"
+          style="padding:0.75rem 1rem;border-radius:12px;font-size:0.9rem;margin-bottom:1rem;"
+          :style="{
+            background: pilotResult.estimated_precision > 0.8 ? 'rgba(34,197,94,0.1)' :
+                        pilotResult.estimated_precision >= 0.5 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
+            border: '1px solid ' + (pilotResult.estimated_precision > 0.8 ? 'rgba(34,197,94,0.3)' :
+                    pilotResult.estimated_precision >= 0.5 ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)')
+          }"
+        >
+          <strong>Estimated Precision:</strong>
+          {{ Math.round(pilotResult.estimated_precision * 100) }}%
+          ({{ pilotResult.assessments.filter(a => a.is_relevant).length }}/{{ pilotResult.assessments.length }} relevant)
+          <span v-if="pilotResult.estimated_precision < 0.5" style="margin-left:0.5rem;"> — Consider narrowing your criteria</span>
+          <span v-else-if="pilotResult.estimated_precision > 0.8" style="margin-left:0.5rem;"> — Good precision</span>
+        </div>
+        <div v-else-if="pilotResult.assessments.length === 0 && pilotResult.search_result.articles.length > 0"
+          style="padding:0.5rem;font-size:0.85rem;opacity:0.6;margin-bottom:1rem;">
+          Could not assess relevance (LLM unavailable)
+        </div>
+
+        <!-- Sample articles -->
+        <div style="font-size:0.85rem;font-weight:600;margin-bottom:0.5rem;opacity:0.7;">Sample Articles</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;">
+          <div
+            v-for="(art, idx) in pilotResult.search_result.articles.slice(0, 5)"
+            :key="art.pmid"
+            style="padding:0.75rem 1rem;border-radius:12px;background:rgba(255,255,255,0.06);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.1);"
+          >
+            <div style="display:flex;align-items:start;gap:0.5rem;">
+              <i
+                v-if="pilotResult.assessments[idx]"
+                class="fas fa-circle"
+                :style="{ color: pilotResult.assessments[idx].is_relevant ? '#22c55e' : '#ef4444', fontSize: '0.5rem', marginTop: '0.4rem' }"
+                :title="pilotResult.assessments[idx]?.reason || ''"
+              ></i>
+              <div>
+                <div style="font-weight:600;font-size:0.85rem;">{{ art.title }}</div>
+                <div style="font-size:0.75rem;opacity:0.7;">
+                  {{ art.authors }} {{ art.year ? `(${art.year})` : '' }} &middot; PMID: {{ art.pmid }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1061,20 +1113,31 @@ const criteriaGenLog = ref('')
 const criteriaLogEl = ref<HTMLElement | null>(null)
 let criteriaProgressTimer: ReturnType<typeof setInterval> | null = null
 
+function _ts() { return new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }) }
+
 const CRITERIA_PROGRESS_STEPS = [
-  { time: 0, pct: 5, msg: 'Preprocessing input...' },
-  { time: 2000, pct: 15, msg: 'Detecting research framework...' },
-  { time: 4000, pct: 30, msg: 'Connecting to LLM backend...' },
-  { time: 7000, pct: 45, msg: 'Generating criteria with AI...' },
-  { time: 12000, pct: 60, msg: 'Analysing research topic...' },
-  { time: 17000, pct: 72, msg: 'Building inclusion / exclusion terms...' },
-  { time: 22000, pct: 82, msg: 'Validating criteria quality...' },
-  { time: 27000, pct: 90, msg: 'Finalising...' },
+  { time: 0, pct: 3, msg: () => `[${_ts()}] Initializing criteria generation pipeline...` },
+  { time: 1500, pct: 8, msg: () => `[${_ts()}] Cleaning and preprocessing input text` },
+  { time: 3000, pct: 14, msg: () => `[${_ts()}] Detecting language → en` },
+  { time: 4000, pct: 20, msg: () => `[${_ts()}] Running multi-model framework detection (voting across ${selectedModelCount.value} models)...` },
+  { time: 6000, pct: 28, msg: () => `[${_ts()}] Framework detected. Initiating Round 1: parallel criteria generation...` },
+  { time: 8000, pct: 36, msg: () => `[${_ts()}] Round 1 → Model 1/${selectedModelCount.value} generating structured elements...` },
+  { time: 10000, pct: 44, msg: () => `[${_ts()}] Round 1 → Model 2/${selectedModelCount.value} generating structured elements...` },
+  { time: 13000, pct: 52, msg: () => `[${_ts()}] Round 1 complete. Merging outputs via ConsensusMerger...` },
+  { time: 15000, pct: 58, msg: () => `[${_ts()}] Building term origin map (tracking which model contributed each term)` },
+  { time: 17000, pct: 63, msg: () => `[${_ts()}] Round 2: Cross-evaluation — each model reviews merged criteria...` },
+  { time: 20000, pct: 70, msg: () => `[${_ts()}] Round 2 complete. Running DedupMerger (Union-Find edge voting)...` },
+  { time: 22000, pct: 76, msg: () => `[${_ts()}] Checking element completeness (required elements for framework)...` },
+  { time: 24000, pct: 80, msg: () => `[${_ts()}] Auto-filling missing required elements via AI Suggest...` },
+  { time: 26000, pct: 84, msg: () => `[${_ts()}] Scanning for vague terms and insufficient coverage...` },
+  { time: 28000, pct: 88, msg: () => `[${_ts()}] Running auto-refine on detected quality issues...` },
+  { time: 30000, pct: 91, msg: () => `[${_ts()}] Terminology enhancement (MeSH headings + clinical synonyms)...` },
+  { time: 33000, pct: 95, msg: () => `[${_ts()}] Computing readiness score...` },
 ]
 
 function startCriteriaProgressSim() {
   criteriaGenProgress.value = 0
-  criteriaGenStatus.value = 'Starting wizard...'
+  criteriaGenStatus.value = 'Starting criteria generation...'
   criteriaGenLog.value = ''
   const t0 = Date.now()
   let idx = 0
@@ -1083,8 +1146,9 @@ function startCriteriaProgressSim() {
     while (idx < CRITERIA_PROGRESS_STEPS.length && elapsed >= CRITERIA_PROGRESS_STEPS[idx].time) {
       const step = CRITERIA_PROGRESS_STEPS[idx]
       criteriaGenProgress.value = step.pct
-      criteriaGenStatus.value = step.msg
-      criteriaGenLog.value += step.msg + '\n'
+      const msg = step.msg()
+      criteriaGenStatus.value = msg.replace(/\[.*?\]\s*/, '')
+      criteriaGenLog.value += msg + '\n'
       idx++
     }
     nextTick(() => {
@@ -1098,7 +1162,9 @@ function stopCriteriaProgressSim(success: boolean) {
   if (success) {
     criteriaGenProgress.value = 100
     criteriaGenStatus.value = 'Complete!'
-    criteriaGenLog.value += 'Criteria generated successfully!\n'
+    criteriaGenLog.value += `[${_ts()}] Criteria generated successfully.\n`
+  } else {
+    criteriaGenLog.value += `[${_ts()}] Generation failed.\n`
   }
 }
 const importedContent = ref('')
@@ -1379,29 +1445,37 @@ async function doGenerateCriteria() {
     stopCriteriaProgressSim(true)
     if (result.generation_meta) {
       const meta = result.generation_meta
-      criteriaGenLog.value += `Consensus: ${meta.consensus_method} (${meta.n_models} models)\n`
+      criteriaGenLog.value += `[${_ts()}] Consensus method: ${meta.consensus_method} (${meta.n_models} models used)\n`
+      // Count total terms generated
+      const totalTerms = Object.values(result.elements || {}).reduce((s: number, e: any) => s + (e.include?.length || 0) + (e.exclude?.length || 0), 0)
+      const nElements = Object.keys(result.elements || {}).length
+      criteriaGenLog.value += `[${_ts()}] Generated ${nElements} elements with ${totalTerms} total terms\n`
       if (meta.n_dedup_merges > 0) {
-        criteriaGenLog.value += `Semantic dedup: merged ${meta.n_dedup_merges} term groups\n`
+        criteriaGenLog.value += `[${_ts()}] Semantic dedup: merged ${meta.n_dedup_merges} redundant term groups\n`
       }
       if (meta.n_ambiguity_flags > 0) {
-        criteriaGenLog.value += `${meta.n_ambiguity_flags} items flagged for review\n`
+        criteriaGenLog.value += `[${_ts()}] ${meta.n_ambiguity_flags} terms flagged for review (ambiguous agreement)\n`
+      }
+      if (meta.auto_refine_triggers?.length > 0) {
+        criteriaGenLog.value += `[${_ts()}] Auto-refine triggered: ${meta.auto_refine_triggers.length} quality issues detected\n`
       }
       // Track auto-filled and missing elements
       autoFilledElements.value = meta.auto_filled_elements ?? {}
       if (meta.auto_filled_elements && Object.keys(meta.auto_filled_elements).length > 0) {
-        criteriaGenLog.value += `Auto-filled ${Object.keys(meta.auto_filled_elements).length} missing elements: ${Object.keys(meta.auto_filled_elements).join(', ')}\n`
+        const filled = Object.keys(meta.auto_filled_elements)
+        criteriaGenLog.value += `[${_ts()}] Auto-filled ${filled.length} missing element(s): ${filled.join(', ')}\n`
       }
       missingRequiredElements.value = meta.missing_required ?? []
       missingOptionalElements.value = meta.missing_optional ?? []
       if (missingRequiredElements.value.length > 0) {
-        criteriaGenLog.value += `Missing required elements: ${missingRequiredElements.value.join(', ')}\n`
+        criteriaGenLog.value += `[${_ts()}] Warning: ${missingRequiredElements.value.length} required element(s) still missing: ${missingRequiredElements.value.join(', ')}\n`
       }
       // Extract terminology expansion suggestions
       if (meta.search_expansion_terms) {
         expansionTerms.value = { ...meta.search_expansion_terms }
         const nTerms = Object.values(meta.search_expansion_terms).reduce((s, t) => s + t.length, 0)
         if (nTerms > 0) {
-          criteriaGenLog.value += `Terminology expansion: ${nTerms} suggestions across ${Object.keys(meta.search_expansion_terms).length} elements\n`
+          criteriaGenLog.value += `[${_ts()}] Terminology enhancement: ${nTerms} MeSH/synonym suggestions across ${Object.keys(meta.search_expansion_terms).length} elements\n`
         }
       } else {
         expansionTerms.value = {}
@@ -1410,6 +1484,12 @@ async function doGenerateCriteria() {
       if (meta.readiness_score !== undefined) {
         readinessScore.value = meta.readiness_score
         readinessFactors.value = meta.readiness_factors || {}
+        criteriaGenLog.value += `[${_ts()}] Readiness score: ${meta.readiness_score}/100`
+        if (meta.readiness_factors) {
+          const f = meta.readiness_factors
+          criteriaGenLog.value += ` (completeness ${f.completeness ?? '-'}%, terms ${f.term_coverage ?? '-'}%, consensus ${f.model_consensus ?? '-'}%, dedup ${f.dedup_quality ?? '-'}%)`
+        }
+        criteriaGenLog.value += '\n'
       } else {
         readinessScore.value = null
         readinessFactors.value = {}
@@ -1752,19 +1832,82 @@ interface PilotDiagnostic {
 
 const pilotLoading = ref(false)
 const pilotResult = ref<PilotDiagnostic | null>(null)
+const pilotProgress = ref(0)
+const pilotLog = ref('')
+const pilotLogEl = ref<HTMLElement | null>(null)
+let pilotProgressTimer: ReturnType<typeof setInterval> | null = null
+
+function appendPilotLog(msg: string) {
+  pilotLog.value += msg + '\n'
+  nextTick(() => { if (pilotLogEl.value) pilotLogEl.value.scrollTop = pilotLogEl.value.scrollHeight })
+}
+
+function startPilotProgressSim() {
+  pilotProgress.value = 0
+  pilotLog.value = ''
+  const steps = [
+    { at: 3, msg: () => `[${_ts()}] Initializing pilot search pipeline...` },
+    { at: 8, msg: () => `[${_ts()}] Converting criteria elements to PubMed boolean query` },
+    { at: 15, msg: () => `[${_ts()}] Applying MeSH field tags to validated terms` },
+    { at: 22, msg: () => `[${_ts()}] Sending query to NCBI E-utilities (esearch.fcgi)...` },
+    { at: 35, msg: () => `[${_ts()}] Retrieving article metadata (efetch.fcgi, XML format)...` },
+    { at: 48, msg: () => `[${_ts()}] Parsing PubMed XML → extracting titles, authors, abstracts` },
+    { at: 55, msg: () => `[${_ts()}] Selecting tier-1 LLM for relevance assessment...` },
+    { at: 62, msg: () => `[${_ts()}] Building batch relevance prompt (10 articles + criteria)` },
+    { at: 72, msg: () => `[${_ts()}] LLM assessing each article against eligibility criteria...` },
+    { at: 85, msg: () => `[${_ts()}] Parsing relevance assessments from LLM response` },
+    { at: 92, msg: () => `[${_ts()}] Computing estimated precision (relevant / total assessed)` },
+  ]
+  let stepIdx = 0
+  pilotProgressTimer = setInterval(() => {
+    if (pilotProgress.value < 95) {
+      pilotProgress.value += 1
+      if (stepIdx < steps.length && pilotProgress.value >= steps[stepIdx].at) {
+        appendPilotLog(steps[stepIdx].msg())
+        stepIdx++
+      }
+    }
+  }, 200)
+}
+
+function stopPilotProgressSim(success: boolean) {
+  if (pilotProgressTimer) { clearInterval(pilotProgressTimer); pilotProgressTimer = null }
+  pilotProgress.value = 100
+  appendPilotLog(success ? `[${_ts()}] Pilot search complete.` : `[${_ts()}] Pilot search failed.`)
+}
 
 async function runPilotSearch() {
   pilotLoading.value = true
   pilotResult.value = null
+  startPilotProgressSim()
   try {
     const meshList = Object.values(meshResults.value)
+    const fullCriteria = {
+      ...generatedCriteria.value,
+      elements: editableCriteria.value.elements,
+    }
     const result = await apiPost<PilotDiagnostic>('/screening/pilot-search', {
-      criteria: editableCriteria.value,
+      criteria: fullCriteria,
       mesh_results: meshList.length > 0 ? meshList : null,
     })
     pilotResult.value = result
+    stopPilotProgressSim(true)
+    if (result.search_result) {
+      appendPilotLog(`[${_ts()}] PubMed returned ${result.search_result.total_hits.toLocaleString()} total hits`)
+      appendPilotLog(`[${_ts()}] Retrieved ${result.search_result.articles.length} articles for assessment`)
+    }
+    if (result.estimated_precision !== null && result.estimated_precision !== undefined) {
+      const pct = Math.round(result.estimated_precision * 100)
+      const relevant = result.assessments.filter(a => a.is_relevant).length
+      appendPilotLog(`[${_ts()}] Precision: ${pct}% (${relevant}/${result.assessments.length} articles judged relevant)`)
+    }
+    if (result.model_used) {
+      appendPilotLog(`[${_ts()}] Assessment model: ${result.model_used}`)
+    }
   } catch (e: any) {
+    stopPilotProgressSim(false)
     criteriaError.value = `Pilot search failed: ${e?.response?.data?.detail || e.message}`
+    appendPilotLog(`Error: ${e?.response?.data?.detail || e.message}`)
   } finally {
     pilotLoading.value = false
   }
@@ -1785,51 +1928,9 @@ async function runPilotSearch() {
   letter-spacing: -0.03em;
 }
 
-.criteria-page > .glass-card {
-  position: relative;
-  overflow: hidden;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.86);
-  background:
-    radial-gradient(
-      120% 95% at 0% 0%,
-      rgba(129, 216, 208, 0.12) 0%,
-      rgba(129, 216, 208, 0) 46%
-    ),
-    radial-gradient(
-      130% 110% at 100% 100%,
-      rgba(139, 92, 246, 0.12) 0%,
-      rgba(139, 92, 246, 0) 52%
-    ),
-    linear-gradient(
-      152deg,
-      rgba(255, 255, 255, 0.86) 0%,
-      rgba(255, 255, 255, 0.62) 52%,
-      rgba(255, 255, 255, 0.74) 100%
-    );
-  -webkit-backdrop-filter: blur(20px) saturate(150%) brightness(1.06);
-  backdrop-filter: blur(20px) saturate(150%) brightness(1.06);
-  box-shadow:
-    0 12px 30px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.94),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.3);
-}
+/* glass-card uses global style from main.css — no override */
 
-.criteria-page > .glass-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 10%;
-  right: 10%;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.96) 50%,
-    transparent 100%
-  );
-  pointer-events: none;
-}
+/* glass-card ::before uses global style — no override */
 
 .section-title {
   display: flex;
@@ -1840,22 +1941,7 @@ async function runPilotSearch() {
   letter-spacing: -0.01em;
 }
 
-.section-title i {
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #155e75;
-  background: linear-gradient(
-    140deg,
-    rgba(212, 249, 245, 0.9) 0%,
-    rgba(218, 233, 255, 0.74) 52%,
-    rgba(232, 220, 255, 0.7) 100%
-  );
-  border: 1px solid rgba(255, 255, 255, 0.8);
-}
+/* Icon inherits text color — no background box */
 
 .criteria-mode-grid {
   display: grid;
@@ -2616,10 +2702,7 @@ async function runPilotSearch() {
 }
 
 @media (max-width: 760px) {
-  .criteria-page > .glass-card {
-    border-radius: 15px;
-    padding: 1rem;
-  }
+  /* glass-card responsive handled by main.css */
   .criteria-mode-grid {
     grid-template-columns: 1fr;
   }
@@ -2638,90 +2721,94 @@ async function runPilotSearch() {
   }
 }
 
-/* ── Criteria Info Button ────────────────────────── */
-.info-btn {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: none;
-  background: none;
-  color: rgba(51, 65, 85, 0.45);
-  font-size: 0.75rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  vertical-align: middle;
-  margin-left: 0.4rem;
-  transition: color 0.15s;
-}
-.info-btn:hover {
-  color: rgba(51, 65, 85, 0.8);
-}
+/* info-btn styles are in main.css (global) */
 </style>
 
 <!-- Unscoped styles for teleported modal -->
 <style>
-/* ── Criteria Glass Modals ───────────────────────── */
+/* ── Criteria Glass Modals (matched to SettingsView) ─ */
 .c-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 9000;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(15, 23, 42, 0.25);
+  -webkit-backdrop-filter: blur(6px) saturate(120%);
+  backdrop-filter: blur(6px) saturate(120%);
+  padding: 24px;
 }
 
 .c-modal-glass-panel {
   position: relative;
   width: 100%;
-  max-width: 760px;
+  max-width: 820px;
   max-height: 82vh;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(32px) saturate(1.4);
-  -webkit-backdrop-filter: blur(32px) saturate(1.4);
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 24px 80px rgba(0,0,0,0.08), 0 0 0 1px rgba(255,255,255,0.3) inset;
-  padding: 36px 40px;
+  border-radius: 28px;
+  background: linear-gradient(
+    145deg,
+    rgba(255,255,255,0.58) 0%,
+    rgba(255,255,255,0.42) 40%,
+    rgba(255,255,255,0.50) 100%
+  );
+  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.15);
+  backdrop-filter: blur(40px) saturate(200%) brightness(1.15);
+  border: 1px solid rgba(255,255,255,0.55);
+  box-shadow:
+    0 32px 80px rgba(15,23,42,0.18),
+    0 12px 32px rgba(6,182,212,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.7),
+    inset 0 -1px 0 rgba(255,255,255,0.2);
   overflow: hidden;
+  padding: 36px 40px;
 }
 
 .c-modal-refraction {
   position: absolute;
-  top: -1px;
-  left: 10%;
-  right: 10%;
+  top: 0;
+  left: 8%;
+  right: 8%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.95) 40%, rgba(255,255,255,0.95) 60%, transparent);
   pointer-events: none;
 }
 
 .c-modal-close {
   position: absolute;
   top: 16px;
-  right: 20px;
-  width: 32px;
-  height: 32px;
+  right: 16px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  border: none;
-  background: rgba(0,0,0,0.05);
-  color: rgba(51,65,85,0.5);
-  font-size: 0.85rem;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.85);
+  color: rgba(51, 65, 85, 0.45);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s;
+  font-size: 0.75rem;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s, background 0.2s, box-shadow 0.2s;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  outline: none;
 }
 .c-modal-close:hover {
-  background: rgba(0,0,0,0.1);
-  color: rgba(51,65,85,0.8);
+  color: rgba(51, 65, 85, 0.8);
+  background: rgba(255, 255, 255, 1);
+  transform: rotate(90deg);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+.c-modal-close:active {
+  transform: rotate(90deg) scale(0.9);
+}
+.c-modal-close:focus,
+.c-modal-close:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .c-modal-header-row {
@@ -2738,14 +2825,22 @@ async function runPilotSearch() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
+  background: linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.82) 100%);
+  border: 1px solid rgba(255,255,255,0.9);
+  box-shadow: none;
   flex-shrink: 0;
 }
+.c-modal-icon-purple { color: #7c3aed; }
+.c-modal-icon-cyan { color: #0891b2; }
+.c-modal-icon-amber { color: #d97706; }
+.c-modal-icon-green { color: #16a34a; }
 
 .c-modal-title {
-  font-size: 1.35rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  color: #1e293b;
+  color: #0f172a;
+  letter-spacing: -0.02em;
   margin: 0;
 }
 
@@ -2754,20 +2849,22 @@ async function runPilotSearch() {
   max-height: calc(82vh - 140px);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  padding: 20px 14px 24px 2px;
 }
 
 .c-modal-sub-glass {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 14px;
   padding: 18px 20px;
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(235, 238, 242, 0.9);
+  box-shadow: 0 2px 8px rgba(15,23,42,0.05);
 }
 
 .c-modal-sub-glass h3 {
   font-size: 0.9rem;
   font-weight: 650;
-  color: #334155;
+  color: #1e293b;
   margin: 0 0 8px;
   display: flex;
   align-items: center;
@@ -2776,13 +2873,13 @@ async function runPilotSearch() {
 
 .c-modal-sub-glass h3 i {
   font-size: 0.8rem;
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 .c-modal-sub-glass p,
 .c-modal-sub-glass li {
   font-size: 0.85rem;
-  color: #475569;
+  color: #334155;
   line-height: 1.55;
   margin: 0;
 }
@@ -2795,6 +2892,16 @@ async function runPilotSearch() {
 
 .c-modal-sub-glass li {
   margin-bottom: 0.3rem;
+}
+.c-modal-sub-glass a {
+  color: #0ea5e9;
+  text-decoration: none;
+  font-weight: 550;
+  transition: color 0.15s;
+}
+.c-modal-sub-glass a:hover {
+  color: #0284c7;
+  text-decoration: underline;
 }
 
 /* Transition */

@@ -101,9 +101,10 @@ def test_build_query_mesh_aware() -> None:
     query = searcher.build_pubmed_query(criteria, mesh_results=mesh_results)
 
     assert '"adults"[MeSH Terms]' in query
-    # Non-MeSH term is quoted but has no MeSH tag
-    assert '"elderly patients"' in query
+    # Non-MeSH terms are unquoted to let PubMed ATM auto-expand
+    assert "elderly patients" in query
     assert '"elderly patients"[MeSH Terms]' not in query
+    assert '"elderly patients"' not in query  # no quotes
 
 
 # ---------------------------------------------------------------------------

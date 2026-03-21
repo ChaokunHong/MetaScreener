@@ -692,6 +692,38 @@ textarea.form-control { resize: vertical; min-height: 90px; }
     0 0 0 6px rgba(139, 92, 246, 0.16);
 }
 
+/* Info buttons — global definition, no glow/outline/ring */
+.info-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none !important;
+  background: none !important;
+  color: rgba(51, 65, 85, 0.45);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  transition: color 0.2s ease;
+  padding: 0;
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.info-btn:hover {
+  color: rgba(51, 65, 85, 0.8);
+}
+.info-btn:focus,
+.info-btn:focus-visible,
+.info-btn:active {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  background: none !important;
+}
+
 /* ── Progress ─────────────────────────────────────── */
 .progress-wrap { margin-bottom: 1rem; }
 .progress-status {
@@ -705,16 +737,66 @@ textarea.form-control { resize: vertical; min-height: 90px; }
   border-radius: 3px; transition: width 0.4s ease;
 }
 .progress-log {
-  max-height: 130px; overflow-y: auto;
-  font-size: 0.76rem;
-  font-family: 'JetBrains Mono', 'Menlo', 'Courier New', monospace;
-  background: rgba(0,0,0,0.04);
-  padding: 0.625rem 0.75rem;
-  border-radius: 6px;
-  border: 1px solid rgba(0,0,0,0.08);
-  color: #4b5563;
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 0.74rem;
+  font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Menlo', monospace;
+  background: linear-gradient(165deg, rgba(15, 23, 42, 0.75) 0%, rgba(30, 41, 59, 0.72) 100%);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(165, 243, 252, 0.9);
   white-space: pre-wrap;
   margin-top: 0.75rem;
+  line-height: 1.75;
+  letter-spacing: 0.02em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 4px 20px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow-x: hidden;
+}
+/* Top accent line — tiffany to purple */
+.progress-log::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 6%;
+  right: 6%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(129, 216, 208, 0.6) 25%, rgba(6, 182, 212, 0.5) 50%, rgba(139, 92, 246, 0.4) 75%, transparent);
+  pointer-events: none;
+}
+/* Fake traffic lights */
+.progress-log::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(129, 216, 208, 0.5);
+  box-shadow:
+    -14px 0 0 rgba(245, 158, 11, 0.4),
+    -28px 0 0 rgba(239, 68, 68, 0.35);
+  pointer-events: none;
+}
+/* Scrollbar */
+.progress-log::-webkit-scrollbar {
+  width: 5px;
+}
+.progress-log::-webkit-scrollbar-track {
+  background: transparent;
+}
+.progress-log::-webkit-scrollbar-thumb {
+  background: rgba(129, 216, 208, 0.2);
+  border-radius: 3px;
+}
+.progress-log::-webkit-scrollbar-thumb:hover {
+  background: rgba(129, 216, 208, 0.4);
 }
 
 /* ── Tables ───────────────────────────────────────── */

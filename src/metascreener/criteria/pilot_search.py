@@ -50,12 +50,14 @@ class PilotSearcher:
     ) -> str:
         """Build a boolean PubMed search query from *criteria*.
 
-        MeSH-valid terms (present in *mesh_results* with ``is_valid=True``)
-        are tagged as ``"term"[MeSH Terms]``.  Other terms are wrapped in
-        double quotes only.  Terms within each element are joined with ``OR``
-        and element groups are joined with ``AND``.  Empty elements (no
-        include terms) are skipped entirely.  Exclude terms are NOT inserted
-        into the query string.
+        Only **required** elements are used in the query to avoid over-
+        constraining results.  Within each element, terms are capped at
+        ``_MAX_TERMS_PER_ELEMENT`` to keep the query manageable.
+
+        MeSH-valid terms are tagged ``[MeSH Terms]`` for tree expansion.
+        Multi-word non-MeSH terms are left **unquoted** so PubMed's
+        Automatic Term Mapping (ATM) can expand them to MeSH synonyms —
+        this dramatically increases recall vs exact-phrase matching.
 
         Args:
             criteria: The ``ReviewCriteria`` to convert.
@@ -70,19 +72,34 @@ class PilotSearcher:
             for r in mesh_results:
                 mesh_map[r.term.lower()] = r
 
+        # Determine which elements to include in the query.
+        # Only required elements — optional ones over-constrain the search.
+        from metascreener.criteria.frameworks import FRAMEWORK_ELEMENTS  # noqa: PLC0415
+
+        fw_info = FRAMEWORK_ELEMENTS.get(criteria.framework, {})
+        required_keys = set(fw_info.get("required", []))
+
         element_groups: list[str] = []
 
-        for element in criteria.elements.values():
+        for key, element in criteria.elements.items():
             if not element.include:
                 continue
+            # Skip optional elements to avoid over-constraining
+            if required_keys and key not in required_keys:
+                continue
+
+            # Cap terms per element to keep query manageable
+            terms = element.include[:self._MAX_TERMS_PER_ELEMENT]
 
             term_parts: list[str] = []
-            for term in element.include:
+            for term in terms:
                 validation = mesh_map.get(term.lower())
                 if validation is not None and validation.is_valid:
+                    # MeSH-validated: use field tag for tree expansion
                     term_parts.append(f'"{term}"[MeSH Terms]')
                 else:
-                    term_parts.append(f'"{term}"')
+                    # No quotes — let PubMed ATM auto-expand to MeSH
+                    term_parts.append(term)
 
             if len(term_parts) == 1:
                 element_groups.append(term_parts[0])
@@ -98,6 +115,8 @@ class PilotSearcher:
 
         return " AND ".join(element_groups)
 
+    _MAX_TERMS_PER_ELEMENT: int = 8
+
     def _build_pubmed_url(self, query: str) -> str:
         """Return a PubMed browser URL for *query*.
 
@@ -110,7 +129,7 @@ class PilotSearcher:
         encoded = urllib.parse.quote_plus(query)
         return f"{_PUBMED_BASE}/?term={encoded}"
 
-    def search(
+    async def search(
         self,
         query: str,
         max_results: int = 10,
@@ -130,7 +149,7 @@ class PilotSearcher:
         """
         import httpx  # lazy import to keep module importable without httpx
 
-        client = self._client or httpx.Client(timeout=30.0)
+        client = self._client or httpx.AsyncClient(timeout=30.0)
 
         try:
             # --- esearch ---
@@ -144,7 +163,7 @@ class PilotSearcher:
             if self._api_key:
                 esearch_params["api_key"] = self._api_key
 
-            esearch_resp = client.get(
+            esearch_resp = await client.get(
                 f"{_EUTILS_BASE}/esearch.fcgi",
                 params=esearch_params,
             )
@@ -166,7 +185,7 @@ class PilotSearcher:
                 if self._api_key:
                     efetch_params["api_key"] = self._api_key
 
-                efetch_resp = client.get(
+                efetch_resp = await client.get(
                     f"{_EUTILS_BASE}/efetch.fcgi",
                     params=efetch_params,
                 )
@@ -180,9 +199,8 @@ class PilotSearcher:
             )
 
         finally:
-            # Only close if we created the client ourselves
-            if self._client is None and hasattr(client, "close"):
-                client.close()
+            if self._client is None:
+                await client.aclose()
 
     # ------------------------------------------------------------------
     # Internal helpers

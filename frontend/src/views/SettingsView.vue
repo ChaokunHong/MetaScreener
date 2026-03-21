@@ -49,7 +49,7 @@
             v-model="settings.api_keys.together"
             :type="showTogether ? 'text' : 'password'"
             class="form-control"
-            placeholder="..."
+            placeholder="Optional — not currently used"
             style="flex: 1;"
           />
           <button class="btn btn-secondary btn-sm" @click="showTogether = !showTogether" style="white-space: nowrap;">
@@ -66,7 +66,7 @@
             v-model="settings.api_keys.ncbi"
             :type="showNCBI ? 'text' : 'password'"
             class="form-control"
-            placeholder="Enter your NCBI API key..."
+            placeholder="Optional — improves NCBI rate limit"
             style="flex: 1;"
           />
           <button class="btn btn-secondary btn-sm" @click="showNCBI = !showNCBI" style="white-space: nowrap;">
@@ -195,8 +195,8 @@
                 <div class="modal-sub-glass">
                   <h3><i class="fas fa-shoe-prints"></i> How to get a key</h3>
                   <ol>
-                    <li>Visit <strong>openrouter.ai</strong> and create a free account</li>
-                    <li>Go to <strong>Keys</strong> section and click <strong>Create Key</strong></li>
+                    <li>Visit <a href="https://openrouter.ai" target="_blank" rel="noopener">openrouter.ai</a> and create a free account</li>
+                    <li>Go to <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">Keys</a> section and click <strong>Create Key</strong></li>
                     <li>Copy the key (starts with <code>sk-or-</code>) and paste it above</li>
                   </ol>
                 </div>
@@ -206,7 +206,17 @@
                 </div>
                 <div class="modal-sub-glass">
                   <h3><i class="fas fa-shield-halved"></i> Security</h3>
-                  <p>Your API key is stored <strong>locally</strong> on your machine at <code>~/.metascreener/config.yaml</code>. It is never sent to any server other than OpenRouter.</p>
+                  <p>Your API keys are stored <strong>locally</strong> on your machine at <code>~/.metascreener/config.yaml</code>. They are never sent to any server other than their respective providers.</p>
+                </div>
+                <div class="modal-sub-glass full-width">
+                  <h3><i class="fas fa-database"></i> NCBI API Key (Optional)</h3>
+                  <p>MetaScreener uses NCBI E-utilities for <strong>MeSH term validation</strong> and <strong>PubMed pilot search</strong>. These features work without a key, but with reduced rate limits (3 requests/second vs 10/second).</p>
+                  <ol>
+                    <li>Visit <a href="https://www.ncbi.nlm.nih.gov/account/" target="_blank" rel="noopener">ncbi.nlm.nih.gov/account</a> and sign in or create a free account</li>
+                    <li>Go to <a href="https://www.ncbi.nlm.nih.gov/account/settings/" target="_blank" rel="noopener">Settings → API Key Management</a></li>
+                    <li>Click <strong>Create an API Key</strong> and copy it</li>
+                  </ol>
+                  <p style="margin-top:0.5rem;font-size:0.82rem;opacity:0.8;">Without a key, MeSH validation and Pilot Search still work — they just run slower when validating many terms.</p>
                 </div>
               </div>
             </template>
@@ -465,24 +475,7 @@ async function clearKeys() {
   gap: 8px;
 }
 
-.info-btn {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: none;
-  background: none;
-  color: rgba(51, 65, 85, 0.45);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.82rem;
-  transition: color 0.2s ease;
-  padding: 0;
-}
-.info-btn:hover {
-  color: rgba(51, 65, 85, 0.8);
-}
+/* info-btn styles are in main.css (global) */
 
 /* ── Model Grid — 2x2 Glass Cards ───────────────────── */
 .model-grid {
@@ -618,12 +611,12 @@ async function clearKeys() {
   border-radius: 28px;
   background: linear-gradient(
     145deg,
-    rgba(255,255,255,0.42) 0%,
-    rgba(255,255,255,0.28) 40%,
-    rgba(255,255,255,0.35) 100%
+    rgba(255,255,255,0.58) 0%,
+    rgba(255,255,255,0.42) 40%,
+    rgba(255,255,255,0.50) 100%
   );
-  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.12);
-  backdrop-filter: blur(40px) saturate(200%) brightness(1.12);
+  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.15);
+  backdrop-filter: blur(40px) saturate(200%) brightness(1.15);
   border: 1px solid rgba(255,255,255,0.55);
   box-shadow:
     0 32px 80px rgba(15,23,42,0.18),
@@ -650,26 +643,30 @@ async function clearKeys() {
   position: absolute;
   top: 16px;
   right: 16px;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  border: 1px solid var(--btn-frost-border);
-  background: linear-gradient(145deg, var(--btn-frost-bg-strong) 0%, var(--btn-frost-bg-soft) 100%);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  color: rgba(51,65,85,0.7);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.85);
+  color: rgba(51, 65, 85, 0.45);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
-  transition: all 0.2s ease;
+  font-size: 0.75rem;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s, background 0.2s, box-shadow 0.2s;
   z-index: 10;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  outline: none;
 }
 .modal-close:hover {
-  color: #b91c1c;
-  border-color: rgba(248, 113, 113, 0.4);
+  color: rgba(51, 65, 85, 0.8);
+  background: rgba(255, 255, 255, 1);
+  transform: rotate(90deg);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+.modal-close:active {
+  transform: rotate(90deg) scale(0.9);
 }
 
 /* Header row with icon */
@@ -708,7 +705,7 @@ async function clearKeys() {
   grid-template-columns: repeat(2, 1fr);
   gap: 14px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding: 20px 14px 24px 2px;
 }
 
 /* Full-width card when it's the only one or needs emphasis */
@@ -754,6 +751,16 @@ async function clearKeys() {
   color: rgba(51,65,85,0.88);
   padding-left: 1.2rem;
   margin: 0;
+}
+.modal-sub-glass a {
+  color: #0ea5e9;
+  text-decoration: none;
+  font-weight: 550;
+  transition: color 0.15s;
+}
+.modal-sub-glass a:hover {
+  color: #0284c7;
+  text-decoration: underline;
 }
 .modal-sub-glass code {
   background: rgba(255,255,255,0.5);

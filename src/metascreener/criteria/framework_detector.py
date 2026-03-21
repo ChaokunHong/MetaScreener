@@ -126,19 +126,42 @@ class FrameworkDetector:
         prompt = self._build_prompt(user_input)
         prompt_hash = hash_prompt(prompt)
 
-        async def _query_one(backend: LLMBackend) -> FrameworkDetectionResult:
+        async def _query_one(
+            backend: LLMBackend,
+        ) -> FrameworkDetectionResult | None:
             """Query a single backend and parse its response."""
             saved = self._backend
             self._backend = backend
             try:
                 raw = await backend.complete(prompt, seed)
                 return self._parse_response(raw, prompt_hash)
+            except Exception:
+                logger.warning(
+                    "framework_detect_backend_failed",
+                    model_id=backend.model_id,
+                    exc_info=True,
+                )
+                return None
             finally:
                 self._backend = saved
 
-        results: list[FrameworkDetectionResult] = await asyncio.gather(
+        raw_results = await asyncio.gather(
             *[_query_one(b) for b in self._backends],
         )
+        results: list[FrameworkDetectionResult] = [
+            r for r in raw_results if r is not None
+        ]
+
+        if not results:
+            # All backends failed — fall back to PICO
+            logger.warning("all_framework_detect_backends_failed")
+            return FrameworkDetectionResult(
+                framework=CriteriaFramework.PICO,
+                confidence=0.1,
+                reasoning="All backends failed; defaulting to PICO",
+                alternatives=[],
+                prompt_hash=prompt_hash,
+            )
 
         # --- Tally votes ---
         votes: Counter[CriteriaFramework] = Counter()
