@@ -70,10 +70,10 @@ class ThresholdConfig(BaseModel):
             threshold optimization (default 0.98 per Lancet target).
     """
 
-    tau_high: float = 0.85
+    tau_high: float = 0.50
     dissent_tolerance: float = 0.15
-    tau_mid: float = 0.65
-    tau_low: float = 0.45
+    tau_mid: float = 0.10
+    tau_low: float = 0.05
     target_sensitivity: float = 0.98
 
 
@@ -94,7 +94,7 @@ class InferenceConfig(BaseModel):
     timeout_thinking_s: float = 120.0
     max_retries: int = 2
     max_tokens_standard: int = 1024
-    max_tokens_thinking: int = 4096
+    max_tokens_thinking: int = 8192
 
 
 class CriteriaConfig(BaseModel):
