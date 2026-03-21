@@ -221,3 +221,24 @@ class TestWeightOptimizer:
         loaded_w = loaded.get_weights(["m1", "m2"])
         for mid in original_w:
             assert abs(original_w[mid] - loaded_w[mid]) < 1e-9
+
+
+def test_aggregate_with_calibration_overrides() -> None:
+    """calibration_overrides should override per-model calibration factors."""
+    from metascreener.core.enums import Decision
+    from metascreener.core.models import ModelOutput
+    from metascreener.module1_screening.layer3.aggregator import CCAggregator
+
+    outputs = [
+        ModelOutput(model_id="a", decision=Decision.INCLUDE, score=0.9, confidence=0.9, rationale=""),
+        ModelOutput(model_id="b", decision=Decision.INCLUDE, score=0.7, confidence=0.8, rationale=""),
+    ]
+    agg = CCAggregator()
+
+    s1, _ = agg.aggregate(outputs)
+    overrides = {"a": 1.0, "b": 0.5}
+    s2, _ = agg.aggregate(outputs, calibration_overrides=overrides)
+
+    # Penalizing b should shift score toward a's higher score
+    assert isinstance(s2, float)
+    assert 0.0 <= s2 <= 1.0

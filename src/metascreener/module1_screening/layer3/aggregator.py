@@ -56,6 +56,7 @@ class CCAggregator:
         self,
         model_outputs: list[ModelOutput],
         rule_penalty: float = 0.0,
+        calibration_overrides: dict[str, float] | None = None,
     ) -> tuple[float, float]:
         """Aggregate model outputs into a final score and confidence.
 
@@ -66,6 +67,9 @@ class CCAggregator:
             model_outputs: List of ModelOutput from parallel inference.
             rule_penalty: Total penalty from soft rules (subtracted
                 from final score).
+            calibration_overrides: Per-model calibration factor overrides
+                (model_id → φ_i). When provided for a model, supersedes
+                the calibrator-derived factor for that model.
 
         Returns:
             Tuple of (s_final, c_ensemble) both in [0.0, 1.0].
@@ -80,7 +84,12 @@ class CCAggregator:
             w_i = self._get_weight(output.model_id, n)
             s_i = output.score
             c_i = output.confidence
-            phi_i = self._get_calibration_factor(output.model_id, s_i)
+
+            # Use override if provided, else fall back to calibrator
+            if calibration_overrides and output.model_id in calibration_overrides:
+                phi_i = calibration_overrides[output.model_id]
+            else:
+                phi_i = self._get_calibration_factor(output.model_id, s_i)
 
             numerator += w_i * s_i * c_i * phi_i
             denominator += w_i * c_i * phi_i
