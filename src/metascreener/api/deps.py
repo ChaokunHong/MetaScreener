@@ -57,8 +57,16 @@ def create_backends() -> list[LLMBackend]:
                     openrouter_model_name=entry.model_id,
                     api_key=api_key,
                     model_version=entry.version,
-                    timeout_s=config.inference.timeout_s,
+                    thinking=entry.thinking,
+                    timeout_s=(
+                        config.inference.timeout_thinking_s if entry.thinking
+                        else config.inference.timeout_s
+                    ),
                     max_retries=config.inference.max_retries,
+                    max_tokens=(
+                        config.inference.max_tokens_thinking if entry.thinking
+                        else config.inference.max_tokens_standard
+                    ),
                 )
             )
     return backends
