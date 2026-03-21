@@ -116,6 +116,9 @@ class DecisionRouter:
         rule_result: RuleCheckResult,
         final_score: float,
         ensemble_confidence: float,
+        element_consensus: dict | None = None,
+        ecs_result: object | None = None,
+        disagreement_result: object | None = None,
     ) -> tuple[Decision, Tier]:
         """Route to a final decision and tier.
 
@@ -124,10 +127,18 @@ class DecisionRouter:
             rule_result: Rule check result from Layer 2.
             final_score: Calibrated ensemble score from Layer 3.
             ensemble_confidence: Ensemble confidence from Layer 3.
+            element_consensus: Per-element consensus map (reserved for
+                future ECS-gating enhancement).
+            ecs_result: Element-level consensus scoring result (reserved).
+            disagreement_result: Structured disagreement analysis result
+                (reserved for future use).
 
         Returns:
             Tuple of (Decision, Tier).
         """
+        # Reserved for future ECS-gating enhancement
+        _ = element_consensus, ecs_result, disagreement_result
+
         # Tier 0: Hard rule override
         if rule_result.has_hard_violation:
             logger.info(

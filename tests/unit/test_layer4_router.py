@@ -198,3 +198,20 @@ class TestDecisionRouter:
         decision, tier = router.route(outputs, _clean_rules(), 0.5, 0.0)
         assert decision == Decision.HUMAN_REVIEW
         assert tier == Tier.THREE
+
+
+def test_route_accepts_optional_ecs_params() -> None:
+    """route() should accept optional element_consensus, ecs_result, disagreement_result."""
+    from metascreener.core.enums import Decision
+    from metascreener.core.models import ModelOutput, RuleCheckResult
+    from metascreener.module1_screening.layer4.router import DecisionRouter
+
+    outputs = [
+        ModelOutput(model_id="a", decision=Decision.INCLUDE, score=0.9, confidence=0.9, rationale=""),
+    ]
+    router = DecisionRouter()
+    decision, tier = router.route(
+        outputs, RuleCheckResult(), 0.9, 1.0,
+        element_consensus={}, ecs_result=None, disagreement_result=None,
+    )
+    assert decision == Decision.INCLUDE
