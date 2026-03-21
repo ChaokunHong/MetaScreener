@@ -114,7 +114,7 @@ class TestSettingsAPI:
         resp = client.get("/api/settings/models")
         model_ids = {m["model_id"] for m in resp.json()}
         assert "qwen3" in model_ids
-        assert "deepseek" in model_ids
+        assert "deepseek-v3" in model_ids
 
     def test_test_key_empty_returns_invalid(self) -> None:
         """POST /api/settings/test-key with empty key returns invalid."""

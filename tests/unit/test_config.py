@@ -77,8 +77,8 @@ class TestLoadModelConfig:
             / "models.yaml"
         )
         config = load_model_config(default_path)
-        assert len(config.models) == 4
+        assert len(config.models) >= 9  # At least 9 models configured
         assert "qwen3" in config.models
-        assert "deepseek" in config.models
-        assert "llama" in config.models
-        assert "mistral" in config.models
+        assert "deepseek-v3" in config.models
+        assert "llama4-maverick" in config.models
+        assert "mistral-small4" in config.models
