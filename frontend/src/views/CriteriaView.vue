@@ -38,12 +38,167 @@
       </div>
     </Teleport>
 
+    <!-- Criteria Info Modals -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="criteriaModal" class="c-modal-overlay" @click.self="criteriaModal = null">
+          <div class="c-modal-glass-panel">
+            <div class="c-modal-refraction"></div>
+            <button class="c-modal-close" @click="criteriaModal = null"><i class="fas fa-times"></i></button>
+
+            <!-- Modes Info -->
+            <template v-if="criteriaModal === 'modes'">
+              <div class="c-modal-header-row">
+                <div class="c-modal-icon-wrap" style="background:rgba(139,92,246,0.15);color:#8b5cf6;"><i class="fas fa-filter"></i></div>
+                <h2 class="c-modal-title">Criteria Definition Modes</h2>
+              </div>
+              <div class="c-modal-body">
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-wand-magic-sparkles"></i> AI-Assisted</h3>
+                  <p>Describe your research topic in natural language. MetaScreener uses <strong>multiple LLMs</strong> to automatically detect the best framework (PICO, PEO, SPIDER, etc.) and generate structured inclusion/exclusion criteria with multi-model consensus.</p>
+                </div>
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-pen-to-square"></i> Manual Entry</h3>
+                  <p>Select a framework yourself and manually type inclusion/exclusion terms for each element. Best when you already have a well-defined protocol or want full control over every term.</p>
+                </div>
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-file-import"></i> Import File</h3>
+                  <p>Upload a previously exported criteria file (JSON) from a past MetaScreener session. Useful for reusing criteria across reviews or restoring a saved session.</p>
+                </div>
+              </div>
+            </template>
+
+            <!-- AI Generation Info -->
+            <template v-if="criteriaModal === 'ai-gen'">
+              <div class="c-modal-header-row">
+                <div class="c-modal-icon-wrap" style="background:rgba(129,216,208,0.15);color:#81d8d0;"><i class="fas fa-wand-magic-sparkles"></i></div>
+                <h2 class="c-modal-title">AI-Assisted Generation</h2>
+              </div>
+              <div class="c-modal-body">
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-layer-group"></i> How it works</h3>
+                  <p>Your research topic is sent to <strong>multiple open-source LLMs</strong> simultaneously. Each model independently generates structured criteria. The results are then merged using a <strong>Delphi-inspired cross-evaluation</strong> protocol to produce high-quality consensus criteria.</p>
+                </div>
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-bolt"></i> Fast vs Thorough</h3>
+                  <p><strong>Fast (2 models)</strong> uses 2 LLMs for quicker results (~15-30s). <strong>Thorough (4 models)</strong> uses all 4 LLMs for better consensus quality (~30-60s). Thorough is recommended for final criteria; Fast is useful for quick iterations.</p>
+                </div>
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-shield-check"></i> Quality pipeline</h3>
+                  <ol style="margin:0.5rem 0;padding-left:1.2rem;">
+                    <li>Multi-model framework detection (voting)</li>
+                    <li>Parallel criteria generation</li>
+                    <li>Cross-evaluation &amp; semantic deduplication</li>
+                    <li>Missing element auto-fill</li>
+                    <li>Vague term detection &amp; auto-refinement</li>
+                    <li>MeSH terminology validation</li>
+                  </ol>
+                </div>
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-pencil"></i> After generation</h3>
+                  <p>All generated criteria are <strong>fully editable</strong>. Use <strong>AI Suggest</strong> to expand weak elements, review <strong>MeSH badges</strong> for terminology standardization, and run <strong>Pilot Search</strong> to validate retrieval quality.</p>
+                </div>
+              </div>
+            </template>
+
+            <!-- Manual Entry Info -->
+            <template v-if="criteriaModal === 'manual'">
+              <div class="c-modal-header-row">
+                <div class="c-modal-icon-wrap" style="background:rgba(245,158,11,0.15);color:#f59e0b;"><i class="fas fa-pen-to-square"></i></div>
+                <h2 class="c-modal-title">Manual Criteria Entry</h2>
+              </div>
+              <div class="c-modal-body">
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-sitemap"></i> Frameworks</h3>
+                  <p>Choose the framework that matches your research design: <strong>PICO</strong> (interventional), <strong>PEO</strong> (observational), <strong>SPIDER</strong> (qualitative), <strong>PCC</strong> (scoping), and more. Each framework defines which elements you need to specify.</p>
+                </div>
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-tags"></i> Adding terms</h3>
+                  <p><strong>Include terms</strong> define what should be present in eligible studies. <strong>Exclude terms</strong> define what disqualifies a study. Click <strong>+ Add</strong> and type each term, pressing Enter to confirm. Aim for 5-15 terms per element including synonyms and MeSH headings.</p>
+                </div>
+              </div>
+            </template>
+
+            <!-- Readiness Score Info -->
+            <template v-if="criteriaModal === 'readiness'">
+              <div class="c-modal-header-row">
+                <div class="c-modal-icon-wrap" style="background:rgba(34,197,94,0.15);color:#22c55e;"><i class="fas fa-gauge-high"></i></div>
+                <h2 class="c-modal-title">Criteria Readiness Score</h2>
+              </div>
+              <div class="c-modal-body">
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-calculator"></i> How it's calculated</h3>
+                  <p>The readiness score (0-100) is a weighted composite of four factors:</p>
+                  <ul style="margin:0.5rem 0;padding-left:1.2rem;">
+                    <li><strong>Completeness (35%)</strong> — Are all required framework elements filled?</li>
+                    <li><strong>Term Coverage (30%)</strong> — Average number of terms per element (target: 5+)</li>
+                    <li><strong>Model Consensus (20%)</strong> — How many models contributed to generation</li>
+                    <li><strong>Dedup Quality (15%)</strong> — Whether semantic deduplication was performed</li>
+                  </ul>
+                </div>
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-traffic-light"></i> Score interpretation</h3>
+                  <p><strong style="color:#22c55e;">80+</strong>: Ready for screening. <strong style="color:#f59e0b;">60-79</strong>: Good start, consider using AI Suggest to expand. <strong style="color:#ef4444;">&lt;60</strong>: Needs more terms and missing elements filled.</p>
+                </div>
+              </div>
+            </template>
+
+            <!-- MeSH Info -->
+            <template v-if="criteriaModal === 'mesh'">
+              <div class="c-modal-header-row">
+                <div class="c-modal-icon-wrap" style="background:rgba(139,92,246,0.15);color:#8b5cf6;"><i class="fas fa-book-medical"></i></div>
+                <h2 class="c-modal-title">MeSH Validation</h2>
+              </div>
+              <div class="c-modal-body">
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-database"></i> What is MeSH?</h3>
+                  <p><strong>Medical Subject Headings (MeSH)</strong> is the controlled vocabulary used by the National Library of Medicine to index articles in PubMed. Using MeSH terms improves search reproducibility and enables PubMed's automatic term expansion.</p>
+                </div>
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-icons"></i> Badge meanings</h3>
+                  <p><i class="fas fa-check-circle" style="color:#22c55e;"></i> <strong>Green check</strong>: Valid MeSH heading — will use MeSH tree expansion in PubMed searches.</p>
+                  <p><i class="fas fa-info-circle" style="color:rgba(139,92,246,0.7);"></i> <strong>Purple info</strong>: Not a MeSH heading — will use exact phrase matching. This is fine for screening; click <strong>+ MeSH</strong> to add the suggested MeSH alternative alongside your term.</p>
+                </div>
+              </div>
+            </template>
+
+            <!-- Pilot Search Info -->
+            <template v-if="criteriaModal === 'pilot'">
+              <div class="c-modal-header-row">
+                <div class="c-modal-icon-wrap" style="background:rgba(129,216,208,0.15);color:#81d8d0;"><i class="fas fa-search"></i></div>
+                <h2 class="c-modal-title">Pilot Search</h2>
+              </div>
+              <div class="c-modal-body">
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-flask"></i> What it does</h3>
+                  <p>Pilot Search tests your criteria against <strong>PubMed</strong> to see what articles they would retrieve. It builds a boolean query from your include terms, searches PubMed, and retrieves the top 10 results.</p>
+                </div>
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-robot"></i> Precision estimate</h3>
+                  <p>A tier-1 LLM evaluates each retrieved article against your criteria and estimates <strong>precision</strong> — what fraction of retrieved articles are actually relevant. High precision (>80%) means your criteria are specific enough; low precision (&lt;50%) means they may be too broad.</p>
+                </div>
+                <div class="c-modal-sub-glass">
+                  <h3><i class="fas fa-circle-info"></i> Interpretation</h3>
+                  <p>This is a <strong>quick diagnostic</strong>, not a rigorous evaluation. Use it to catch obvious problems (criteria too broad, wrong framework) before committing to a full screening run.</p>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <h1 class="page-title" style="margin-bottom: 0.25rem;">Define Criteria</h1>
     <p class="text-muted" style="margin-bottom: 1.5rem;">Set up inclusion and exclusion criteria for your systematic review screening.</p>
 
     <!-- ═══════ MODE SELECTOR (before editor is shown) ═══════ -->
     <div v-if="!generatedCriteria" class="glass-card">
-      <div class="section-title"><i class="fas fa-filter"></i> How would you like to define criteria?</div>
+      <div class="section-title">
+        <i class="fas fa-filter"></i> How would you like to define criteria?
+        <button class="info-btn" @click="criteriaModal = 'modes'" title="About criteria modes">
+          <i class="fas fa-circle-info"></i>
+        </button>
+      </div>
 
       <div class="criteria-mode-grid">
         <button
@@ -81,7 +236,12 @@
 
     <!-- ═══════ AI-ASSISTED MODE ═══════ -->
     <div v-if="!generatedCriteria && mode === 'ai'" class="glass-card">
-      <div class="section-title"><i class="fas fa-wand-magic-sparkles"></i> Generate from Research Topic</div>
+      <div class="section-title">
+        <i class="fas fa-wand-magic-sparkles"></i> Generate from Research Topic
+        <button class="info-btn" @click="criteriaModal = 'ai-gen'" title="About AI generation">
+          <i class="fas fa-circle-info"></i>
+        </button>
+      </div>
       <p class="text-muted" style="margin-bottom: 1rem;">
         Describe what your systematic review is about. The AI will generate structured inclusion and exclusion criteria that you can review and edit.
       </p>
@@ -190,7 +350,12 @@
 
     <!-- ═══════ MANUAL ENTRY MODE ═══════ -->
     <div v-if="!generatedCriteria && mode === 'manual'" class="glass-card">
-      <div class="section-title"><i class="fas fa-pen-to-square"></i> Manual Criteria Entry</div>
+      <div class="section-title">
+        <i class="fas fa-pen-to-square"></i> Manual Criteria Entry
+        <button class="info-btn" @click="criteriaModal = 'manual'" title="About manual entry">
+          <i class="fas fa-circle-info"></i>
+        </button>
+      </div>
       <p class="text-muted" style="margin-bottom: 1rem;">
         Choose your framework, then add inclusion and exclusion terms for each element. Click <strong>+ Add</strong> to add terms, press Enter to confirm.
       </p>
@@ -438,7 +603,12 @@
 
     <!-- ═══════ CRITERIA EDITOR (shared by all modes) ═══════ -->
     <div v-if="generatedCriteria" class="glass-card">
-      <div class="section-title"><i class="fas fa-filter"></i> Review & Edit Criteria</div>
+      <div class="section-title">
+        <i class="fas fa-filter"></i> Review & Edit Criteria
+        <button class="info-btn" @click="criteriaModal = 'mesh'" title="About MeSH validation" style="margin-left:0.5rem;">
+          <i class="fas fa-circle-info"></i>
+        </button>
+      </div>
 
       <div class="criteria-editor">
         <div class="criteria-editor-header">
@@ -472,7 +642,11 @@
         <div v-if="readinessScore !== null" style="margin:1rem 0;padding:0.75rem 1rem;border-radius:12px;display:flex;align-items:center;gap:1rem;" :style="{ background: readinessScore >= 80 ? 'rgba(34,197,94,0.1)' : readinessScore >= 60 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)', border: '1px solid ' + (readinessScore >= 80 ? 'rgba(34,197,94,0.3)' : readinessScore >= 60 ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)') }">
           <div style="font-size:1.8rem;font-weight:700;min-width:3rem;text-align:center;" :style="{ color: readinessScore >= 80 ? '#22c55e' : readinessScore >= 60 ? '#f59e0b' : '#ef4444' }">{{ readinessScore }}</div>
           <div>
-            <div style="font-weight:600;font-size:0.9rem;">Criteria Readiness</div>
+            <div style="font-weight:600;font-size:0.9rem;">Criteria Readiness
+              <button class="info-btn" @click="criteriaModal = 'readiness'" title="About readiness score">
+                <i class="fas fa-circle-info"></i>
+              </button>
+            </div>
             <div style="font-size:0.75rem;opacity:0.7;">
               Completeness {{ readinessFactors.completeness || 0 }}% ·
               Terms {{ readinessFactors.term_coverage || 0 }}% ·
@@ -510,18 +684,19 @@
                 <span v-for="(term, idx) in elem.include" :key="idx" class="criteria-chip include editable">
                   {{ term }}
                   <span v-if="meshResults[term]" style="margin-left:0.25rem;">
-                    <i v-if="meshResults[term].is_valid" class="fas fa-check-circle" style="color:#22c55e;font-size:0.65rem;" title="Valid MeSH heading"></i>
+                    <i v-if="meshResults[term].is_valid" class="fas fa-check-circle" style="color:#22c55e;font-size:0.65rem;" title="MeSH standardized term"></i>
                     <span v-else>
-                      <i class="fas fa-exclamation-triangle" style="color:#f59e0b;font-size:0.65rem;"
+                      <i class="fas fa-info-circle" style="color:rgba(139,92,246,0.7);font-size:0.65rem;"
                         :title="meshResults[term].suggested_mesh
-                          ? `Not MeSH. Suggested: ${meshResults[term].suggested_mesh}`
-                          : 'Not a recognized MeSH heading'"
+                          ? `Not a MeSH heading — a MeSH alternative exists: ${meshResults[term].suggested_mesh}. Adding it alongside may improve PubMed retrieval.`
+                          : 'Not a MeSH heading — this term will use exact phrase matching in PubMed. This is fine for screening.'"
                       ></i>
                       <button
                         v-if="meshResults[term].suggested_mesh"
-                        style="background:none;border:none;cursor:pointer;color:#f59e0b;font-size:0.6rem;text-decoration:underline;padding:0 0.15rem;"
+                        style="background:none;border:none;cursor:pointer;color:rgba(139,92,246,0.8);font-size:0.6rem;text-decoration:underline;padding:0 0.15rem;"
+                        :title="`Add MeSH term: ${meshResults[term].suggested_mesh}`"
                         @click="replaceMeshTerm(String(key), term, meshResults[term].suggested_mesh!)"
-                      >Replace</button>
+                      >+ MeSH</button>
                     </span>
                   </span>
                   <button class="chip-remove" @click="removeTerm(String(key), 'include', idx)" title="Remove">&times;</button>
@@ -649,6 +824,9 @@
           <button class="btn btn-secondary" :disabled="pilotLoading" @click="runPilotSearch">
             <i :class="pilotLoading ? 'fas fa-spinner fa-spin' : 'fas fa-search'"></i>
             {{ pilotLoading ? 'Searching PubMed...' : 'Pilot Search' }}
+          </button>
+          <button class="info-btn" @click="criteriaModal = 'pilot'" title="About pilot search" style="margin-left:0.5rem;">
+            <i class="fas fa-circle-info"></i>
           </button>
 
           <div v-if="pilotResult" style="margin-top:1rem;">
@@ -828,6 +1006,7 @@ const { criteria: savedCriteria, topic: savedTopic, setCriteria, setTopic } = us
 
 // ── API Key ────────────────────────────────────────────────
 const showApiModal = ref(false)
+const criteriaModal = ref<string | null>(null)
 
 onMounted(async () => {
   try {
@@ -2458,4 +2637,171 @@ async function runPilotSearch() {
     flex-wrap: wrap;
   }
 }
+
+/* ── Criteria Info Button ────────────────────────── */
+.info-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: rgba(51, 65, 85, 0.45);
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  margin-left: 0.4rem;
+  transition: color 0.15s;
+}
+.info-btn:hover {
+  color: rgba(51, 65, 85, 0.8);
+}
+</style>
+
+<!-- Unscoped styles for teleported modal -->
+<style>
+/* ── Criteria Glass Modals ───────────────────────── */
+.c-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.c-modal-glass-panel {
+  position: relative;
+  width: 100%;
+  max-width: 760px;
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(32px) saturate(1.4);
+  -webkit-backdrop-filter: blur(32px) saturate(1.4);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.08), 0 0 0 1px rgba(255,255,255,0.3) inset;
+  padding: 36px 40px;
+  overflow: hidden;
+}
+
+.c-modal-refraction {
+  position: absolute;
+  top: -1px;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent);
+  pointer-events: none;
+}
+
+.c-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.05);
+  color: rgba(51,65,85,0.5);
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.c-modal-close:hover {
+  background: rgba(0,0,0,0.1);
+  color: rgba(51,65,85,0.8);
+}
+
+.c-modal-header-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.c-modal-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.c-modal-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.c-modal-body {
+  overflow-y: auto;
+  max-height: calc(82vh - 140px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.c-modal-sub-glass {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 14px;
+  padding: 18px 20px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.c-modal-sub-glass h3 {
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: #334155;
+  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.c-modal-sub-glass h3 i {
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+.c-modal-sub-glass p,
+.c-modal-sub-glass li {
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.c-modal-sub-glass ol,
+.c-modal-sub-glass ul {
+  margin: 0.4rem 0;
+  padding-left: 1.2rem;
+}
+
+.c-modal-sub-glass li {
+  margin-bottom: 0.3rem;
+}
+
+/* Transition */
+.modal-enter-active, .modal-leave-active { transition: opacity 0.2s ease; }
+.modal-enter-active .c-modal-glass-panel, .modal-leave-active .c-modal-glass-panel { transition: transform 0.2s ease, opacity 0.2s ease; }
+.modal-enter-from { opacity: 0; }
+.modal-enter-from .c-modal-glass-panel { transform: scale(0.92) translateY(20px); opacity: 0; }
+.modal-leave-to { opacity: 0; }
+.modal-leave-to .c-modal-glass-panel { transform: scale(0.95); opacity: 0; }
 </style>
