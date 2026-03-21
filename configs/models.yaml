@@ -207,7 +207,7 @@ inference:
   timeout_thinking_s: 120.0
   max_retries: 2
   max_tokens_standard: 1024
-  max_tokens_thinking: 4096
+  max_tokens_thinking: 8192
 
 # ─── Criteria Pipeline ───────────────────────────────────────────
 criteria:
