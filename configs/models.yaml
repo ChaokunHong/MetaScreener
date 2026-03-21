@@ -175,22 +175,22 @@ models:
 presets:
   balanced:
     name: "Balanced (Recommended)"
-    description: "4 strong models from different vendors for maximum diversity"
+    description: "4 models across 4 vendors, mix of fast and thinking. Best for most reviews (~$0.005/paper)"
     models: ["deepseek-v3", "qwen3", "kimi-k2", "llama4-maverick"]
 
   precision:
     name: "Maximum Precision"
-    description: "4 tier-1/2 models including thinking models for highest accuracy"
-    models: ["deepseek-v3", "qwen3", "kimi-k2.5", "glm5-turbo"]
+    description: "3 thinking models + 1 fast anchor, Chinese + Western diversity. Slower but most accurate (~$0.009/paper)"
+    models: ["deepseek-v3", "qwen3", "kimi-k2.5", "nous-hermes4"]
 
   budget:
     name: "Budget Friendly"
-    description: "Strong results at lowest cost"
+    description: "1 tier-1 anchor + 3 lightweight models. Lower quality but 5x cheaper (~$0.003/paper)"
     models: ["deepseek-v3", "llama4-maverick", "gemma3-27b", "mistral-small4"]
 
   comprehensive:
     name: "Comprehensive (8 models)"
-    description: "Maximum model diversity across 8 vendors for critical reviews"
+    description: "8 models from 8 vendors for critical reviews. Maximum consensus quality (~$0.019/paper)"
     models: ["deepseek-v3", "qwen3", "kimi-k2.5", "llama4-maverick", "glm5-turbo", "nous-hermes4", "nvidia-nemotron", "minimax-m2.7"]
 
 # ─── Thresholds ──────────────────────────────────────────────────

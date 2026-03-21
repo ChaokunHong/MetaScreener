@@ -330,7 +330,7 @@
                 </div>
                 <div class="modal-sub-glass">
                   <h3><i class="fas fa-crosshairs"></i> Maximum Precision</h3>
-                  <p>4 Tier-1 models including <strong>thinking models</strong> (Kimi K2.5). Thinking models use internal chain-of-thought reasoning before answering, which improves accuracy on complex eligibility decisions. Trade-off: <strong>slower and more expensive</strong> (~20s per call vs ~2s).</p>
+                  <p>3 <strong>thinking models</strong> (Qwen3, Kimi K2.5, Nous Hermes4 405B) + DeepSeek V3.2 as fast anchor. Mixes Chinese and Western training data for diverse perspectives. Thinking models use internal chain-of-thought reasoning — more accurate but <strong>slower (~10-20s per call) and ~2x the cost</strong> of Balanced.</p>
                 </div>
                 <div class="modal-sub-glass">
                   <h3><i class="fas fa-piggy-bank"></i> Budget Friendly</h3>
