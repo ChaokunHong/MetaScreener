@@ -158,6 +158,7 @@ class PilotSearcher:
                 "term": query,
                 "retmax": max_results,
                 "retmode": "json",
+                "sort": "relevance",
                 "usehistory": "n",
             }
             if self._api_key:
