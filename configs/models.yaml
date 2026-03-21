@@ -180,7 +180,7 @@ presets:
 
   precision:
     name: "Maximum Precision"
-    description: "2 thinking + 2 large non-thinking models, Chinese + Western diversity. Most accurate (~$0.009/paper)"
+    description: "2 thinking + 2 large non-thinking models. Highest accuracy for complex eligibility decisions (~$0.009/paper)"
     models: ["deepseek-v3", "qwen3", "kimi-k2.5", "nous-hermes4"]
 
   budget:
@@ -190,7 +190,7 @@ presets:
 
   comprehensive:
     name: "Comprehensive (8 models)"
-    description: "8 models from 8 vendors for critical reviews. Maximum consensus quality (~$0.019/paper)"
+    description: "8 models (4 thinking + 4 fast) for maximum consensus strength. Best for critical reviews (~$0.019/paper)"
     models: ["deepseek-v3", "qwen3", "kimi-k2.5", "llama4-maverick", "glm5-turbo", "nous-hermes4", "nvidia-nemotron", "minimax-m2.7"]
 
 # ─── Thresholds ──────────────────────────────────────────────────
