@@ -29,6 +29,8 @@ export interface GenerationMeta {
 }
 
 export interface SavedCriteria {
+  name?: string
+  tags?: string[]
   framework: string
   research_question?: string
   detected_language?: string
