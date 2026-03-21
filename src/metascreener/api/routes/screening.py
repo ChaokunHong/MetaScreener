@@ -22,6 +22,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile
 logger = structlog.get_logger(__name__)
 
 from metascreener.api.schemas import (
+    FTUploadResponse,
     PilotDiagnostic,
     PilotSearchRequest,
     RelevanceAssessment,
@@ -1420,3 +1421,211 @@ async def export_results(
         "status": "ok",
         "message": f"Export as {format} not yet implemented",
     }
+
+
+# ═══════ Full-Text Screening Endpoints ═══════
+
+_ft_sessions: dict[str, dict[str, Any]] = {}
+
+
+@router.post("/ft/upload-pdfs", response_model=FTUploadResponse)
+async def ft_upload_pdfs(files: list[UploadFile]) -> FTUploadResponse:
+    """Upload PDF files for full-text screening."""
+    from metascreener.io.pdf_parser import extract_text_from_pdf  # noqa: PLC0415
+
+    session_id = str(uuid.uuid4())
+    records: list[Record] = []
+    filenames: list[str] = []
+
+    for file in files:
+        fname = file.filename or "paper.pdf"
+        filenames.append(fname)
+
+        with tempfile.NamedTemporaryFile(
+            suffix=".pdf", delete=False, prefix="ms_ft_"
+        ) as tmp:
+            content = await file.read()
+            tmp.write(content)
+            tmp_path = Path(tmp.name)
+
+        try:
+            full_text = extract_text_from_pdf(tmp_path)
+        except Exception as exc:
+            logger.warning("ft_pdf_parse_error", filename=fname, error=str(exc))
+            full_text = ""
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+        record = Record(
+            title=Path(fname).stem.replace("_", " ").replace("-", " "),
+            full_text=full_text if full_text else None,
+            source_file=fname,
+        )
+        records.append(record)
+
+    _ft_sessions[session_id] = {
+        "records": records,
+        "filenames": filenames,
+        "created_at": datetime.now(UTC).isoformat(),
+        "criteria": None,
+        "criteria_obj": None,
+        "results": [],
+        "raw_decisions": [],
+        "status": "uploaded",
+    }
+
+    logger.info("ft_pdfs_uploaded", session_id=session_id, count=len(records))
+    return FTUploadResponse(
+        session_id=session_id, pdf_count=len(records), filenames=filenames,
+    )
+
+
+@router.post("/ft/criteria/{session_id}")
+async def ft_set_criteria(
+    session_id: str,
+    criteria: dict[str, Any],
+) -> dict[str, str]:
+    """Store criteria for an FT screening session."""
+    if session_id not in _ft_sessions:
+        raise HTTPException(status_code=404, detail="FT session not found")
+    _ft_sessions[session_id]["criteria"] = criteria
+    _ft_sessions[session_id]["criteria_obj"] = None
+    return {"status": "ok"}
+
+
+@router.post("/ft/run/{session_id}")
+async def ft_run_screening(
+    session_id: str,
+    req: RunScreeningRequest,
+    background_tasks: BackgroundTasks,
+) -> dict[str, Any]:
+    """Start full-text screening in the background."""
+    if session_id not in _ft_sessions:
+        raise HTTPException(status_code=404, detail="FT session not found")
+
+    session = _ft_sessions[session_id]
+    records = session["records"]
+
+    if not records:
+        session["status"] = "completed"
+        session["results"] = []
+        return {"status": "completed", "total": 0}
+
+    criteria_payload = session.get("criteria")
+    if not isinstance(criteria_payload, dict):
+        raise HTTPException(
+            status_code=400, detail="No criteria configured. Set criteria first.",
+        )
+
+    api_key = _get_openrouter_api_key()
+    if not api_key:
+        return {
+            "status": "screening_not_configured",
+            "message": "Configure OpenRouter API key in Settings",
+        }
+
+    try:
+        backends = _build_screening_backends(api_key)
+    except SystemExit as exc:
+        return {"status": "screening_not_configured", "message": str(exc)}
+
+    if not backends:
+        return {"status": "screening_not_configured", "message": "No models configured"}
+
+    session["results"] = []
+    session["raw_decisions"] = []
+    session["status"] = "running"
+
+    background_tasks.add_task(
+        _run_ft_screening_background, session, records, backends, criteria_payload, req.seed,
+    )
+    return {"status": "started", "total": len(records)}
+
+
+async def _run_ft_screening_background(
+    session: dict[str, Any],
+    records: list[Record],
+    backends: list[Any],
+    criteria_payload: dict[str, Any],
+    seed: int,
+) -> None:
+    """Run FT screening in background using FTScreener."""
+    from metascreener.api.deps import get_config  # noqa: PLC0415
+    from metascreener.module1_screening.ft_screener import FTScreener  # noqa: PLC0415
+    from metascreener.module1_screening.layer4.router import DecisionRouter  # noqa: PLC0415
+
+    try:
+        cached = session.get("criteria_obj")
+        if isinstance(cached, ReviewCriteria):
+            criteria = cached
+        else:
+            criteria = await _resolve_review_criteria(criteria_payload, backends, seed)
+            session["criteria_obj"] = criteria
+
+        cfg = get_config()
+        router_obj = DecisionRouter(
+            tau_high=cfg.thresholds.tau_high,
+            tau_mid=cfg.thresholds.tau_mid,
+            tau_low=cfg.thresholds.tau_low,
+            dissent_tolerance=cfg.thresholds.dissent_tolerance,
+        )
+        screener = FTScreener(
+            backends=backends,
+            timeout_s=cfg.inference.timeout_thinking_s,
+            router=router_obj,
+        )
+
+        sem = asyncio.Semaphore(4)
+
+        async def _screen_one(i: int, record: Record) -> None:
+            async with sem:
+                try:
+                    decision = await screener.screen_single(record, criteria, seed=seed)
+                    summary = ScreeningRecordSummary(
+                        record_id=decision.record_id,
+                        title=record.source_file or record.title or "(untitled)",
+                        decision=decision.decision.value,
+                        tier=str(int(decision.tier)),
+                        score=decision.final_score,
+                        confidence=decision.ensemble_confidence,
+                    )
+                    session["results"].append(summary.model_dump())
+                    session["raw_decisions"].append(decision.model_dump(mode="json"))
+                except Exception as exc:  # noqa: BLE001
+                    logger.error("ft_record_error", record_id=record.record_id, error=str(exc))
+                    session["results"].append({
+                        "record_id": str(record.record_id),
+                        "title": record.source_file or record.title or "(untitled)",
+                        "decision": "HUMAN_REVIEW",
+                        "tier": "3",
+                        "score": 0.0,
+                        "confidence": 0.0,
+                    })
+
+        await asyncio.gather(*[_screen_one(i, r) for i, r in enumerate(records)])
+        session["status"] = "completed"
+    except Exception as exc:  # noqa: BLE001
+        logger.error("ft_background_error", error=str(exc))
+        session["status"] = "error"
+        session["error"] = str(exc)
+    finally:
+        await _close_backends(backends)
+
+
+@router.get("/ft/results/{session_id}")
+async def ft_get_results(session_id: str) -> ScreeningResultsResponse:
+    """Get FT screening results."""
+    if session_id not in _ft_sessions:
+        raise HTTPException(status_code=404, detail="FT session not found")
+
+    session = _ft_sessions[session_id]
+    results = session.get("results", [])
+
+    return ScreeningResultsResponse(
+        session_id=session_id,
+        status=session.get("status", "unknown"),
+        total=len(session.get("records", [])),
+        completed=len(results),
+        results=results,
+        error=session.get("error"),
+    )

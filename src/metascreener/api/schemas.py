@@ -148,6 +148,20 @@ class UploadResponse(BaseModel):
     filename: str
 
 
+class FTUploadResponse(BaseModel):
+    """Response after uploading PDFs for full-text screening.
+
+    Attributes:
+        session_id: Unique session identifier.
+        pdf_count: Number of PDFs uploaded.
+        filenames: List of original filenames.
+    """
+
+    session_id: str
+    pdf_count: int
+    filenames: list[str]
+
+
 class ScreeningRecordSummary(BaseModel):
     """Summary of a single screening decision.
 
