@@ -933,6 +933,26 @@
           </div>
         </div>
 
+        <!-- Name & Tags (shown before confirm) -->
+        <div v-if="!criteriaSaved" style="margin-bottom: 1.25rem; margin-top: 1rem;">
+          <div class="form-group" style="margin-bottom: 0.75rem;">
+            <label class="form-label">Criteria Name</label>
+            <input
+              v-model="criteriaName"
+              class="form-control"
+              :placeholder="defaultCriteriaName"
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tags <span class="text-muted" style="font-weight:400;">(optional)</span></label>
+            <TagInput
+              v-model="criteriaTags"
+              :suggestions="defaultTagSuggestions"
+              placeholder="Type a tag and press Enter"
+            />
+          </div>
+        </div>
+
         <!-- Editor actions -->
         <div class="criteria-editor-actions">
           <button class="btn btn-primary" @click="confirmCriteria">
@@ -1053,6 +1073,7 @@
 import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
 import { apiGet, apiPost } from '@/api'
 import { useCriteriaStore, type SavedCriteria, type CriteriaElements, type GenerationMeta } from '@/stores/criteria'
+import TagInput from '@/components/TagInput.vue'
 
 const { criteria: savedCriteria, topic: savedTopic, setCriteria, setTopic } = useCriteriaStore()
 
@@ -1105,6 +1126,19 @@ const topicText = ref('')
 const generatingCriteria = ref(false)
 const criteriaError = ref('')
 const criteriaSaved = ref(false)
+const criteriaName = ref('')
+const criteriaTags = ref<string[]>([])
+const defaultTagSuggestions = [
+  'cardiology', 'oncology', 'neurology', 'infectious-disease',
+  'pediatrics', 'surgery', 'mental-health', 'public-health',
+  'RCT-only', 'observational', 'diagnostic', 'prognostic',
+  'draft', 'final', 'pilot',
+]
+const defaultCriteriaName = computed(() => {
+  const fw = generatedCriteria.value?.framework?.toUpperCase() || 'PICO'
+  const rq = generatedCriteria.value?.research_question || ''
+  return rq ? `${fw} — ${rq.slice(0, 50)}` : `${fw} Criteria`
+})
 
 // ── Criteria generation progress simulation ──────────────
 const criteriaGenProgress = ref(0)
@@ -1739,6 +1773,8 @@ function resetCriteriaEditor() {
   editableCriteria.value = { elements: {} }
   expansionTerms.value = {}
   criteriaSaved.value = false
+  criteriaName.value = ''
+  criteriaTags.value = []
   sourceMode.value = mode.value
   resetFilters()
 }
@@ -1747,7 +1783,10 @@ function resetCriteriaEditor() {
 function confirmCriteria() {
   const criteria = generatedCriteria.value
   if (!criteria) return
+  const finalName = criteriaName.value.trim() || defaultCriteriaName.value
   const saved: SavedCriteria = {
+    name: finalName,
+    tags: [...criteriaTags.value],
     framework: criteria.framework,
     research_question: criteria.research_question,
     detected_language: criteria.detected_language,
@@ -1764,7 +1803,8 @@ function confirmCriteria() {
   const elemCount = Object.values(saved.elements).reduce((n, e) => n + e.include.length + e.exclude.length, 0)
   apiPost('/history/criteria', {
     data: saved,
-    name: `Criteria — ${saved.framework}`,
+    name: finalName,
+    tags: criteriaTags.value,
     summary: `${saved.framework} framework, ${elemCount} terms${saved.research_question ? ': ' + saved.research_question.slice(0, 60) : ''}`,
   }).catch(() => { /* non-critical */ })
 }
