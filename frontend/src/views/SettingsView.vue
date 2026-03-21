@@ -1,7 +1,7 @@
 <template>
   <div>
     <h1 class="page-title" style="margin-bottom: 0.25rem;">LLM Configuration</h1>
-    <p class="text-muted" style="margin-bottom: 1.5rem;">Configure API keys, verify connectivity, and view available models</p>
+    <p class="text-muted" style="margin-bottom: 1.5rem;">Configure API keys, verify connectivity, and select models for screening</p>
 
     <!-- API Keys -->
     <div class="glass-card">
@@ -94,27 +94,78 @@
       </div>
     </div>
 
-    <!-- Available Models -->
+    <!-- Model Selection -->
     <div class="glass-card">
       <div class="section-title">
-        <i class="fas fa-robot"></i> Available Models
+        <i class="fas fa-robot"></i> Model Selection
         <button class="info-btn" @click="activeModal = 'models'" title="About Models">
           <i class="fas fa-circle-info"></i>
         </button>
+        <span v-if="enabledModels.length > 0" class="model-count-badge">{{ enabledModels.length }} selected</span>
       </div>
+
+      <!-- Quick Setup — Presets -->
+      <div v-if="presets.length > 0" style="margin-bottom: 1.5rem;">
+        <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.6rem;">
+          <i class="fas fa-wand-magic-sparkles" style="font-size: 0.75rem; margin-right: 4px;"></i>
+          Quick Setup — Preset Combinations
+        </div>
+        <div class="preset-grid">
+          <div
+            v-for="p in presets"
+            :key="p.preset_id"
+            class="preset-card"
+            :class="{ 'preset-active': isActivePreset(p) }"
+            @click="applyPreset(p)"
+          >
+            <div class="preset-name">{{ p.name }}</div>
+            <div class="preset-desc">{{ p.description }}</div>
+            <div class="preset-count">{{ p.models.length }} models</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Minimum validation warning -->
+      <div v-if="enabledModels.length > 0 && enabledModels.length < 2" class="alert alert-danger" style="margin-bottom: 1rem;">
+        <i class="fas fa-triangle-exclamation"></i> At least 2 models must be enabled for ensemble screening.
+      </div>
+
+      <!-- Model Grid -->
       <div v-if="loadingModels" class="text-muted" style="padding: 1rem 0;">Loading models...</div>
       <div v-else class="model-grid">
-        <div v-for="m in models" :key="m.model_id" class="model-card">
+        <div
+          v-for="m in models"
+          :key="m.model_id"
+          class="model-card"
+          :class="{ 'model-card-disabled': !isModelEnabled(m.model_id) }"
+          @click="toggleModel(m.model_id)"
+        >
           <div class="model-card-header">
-            <img :src="getModelLogo(m.model_id)" :alt="m.name" class="model-logo" />
-            <span class="badge badge-include">active</span>
+            <div v-if="hasIcon(m.model_id)" class="model-logo-wrap">
+              <img :src="iconPath(m.model_id)" :alt="m.name" class="model-logo" />
+            </div>
+            <div v-else class="model-logo-fallback" :style="{ background: tierColor(m.tier) }">
+              {{ m.name.charAt(0) }}
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="tier-badge" :style="{ background: tierBg(m.tier), color: tierColor(m.tier) }">
+                Tier {{ m.tier }}
+              </span>
+              <div class="model-toggle" :class="{ 'model-toggle-on': isModelEnabled(m.model_id) }">
+                <div class="model-toggle-knob"></div>
+              </div>
+            </div>
           </div>
-          <div class="model-name">{{ getShortName(m.model_id) }}</div>
-          <div class="model-full-name">{{ m.name }}</div>
+          <div class="model-name">{{ m.name }}</div>
+          <div class="model-badges">
+            <span v-if="m.thinking" class="thinking-badge">Thinking</span>
+            <span class="cost-badge"><i class="fas fa-coins"></i> ${{ m.cost_per_1m_tokens?.toFixed(2) ?? '?' }}/1M</span>
+          </div>
+          <div class="model-description">{{ m.description }}</div>
           <div class="model-meta">
             <span><i class="fas fa-server"></i> {{ m.provider }}</span>
-            <span><i class="fas fa-code-branch"></i> v{{ m.version }}</span>
-            <span><i class="fas fa-scale-balanced"></i> {{ m.license }}</span>
+            <span v-if="m.version"><i class="fas fa-code-branch"></i> v{{ m.version }}</span>
+            <span v-if="m.license"><i class="fas fa-scale-balanced"></i> {{ m.license }}</span>
           </div>
         </div>
       </div>
@@ -168,7 +219,7 @@
       </div>
     </div>
 
-    <!-- ═══════════ Glass Modals ═══════════ -->
+    <!-- Glass Modals -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="activeModal" class="modal-overlay" @click.self="activeModal = null">
@@ -225,40 +276,24 @@
             <template v-if="activeModal === 'models'">
               <div class="modal-header-row">
                 <div class="modal-icon-wrap modal-icon-cyan"><i class="fas fa-robot"></i></div>
-                <h2 class="modal-title">Available Models</h2>
+                <h2 class="modal-title">Model Selection</h2>
               </div>
               <div class="modal-body-scroll">
-                <div class="modal-sub-glass">
+                <div class="modal-sub-glass full-width">
                   <h3><i class="fas fa-layer-group"></i> Hierarchical Consensus Network</h3>
-                  <p>MetaScreener uses <strong>4 diverse open-source LLMs</strong> to form an ensemble. Each model independently screens every paper. Their outputs are aggregated through calibrated confidence scoring to produce reliable decisions.</p>
+                  <p>MetaScreener uses <strong>multiple diverse open-source LLMs</strong> to form an ensemble. Each model independently screens every paper. Their outputs are aggregated through calibrated confidence scoring to produce reliable decisions.</p>
                 </div>
                 <div class="modal-sub-glass">
-                  <h3><i class="fas fa-puzzle-piece"></i> Why 4 models?</h3>
-                  <p>Model diversity reduces individual bias. When 4 models with different architectures, training data, and parameter counts agree, the decision is far more reliable than any single model.</p>
+                  <h3><i class="fas fa-puzzle-piece"></i> Why multiple models?</h3>
+                  <p>Model diversity reduces individual bias. When models with different architectures, training data, and parameter counts agree, the decision is far more reliable than any single model.</p>
                 </div>
-                <div class="modal-sub-glass modal-model-card">
-                  <img src="/model_icon/qwen2.png" class="modal-model-logo" alt="Qwen" />
-                  <div class="modal-model-name">Qwen 3</div>
-                  <div class="modal-model-params">235B MoE</div>
-                  <p>Alibaba's largest MoE model. Excellent multilingual &amp; reasoning capability.</p>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-sliders-h"></i> Tier System</h3>
+                  <p><strong>Tier 1</strong> (Flagship): Largest, most capable models with best accuracy. <strong>Tier 2</strong> (Strong): Excellent balance of performance and cost. <strong>Tier 3</strong> (Lightweight): Fast and affordable, good for budget setups.</p>
                 </div>
-                <div class="modal-sub-glass modal-model-card">
-                  <img src="/model_icon/deepseek.png" class="modal-model-logo" alt="DeepSeek" />
-                  <div class="modal-model-name">DeepSeek V3.2</div>
-                  <div class="modal-model-params">685B MoE</div>
-                  <p>Strong in scientific text comprehension and structured output.</p>
-                </div>
-                <div class="modal-sub-glass modal-model-card">
-                  <img src="/model_icon/llama.png" class="modal-model-logo" alt="Llama" />
-                  <div class="modal-model-name">Llama 4 Scout</div>
-                  <div class="modal-model-params">17B 16E MoE</div>
-                  <p>Meta's efficient MoE. Fast inference with strong instruction following.</p>
-                </div>
-                <div class="modal-sub-glass modal-model-card">
-                  <img src="/model_icon/mistralai.png" class="modal-model-logo" alt="Mistral" />
-                  <div class="modal-model-name">Mistral Small 3.1</div>
-                  <div class="modal-model-params">24B Dense</div>
-                  <p>Compact but capable. Good balance of speed and accuracy.</p>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-brain"></i> Thinking Models</h3>
+                  <p>Models marked as "Thinking" use internal chain-of-thought reasoning before answering. They tend to be more accurate on complex eligibility decisions but cost more tokens.</p>
                 </div>
                 <div class="modal-sub-glass">
                   <h3><i class="fas fa-lock-open"></i> All Open-Source</h3>
@@ -318,6 +353,7 @@ interface ApiKeys {
 
 interface Settings {
   api_keys: ApiKeys
+  enabled_models?: string[]
 }
 
 interface ModelInfo {
@@ -326,6 +362,17 @@ interface ModelInfo {
   provider?: string
   version?: string
   license?: string
+  tier?: number
+  thinking?: boolean
+  cost_per_1m_tokens?: number
+  description?: string
+}
+
+interface PresetInfo {
+  preset_id: string
+  name: string
+  description: string
+  models: string[]
 }
 
 const settings = ref<Settings>({ api_keys: {} })
@@ -344,47 +391,114 @@ const orTestOk = ref(false)
 
 const models = ref<ModelInfo[]>([])
 const loadingModels = ref(true)
+const enabledModels = ref<string[]>([])
+const presets = ref<PresetInfo[]>([])
 
 const activeModal = ref<string | null>(null)
 
-const modelLogos: Record<string, string> = {
-  qwen3: '/model_icon/qwen2.png',
-  deepseek: '/model_icon/deepseek.png',
-  llama: '/model_icon/llama.png',
-  mistral: '/model_icon/mistralai.png',
+/* ── Icon mapping ──────────────────────────────────── */
+const iconMap: Record<string, string> = {
+  'deepseek-v3': '/model_icon/deepseek.png',
+  'deepseek': '/model_icon/deepseek.png',
+  'qwen3': '/model_icon/qwen2.png',
+  'llama4-maverick': '/model_icon/llama.png',
+  'llama4-scout': '/model_icon/llama.png',
+  'llama': '/model_icon/llama.png',
+  'mistral-small4': '/model_icon/mistralai.png',
+  'mistral': '/model_icon/mistralai.png',
 }
 
-function getModelLogo(modelId: string): string {
-  return modelLogos[modelId] || ''
+function hasIcon(modelId: string): boolean {
+  return !!iconMap[modelId]
 }
 
-function getShortName(modelId: string): string {
-  const names: Record<string, string> = {
-    qwen3: 'Qwen 3',
-    deepseek: 'DeepSeek V3',
-    llama: 'Llama 4 Scout',
-    mistral: 'Mistral Small',
+function iconPath(modelId: string): string {
+  return iconMap[modelId] || ''
+}
+
+/* ── Tier colors ───────────────────────────────────── */
+function tierColor(tier?: number): string {
+  if (tier === 1) return '#059669'
+  if (tier === 2) return '#2563eb'
+  return '#64748b'
+}
+
+function tierBg(tier?: number): string {
+  if (tier === 1) return 'rgba(5,150,105,0.1)'
+  if (tier === 2) return 'rgba(37,99,235,0.1)'
+  return 'rgba(100,116,139,0.1)'
+}
+
+/* ── Model toggle ──────────────────────────────────── */
+function isModelEnabled(modelId: string): boolean {
+  return enabledModels.value.includes(modelId)
+}
+
+function toggleModel(modelId: string): void {
+  const idx = enabledModels.value.indexOf(modelId)
+  if (idx >= 0) {
+    // Don't allow disabling if it would drop below 2
+    if (enabledModels.value.length <= 2) return
+    enabledModels.value.splice(idx, 1)
+  } else {
+    enabledModels.value.push(modelId)
   }
-  return names[modelId] || modelId
+  saveEnabledModels()
 }
 
+async function saveEnabledModels(): Promise<void> {
+  try {
+    await apiPut('/settings', { enabled_models: enabledModels.value })
+  } catch {
+    // silently handle — will be saved with next full save
+  }
+}
+
+/* ── Presets ────────────────────────────────────────── */
+function applyPreset(preset: PresetInfo): void {
+  enabledModels.value = [...preset.models]
+  saveEnabledModels()
+}
+
+function isActivePreset(preset: PresetInfo): boolean {
+  return preset.models.length === enabledModels.value.length &&
+    preset.models.every(m => enabledModels.value.includes(m))
+}
+
+/* ── Lifecycle ─────────────────────────────────────── */
 onMounted(async () => {
   try {
     const data = await apiGet<Settings>('/settings')
     settings.value = { api_keys: data.api_keys || {} }
+    if (data.enabled_models && data.enabled_models.length > 0) {
+      enabledModels.value = data.enabled_models
+    }
   } catch { /* no settings yet */ }
   try {
-    models.value = await apiGet<ModelInfo[]>('/settings/models')
-  } catch { /* no models */ }
+    const [modelsData, presetsData] = await Promise.all([
+      apiGet<ModelInfo[]>('/settings/models'),
+      apiGet<PresetInfo[]>('/settings/presets'),
+    ])
+    models.value = modelsData
+    presets.value = presetsData
+    // If no models were previously selected, apply the first preset as default
+    if (enabledModels.value.length === 0 && presetsData.length > 0) {
+      enabledModels.value = [...presetsData[0].models]
+    }
+  } catch { /* no models/presets */ }
   loadingModels.value = false
 })
 
+/* ── Save & Continue ───────────────────────────────── */
 async function doSave() {
   saving.value = true
   saveSuccess.value = false
   saveError.value = ''
   try {
-    await apiPut('/settings', { api_keys: settings.value.api_keys })
+    await apiPut('/settings', {
+      api_keys: settings.value.api_keys,
+      enabled_models: enabledModels.value,
+    })
     if (settings.value.api_keys.openrouter) {
       saveSuccessMsg.value = 'Settings saved. Verifying API key...'
       saveSuccess.value = true
@@ -475,17 +589,72 @@ async function clearKeys() {
   gap: 8px;
 }
 
-/* info-btn styles are in main.css (global) */
+.model-count-badge {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #0e7490;
+  background: rgba(224, 247, 250, 0.6);
+  border: 1px solid rgba(178, 235, 242, 0.5);
+  padding: 2px 10px;
+  border-radius: 999px;
+}
 
-/* ── Model Grid — 2x2 Glass Cards ───────────────────── */
-.model-grid {
+/* ── Preset Grid ───────────────────────────────────── */
+.preset-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 0.75rem;
+}
+
+.preset-card {
+  cursor: pointer;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.6);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid rgba(255,255,255,0.3);
+  transition: all 0.2s ease;
+}
+.preset-card:hover {
+  background: rgba(255,255,255,0.75);
+  border-color: rgba(129, 216, 208, 0.4);
+  box-shadow: 0 4px 12px rgba(15,23,42,0.06);
+}
+.preset-active {
+  border-color: #81d8d0 !important;
+  background: rgba(129, 216, 208, 0.08);
+  box-shadow: 0 0 0 1px rgba(129, 216, 208, 0.3);
+}
+
+.preset-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+.preset-desc {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin-top: 0.25rem;
+  color: var(--text-secondary);
+}
+.preset-count {
+  font-size: 0.7rem;
+  opacity: 0.5;
+  margin-top: 0.4rem;
+  color: var(--text-secondary);
+}
+
+/* ── Model Grid — 3x3 Glass Cards ──────────────────── */
+.model-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
 }
 
 .model-card {
-  padding: 20px;
+  padding: 18px;
   border-radius: 16px;
   background: linear-gradient(145deg, var(--btn-frost-bg-strong) 0%, var(--btn-frost-bg-soft) 100%);
   border: 1px solid var(--btn-frost-border);
@@ -493,19 +662,160 @@ async function clearKeys() {
   backdrop-filter: blur(14px) saturate(145%);
   box-shadow: 0 6px 18px var(--btn-frost-shadow), inset 0 1px 0 rgba(255,255,255,0.75);
   transition: all 0.25s ease;
+  cursor: pointer;
+  user-select: none;
 }
 .model-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 10px 28px rgba(15,23,42,0.1), inset 0 1.5px 0 rgba(255,255,255,0.85);
   border-color: rgba(129, 216, 208, 0.5);
 }
-.model-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.model-logo { width: 36px; height: 36px; border-radius: 10px; object-fit: contain; background: rgba(255,255,255,0.6); padding: 4px; border: 1px solid rgba(255,255,255,0.7); }
-.model-name { font-size: 1.05rem; font-weight: 650; color: var(--text-primary); letter-spacing: -0.01em; margin-bottom: 2px; }
-.model-full-name { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.model-meta { display: flex; flex-wrap: wrap; gap: 8px; }
-.model-meta span { font-size: 0.7rem; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 4px; }
-.model-meta i { font-size: 0.65rem; opacity: 0.7; }
+
+.model-card-disabled {
+  opacity: 0.5;
+}
+.model-card-disabled:hover {
+  opacity: 0.75;
+}
+
+.model-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.model-logo-wrap {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+.model-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: rgba(255,255,255,0.6);
+  padding: 4px;
+  border: 1px solid rgba(255,255,255,0.7);
+}
+
+.model-logo-fallback {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: white;
+  flex-shrink: 0;
+}
+
+.model-name {
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+
+/* ── Tier badge ────────────────────────────────────── */
+.tier-badge {
+  font-size: 0.62rem;
+  font-weight: 650;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
+/* ── Toggle switch ─────────────────────────────────── */
+.model-toggle {
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.35);
+  position: relative;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+.model-toggle-on {
+  background: #81d8d0;
+}
+.model-toggle-knob {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.model-toggle-on .model-toggle-knob {
+  transform: translateX(14px);
+}
+
+/* ── Badges row ────────────────────────────────────── */
+.model-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.thinking-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+
+.cost-badge {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.cost-badge i {
+  font-size: 0.6rem;
+  opacity: 0.6;
+}
+
+.model-description {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.model-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.model-meta span {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.model-meta i {
+  font-size: 0.6rem;
+  opacity: 0.7;
+}
 
 /* ── Inference Config Grid ───────────────────────────── */
 .inference-grid {
@@ -776,48 +1086,6 @@ async function clearKeys() {
   color: #0e7490;
 }
 
-/* Model cards in modal — individual 2x2 glass cards */
-.modal-model-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 22px 16px 18px;
-}
-.modal-model-card .modal-model-logo {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  object-fit: contain;
-  background: rgba(248, 250, 252, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.7);
-  padding: 6px;
-  margin-bottom: 12px;
-}
-.modal-model-card .modal-model-name {
-  font-size: 0.95rem;
-  font-weight: 650;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
-  margin-bottom: 2px;
-}
-.modal-model-card .modal-model-params {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #0e7490;
-  background: rgba(224, 247, 250, 0.6);
-  border: 1px solid rgba(178, 235, 242, 0.5);
-  padding: 2px 10px;
-  border-radius: 999px;
-  margin-bottom: 10px;
-}
-.modal-model-card p {
-  font-size: 0.78rem;
-  line-height: 1.55;
-  color: rgba(71, 85, 105, 0.85);
-  margin: 0;
-}
-
 /* ── Modal transition ───────────────────────────────── */
 .modal-enter-active { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 .modal-leave-active { transition: all 0.2s ease; }
@@ -826,10 +1094,14 @@ async function clearKeys() {
 .modal-leave-to { opacity: 0; }
 .modal-leave-to .modal-glass-panel { transform: scale(0.95); opacity: 0; }
 
+@media (max-width: 900px) {
+  .model-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
 @media (max-width: 640px) {
   .model-grid { grid-template-columns: 1fr; }
+  .preset-grid { grid-template-columns: 1fr; }
   .modal-glass-panel { padding: 24px 20px; max-height: 88vh; max-width: 100%; }
   .modal-body-scroll { grid-template-columns: 1fr; }
-  .modal-model-list { grid-template-columns: 1fr; }
 }
 </style>
