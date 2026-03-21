@@ -43,6 +43,7 @@ class Record(BaseModel):
     record_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str = Field(min_length=1)
     abstract: str | None = None
+    full_text: str | None = None
     authors: list[str] = Field(default_factory=list)
     year: int | None = None
     doi: str | None = None
@@ -140,6 +141,11 @@ class ModelOutput(BaseModel):
     prompt_hash: str | None = None
     latency_ms: float | None = None
     error: str | None = None
+
+    @property
+    def element_assessment(self) -> dict[str, PICOAssessment]:
+        """Alias for pico_assessment (framework-agnostic name)."""
+        return self.pico_assessment
 
 
 class ElementConsensus(BaseModel):
@@ -283,6 +289,14 @@ class ScreeningDecision(BaseModel):
     ensemble_confidence: float = Field(ge=0.0, le=1.0)
     model_outputs: list[ModelOutput] = Field(default_factory=list)
     rule_result: RuleCheckResult | None = None
+    element_consensus: dict[str, ElementConsensus] = Field(default_factory=dict)
+    ecs_result: ECSResult | None = None
+    disagreement_result: DisagreementResult | None = None
+    chunking_applied: bool = False
+    n_chunks: int | None = None
+    chunk_details: list[ScreeningDecision] | None = None
+    text_quality: Any | None = None
+    chunk_heterogeneity: ChunkHeterogeneityResult | None = None
     human_decision: Decision | None = None  # set after human review
     decided_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -326,6 +340,15 @@ class AuditEntry(BaseModel):
     ensemble_confidence: float
     decided_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     seed: int = 42
+    element_consensus: dict[str, ElementConsensus] = Field(default_factory=dict)
+    ecs_result: ECSResult | None = None
+    disagreement_result: DisagreementResult | None = None
+    calibration_method: str = "none"
+    calibration_factors: dict[str, float] = Field(default_factory=dict)
+    chunking_applied: bool = False
+    n_chunks: int | None = None
+    text_quality: Any | None = None
+    chunk_heterogeneity: ChunkHeterogeneityResult | None = None
 
 
 class ExtractionResult(BaseModel):
@@ -624,3 +647,7 @@ class CriteriaTemplate(BaseModel):
     elements: dict[str, CriteriaElement] = Field(default_factory=dict)
     study_design_include: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
+
+
+# Rebuild for self-referencing model
+ScreeningDecision.model_rebuild()
