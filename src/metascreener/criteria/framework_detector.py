@@ -130,11 +130,9 @@ class FrameworkDetector:
             backend: LLMBackend,
         ) -> FrameworkDetectionResult | None:
             """Query a single backend and parse its response."""
-            saved = self._backend
-            self._backend = backend
             try:
                 raw = await backend.complete(prompt, seed)
-                return self._parse_response(raw, prompt_hash)
+                return self._parse_response(raw, prompt_hash, backend=backend)
             except Exception:
                 logger.warning(
                     "framework_detect_backend_failed",
@@ -142,8 +140,6 @@ class FrameworkDetector:
                     exc_info=True,
                 )
                 return None
-            finally:
-                self._backend = saved
 
         raw_results = await asyncio.gather(
             *[_query_one(b) for b in self._backends],
@@ -221,6 +217,7 @@ class FrameworkDetector:
         self,
         raw_response: str,
         prompt_hash: str,
+        backend: LLMBackend | None = None,
     ) -> FrameworkDetectionResult:
         """Parse LLM JSON response into a detection result.
 
@@ -230,10 +227,13 @@ class FrameworkDetector:
         Args:
             raw_response: Raw string from the LLM API.
             prompt_hash: SHA256 hash of the prompt used.
+            backend: The backend that produced this response (for logging).
+                     Falls back to ``self._backend`` when not provided.
 
         Returns:
             Detection result (always succeeds; never raises).
         """
+        log_backend = backend or self._backend
         try:
             cleaned = strip_code_fences(raw_response)
             parsed = json.loads(cleaned)
@@ -241,7 +241,7 @@ class FrameworkDetector:
             if not isinstance(parsed, dict):
                 logger.warning(
                     "framework_detection_non_dict",
-                    model_id=self._backend.model_id,
+                    model_id=log_backend.model_id,
                     type=type(parsed).__name__,
                 )
                 return FrameworkDetectionResult(
@@ -262,7 +262,7 @@ class FrameworkDetector:
                 logger.warning(
                     "unknown_framework_value",
                     raw_value=framework_str,
-                    model_id=self._backend.model_id,
+                    model_id=log_backend.model_id,
                 )
                 return FrameworkDetectionResult(
                     framework=CriteriaFramework.PICO,
@@ -300,7 +300,7 @@ class FrameworkDetector:
             logger.warning(
                 "framework_detection_fallback",
                 error=str(exc),
-                model_id=self._backend.model_id,
+                model_id=log_backend.model_id,
             )
             return FrameworkDetectionResult(
                 framework=CriteriaFramework.PICO,

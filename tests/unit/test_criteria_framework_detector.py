@@ -190,3 +190,31 @@ async def test_detect_with_voting_override_skips_voting() -> None:
     )
     assert result.framework == CriteriaFramework.PEO
     assert result.confidence == 1.0
+
+
+@pytest.mark.asyncio
+async def test_detect_with_voting_no_shared_state_mutation() -> None:
+    """Multi-backend detection should not mutate self._backend."""
+    import json
+    from unittest.mock import AsyncMock, MagicMock
+
+    backends = []
+    for i, fw in enumerate(["pico", "pico", "peo"]):
+        b = MagicMock()
+        b.model_id = f"model-{i}"
+        b.complete = AsyncMock(return_value=json.dumps({
+            "recommended_framework": fw,
+            "confidence": 0.9,
+            "reasoning": f"test {fw}",
+            "alternatives": [],
+        }))
+        backends.append(b)
+
+    detector = FrameworkDetector(backends)
+    original_backend = detector._backend
+
+    result = await detector.detect("test topic")
+
+    # _backend should not have been modified
+    assert detector._backend is original_backend
+    assert result.framework.value == "pico"

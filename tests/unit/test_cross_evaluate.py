@@ -121,6 +121,23 @@ class TestValidateResponse:
         }
         assert validate_cross_evaluate_response(resp) is True
 
+    def test_validate_accepts_extra_quality_keys(self) -> None:
+        """Response with extra quality keys should still be valid."""
+        response = {
+            "element_evaluations": {
+                "population": {
+                    "duplicate_pairs": [],
+                    "quality": {
+                        "precision": 8,
+                        "completeness": 7,
+                        "actionability": 9,
+                        "relevance": 8,  # extra key
+                    },
+                }
+            }
+        }
+        assert validate_cross_evaluate_response(response) is True
+
 
 class TestTransformResponse:
     """Tests for transform_cross_evaluate_response: LLM format → DedupMerger format."""

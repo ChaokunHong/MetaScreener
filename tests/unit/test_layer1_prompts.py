@@ -58,6 +58,12 @@ def test_build_instructions_section() -> None:
     assert "recall" in instructions.lower()
 
 
+def test_instructions_contain_or_semantics() -> None:
+    """Instructions should clarify that include/exclude terms use OR (any-of) semantics."""
+    instructions = build_instructions_section()
+    assert "ANY of the listed terms" in instructions
+
+
 def test_screening_prompt_abc_enforced() -> None:
     """ScreeningPrompt cannot be instantiated directly."""
     with pytest.raises(TypeError):

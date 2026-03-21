@@ -139,7 +139,7 @@ def validate_cross_evaluate_response(response: dict[str, Any]) -> bool:
         if not isinstance(quality, dict):
             return False
 
-        if set(quality.keys()) != _QUALITY_KEYS:
+        if not _QUALITY_KEYS.issubset(quality.keys()):
             return False
 
         for score in quality.values():
