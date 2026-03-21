@@ -61,3 +61,21 @@ def test_criteria_input_mode_values() -> None:
     assert CriteriaInputMode.TOPIC == "topic"
     assert CriteriaInputMode.YAML == "yaml"
     assert CriteriaInputMode.EXAMPLES == "examples"
+
+
+def test_disagreement_type_values() -> None:
+    from metascreener.core.enums import DisagreementType
+    assert DisagreementType.CONSENSUS == "consensus"
+    assert DisagreementType.DECISION_SPLIT == "decision_split"
+    assert DisagreementType.SCORE_DIVERGENCE == "score_divergence"
+    assert DisagreementType.CONFIDENCE_MISMATCH == "confidence_mismatch"
+    assert DisagreementType.RATIONALE_CONFLICT == "rationale_conflict"
+
+
+def test_conflict_pattern_values() -> None:
+    from metascreener.core.enums import ConflictPattern
+    assert ConflictPattern.NONE == "none"
+    assert ConflictPattern.POPULATION_CONFLICT == "population_conflict"
+    assert ConflictPattern.INTERVENTION_CONFLICT == "intervention_conflict"
+    assert ConflictPattern.OUTCOME_CONFLICT == "outcome_conflict"
+    assert ConflictPattern.MULTI_ELEMENT_CONFLICT == "multi_element_conflict"

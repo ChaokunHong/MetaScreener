@@ -131,3 +131,23 @@ class CriteriaInputMode(StrEnum):
     TOPIC = "topic"
     YAML = "yaml"
     EXAMPLES = "examples"
+
+
+class DisagreementType(StrEnum):
+    """Type of inter-model disagreement (informational)."""
+
+    CONSENSUS = "consensus"
+    DECISION_SPLIT = "decision_split"
+    SCORE_DIVERGENCE = "score_divergence"
+    CONFIDENCE_MISMATCH = "confidence_mismatch"
+    RATIONALE_CONFLICT = "rationale_conflict"
+
+
+class ConflictPattern(StrEnum):
+    """Element-level conflict pattern from ECS analysis."""
+
+    NONE = "none"
+    POPULATION_CONFLICT = "population_conflict"
+    INTERVENTION_CONFLICT = "intervention_conflict"
+    OUTCOME_CONFLICT = "outcome_conflict"
+    MULTI_ELEMENT_CONFLICT = "multi_element_conflict"
