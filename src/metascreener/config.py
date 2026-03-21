@@ -6,7 +6,6 @@ YAML configuration files for reproducible screening.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 import yaml
 from pydantic import BaseModel, Field
