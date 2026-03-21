@@ -330,7 +330,7 @@
                 </div>
                 <div class="modal-sub-glass">
                   <h3><i class="fas fa-crosshairs"></i> Maximum Precision</h3>
-                  <p>3 <strong>thinking models</strong> (Qwen3, Kimi K2.5, GLM-5 Turbo) + DeepSeek V3.2 as fast anchor. All 4 are from top Chinese AI labs with strong medical NLP training. Thinking models use internal chain-of-thought reasoning — more accurate but <strong>slower (~10-30s per call) and ~2x the cost</strong> of Balanced (~$0.009/paper).</p>
+                  <p>2 <strong>thinking models</strong> (Qwen3 235B, Kimi K2.5) + 2 large non-thinking (DeepSeek V3.2, Nous Hermes4 405B). Combines Chinese and Western training data for diverse perspectives. The thinking models provide deeper reasoning while the 405B Nous model adds massive parameter count. ~$0.009/paper.</p>
                 </div>
                 <div class="modal-sub-glass">
                   <h3><i class="fas fa-piggy-bank"></i> Budget Friendly</h3>
