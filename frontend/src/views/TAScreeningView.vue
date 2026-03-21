@@ -1,7 +1,7 @@
 <template>
   <div>
-    <h1 class="page-title" style="margin-bottom: 0.25rem;">Literature Screening</h1>
-    <p class="text-muted" style="margin-bottom: 1.5rem;">Upload search results → set criteria → run HCN → review decisions</p>
+    <h1 class="page-title" style="margin-bottom: 0.25rem;">Title / Abstract Screening</h1>
+    <p class="text-muted" style="margin-bottom: 1.5rem;">Select criteria → upload search results → run HCN screening → review decisions</p>
 
     <!-- Step Indicator -->
     <div class="steps" style="margin-bottom: 2rem;">
@@ -17,8 +17,18 @@
       </template>
     </div>
 
-    <!-- STEP 1: Upload -->
-    <div v-if="currentStep >= 1" class="glass-card">
+    <!-- STEP 1: Select Criteria -->
+    <div class="glass-card">
+      <div class="section-title"><i class="fas fa-list-check"></i> Select Criteria</div>
+      <CriteriaSelector v-model="selectedCriteriaId" @select="onCriteriaSelected" />
+      <div v-if="selectedCriteriaName" class="alert alert-success" style="margin-top: 0.75rem;">
+        <i class="fas fa-check-circle"></i>
+        Using: <strong>{{ selectedCriteriaName }}</strong>
+      </div>
+    </div>
+
+    <!-- STEP 2: Upload -->
+    <div v-if="currentStep >= 2" class="glass-card">
       <div class="section-title"><i class="fas fa-upload"></i> Upload Search Results</div>
       <div
         class="upload-zone"
@@ -47,66 +57,12 @@
       </button>
     </div>
 
-    <!-- STEP 2: Criteria -->
-    <div v-if="currentStep >= 2" class="glass-card">
-      <div class="section-title"><i class="fas fa-filter"></i> Set Inclusion/Exclusion Criteria</div>
-
-      <!-- Tabs -->
-      <div class="tabs">
-        <button
-          v-for="tab in criteriaTabs"
-          :key="tab.id"
-          class="tab-btn"
-          :class="{ active: criteriaTab === tab.id }"
-          @click="criteriaTab = tab.id"
-        >{{ tab.label }}</button>
-      </div>
-
-      <!-- Topic mode -->
-      <div v-if="criteriaTab === 'topic'">
-        <div class="form-group">
-          <label class="form-label">Research Topic / PICO Question</label>
-          <textarea
-            v-model="topicText"
-            class="form-control"
-            rows="3"
-            placeholder="e.g. Antimicrobial resistance in hospital-acquired infections in adult ICU patients treated with carbapenems"
-          ></textarea>
-        </div>
-      </div>
-
-      <!-- YAML upload mode -->
-      <div v-if="criteriaTab === 'yaml'">
-        <div class="form-group">
-          <label class="form-label">Upload YAML criteria file</label>
-          <input ref="yamlInput" type="file" accept=".yaml,.yml" class="form-control" style="padding: 0.5rem;" @change="onYamlChange" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">YAML Content</label>
-          <textarea v-model="yamlText" class="form-control" rows="6" placeholder="Or paste YAML here…"></textarea>
-        </div>
-      </div>
-
-      <!-- Manual JSON mode -->
-      <div v-if="criteriaTab === 'json'">
-        <div class="form-group">
-          <label class="form-label">Criteria JSON</label>
-          <textarea v-model="jsonText" class="form-control" rows="8" placeholder='{"include": [...], "exclude": [...]}'></textarea>
-        </div>
-      </div>
-
-      <button class="btn btn-primary" :disabled="settingCriteria" @click="doSetCriteria">
-        <i v-if="settingCriteria" class="fas fa-spinner fa-spin"></i>
-        <i v-else class="fas fa-check"></i>
-        {{ settingCriteria ? 'Applying…' : 'Apply Criteria' }}
-      </button>
-    </div>
-
     <!-- STEP 3: Run -->
     <div v-if="currentStep >= 3" class="glass-card">
       <div class="section-title"><i class="fas fa-play-circle"></i> Run Screening</div>
       <p class="text-muted" style="margin-bottom: 1rem;">
-        Ready to screen <strong>{{ uploadInfo?.record_count }}</strong> records using 4 open-source LLMs (seed=42, temperature=0.0).
+        Ready to screen <strong>{{ uploadInfo?.record_count }}</strong> records
+        using criteria "<strong>{{ selectedCriteriaName }}</strong>".
       </p>
 
       <!-- Progress -->
@@ -193,12 +149,13 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
 import { apiUpload, apiPost, apiGet, decisionBadgeClass, fmtScore } from '@/api'
+import CriteriaSelector from '@/components/CriteriaSelector.vue'
 
-const steps = ['Upload', 'Criteria', 'Run', 'Results']
+const steps = ['Criteria', 'Upload', 'Run', 'Results']
 const currentStep = ref(1)
 const sessionId = ref<string | null>(null)
 
-// Step 1 - Upload
+// Step 2 - Upload
 const fileInput = ref<HTMLInputElement | null>(null)
 const selectedFile = ref<File | null>(null)
 const dragging = ref(false)
@@ -225,7 +182,7 @@ async function doUpload() {
     const data = await apiUpload<{ session_id: string; record_count: number }>('/screening/upload', fd)
     sessionId.value = data.session_id
     uploadInfo.value = data
-    currentStep.value = 2
+    currentStep.value = 3
   } catch (e: unknown) {
     alert(`Upload failed: ${(e as Error).message}`)
   } finally {
@@ -233,45 +190,20 @@ async function doUpload() {
   }
 }
 
-// Step 2 - Criteria
-const criteriaTabs = [
-  { id: 'topic', label: 'Generate from Topic' },
-  { id: 'yaml', label: 'Upload YAML' },
-  { id: 'json', label: 'Manual JSON' },
-]
-const criteriaTab = ref('topic')
-const topicText = ref('')
-const yamlText = ref('')
-const jsonText = ref('')
-const yamlInput = ref<HTMLInputElement | null>(null)
-const settingCriteria = ref(false)
+// Step 1 - Select Criteria
+const selectedCriteriaId = ref<string | null>(null)
+const selectedCriteriaName = ref('')
+const selectedCriteriaData = ref<Record<string, unknown> | null>(null)
 
-async function onYamlChange(e: Event) {
-  const f = (e.target as HTMLInputElement).files?.[0]
-  if (f) yamlText.value = await f.text()
-}
-
-async function doSetCriteria() {
-  if (!sessionId.value) return
-  settingCriteria.value = true
+async function onCriteriaSelected(item: { id: string; name: string }) {
+  selectedCriteriaId.value = item.id
+  selectedCriteriaName.value = item.name
   try {
-    let payload: Record<string, string>
-    if (criteriaTab.value === 'topic') {
-      if (!topicText.value.trim()) { alert('Please enter a topic.'); return }
-      payload = { mode: 'topic', text: topicText.value.trim() }
-    } else if (criteriaTab.value === 'yaml') {
-      if (!yamlText.value.trim()) { alert('Please enter YAML criteria.'); return }
-      payload = { mode: 'upload', yaml_text: yamlText.value.trim() }
-    } else {
-      if (!jsonText.value.trim()) { alert('Please enter JSON criteria.'); return }
-      payload = { mode: 'manual', json_text: jsonText.value.trim() }
-    }
-    await apiPost(`/screening/criteria/${sessionId.value}`, payload)
-    currentStep.value = 3
+    const full = await apiGet<{ data: Record<string, unknown> }>(`/history/criteria/${item.id}`)
+    selectedCriteriaData.value = full.data
+    currentStep.value = 2
   } catch (e: unknown) {
-    alert(`Failed to set criteria: ${(e as Error).message}`)
-  } finally {
-    settingCriteria.value = false
+    alert(`Failed to load criteria: ${(e as Error).message}`)
   }
 }
 
@@ -295,17 +227,21 @@ function appendLog(msg: string) {
 }
 
 async function doRun() {
-  if (!sessionId.value) return
+  if (!sessionId.value || !selectedCriteriaData.value) return
   running.value = true
   runError.value = ''
   logText.value = ''
   completedCount.value = 0
   progressPct.value = 5
-  runStatus.value = 'Sending request…'
+  runStatus.value = 'Setting criteria…'
 
   try {
-    await apiPost(`/screening/run/${sessionId.value}`, { session_id: sessionId.value, seed: 42 })
+    // Set criteria for this screening session
+    await apiPost(`/screening/criteria/${sessionId.value}`, selectedCriteriaData.value)
     runStatus.value = 'Screening in progress…'
+
+    // Start screening
+    await apiPost(`/screening/run/${sessionId.value}`, { session_id: sessionId.value, seed: 42 })
     startPolling()
   } catch (e: unknown) {
     runError.value = `Failed: ${(e as Error).message}`
@@ -390,12 +326,12 @@ function exportCSV() {
 
 function resetAll() {
   if (pollTimer) clearInterval(pollTimer)
+  selectedCriteriaId.value = null
+  selectedCriteriaName.value = ''
+  selectedCriteriaData.value = null
   sessionId.value = null
   selectedFile.value = null
   uploadInfo.value = null
-  topicText.value = ''
-  yamlText.value = ''
-  jsonText.value = ''
   results.value = []
   running.value = false
   logText.value = ''
