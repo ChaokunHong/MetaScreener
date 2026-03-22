@@ -25,6 +25,31 @@
         <i class="fas fa-check-circle"></i>
         Using: <strong>{{ selectedCriteriaName }}</strong>
       </div>
+
+      <!-- Batch size control (below criteria selector) -->
+      <div class="batch-control" v-if="selectedCriteriaName" style="margin-top: 1rem;">
+        <div class="batch-header">
+          <label class="form-label" style="margin-bottom: 0;">Papers per batch</label>
+          <span class="th-info" @click.stop="batchTooltip = batchTooltip === 'batch' ? '' : 'batch'">
+            <i class="fas fa-circle-info"></i>
+            <div v-if="batchTooltip === 'batch'" class="th-popover" style="left: auto; right: 0; transform: none;">
+              <strong>Batch Screening</strong><br>
+              Groups multiple papers into one prompt.<br><br>
+              <strong>1</strong> — One paper per prompt (slowest, most reliable)<br>
+              <strong>3–5</strong> — Recommended balance of speed and reliability<br>
+              <strong>10</strong> — Fastest, but some models may fail and fall back to individual calls
+            </div>
+          </span>
+        </div>
+        <div class="batch-slider-row">
+          <input type="range" v-model.number="batchSize" min="1" max="10" step="1" class="batch-slider" :style="batchSliderStyle" />
+          <span class="batch-value">{{ batchSize }}</span>
+        </div>
+        <div class="batch-hint">
+          <span v-if="batchSize === 1">Individual mode — most reliable</span>
+          <span v-else>{{ batchSize }} papers/prompt — faster screening</span>
+        </div>
+      </div>
     </div>
 
     <!-- STEP 2: Upload -->
@@ -64,32 +89,6 @@
         Ready to screen <strong>{{ uploadInfo?.record_count }}</strong> records
         using criteria "<strong>{{ selectedCriteriaName }}</strong>".
       </p>
-
-      <!-- Batch size control -->
-      <div class="batch-control" v-if="!running">
-        <div class="batch-header">
-          <label class="form-label" style="margin-bottom: 0;">Papers per batch</label>
-          <span class="th-info" @click.stop="batchTooltip = batchTooltip === 'batch' ? '' : 'batch'">
-            <i class="fas fa-circle-info"></i>
-            <div v-if="batchTooltip === 'batch'" class="th-popover" style="left: auto; right: 0; transform: none;">
-              <strong>Batch Screening</strong><br>
-              Groups multiple papers into one prompt.<br><br>
-              <strong>1</strong> — One paper per prompt (slowest, most reliable)<br>
-              <strong>3–5</strong> — Recommended balance of speed and reliability<br>
-              <strong>10</strong> — Fastest, but some models may fail and fall back to individual calls
-            </div>
-          </span>
-        </div>
-        <div class="batch-slider-row">
-          <input type="range" v-model.number="batchSize" min="1" max="10" step="1" class="batch-slider" :style="batchSliderStyle" />
-          <span class="batch-value">{{ batchSize }}</span>
-        </div>
-        <div class="batch-hint">
-          <span v-if="batchSize === 1">Individual mode — most reliable</span>
-          <span v-else-if="batchSize <= 5">{{ batchSize }} papers/prompt — {{ Math.ceil((uploadInfo?.record_count || 0) / batchSize) }} API calls per model</span>
-          <span v-else>{{ batchSize }} papers/prompt — fastest, may need fallback</span>
-        </div>
-      </div>
 
       <!-- Progress -->
       <div v-if="running" style="margin-bottom: 1rem;">
