@@ -184,8 +184,9 @@ class TAScreener:
                 _prompt: str = prompt,
                 _hash: str = prompt_hash,
                 _records: list[Record] = batch_records,
+                _criteria: ReviewCriteria | PICOCriteria = criteria,
             ) -> list[ModelOutput]:
-                """Call one model with the batch prompt and parse results."""
+                """Call one model with batch prompt; fall back to individual calls on failure."""
                 try:
                     from metascreener.llm.response_cache import (  # noqa: PLC0415
                         get_cached,
@@ -198,24 +199,34 @@ class TAScreener:
                     else:
                         raw = await backend._call_api(_prompt, seed=seed)
                         put_cached(backend.model_id, _hash, raw)
-                    return parse_batch_response(raw, _records, backend.model_id)
+                    results = parse_batch_response(raw, _records, backend.model_id)
+                    # Check if batch parse actually failed (all have error)
+                    all_failed = all(o.error for o in results)
+                    if not all_failed:
+                        return results
+                    # Fall through to individual calls
+                    logger.info("batch_fallback_to_individual", model_id=backend.model_id, n_records=len(_records))
                 except Exception as e:  # noqa: BLE001
-                    logger.warning(
-                        "batch_model_error",
-                        model_id=backend.model_id,
-                        error=str(e),
-                    )
-                    return [
-                        ModelOutput(
+                    logger.warning("batch_model_error", model_id=backend.model_id, error=str(e))
+
+                # Fallback: call individually for each record
+                from metascreener.module1_screening.layer1.prompts import PromptRouter  # noqa: PLC0415
+                individual_router = PromptRouter()
+                individual_results: list[ModelOutput] = []
+                for rec in _records:
+                    try:
+                        ind_prompt = individual_router.build_prompt(rec, _criteria)
+                        output = await backend.call_with_prompt(ind_prompt, seed=seed)
+                        individual_results.append(output)
+                    except Exception as ind_e:  # noqa: BLE001
+                        individual_results.append(ModelOutput(
                             model_id=backend.model_id,
                             decision=Decision.INCLUDE,
-                            score=0.5,
-                            confidence=0.0,
-                            rationale=f"Batch error: {e}",
-                            error=str(e),
-                        )
-                        for _ in _records
-                    ]
+                            score=0.5, confidence=0.0,
+                            rationale=f"Individual fallback error: {ind_e}",
+                            error=str(ind_e),
+                        ))
+                return individual_results
 
             model_results = await asyncio.gather(
                 *[_call_model_batch(b) for b in self._backends]

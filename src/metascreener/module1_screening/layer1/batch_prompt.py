@@ -148,16 +148,41 @@ def parse_batch_response(
         if start != -1 and end > start:
             parsed = _try_json_loads(cleaned[start : end + 1])
 
+    # Strategy: extract individual JSON objects if array parse failed
+    # Some models return multiple {...} objects without wrapping in [...]
+    if not isinstance(parsed, list):
+        from metascreener.llm.base import _extract_json_object  # noqa: PLC0415
+
+        extracted_objects: list[dict] = []
+        remaining = cleaned
+        while remaining:
+            obj_str = _extract_json_object(remaining)
+            if obj_str is None:
+                break
+            obj = _try_json_loads(obj_str)
+            if isinstance(obj, dict) and ("decision" in obj or "article_id" in obj):
+                extracted_objects.append(obj)
+            # Move past this object
+            idx = remaining.find(obj_str) + len(obj_str)
+            remaining = remaining[idx:]
+
+        if extracted_objects:
+            parsed = extracted_objects
+            logger.info(
+                "batch_extracted_individual_objects",
+                model_id=model_id,
+                count=len(extracted_objects),
+            )
+
     if not isinstance(parsed, list):
         logger.warning("batch_parse_failed", model_id=model_id)
-        # Return defaults for all records
         return [
             ModelOutput(
                 model_id=model_id,
                 decision=Decision.INCLUDE,
                 score=0.5,
                 confidence=0.0,
-                rationale="Batch parse failed - defaulting to INCLUDE.",
+                rationale="Batch parse failed — defaulting to INCLUDE.",
                 error="batch_parse_failed",
             )
             for _ in records
