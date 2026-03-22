@@ -247,6 +247,14 @@ class LLMBackend(ABC):
         assessment_data = parsed.get("element_assessment") or parsed.get(
             "pico_assessment", {}
         )
+        # Guard: assessment_data might be a string (double-encoded JSON) or non-dict
+        if isinstance(assessment_data, str):
+            try:
+                assessment_data = json.loads(assessment_data)
+            except (json.JSONDecodeError, ValueError):
+                assessment_data = {}
+        if not isinstance(assessment_data, dict):
+            assessment_data = {}
         pico_assessment: dict[str, PICOAssessment] = {}
         for key, val in assessment_data.items():
             if isinstance(val, dict):

@@ -191,7 +191,10 @@
                         :class="{ 'model-error': mo.error }"
                       >
                         <div class="detail-model-header">
-                          <span class="detail-model-id">{{ mo.model_id }}</span>
+                          <span class="detail-model-id">
+                            <img v-if="modelIconMap[mo.model_id]" :src="modelIconMap[mo.model_id]" class="detail-model-logo" />
+                            {{ mo.model_id }}
+                          </span>
                           <span :class="decisionClass(mo.decision)">{{ mo.decision }}</span>
                         </div>
                         <div v-if="mo.error" class="detail-model-error">
@@ -236,6 +239,24 @@
 import { ref, computed, nextTick } from 'vue'
 import { apiUpload, apiPost, apiGet, decisionBadgeClass, fmtScore } from '@/api'
 import CriteriaSelector from '@/components/CriteriaSelector.vue'
+
+const modelIconMap: Record<string, string> = {
+  'deepseek-v3': '/model_icon/deepseek.png',
+  'qwen3': '/model_icon/qwen2.png',
+  'kimi-k2.5': '/model_icon/moonshot.png',
+  'kimi-k2': '/model_icon/moonshot.png',
+  'llama4-maverick': '/model_icon/llama.png',
+  'glm5-turbo': '/model_icon/chatglm-color.png',
+  'mimo-v2-pro': '/model_icon/xiaomimimo.png',
+  'minimax-m2.7': '/model_icon/minimax-color.png',
+  'nous-hermes4': '/model_icon/nousresearch.png',
+  'nvidia-nemotron': '/model_icon/nvidia-color.png',
+  'cogito-671b': '/model_icon/deepcogito-color.png',
+  'ai21-jamba': '/model_icon/ai21-brand-color.png',
+  'gemma3-27b': '/model_icon/gemma-color.png',
+  'mistral-small4': '/model_icon/mistralai.png',
+  'phi4': '/model_icon/copilot-color.png',
+}
 
 const steps = ['Criteria', 'Upload', 'Run', 'Results']
 const currentStep = ref(1)
@@ -547,9 +568,12 @@ function resetAll() {
 }
 .detail-element-item {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: baseline;
   gap: 0.4rem;
   font-size: 0.75rem;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 .detail-element-key {
   font-weight: 600;
@@ -559,9 +583,15 @@ function resetAll() {
 .detail-evidence {
   color: var(--text-secondary, #999);
   font-size: 0.72rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 300px;
+  line-height: 1.4;
+  margin-top: 0.15rem;
+}
+.detail-model-logo {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-right: 0.35rem;
 }
 </style>

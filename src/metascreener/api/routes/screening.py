@@ -1234,7 +1234,7 @@ async def _run_screening_background(
             tau_low=cfg.thresholds.tau_low,
             dissent_tolerance=cfg.thresholds.dissent_tolerance,
         )
-        screener = TAScreener(backends=backends, timeout_s=cfg.inference.timeout_s, router=router)
+        screener = TAScreener(backends=backends, timeout_s=180.0, router=router)
 
         sem = asyncio.Semaphore(_CONCURRENT_PAPERS)
 
