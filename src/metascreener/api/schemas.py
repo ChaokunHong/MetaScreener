@@ -221,10 +221,12 @@ class RunScreeningRequest(BaseModel):
     Attributes:
         session_id: Session identifier from upload.
         seed: Random seed for reproducibility.
+        batch_size: Papers per prompt for batch screening (1=individual, 5=default).
     """
 
     session_id: str
     seed: int = 42
+    batch_size: int = 5
 
 
 # --- Evaluation API schemas ---

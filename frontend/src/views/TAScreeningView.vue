@@ -65,6 +65,32 @@
         using criteria "<strong>{{ selectedCriteriaName }}</strong>".
       </p>
 
+      <!-- Batch size control -->
+      <div class="batch-control" v-if="!running">
+        <div class="batch-header">
+          <label class="form-label" style="margin-bottom: 0;">Papers per batch</label>
+          <span class="th-info" @click.stop="batchTooltip = batchTooltip === 'batch' ? '' : 'batch'">
+            <i class="fas fa-circle-info"></i>
+            <div v-if="batchTooltip === 'batch'" class="th-popover" style="left: auto; right: 0; transform: none;">
+              <strong>Batch Screening</strong><br>
+              Groups multiple papers into one prompt.<br><br>
+              <strong>1</strong> — One paper per prompt (slowest, most reliable)<br>
+              <strong>3–5</strong> — Recommended balance of speed and reliability<br>
+              <strong>10</strong> — Fastest, but some models may fail and fall back to individual calls
+            </div>
+          </span>
+        </div>
+        <div class="batch-slider-row">
+          <input type="range" v-model.number="batchSize" min="1" max="10" step="1" class="batch-slider" :style="batchSliderStyle" />
+          <span class="batch-value">{{ batchSize }}</span>
+        </div>
+        <div class="batch-hint">
+          <span v-if="batchSize === 1">Individual mode — most reliable</span>
+          <span v-else-if="batchSize <= 5">{{ batchSize }} papers/prompt — {{ Math.ceil((uploadInfo?.record_count || 0) / batchSize) }} API calls per model</span>
+          <span v-else>{{ batchSize }} papers/prompt — fastest, may need fallback</span>
+        </div>
+      </div>
+
       <!-- Progress -->
       <div v-if="running" style="margin-bottom: 1rem;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
@@ -315,6 +341,17 @@ async function onCriteriaSelected(item: { id: string; name: string }) {
   }
 }
 
+// Batch size control
+const batchSize = ref(5)
+const batchTooltip = ref('')
+
+const batchSliderStyle = computed(() => {
+  const pct = ((batchSize.value - 1) / 9) * 100
+  return {
+    background: `linear-gradient(90deg, rgba(103,210,223,0.5) 0%, rgba(167,139,250,0.45) ${pct}%, rgba(255,255,255,0.08) ${pct}%, rgba(255,255,255,0.08) 100%)`,
+  }
+})
+
 // Step 3 - Run
 const running = ref(false)
 const runStatus = ref('')
@@ -349,7 +386,7 @@ async function doRun() {
     runStatus.value = 'Screening in progress…'
 
     // Start screening
-    await apiPost(`/screening/run/${sessionId.value}`, { session_id: sessionId.value, seed: 42 })
+    await apiPost(`/screening/run/${sessionId.value}`, { session_id: sessionId.value, seed: 42, batch_size: batchSize.value })
     startPolling()
   } catch (e: unknown) {
     runError.value = `Failed: ${(e as Error).message}`
@@ -620,5 +657,74 @@ onMounted(() => {
   object-fit: contain;
   vertical-align: middle;
   margin-right: 0.35rem;
+}
+.batch-control {
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.batch-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+.batch-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.batch-slider {
+  flex: 1;
+  height: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
+  outline: none;
+}
+.batch-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary-purple, #8b5cf6);
+  cursor: pointer;
+  border: 2px solid rgba(255,255,255,0.4);
+  box-shadow: 0 2px 6px rgba(139,92,246,0.35);
+  margin-top: -6px;
+}
+.batch-slider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+}
+.batch-slider::-moz-range-track {
+  height: 8px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
+  background: transparent;
+}
+.batch-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary-purple, #8b5cf6);
+  cursor: pointer;
+  border: 2px solid rgba(255,255,255,0.4);
+  box-shadow: 0 2px 6px rgba(139,92,246,0.35);
+}
+.batch-value {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--primary-purple, #8b5cf6);
+  min-width: 24px;
+  text-align: center;
+}
+.batch-hint {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #999);
 }
 </style>

@@ -1234,6 +1234,7 @@ async def _run_screening_background(
     backends: list[Any],
     criteria_payload: dict[str, Any],
     seed: int,
+    batch_size: int = 5,
 ) -> None:
     """Screen records incrementally in the background, writing results as they complete."""
     from metascreener.api.deps import get_config  # noqa: PLC0415
@@ -1255,11 +1256,7 @@ async def _run_screening_background(
             tau_low=cfg.thresholds.tau_low,
             dissent_tolerance=cfg.thresholds.dissent_tolerance,
         )
-        # Read user-configured batch size, then scale token limits
-        from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
-        user_settings = _load_user_settings()
-        batch_size = user_settings.get("batch_size", 5)
-
+        # batch_size comes from the request parameter
         backends = _apply_screening_token_limits(backends, batch_size=batch_size)
         screener = TAScreener(backends=backends, timeout_s=180.0, router=router)
 
@@ -1384,7 +1381,7 @@ async def run_screening(
     session["status"] = "running"
 
     background_tasks.add_task(
-        _run_screening_background, session, records, backends, criteria_payload, req.seed
+        _run_screening_background, session, records, backends, criteria_payload, req.seed, req.batch_size
     )
 
     return {
