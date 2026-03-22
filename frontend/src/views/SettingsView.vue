@@ -240,6 +240,7 @@
             max="100"
             step="1"
             class="perf-slider"
+            :style="sliderFillStyle"
           />
           <input
             type="number"
@@ -526,6 +527,14 @@ const presets = ref<PresetInfo[]>([])
 const activeModal = ref<string | null>(null)
 const modelsExpanded = ref(false)
 const concurrentPapers = ref(25)
+
+const sliderFillStyle = computed(() => {
+  const pct = ((concurrentPapers.value - 1) / 99) * 100
+  // Robin's egg blue → yellow → purple gradient fill
+  return {
+    background: `linear-gradient(90deg, #06b6d4 0%, #f59e0b ${pct * 0.5}%, #8b5cf6 ${pct}%, rgba(255,255,255,0.08) ${pct}%, rgba(255,255,255,0.08) 100%)`,
+  }
+})
 
 const estimatedSpeed = computed(() => {
   const models = enabledModels.value.length || 4
@@ -1152,17 +1161,16 @@ async function clearKeys() {
 }
 .perf-slider {
   flex: 1;
-  height: 6px;
+  height: 8px;
   -webkit-appearance: none;
   appearance: none;
-  background: linear-gradient(90deg, rgba(139,92,246,0.25) 0%, rgba(139,92,246,0.15) 100%);
-  border: 1px solid rgba(139,92,246,0.3);
-  border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
   outline: none;
 }
 .perf-slider::-webkit-slider-runnable-track {
-  height: 6px;
-  border-radius: 3px;
+  height: 8px;
+  border-radius: 4px;
 }
 .perf-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -1176,10 +1184,10 @@ async function clearKeys() {
   margin-top: -7px;
 }
 .perf-slider::-moz-range-track {
-  height: 6px;
-  background: linear-gradient(90deg, rgba(139,92,246,0.25) 0%, rgba(139,92,246,0.15) 100%);
-  border: 1px solid rgba(139,92,246,0.3);
-  border-radius: 3px;
+  height: 8px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
+  background: transparent;
 }
 .perf-slider::-moz-range-thumb {
   width: 18px;
