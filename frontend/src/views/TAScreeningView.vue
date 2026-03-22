@@ -171,6 +171,7 @@
                   </div>
                 </span>
               </th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -182,10 +183,35 @@
                 <td><span class="badge badge-unclear">T{{ r.tier ?? '?' }}</span></td>
                 <td>{{ fmt(r.score) }}</td>
                 <td>{{ fmt(r.confidence) }}</td>
+                <td @click.stop>
+                  <div class="action-cell">
+                    <template v-if="r.decision === 'HUMAN_REVIEW'">
+                      <button class="action-btn action-btn--include" @click="submitFeedback(i, 'INCLUDE')" :disabled="feedbackLoading === i">
+                        <i class="fas fa-check"></i>
+                      </button>
+                      <button class="action-btn action-btn--exclude" @click="submitFeedback(i, 'EXCLUDE')" :disabled="feedbackLoading === i">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </template>
+                    <template v-else>
+                      <button
+                        class="action-btn action-btn--override"
+                        @click="submitFeedback(i, r.decision === 'INCLUDE' ? 'EXCLUDE' : 'INCLUDE')"
+                        :disabled="feedbackLoading === i"
+                      >
+                        <i v-if="feedbackLoading === i" class="fas fa-spinner fa-spin"></i>
+                        <i v-else class="fas fa-arrow-right-arrow-left"></i>
+                      </button>
+                    </template>
+                    <span v-if="r.human_decision" class="action-overridden">
+                      <i class="fas fa-user-check"></i>
+                    </span>
+                  </div>
+                </td>
               </tr>
               <!-- Expanded detail row -->
               <tr v-if="expandedRow === i" class="detail-row">
-                <td colspan="6">
+                <td colspan="7">
                   <div v-if="detailLoading" style="text-align: center; padding: 1rem;">
                     <i class="fas fa-spinner fa-spin"></i> Loading model details...
                   </div>
@@ -411,7 +437,7 @@ function startPolling() {
 
 // Step 4 - Results
 const results = ref<Array<{
-  title?: string; decision: string; tier?: number; score?: number; confidence?: number
+  title?: string; decision: string; tier?: number; score?: number; confidence?: number; human_decision?: string
 }>>([])
 
 const includedCount = computed(() => results.value.filter(r => r.decision === 'INCLUDE').length)
@@ -420,6 +446,28 @@ const reviewCount = computed(() => results.value.filter(r => r.decision === 'HUM
 
 function decisionClass(d: string) { return decisionBadgeClass(d) }
 function fmt(v: unknown) { return fmtScore(v) }
+
+// Feedback / user override
+const feedbackLoading = ref<number | null>(null)
+
+async function submitFeedback(index: number, decision: string) {
+  if (!sessionId.value) return
+  feedbackLoading.value = index
+  try {
+    const resp = await apiPost<{ new_decision: string; n_feedback: number; recalibration_triggered: boolean }>(
+      `/screening/feedback/${sessionId.value}`,
+      { record_index: index, decision }
+    )
+    if (results.value[index]) {
+      results.value[index].decision = resp.new_decision
+      results.value[index].human_decision = resp.new_decision
+    }
+  } catch (e: unknown) {
+    alert(`Feedback failed: ${(e as Error).message}`)
+  } finally {
+    feedbackLoading.value = null
+  }
+}
 
 // Detail expansion
 const expandedRow = ref<number | null>(null)
@@ -645,5 +693,52 @@ onMounted(() => {
 @keyframes progress-stripe {
   0% { background-position: 1rem 0; }
   100% { background-position: 0 0; }
+}
+.action-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-secondary, #999);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  transition: all 0.15s;
+}
+.action-btn:hover {
+  border-color: rgba(139,92,246,0.3);
+  color: var(--primary-purple, #8b5cf6);
+}
+.action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.action-btn--include:hover {
+  border-color: rgba(16,185,129,0.4);
+  color: #10b981;
+  background: rgba(16,185,129,0.08);
+}
+.action-btn--exclude:hover {
+  border-color: rgba(239,68,68,0.4);
+  color: #ef4444;
+  background: rgba(239,68,68,0.08);
+}
+.action-btn--override:hover {
+  border-color: rgba(245,158,11,0.4);
+  color: #f59e0b;
+  background: rgba(245,158,11,0.08);
+}
+.action-overridden {
+  color: var(--primary-purple, #8b5cf6);
+  font-size: 0.7rem;
+  margin-left: 0.15rem;
 }
 </style>
