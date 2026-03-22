@@ -216,6 +216,54 @@
       </div>
     </div>
 
+    <!-- Performance Settings -->
+    <div class="glass-card">
+      <div class="section-title">
+        <i class="fas fa-gauge-high"></i> Performance
+        <button class="info-btn" @click="activeModal = 'performance'" title="About Performance">
+          <i class="fas fa-circle-info"></i>
+        </button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Concurrent Papers</label>
+        <div class="perf-slider-row">
+          <input
+            type="range"
+            v-model.number="concurrentPapers"
+            min="1"
+            max="100"
+            step="1"
+            class="perf-slider"
+          />
+          <input
+            type="number"
+            v-model.number="concurrentPapers"
+            min="1"
+            max="100"
+            class="perf-number"
+          />
+        </div>
+        <div class="perf-hint">
+          <span v-if="concurrentPapers <= 10">Conservative — best for free OpenRouter accounts</span>
+          <span v-else-if="concurrentPapers <= 30">Balanced — good for most paid accounts</span>
+          <span v-else-if="concurrentPapers <= 60">Aggressive — requires higher API rate limits</span>
+          <span v-else>Maximum — may trigger rate limiting on most accounts</span>
+        </div>
+      </div>
+
+      <div class="perf-stats">
+        <div class="perf-stat">
+          <span class="perf-stat-value">{{ concurrentPapers * enabledModels.length || concurrentPapers * 4 }}</span>
+          <span class="perf-stat-label">Max API requests in flight</span>
+        </div>
+        <div class="perf-stat">
+          <span class="perf-stat-value">~{{ estimatedSpeed }}</span>
+          <span class="perf-stat-label">Papers / minute (estimated)</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Action Buttons — at the very bottom after all settings -->
     <div style="display: flex; gap: 0.75rem; align-items: center; justify-content: center; margin-top: 0.5rem;">
       <button class="btn btn-primary" :disabled="saving" @click="doSave">
@@ -347,6 +395,37 @@
               </div>
             </template>
 
+            <!-- Performance Info -->
+            <template v-if="activeModal === 'performance'">
+              <div class="modal-header-row">
+                <div class="modal-icon-wrap modal-icon-cyan"><i class="fas fa-gauge-high"></i></div>
+                <h2 class="modal-title">Performance Settings</h2>
+              </div>
+              <div class="modal-body-scroll">
+                <div class="modal-sub-glass full-width">
+                  <h3><i class="fas fa-bolt"></i> Concurrent Papers</h3>
+                  <p>Controls how many papers are screened simultaneously. Each paper sends requests to all selected models in parallel, so the total API requests in flight equals <strong>concurrent papers × number of models</strong>.</p>
+                </div>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-coins"></i> Free Account (1–10)</h3>
+                  <p>OpenRouter free tier has ~20 requests/minute. Set to <strong>5–10</strong> to avoid excessive rate-limit retries which paradoxically slow things down.</p>
+                </div>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-credit-card"></i> Paid Account (10–50)</h3>
+                  <p>With $5–20 credit, OpenRouter allows ~200 RPM. Set to <strong>25–50</strong> for optimal throughput. This is the sweet spot for most users.</p>
+                </div>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-rocket"></i> High-Volume (50–100)</h3>
+                  <p>With $50+ credit and high rate limits, you can push to <strong>50–100</strong>. Monitor for 429 errors in the screening log — if they increase, lower this value.</p>
+                </div>
+                <div class="modal-sub-glass full-width">
+                  <h3><i class="fas fa-shield-halved"></i> Smart Features</h3>
+                  <p><strong>Auto-skip:</strong> If a model fails 3 times consecutively, it's automatically disabled for the rest of the session to avoid wasting time.</p>
+                  <p><strong>Response cache:</strong> Identical prompts (same paper + same criteria) return cached results instantly. Useful when re-running or debugging.</p>
+                </div>
+              </div>
+            </template>
+
             <!-- Inference Info -->
             <template v-if="activeModal === 'inference'">
               <div class="modal-header-row">
@@ -384,7 +463,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiGet, apiPut, apiPost, apiDelete } from '@/api'
 
@@ -440,6 +519,17 @@ const enabledModels = ref<string[]>([])
 const presets = ref<PresetInfo[]>([])
 
 const activeModal = ref<string | null>(null)
+const concurrentPapers = ref(25)
+
+const estimatedSpeed = computed(() => {
+  const models = enabledModels.value.length || 4
+  const hasThinking = enabledModels.value.some(m =>
+    ['qwen3', 'kimi-k2.5', 'glm5-turbo', 'mimo-v2-pro', 'minimax-m2.7'].includes(m)
+  )
+  const avgLatency = hasThinking ? 12 : 3 // seconds per paper
+  const throughput = Math.round((concurrentPapers.value / avgLatency) * 60)
+  return throughput
+})
 
 /* ── Icon mapping ──────────────────────────────────── */
 const iconMap: Record<string, string> = {
@@ -535,6 +625,7 @@ onMounted(async () => {
     if (data.enabled_models && data.enabled_models.length > 0) {
       enabledModels.value = data.enabled_models
     }
+    concurrentPapers.value = (data as any).concurrent_papers ?? 25
   } catch { /* no settings yet */ }
   try {
     const [modelsData, presetsData] = await Promise.all([
@@ -560,6 +651,7 @@ async function doSave() {
     await apiPut('/settings', {
       api_keys: settings.value.api_keys,
       enabled_models: enabledModels.value,
+      concurrent_papers: concurrentPapers.value,
     })
     if (settings.value.api_keys.openrouter) {
       saveSuccessMsg.value = 'Settings saved. Verifying API key...'
@@ -1017,6 +1109,65 @@ async function clearKeys() {
 .inference-footer i {
   color: #0e7490;
   font-size: 0.75rem;
+}
+
+/* ── Performance ───────────────────────────────── */
+.perf-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.perf-slider {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  outline: none;
+}
+.perf-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary-purple, #8b5cf6);
+  cursor: pointer;
+  border: 2px solid rgba(255,255,255,0.3);
+}
+.perf-number {
+  width: 64px;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.05);
+  color: inherit;
+  font-size: 0.85rem;
+  text-align: center;
+}
+.perf-hint {
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #999);
+}
+.perf-stats {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+.perf-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.perf-stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--primary-purple, #8b5cf6);
+}
+.perf-stat-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary, #999);
 }
 
 /* ═══════════ Glass Modal System ═══════════ */
