@@ -26,23 +26,6 @@
         Using: <strong>{{ selectedCriteriaName }}</strong>
       </div>
 
-      <!-- Batch size control (below criteria selector) -->
-      <div class="batch-control" v-if="selectedCriteriaName" style="margin-top: 1rem;">
-        <div class="batch-header">
-          <label class="form-label" style="margin-bottom: 0;">Papers per batch</label>
-          <button class="info-btn" @click="showBatchModal = true" title="About batch screening">
-            <i class="fas fa-circle-info"></i>
-          </button>
-        </div>
-        <div class="batch-slider-row">
-          <input type="range" v-model.number="batchSize" min="1" max="5" step="1" class="batch-slider" :style="batchSliderStyle" />
-          <span class="batch-value">{{ batchSize }}</span>
-        </div>
-        <div class="batch-hint">
-          <span v-if="batchSize === 1">Individual mode — recommended, real-time progress</span>
-          <span v-else>{{ batchSize }} papers/prompt — experimental, may be slower with some models</span>
-        </div>
-      </div>
     </div>
 
     <!-- STEP 2: Upload -->
@@ -257,40 +240,6 @@
       </div>
     </div>
 
-    <!-- Batch info modal (Settings-style glass panel) -->
-    <Teleport to="body">
-      <Transition name="modal">
-        <div v-if="showBatchModal" class="batch-modal-overlay" @click.self="showBatchModal = false">
-          <div class="batch-modal-panel">
-            <div class="batch-modal-refraction"></div>
-            <button class="batch-modal-close" @click="showBatchModal = false"><i class="fas fa-times"></i></button>
-            <div class="batch-modal-header">
-              <div class="batch-modal-icon"><i class="fas fa-layer-group"></i></div>
-              <h2 class="batch-modal-title">Batch Screening</h2>
-            </div>
-            <p class="batch-modal-desc">Controls how many papers are grouped into a single LLM prompt. More papers per batch = fewer API calls = faster screening.</p>
-            <div class="batch-modal-grid">
-              <div class="batch-modal-card">
-                <h3><i class="fas fa-crosshairs"></i> 1 paper / prompt</h3>
-                <p>Most reliable. Each paper gets its own prompt. Use when accuracy is critical or models struggle with batch format.</p>
-              </div>
-              <div class="batch-modal-card">
-                <h3><i class="fas fa-bolt"></i> 3–5 papers / prompt</h3>
-                <p>Recommended balance of speed and reliability. Reduces API calls by 3-5×. Best for most screening tasks.</p>
-              </div>
-              <div class="batch-modal-card">
-                <h3><i class="fas fa-rocket"></i> 6–10 papers / prompt</h3>
-                <p>Fastest mode. Some models may produce incomplete JSON and automatically fall back to individual calls.</p>
-              </div>
-              <div class="batch-modal-card">
-                <h3><i class="fas fa-shield-halved"></i> Smart fallback</h3>
-                <p>If a model fails to parse the batch response, MetaScreener automatically retries each paper individually — no papers are lost.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
   </div>
 </template>
 
@@ -374,17 +323,6 @@ async function onCriteriaSelected(item: { id: string; name: string }) {
   }
 }
 
-// Batch size control
-const batchSize = ref(1)
-const showBatchModal = ref(false)
-
-const batchSliderStyle = computed(() => {
-  const pct = ((batchSize.value - 1) / 4) * 100
-  return {
-    background: `linear-gradient(90deg, rgba(103,210,223,0.5) 0%, rgba(167,139,250,0.45) ${pct}%, rgba(255,255,255,0.08) ${pct}%, rgba(255,255,255,0.08) 100%)`,
-  }
-})
-
 // Step 3 - Run
 const running = ref(false)
 const runStatus = ref('')
@@ -419,7 +357,7 @@ async function doRun() {
     runStatus.value = 'Screening in progress…'
 
     // Start screening
-    await apiPost(`/screening/run/${sessionId.value}`, { session_id: sessionId.value, seed: 42, batch_size: batchSize.value })
+    await apiPost(`/screening/run/${sessionId.value}`, { session_id: sessionId.value, seed: 42 })
     startPolling()
   } catch (e: unknown) {
     runError.value = `Failed: ${(e as Error).message}`
@@ -708,189 +646,4 @@ onMounted(() => {
   0% { background-position: 1rem 0; }
   100% { background-position: 0 0; }
 }
-.batch-control {
-  margin-bottom: 1.25rem;
-  padding: 1rem;
-  border-radius: 10px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.06);
-}
-.batch-header {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-bottom: 0.5rem;
-}
-.batch-slider-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-.batch-slider {
-  flex: 1;
-  height: 8px;
-  -webkit-appearance: none;
-  appearance: none;
-  border: 1px solid rgba(0,0,0,0.15);
-  border-radius: 4px;
-  outline: none;
-}
-.batch-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--primary-purple, #8b5cf6);
-  cursor: pointer;
-  border: 2px solid rgba(255,255,255,0.4);
-  box-shadow: 0 2px 6px rgba(139,92,246,0.35);
-  margin-top: -6px;
-}
-.batch-slider::-webkit-slider-runnable-track {
-  height: 8px;
-  border-radius: 4px;
-}
-.batch-slider::-moz-range-track {
-  height: 8px;
-  border: 1px solid rgba(0,0,0,0.15);
-  border-radius: 4px;
-  background: transparent;
-}
-.batch-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--primary-purple, #8b5cf6);
-  cursor: pointer;
-  border: 2px solid rgba(255,255,255,0.4);
-  box-shadow: 0 2px 6px rgba(139,92,246,0.35);
-}
-.batch-value {
-  font-weight: 700;
-  font-size: 1rem;
-  color: var(--primary-purple, #8b5cf6);
-  min-width: 24px;
-  text-align: center;
-}
-.batch-hint {
-  margin-top: 0.35rem;
-  font-size: 0.75rem;
-  color: var(--text-secondary, #999);
-}
-
-/* ── Batch modal (Settings-style glass) ── */
-.batch-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(6px);
-}
-.batch-modal-panel {
-  position: relative;
-  width: min(640px, 92%);
-  max-height: 82vh;
-  overflow-y: auto;
-  border-radius: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  background: linear-gradient(
-    145deg,
-    rgba(255,255,255,0.58) 0%,
-    rgba(255,255,255,0.42) 40%,
-    rgba(255,255,255,0.50) 100%
-  );
-  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.15);
-  backdrop-filter: blur(40px) saturate(200%) brightness(1.15);
-  box-shadow:
-    0 32px 80px rgba(15,23,42,0.18),
-    0 12px 32px rgba(6,182,212,0.08),
-    inset 0 1px 0 rgba(255,255,255,0.7);
-  padding: 2rem;
-  color: #1e293b;
-}
-.batch-modal-refraction {
-  position: absolute;
-  top: 0; left: 40px; right: 40px;
-  height: 1.5px;
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.95) 30%, rgba(255,255,255,0.95) 70%, transparent 100%);
-  border-radius: 1px;
-}
-.batch-modal-close {
-  position: absolute;
-  top: 16px; right: 16px;
-  width: 30px; height: 30px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(241,245,249,0.7);
-  color: rgba(51,65,85,0.6);
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s;
-}
-.batch-modal-close:hover {
-  color: rgba(51,65,85,0.9);
-  background: rgba(255,255,255,1);
-  transform: rotate(90deg);
-}
-.batch-modal-header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 12px;
-}
-.batch-modal-icon {
-  width: 44px; height: 44px;
-  border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.1rem;
-  background: rgba(139,92,246,0.12);
-  color: #8b5cf6;
-}
-.batch-modal-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin: 0;
-  color: #0f172a;
-}
-.batch-modal-desc {
-  font-size: 0.88rem;
-  color: #475569;
-  line-height: 1.55;
-  margin: 0 0 1.25rem 0;
-}
-.batch-modal-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-.batch-modal-card {
-  padding: 18px 20px;
-  border-radius: 16px;
-  background: #fff;
-  border: 1px solid rgba(235, 238, 242, 0.9);
-  box-shadow: 0 2px 8px rgba(15,23,42,0.05);
-}
-.batch-modal-card h3 {
-  font-size: 0.88rem;
-  font-weight: 700;
-  margin: 0 0 6px 0;
-  color: #1e293b;
-}
-.batch-modal-card h3 i {
-  color: #8b5cf6;
-  margin-right: 6px;
-  font-size: 0.8rem;
-}
-.batch-modal-card p {
-  font-size: 0.8rem;
-  color: #64748b;
-  margin: 0;
-  line-height: 1.45;
-}
-.modal-enter-active { transition: opacity 0.2s; }
-.modal-leave-active { transition: opacity 0.15s; }
-.modal-enter-from, .modal-leave-to { opacity: 0; }
 </style>

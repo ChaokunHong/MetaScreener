@@ -250,23 +250,22 @@ def _build_screening_backends(
 
 
 def _apply_screening_token_limits(
-    backends: list[Any], batch_size: int = 1,
+    backends: list[Any],
 ) -> list[Any]:
-    """Set max_tokens for screening, scaled by batch size.
+    """Set max_tokens for screening.
 
-    A single screening response is ~200-300 tokens. For batch mode
-    (multiple papers per prompt), the limit is scaled up accordingly.
+    A single screening response is ~200-300 tokens. Thinking models
+    get a higher limit to accommodate internal chain-of-thought.
 
     Args:
         backends: LLM backend instances.
-        batch_size: Number of papers per prompt (1 = individual mode).
     """
     for b in backends:
         if hasattr(b, "_max_tokens"):
             if hasattr(b, "_thinking") and b._thinking:
-                b._max_tokens = min(b._max_tokens, 1024 * batch_size)
+                b._max_tokens = min(b._max_tokens, 4096)
             else:
-                b._max_tokens = min(b._max_tokens, 512 * batch_size)
+                b._max_tokens = min(b._max_tokens, 512)
     return backends
 
 
@@ -1234,9 +1233,8 @@ async def _run_screening_background(
     backends: list[Any],
     criteria_payload: dict[str, Any],
     seed: int,
-    batch_size: int = 5,
 ) -> None:
-    """Screen records incrementally in the background, writing results as they complete."""
+    """Screen records concurrently in the background, writing results as they complete."""
     from metascreener.api.deps import get_config  # noqa: PLC0415
     from metascreener.module1_screening.layer4.router import DecisionRouter  # noqa: PLC0415
     from metascreener.module1_screening.ta_screener import TAScreener  # noqa: PLC0415
@@ -1256,63 +1254,39 @@ async def _run_screening_background(
             tau_low=cfg.thresholds.tau_low,
             dissent_tolerance=cfg.thresholds.dissent_tolerance,
         )
-        # batch_size comes from the request parameter
-        backends = _apply_screening_token_limits(backends, batch_size=batch_size)
+        backends = _apply_screening_token_limits(backends)
         screener = TAScreener(backends=backends, timeout_s=180.0, router=router)
 
-        if batch_size <= 1:
-            # Individual mode: screen papers concurrently with progress updates
-            from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
-            user_settings = _load_user_settings()
-            concurrent = user_settings.get("concurrent_papers", 25)
-            sem = asyncio.Semaphore(concurrent)
+        # Concurrent screening with semaphore-based throttling
+        from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
+        user_settings = _load_user_settings()
+        concurrent = user_settings.get("concurrent_papers", 25)
+        sem = asyncio.Semaphore(concurrent)
 
-            async def _screen_one(i: int, record: Record) -> None:
-                async with sem:
-                    try:
-                        decision = await screener.screen_single(record, criteria, seed=seed)
-                        summary = ScreeningRecordSummary(
-                            record_id=decision.record_id,
-                            title=record.title or "(untitled record)",
-                            decision=decision.decision.value,
-                            tier=str(int(decision.tier)),
-                            score=decision.final_score,
-                            confidence=decision.ensemble_confidence,
-                        )
-                        session["results"].append(summary.model_dump())
-                        session["raw_decisions"].append(decision.model_dump(mode="json"))
-                    except Exception as exc:  # noqa: BLE001
-                        logger.warning("record_screening_error", record_id=record.record_id, error=str(exc))
-                        session["results"].append({
-                            "record_id": str(record.record_id),
-                            "title": record.title or "(untitled record)",
-                            "decision": "HUMAN_REVIEW", "tier": "3",
-                            "score": 0.0, "confidence": 0.0,
-                        })
-
-            await asyncio.gather(*[_screen_one(i, r) for i, r in enumerate(records)])
-        else:
-            # Batch mode: process in batches with incremental progress
-            record_list = list(records)
-            batches: list[list[Record]] = []
-            for i in range(0, len(record_list), batch_size):
-                batches.append(record_list[i : i + batch_size])
-
-            for batch_idx, batch_records in enumerate(batches):
-                logger.info("screening_batch_progress", batch=batch_idx + 1, total_batches=len(batches))
-                batch_decisions = await screener.screen_batch(
-                    batch_records, criteria, seed=seed, batch_size=batch_size,
-                )
-                for decision in batch_decisions:
-                    rec = next((r for r in batch_records if r.record_id == decision.record_id), None)
-                    title = rec.title if rec else "(untitled record)"
+        async def _screen_one(i: int, record: Record) -> None:
+            async with sem:
+                try:
+                    decision = await screener.screen_single(record, criteria, seed=seed)
                     summary = ScreeningRecordSummary(
-                        record_id=decision.record_id, title=title,
-                        decision=decision.decision.value, tier=str(int(decision.tier)),
-                        score=decision.final_score, confidence=decision.ensemble_confidence,
+                        record_id=decision.record_id,
+                        title=record.title or "(untitled record)",
+                        decision=decision.decision.value,
+                        tier=str(int(decision.tier)),
+                        score=decision.final_score,
+                        confidence=decision.ensemble_confidence,
                     )
                     session["results"].append(summary.model_dump())
                     session["raw_decisions"].append(decision.model_dump(mode="json"))
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("record_screening_error", record_id=record.record_id, error=str(exc))
+                    session["results"].append({
+                        "record_id": str(record.record_id),
+                        "title": record.title or "(untitled record)",
+                        "decision": "HUMAN_REVIEW", "tier": "3",
+                        "score": 0.0, "confidence": 0.0,
+                    })
+
+        await asyncio.gather(*[_screen_one(i, r) for i, r in enumerate(records)])
 
         session["status"] = "completed"
 
@@ -1414,7 +1388,7 @@ async def run_screening(
     session["status"] = "running"
 
     background_tasks.add_task(
-        _run_screening_background, session, records, backends, criteria_payload, req.seed, req.batch_size
+        _run_screening_background, session, records, backends, criteria_payload, req.seed,
     )
 
     return {
