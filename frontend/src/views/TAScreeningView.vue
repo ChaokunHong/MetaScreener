@@ -125,20 +125,85 @@
               <th>#</th>
               <th>Title</th>
               <th>Decision</th>
-              <th>Tier</th>
-              <th>Score</th>
-              <th>Confidence</th>
+              <th>
+                Tier
+                <span class="th-info" title="Routing tier: T0 = rule violation (auto-exclude), T1 = near-unanimous agreement (auto), T2 = majority agreement (auto-include), T3 = no consensus (human review)">
+                  <i class="fas fa-circle-info"></i>
+                </span>
+              </th>
+              <th>
+                Score
+                <span class="th-info" title="Calibrated ensemble inclusion probability (0.0–1.0). Higher = more likely relevant. Weighted average of all models' scores adjusted by confidence and calibration.">
+                  <i class="fas fa-circle-info"></i>
+                </span>
+              </th>
+              <th>
+                Confidence
+                <span class="th-info" title="Ensemble agreement confidence (0.0–1.0). Based on Shannon entropy of model decisions. 1.0 = all models agree, 0.0 = maximum disagreement (50/50 split).">
+                  <i class="fas fa-circle-info"></i>
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(r, i) in results" :key="i">
-              <td class="text-muted">{{ i + 1 }}</td>
-              <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.title || '(no title)' }}</td>
-              <td><span :class="decisionClass(r.decision)">{{ r.decision }}</span></td>
-              <td><span class="badge badge-unclear">T{{ r.tier ?? '?' }}</span></td>
-              <td>{{ fmt(r.score) }}</td>
-              <td>{{ fmt(r.confidence) }}</td>
-            </tr>
+            <template v-for="(r, i) in results" :key="i">
+              <tr class="result-row" :class="{ expanded: expandedRow === i }" @click="toggleDetail(i)">
+                <td class="text-muted">{{ i + 1 }}</td>
+                <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.title || '(no title)' }}</td>
+                <td><span :class="decisionClass(r.decision)">{{ r.decision }}</span></td>
+                <td><span class="badge badge-unclear">T{{ r.tier ?? '?' }}</span></td>
+                <td>{{ fmt(r.score) }}</td>
+                <td>{{ fmt(r.confidence) }}</td>
+              </tr>
+              <!-- Expanded detail row -->
+              <tr v-if="expandedRow === i" class="detail-row">
+                <td colspan="6">
+                  <div v-if="detailLoading" style="text-align: center; padding: 1rem;">
+                    <i class="fas fa-spinner fa-spin"></i> Loading model details...
+                  </div>
+                  <div v-else-if="detailData" class="detail-panel">
+                    <div class="detail-models-grid">
+                      <div
+                        v-for="mo in detailData.model_outputs"
+                        :key="mo.model_id"
+                        class="detail-model-card"
+                        :class="{ 'model-error': mo.error }"
+                      >
+                        <div class="detail-model-header">
+                          <span class="detail-model-id">{{ mo.model_id }}</span>
+                          <span :class="decisionClass(mo.decision)">{{ mo.decision }}</span>
+                        </div>
+                        <div v-if="mo.error" class="detail-model-error">
+                          <i class="fas fa-exclamation-triangle"></i> {{ mo.error }}
+                        </div>
+                        <template v-else>
+                          <div class="detail-model-scores">
+                            <span>Score: <strong>{{ fmt(mo.score) }}</strong></span>
+                            <span>Conf: <strong>{{ fmt(mo.confidence) }}</strong></span>
+                          </div>
+                          <div v-if="mo.rationale" class="detail-model-rationale">
+                            {{ mo.rationale }}
+                          </div>
+                          <div v-if="mo.pico_assessment || mo.element_assessment" class="detail-elements">
+                            <div
+                              v-for="(assess, elemKey) in (mo.element_assessment || mo.pico_assessment || {})"
+                              :key="elemKey"
+                              class="detail-element-item"
+                            >
+                              <span class="detail-element-key">{{ elemKey }}</span>
+                              <span v-if="assess.match === true" class="badge badge-include" style="font-size: 0.65rem;">match</span>
+                              <span v-else-if="assess.match === false" class="badge badge-exclude" style="font-size: 0.65rem;">mismatch</span>
+                              <span v-else class="badge badge-unclear" style="font-size: 0.65rem;">unclear</span>
+                              <span v-if="assess.evidence" class="detail-evidence">{{ assess.evidence }}</span>
+                            </div>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -305,6 +370,29 @@ const reviewCount = computed(() => results.value.filter(r => r.decision === 'HUM
 function decisionClass(d: string) { return decisionBadgeClass(d) }
 function fmt(v: unknown) { return fmtScore(v) }
 
+// Detail expansion
+const expandedRow = ref<number | null>(null)
+const detailLoading = ref(false)
+const detailData = ref<Record<string, any> | null>(null)
+
+async function toggleDetail(index: number) {
+  if (expandedRow.value === index) {
+    expandedRow.value = null
+    detailData.value = null
+    return
+  }
+  expandedRow.value = index
+  detailLoading.value = true
+  detailData.value = null
+  try {
+    detailData.value = await apiGet<Record<string, any>>(`/screening/detail/${sessionId.value}/${index}`)
+  } catch {
+    detailData.value = null
+  } finally {
+    detailLoading.value = false
+  }
+}
+
 function exportJSON() {
   const blob = new Blob([JSON.stringify(results.value, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -339,3 +427,99 @@ function resetAll() {
   currentStep.value = 1
 }
 </script>
+
+<style scoped>
+.th-info {
+  display: inline-flex;
+  margin-left: 0.3rem;
+  color: var(--text-secondary, #999);
+  font-size: 0.7rem;
+  cursor: help;
+  vertical-align: middle;
+}
+.result-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.result-row:hover {
+  background: rgba(139, 92, 246, 0.04);
+}
+.result-row.expanded {
+  background: rgba(139, 92, 246, 0.06);
+}
+.detail-row td {
+  padding: 0 !important;
+  border-top: none !important;
+}
+.detail-panel {
+  padding: 1rem 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.detail-models-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+}
+.detail-model-card {
+  padding: 0.85rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.detail-model-card.model-error {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.detail-model-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.detail-model-id {
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+.detail-model-error {
+  font-size: 0.78rem;
+  color: #ef4444;
+}
+.detail-model-scores {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #999);
+  margin-bottom: 0.4rem;
+}
+.detail-model-rationale {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #999);
+  font-style: italic;
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+}
+.detail-elements {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.detail-element-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+}
+.detail-element-key {
+  font-weight: 600;
+  min-width: 80px;
+  text-transform: capitalize;
+}
+.detail-evidence {
+  color: var(--text-secondary, #999);
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+</style>
