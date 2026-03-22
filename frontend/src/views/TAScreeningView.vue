@@ -35,7 +35,7 @@
           </button>
         </div>
         <div class="batch-slider-row">
-          <input type="range" v-model.number="batchSize" min="1" max="10" step="1" class="batch-slider" :style="batchSliderStyle" />
+          <input type="range" v-model.number="batchSize" min="1" max="5" step="1" class="batch-slider" :style="batchSliderStyle" />
           <span class="batch-value">{{ batchSize }}</span>
         </div>
         <div class="batch-hint">
@@ -369,11 +369,11 @@ async function onCriteriaSelected(item: { id: string; name: string }) {
 }
 
 // Batch size control
-const batchSize = ref(5)
+const batchSize = ref(3)
 const showBatchModal = ref(false)
 
 const batchSliderStyle = computed(() => {
-  const pct = ((batchSize.value - 1) / 9) * 100
+  const pct = ((batchSize.value - 1) / 4) * 100
   return {
     background: `linear-gradient(90deg, rgba(103,210,223,0.5) 0%, rgba(167,139,250,0.45) ${pct}%, rgba(255,255,255,0.08) ${pct}%, rgba(255,255,255,0.08) 100%)`,
   }
