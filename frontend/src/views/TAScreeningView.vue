@@ -844,11 +844,11 @@ onMounted(() => {
   gap: 12px;
 }
 .batch-modal-card {
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: linear-gradient(160deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.25) 100%);
-  border: 1px solid rgba(255,255,255,0.6);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(235, 238, 242, 0.9);
+  box-shadow: 0 2px 8px rgba(15,23,42,0.05);
 }
 .batch-modal-card h3 {
   font-size: 0.88rem;
