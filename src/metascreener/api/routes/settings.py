@@ -80,6 +80,8 @@ async def update_settings(update: SettingsUpdate) -> dict[str, str]:
         current["inference"] = update.inference.model_dump()
     if update.enabled_models is not None:
         current["enabled_models"] = update.enabled_models
+    if update.concurrent_papers is not None:
+        current["concurrent_papers"] = update.concurrent_papers
     _save_user_settings(current)
     return {"status": "ok"}
 

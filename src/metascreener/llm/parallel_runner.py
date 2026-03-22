@@ -40,6 +40,9 @@ class ParallelRunner:
             raise ValueError("At least one LLM backend is required.")
         self._backends = list(backends)
         self._timeout_s = timeout_s
+        self._consecutive_failures: dict[str, int] = {}
+        self._skipped_models: set[str] = set()
+        self._max_consecutive_failures = 3
 
     @property
     def backend_count(self) -> int:
@@ -106,17 +109,41 @@ class ParallelRunner:
         On failure, returns a ModelOutput with decision=INCLUDE (conservative)
         and the error message recorded for the audit trail.
         """
+        # Auto-skip models that failed too many times consecutively
+        if backend.model_id in self._skipped_models:
+            return ModelOutput(
+                model_id=backend.model_id,
+                decision=Decision.INCLUDE,
+                score=0.5,
+                confidence=0.0,
+                rationale="Model skipped — too many consecutive failures.",
+                error="auto-skipped",
+            )
+
         try:
-            return await asyncio.wait_for(
+            result = await asyncio.wait_for(
                 backend.call_with_prompt(prompt, seed=seed),
                 timeout=self._timeout_s,
             )
+            # Reset failure counter on success
+            self._consecutive_failures.pop(backend.model_id, None)
+            return result
         except TimeoutError:
             logger.warning(
                 "backend_timeout",
                 model_id=backend.model_id,
                 timeout_s=self._timeout_s,
             )
+            # Track consecutive failures
+            count = self._consecutive_failures.get(backend.model_id, 0) + 1
+            self._consecutive_failures[backend.model_id] = count
+            if count >= self._max_consecutive_failures:
+                self._skipped_models.add(backend.model_id)
+                logger.warning(
+                    "model_auto_skipped",
+                    model_id=backend.model_id,
+                    consecutive_failures=count,
+                )
             return ModelOutput(
                 model_id=backend.model_id,
                 decision=Decision.INCLUDE,
@@ -131,6 +158,16 @@ class ParallelRunner:
                 model_id=backend.model_id,
                 error=str(e),
             )
+            # Track consecutive failures
+            count = self._consecutive_failures.get(backend.model_id, 0) + 1
+            self._consecutive_failures[backend.model_id] = count
+            if count >= self._max_consecutive_failures:
+                self._skipped_models.add(backend.model_id)
+                logger.warning(
+                    "model_auto_skipped",
+                    model_id=backend.model_id,
+                    consecutive_failures=count,
+                )
             return ModelOutput(
                 model_id=backend.model_id,
                 decision=Decision.INCLUDE,
@@ -146,6 +183,16 @@ class ParallelRunner:
                 error_type=type(e).__name__,
                 error=str(e),
             )
+            # Track consecutive failures
+            count = self._consecutive_failures.get(backend.model_id, 0) + 1
+            self._consecutive_failures[backend.model_id] = count
+            if count >= self._max_consecutive_failures:
+                self._skipped_models.add(backend.model_id)
+                logger.warning(
+                    "model_auto_skipped",
+                    model_id=backend.model_id,
+                    consecutive_failures=count,
+                )
             return ModelOutput(
                 model_id=backend.model_id,
                 decision=Decision.INCLUDE,

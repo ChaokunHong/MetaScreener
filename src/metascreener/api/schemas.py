@@ -47,6 +47,7 @@ class SettingsResponse(BaseModel):
     api_keys: APIKeysConfig = Field(default_factory=APIKeysConfig)
     inference: InferenceSettings = Field(default_factory=InferenceSettings)
     enabled_models: list[str] = Field(default_factory=list)
+    concurrent_papers: int = 25
 
 
 class SettingsUpdate(BaseModel):
@@ -61,6 +62,7 @@ class SettingsUpdate(BaseModel):
     api_keys: APIKeysConfig | None = None
     inference: InferenceSettings | None = None
     enabled_models: list[str] | None = None
+    concurrent_papers: int | None = None
 
 
 class ModelInfo(BaseModel):

@@ -385,7 +385,14 @@ class LLMBackend(ABC):
             prompt_hash=prompt_hash_val[:8],
         )
 
-        raw_response = await self._call_api(prompt, seed=seed)
+        # Check response cache first
+        from metascreener.llm.response_cache import get_cached, put_cached  # noqa: PLC0415
+        cached = get_cached(self.model_id, prompt_hash_val)
+        if cached is not None:
+            raw_response = cached
+        else:
+            raw_response = await self._call_api(prompt, seed=seed)
+            put_cached(self.model_id, prompt_hash_val, raw_response)
 
         try:
             parsed = parse_llm_response(raw_response, self.model_id)

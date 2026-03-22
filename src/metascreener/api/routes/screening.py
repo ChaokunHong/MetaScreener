@@ -11,10 +11,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-# Max papers screened concurrently. Each paper calls N models in parallel,
-# so CONCURRENT_PAPERS=25 with 4 models → up to 100 simultaneous API calls.
-# OpenRouter paid tiers support high concurrency; free tiers may see
-# rate-limit retries at this level but the retry logic handles it.
+# Default concurrency if user settings not loaded. Actual value is read
+# from user settings at runtime (see _run_screening_background).
 _CONCURRENT_PAPERS = 25
 
 import structlog
@@ -1238,7 +1236,11 @@ async def _run_screening_background(
         )
         screener = TAScreener(backends=backends, timeout_s=180.0, router=router)
 
-        sem = asyncio.Semaphore(_CONCURRENT_PAPERS)
+        # Read user-configured concurrency (default 25)
+        from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
+        user_settings = _load_user_settings()
+        concurrent = user_settings.get("concurrent_papers", 25)
+        sem = asyncio.Semaphore(concurrent)
 
         async def _screen_one(i: int, record: Record) -> None:
             async with sem:
@@ -1601,7 +1603,11 @@ async def _run_ft_screening_background(
             router=router_obj,
         )
 
-        sem = asyncio.Semaphore(10)  # FT papers are heavier but still benefit from concurrency
+        # FT uses half the TA concurrency since each FT paper is heavier
+        from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
+        user_settings = _load_user_settings()
+        concurrent = max(1, user_settings.get("concurrent_papers", 25) // 2)
+        sem = asyncio.Semaphore(concurrent)
 
         async def _screen_one(i: int, record: Record) -> None:
             async with sem:
