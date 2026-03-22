@@ -208,9 +208,26 @@ async function doLoad(item: HistoryItem) {
     } catch { router.push('/criteria') }
     return
   }
+
+  if (item.module === 'screening') {
+    // Load screening results and navigate to appropriate view
+    try {
+      const full = await apiGet<{ data: { stage?: string; results?: unknown[] } }>(`/history/${item.module}/${item.id}`)
+      const stage = full.data?.stage === 'ft' ? 'ft' : 'ta'
+      // Store in sessionStorage for the target view to pick up
+      sessionStorage.setItem('metascreener_history_results', JSON.stringify(full.data))
+      router.push(`/screening/${stage}`)
+    } catch {
+      router.push('/screening')
+    }
+    return
+  }
+
+  // For other modules
   const routes: Record<string, string> = {
-    screening: '/screening', evaluation: '/evaluation',
-    extraction: '/extraction', quality: '/quality',
+    evaluation: '/evaluation',
+    extraction: '/extraction',
+    quality: '/quality',
   }
   router.push({ path: routes[item.module] || '/', query: { historyId: item.id } })
 }

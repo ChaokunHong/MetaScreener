@@ -236,7 +236,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { apiUpload, apiPost, apiGet, decisionBadgeClass, fmtScore } from '@/api'
 import CriteriaSelector from '@/components/CriteriaSelector.vue'
 
@@ -469,6 +469,22 @@ function resetAll() {
   runError.value = ''
   currentStep.value = 1
 }
+
+// Load results from history if navigated from HistoryView
+onMounted(() => {
+  const stored = sessionStorage.getItem('metascreener_history_results')
+  if (stored) {
+    sessionStorage.removeItem('metascreener_history_results')
+    try {
+      const data = JSON.parse(stored)
+      if (data.results && Array.isArray(data.results)) {
+        results.value = data.results
+        currentStep.value = 4
+        selectedCriteriaName.value = 'Loaded from history'
+      }
+    } catch { /* ignore parse errors */ }
+  }
+})
 </script>
 
 <style scoped>

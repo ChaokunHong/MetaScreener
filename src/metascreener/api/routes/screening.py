@@ -1279,6 +1279,26 @@ async def _run_screening_background(
 
         await asyncio.gather(*[_screen_one(i, record) for i, record in enumerate(records)])
         session["status"] = "completed"
+
+        # Save to history for later retrieval
+        try:
+            from metascreener.api.history_store import HistoryStore  # noqa: PLC0415
+            store = HistoryStore()
+            n_include = sum(1 for r in session.get("results", []) if r.get("decision") == "INCLUDE")
+            n_exclude = sum(1 for r in session.get("results", []) if r.get("decision") == "EXCLUDE")
+            n_review = sum(1 for r in session.get("results", []) if r.get("decision") == "HUMAN_REVIEW")
+            store.create(
+                module="screening",
+                data={
+                    "stage": "ta",
+                    "results": session.get("results", []),
+                    "filename": session.get("filename", ""),
+                },
+                name=f"Screening (TA) — {session.get('filename', 'unknown')}",
+                summary=f"{len(session.get('results', []))} papers: {n_include} include, {n_exclude} exclude, {n_review} review",
+            )
+        except Exception:
+            logger.warning("screening_history_save_failed", exc_info=True)
     except Exception as exc:  # noqa: BLE001
         logger.error("background_screening_error", error=str(exc))
         session["status"] = "error"
@@ -1636,6 +1656,26 @@ async def _run_ft_screening_background(
 
         await asyncio.gather(*[_screen_one(i, r) for i, r in enumerate(records)])
         session["status"] = "completed"
+
+        # Save to history for later retrieval
+        try:
+            from metascreener.api.history_store import HistoryStore  # noqa: PLC0415
+            store = HistoryStore()
+            n_include = sum(1 for r in session.get("results", []) if r.get("decision") == "INCLUDE")
+            n_exclude = sum(1 for r in session.get("results", []) if r.get("decision") == "EXCLUDE")
+            n_review = sum(1 for r in session.get("results", []) if r.get("decision") == "HUMAN_REVIEW")
+            store.create(
+                module="screening",
+                data={
+                    "stage": "ft",
+                    "results": session.get("results", []),
+                    "filenames": session.get("filenames", []),
+                },
+                name=f"Screening (FT) — {len(session.get('filenames', []))} PDFs",
+                summary=f"{len(session.get('results', []))} papers: {n_include} include, {n_exclude} exclude, {n_review} review",
+            )
+        except Exception:
+            logger.warning("ft_screening_history_save_failed", exc_info=True)
     except Exception as exc:  # noqa: BLE001
         logger.error("ft_background_error", error=str(exc))
         session["status"] = "error"
