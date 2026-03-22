@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
+import sys
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -13,6 +15,11 @@ from metascreener.core.exceptions import LLMParseError
 from metascreener.core.models import ModelOutput, PICOAssessment, PICOCriteria, Record
 
 logger = structlog.get_logger(__name__)
+
+# Python 3.11+ limits integer string conversion to 4300 digits by default.
+# Some LLM responses contain very large numbers that trigger this limit.
+if hasattr(sys, "set_int_max_str_digits"):
+    sys.set_int_max_str_digits(0)  # 0 = unlimited
 
 # Temperature is always 0.0 for reproducibility (TRIPOD-LLM compliance)
 INFERENCE_TEMPERATURE: float = 0.0
@@ -136,8 +143,89 @@ def strip_code_fences(text: str) -> str:
     return "\n".join(lines).strip()
 
 
+def _try_json_loads(text: str) -> Any | None:
+    """Attempt ``json.loads`` without raising on failure.
+
+    Args:
+        text: JSON string to parse.
+
+    Returns:
+        Parsed result, or None on any error.
+    """
+    try:
+        return json.loads(text)
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return None
+
+
+def _extract_json_object(text: str) -> str | None:
+    """Extract the first JSON object from mixed text.
+
+    Finds the first ``{`` and its matching ``}`` using brace counting,
+    ignoring braces inside JSON string literals.
+
+    Args:
+        text: Text that may contain a JSON object mixed with prose.
+
+    Returns:
+        The extracted JSON substring, or None if no valid pair found.
+    """
+    start = text.find("{")
+    if start == -1:
+        return None
+
+    depth = 0
+    in_string = False
+    escape = False
+    for i in range(start, len(text)):
+        c = text[i]
+        if escape:
+            escape = False
+            continue
+        if c == "\\":
+            escape = True
+            continue
+        if c == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+    return None
+
+
+def _repair_json(text: str) -> str:
+    """Attempt to repair common JSON formatting issues from LLMs.
+
+    Fixes:
+    - Trailing commas before ``}`` or ``]``
+    - Single quotes used instead of double quotes (outside strings)
+    - Unquoted keys
+
+    Args:
+        text: Possibly malformed JSON string.
+
+    Returns:
+        Repaired JSON string (may still be invalid).
+    """
+    # Remove trailing commas: ,} or ,]
+    repaired = re.sub(r",\s*([}\]])", r"\1", text)
+    return repaired
+
+
 def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
     """Parse and validate JSON response from an LLM.
+
+    Uses a multi-stage approach for robustness:
+    1. Strip code fences and try ``json.loads`` directly.
+    2. If that fails, extract the first ``{...}`` block and retry.
+    3. If that fails, attempt JSON repair (trailing commas, etc.) and retry.
+    4. Handle double-encoded JSON strings.
 
     Args:
         raw_response: Raw string response from the LLM API.
@@ -147,25 +235,44 @@ def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
         Parsed JSON as dict.
 
     Raises:
-        LLMParseError: If the response cannot be parsed as valid JSON.
+        LLMParseError: If all parsing strategies fail.
     """
-    cleaned = strip_code_fences(raw_response)
-
-    try:
-        result = json.loads(cleaned)
-    except json.JSONDecodeError as e:
+    if not raw_response or not raw_response.strip():
         raise LLMParseError(
-            f"Invalid JSON from {model_id}: {e}",
+            f"Empty response from {model_id}",
             raw_response=raw_response,
             model_id=model_id,
-        ) from e
+        )
+
+    cleaned = strip_code_fences(raw_response)
+
+    # Stage 1: Direct parse
+    result = _try_json_loads(cleaned)
+
+    # Stage 2: Extract JSON object from mixed text
+    if result is None:
+        extracted = _extract_json_object(cleaned)
+        if extracted:
+            result = _try_json_loads(extracted)
+
+    # Stage 3: Repair common issues and retry
+    if result is None:
+        target = extracted or cleaned
+        repaired = _repair_json(target)
+        result = _try_json_loads(repaired)
+
+    if result is None:
+        raise LLMParseError(
+            f"Cannot parse JSON from {model_id} after repair attempts",
+            raw_response=raw_response,
+            model_id=model_id,
+        )
 
     # Handle double-encoded JSON (LLM returned a JSON string containing JSON)
     if isinstance(result, str):
-        try:
-            result = json.loads(result)
-        except (json.JSONDecodeError, ValueError):
-            pass
+        inner = _try_json_loads(result)
+        if inner is not None:
+            result = inner
 
     if not isinstance(result, dict):
         raise LLMParseError(

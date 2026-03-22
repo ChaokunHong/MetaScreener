@@ -137,8 +137,8 @@ class OpenRouterAdapter(LLMBackend):
                 data = response.json()
                 content: str | None = data["choices"][0]["message"].get("content")
 
-                # Thinking models may return None content if max_tokens was consumed by CoT
-                if content is None:
+                # Empty or whitespace-only content: model produced no usable output
+                if not content or not content.strip():
                     finish_reason = data["choices"][0].get("finish_reason", "unknown")
                     logger.warning(
                         "openrouter_empty_content",
