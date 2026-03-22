@@ -99,8 +99,8 @@
 /* ── Vertical Divider ──────────────────── */
 .stage-divider {
   width: 1px;
-  margin: 1rem 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.12) 30%, rgba(255,255,255,0.12) 70%, transparent 100%);
+  margin: 0.5rem 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.25) 20%, rgba(255,255,255,0.25) 80%, transparent 100%);
 }
 
 /* ── Card ──────────────────────────────── */
