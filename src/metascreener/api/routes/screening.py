@@ -249,6 +249,21 @@ def _build_screening_backends(
     )
 
 
+def _apply_screening_token_limits(backends: list[Any]) -> list[Any]:
+    """Reduce max_tokens for screening (responses are small JSON).
+
+    Screening responses are typically 200-300 tokens. Using lower limits
+    speeds up generation without affecting quality.
+    """
+    for b in backends:
+        if hasattr(b, "_max_tokens"):
+            if hasattr(b, "_thinking") and b._thinking:
+                b._max_tokens = min(b._max_tokens, 4096)
+            else:
+                b._max_tokens = min(b._max_tokens, 512)
+    return backends
+
+
 async def _resolve_review_criteria(
     criteria_payload: dict[str, Any],
     backends: list[Any],
@@ -1234,50 +1249,35 @@ async def _run_screening_background(
             tau_low=cfg.thresholds.tau_low,
             dissent_tolerance=cfg.thresholds.dissent_tolerance,
         )
+        backends = _apply_screening_token_limits(backends)
         screener = TAScreener(backends=backends, timeout_s=180.0, router=router)
 
-        # Read user-configured concurrency (default 25)
+        # Read user-configured concurrency and batch size
         from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
         user_settings = _load_user_settings()
-        concurrent = user_settings.get("concurrent_papers", 25)
-        sem = asyncio.Semaphore(concurrent)
+        batch_size = user_settings.get("batch_size", 5)
 
-        async def _screen_one(i: int, record: Record) -> None:
-            async with sem:
-                logger.info(
-                    "screening_progress",
-                    current=i + 1,
-                    total=len(records),
-                    record_id=record.record_id,
-                )
-                try:
-                    decision = await screener.screen_single(record, criteria, seed=seed)
-                    summary = ScreeningRecordSummary(
-                        record_id=decision.record_id,
-                        title=record.title or "(untitled record)",
-                        decision=decision.decision.value,
-                        tier=str(int(decision.tier)),
-                        score=decision.final_score,
-                        confidence=decision.ensemble_confidence,
-                    )
-                    session["results"].append(summary.model_dump())
-                    session["raw_decisions"].append(decision.model_dump(mode="json"))
-                except Exception as exc:  # noqa: BLE001
-                    logger.error(
-                        "record_screening_error",
-                        record_id=record.record_id,
-                        error=str(exc),
-                    )
-                    session["results"].append({
-                        "record_id": str(record.record_id),
-                        "title": record.title or "(untitled record)",
-                        "decision": "HUMAN_REVIEW",
-                        "tier": "3",
-                        "score": 0.0,
-                        "confidence": 0.0,
-                    })
+        # Use batch screening for performance
+        all_decisions = await screener.screen_batch(
+            records, criteria, seed=seed, batch_size=batch_size,
+        )
 
-        await asyncio.gather(*[_screen_one(i, record) for i, record in enumerate(records)])
+        # Populate results
+        for decision in all_decisions:
+            record = next(
+                (r for r in records if r.record_id == decision.record_id), None
+            )
+            title = record.title if record else "(untitled record)"
+            summary = ScreeningRecordSummary(
+                record_id=decision.record_id,
+                title=title,
+                decision=decision.decision.value,
+                tier=str(int(decision.tier)),
+                score=decision.final_score,
+                confidence=decision.ensemble_confidence,
+            )
+            session["results"].append(summary.model_dump())
+            session["raw_decisions"].append(decision.model_dump(mode="json"))
         session["status"] = "completed"
 
         # Save to history for later retrieval
@@ -1618,6 +1618,7 @@ async def _run_ft_screening_background(
             tau_low=cfg.thresholds.tau_low,
             dissent_tolerance=cfg.thresholds.dissent_tolerance,
         )
+        backends = _apply_screening_token_limits(backends)
         screener = FTScreener(
             backends=backends,
             timeout_s=cfg.inference.timeout_thinking_s,

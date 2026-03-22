@@ -12,15 +12,16 @@ from collections.abc import Sequence
 
 import structlog
 
-from metascreener.core.enums import ScreeningStage
+from metascreener.core.enums import Decision, ScreeningStage
 from metascreener.core.models import (
     AuditEntry,
+    ModelOutput,
     PICOCriteria,
     Record,
     ReviewCriteria,
     ScreeningDecision,
 )
-from metascreener.llm.base import LLMBackend
+from metascreener.llm.base import LLMBackend, hash_prompt
 from metascreener.module1_screening.layer1.inference import InferenceEngine
 from metascreener.module1_screening.layer2.rule_engine import RuleEngine
 from metascreener.module1_screening.layer3.aggregator import CCAggregator
@@ -118,28 +119,138 @@ class TAScreener:
         records: Sequence[Record],
         criteria: ReviewCriteria | PICOCriteria,
         seed: int = 42,
+        batch_size: int = 5,
     ) -> list[ScreeningDecision]:
-        """Screen a batch of records sequentially.
+        """Screen records in batches for performance.
+
+        Groups records into batches of ``batch_size``, sends each batch
+        as a single prompt to all models in parallel, then processes
+        results through Layers 2-4 individually.
 
         Args:
             records: Records to screen.
             criteria: Review criteria (shared across all records).
             seed: Random seed for reproducibility.
+            batch_size: Number of papers per prompt (default 5).
 
         Returns:
             List of ScreeningDecision, one per record.
         """
-        results: list[ScreeningDecision] = []
-        for i, record in enumerate(records):
+        import asyncio  # noqa: PLC0415
+
+        from metascreener.module1_screening.layer1.batch_prompt import (  # noqa: PLC0415
+            build_batch_screening_prompt,
+            parse_batch_response,
+        )
+
+        if batch_size <= 1:
+            # Fall back to sequential screening
+            results: list[ScreeningDecision] = []
+            for i, record in enumerate(records):
+                logger.info("screening_progress", current=i + 1, total=len(records))
+                result = await self.screen_single(record, criteria, seed=seed)
+                results.append(result)
+            return results
+
+        # Split into batches
+        record_list = list(records)
+        batches: list[list[Record]] = []
+        for i in range(0, len(record_list), batch_size):
+            batches.append(record_list[i : i + batch_size])
+
+        logger.info(
+            "batch_screening_start",
+            n_records=len(records),
+            n_batches=len(batches),
+            batch_size=batch_size,
+        )
+
+        all_decisions: list[ScreeningDecision] = []
+
+        for batch_idx, batch_records in enumerate(batches):
             logger.info(
-                "screening_progress",
-                current=i + 1,
-                total=len(records),
-                record_id=record.record_id,
+                "batch_progress",
+                batch=batch_idx + 1,
+                total=len(batches),
+                batch_size=len(batch_records),
             )
-            result = await self.screen_single(record, criteria, seed=seed)
-            results.append(result)
-        return results
+
+            # Build batch prompt
+            prompt = build_batch_screening_prompt(batch_records, criteria)
+            prompt_hash = hash_prompt(prompt)
+
+            async def _call_model_batch(
+                backend: LLMBackend,
+                _prompt: str = prompt,
+                _hash: str = prompt_hash,
+                _records: list[Record] = batch_records,
+            ) -> list[ModelOutput]:
+                """Call one model with the batch prompt and parse results."""
+                try:
+                    from metascreener.llm.response_cache import (  # noqa: PLC0415
+                        get_cached,
+                        put_cached,
+                    )
+
+                    cached = get_cached(backend.model_id, _hash)
+                    if cached is not None:
+                        raw = cached
+                    else:
+                        raw = await backend._call_api(_prompt, seed=seed)
+                        put_cached(backend.model_id, _hash, raw)
+                    return parse_batch_response(raw, _records, backend.model_id)
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(
+                        "batch_model_error",
+                        model_id=backend.model_id,
+                        error=str(e),
+                    )
+                    return [
+                        ModelOutput(
+                            model_id=backend.model_id,
+                            decision=Decision.INCLUDE,
+                            score=0.5,
+                            confidence=0.0,
+                            rationale=f"Batch error: {e}",
+                            error=str(e),
+                        )
+                        for _ in _records
+                    ]
+
+            model_results = await asyncio.gather(
+                *[_call_model_batch(b) for b in self._backends]
+            )
+            # model_results: list[list[ModelOutput]] - [n_models][n_records_in_batch]
+
+            # Transpose: for each record, collect outputs from all models
+            for rec_idx, record in enumerate(batch_records):
+                model_outputs = [
+                    model_results[m][rec_idx] for m in range(len(self._backends))
+                ]
+
+                # Layers 2-4 (same as screen_single)
+                rule_result = self._rules.check(record, criteria, model_outputs)
+                s_final, c_ensemble = self._aggregator.aggregate(
+                    model_outputs, rule_penalty=rule_result.total_penalty
+                )
+                decision, tier = self._router.route(
+                    model_outputs, rule_result, s_final, c_ensemble
+                )
+
+                all_decisions.append(
+                    ScreeningDecision(
+                        record_id=record.record_id,
+                        stage=ScreeningStage.TITLE_ABSTRACT,
+                        decision=decision,
+                        tier=tier,
+                        final_score=s_final,
+                        ensemble_confidence=c_ensemble,
+                        model_outputs=model_outputs,
+                        rule_result=rule_result,
+                    )
+                )
+
+        return all_decisions
 
     def build_audit_entry(
         self,
