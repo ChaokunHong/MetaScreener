@@ -271,8 +271,15 @@ def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
     # Handle double-encoded JSON (LLM returned a JSON string containing JSON)
     if isinstance(result, str):
         inner = _try_json_loads(result)
-        if inner is not None:
+        if isinstance(inner, dict):
             result = inner
+        else:
+            # Last resort: try to extract JSON object from the string
+            extracted_inner = _extract_json_object(result)
+            if extracted_inner:
+                inner2 = _try_json_loads(extracted_inner)
+                if isinstance(inner2, dict):
+                    result = inner2
 
     if not isinstance(result, dict):
         raise LLMParseError(
@@ -383,7 +390,7 @@ class LLMBackend(ABC):
         try:
             parsed = parse_llm_response(raw_response, self.model_id)
         except LLMParseError as e:
-            self._log.error("parse_error", model_id=self.model_id, error=str(e))
+            self._log.warning("parse_error", model_id=self.model_id, error=str(e))
             raise
 
         # Map element_assessment OR pico_assessment → pico_assessment field
@@ -453,7 +460,7 @@ class LLMBackend(ABC):
         try:
             parsed = parse_llm_response(raw_response, self.model_id)
         except LLMParseError as e:
-            self._log.error("parse_error", model_id=self.model_id, error=str(e))
+            self._log.warning("parse_error", model_id=self.model_id, error=str(e))
             raise
 
         # Build PICO assessment

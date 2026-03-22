@@ -126,7 +126,7 @@ class ParallelRunner:
                 error=f"Timeout after {self._timeout_s}s",
             )
         except LLMError as e:
-            logger.error(
+            logger.warning(
                 "backend_error",
                 model_id=backend.model_id,
                 error=str(e),
@@ -136,11 +136,11 @@ class ParallelRunner:
                 decision=Decision.INCLUDE,
                 score=0.5,
                 confidence=0.0,
-                rationale="API error — defaulting to INCLUDE.",
+                rationale="Parse/API error — defaulting to INCLUDE.",
                 error=str(e),
             )
         except Exception as e:
-            logger.error(
+            logger.warning(
                 "backend_unexpected_error",
                 model_id=backend.model_id,
                 error_type=type(e).__name__,
@@ -189,7 +189,7 @@ class ParallelRunner:
                 error=f"Timeout after {self._timeout_s}s",
             )
         except LLMError as e:
-            logger.error(
+            logger.warning(
                 "backend_error",
                 model_id=backend.model_id,
                 record_id=record.record_id,
@@ -200,11 +200,11 @@ class ParallelRunner:
                 decision=Decision.INCLUDE,  # safe default
                 score=0.5,
                 confidence=0.0,
-                rationale="API error — defaulting to INCLUDE.",
+                rationale="Parse/API error — defaulting to INCLUDE.",
                 error=str(e),
             )
         except Exception as e:
-            logger.error(
+            logger.warning(
                 "backend_unexpected_error",
                 model_id=backend.model_id,
                 record_id=record.record_id,
