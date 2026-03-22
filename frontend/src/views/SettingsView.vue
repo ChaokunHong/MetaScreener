@@ -528,9 +528,9 @@ const concurrentPapers = ref(25)
 
 const sliderFillStyle = computed(() => {
   const pct = ((concurrentPapers.value - 1) / 99) * 100
-  // Robin's egg blue → yellow → purple gradient fill
+  // Light robin's egg teal → light purple, unfilled portion is subtle gray
   return {
-    background: `linear-gradient(90deg, #06b6d4 0%, #f59e0b ${pct * 0.5}%, #8b5cf6 ${pct}%, rgba(255,255,255,0.08) ${pct}%, rgba(255,255,255,0.08) 100%)`,
+    background: `linear-gradient(90deg, rgba(103,210,223,0.5) 0%, rgba(167,139,250,0.45) ${pct}%, rgba(255,255,255,0.08) ${pct}%, rgba(255,255,255,0.08) 100%)`,
   }
 })
 
