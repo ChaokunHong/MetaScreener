@@ -50,9 +50,6 @@
           <div v-if="item.tags?.length" class="criteria-card-tags">
             <span v-for="tag in item.tags" :key="tag" class="tag-chip-sm">{{ tag }}</span>
           </div>
-          <div v-if="selectedId === item.id" class="criteria-card-check">
-            <i class="fas fa-check-circle"></i>
-          </div>
         </div>
       </div>
     </template>
@@ -206,12 +203,5 @@ function fmtDate(iso: string): string {
   background: rgba(139, 92, 246, 0.1);
   color: var(--primary-purple, #8b5cf6);
   border: 1px solid rgba(139, 92, 246, 0.2);
-}
-.criteria-card-check {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  color: var(--primary-purple, #8b5cf6);
-  font-size: 1.1rem;
 }
 </style>
