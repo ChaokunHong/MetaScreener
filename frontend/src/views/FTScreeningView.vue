@@ -18,7 +18,7 @@
     </div>
 
     <!-- STEP 1: Select Criteria -->
-    <div class="glass-card">
+    <div v-if="currentStep < 4" class="glass-card">
       <div class="section-title"><i class="fas fa-list-check"></i> Select Criteria</div>
       <CriteriaSelector v-model="selectedCriteriaId" @select="onCriteriaSelected" />
       <div v-if="selectedCriteriaName" class="alert alert-success" style="margin-top: 0.75rem;">
@@ -28,7 +28,7 @@
     </div>
 
     <!-- STEP 2: Upload PDFs -->
-    <div v-if="currentStep >= 2" class="glass-card">
+    <div v-if="currentStep >= 2 && currentStep < 4" class="glass-card">
       <div class="section-title"><i class="fas fa-file-pdf"></i> Upload PDFs</div>
       <div
         class="upload-zone"
@@ -58,7 +58,7 @@
     </div>
 
     <!-- STEP 3: Run -->
-    <div v-if="currentStep >= 3" class="glass-card">
+    <div v-if="currentStep >= 3 && currentStep < 4" class="glass-card">
       <div class="section-title"><i class="fas fa-play-circle"></i> Run Full-Text Screening</div>
       <p class="text-muted" style="margin-bottom: 1rem;">
         Ready to screen <strong>{{ uploadInfo?.pdf_count }}</strong> PDFs
@@ -123,20 +123,41 @@
               <th>Decision</th>
               <th>
                 Tier
-                <span class="th-info" title="Routing tier: T0 = rule violation (auto-exclude), T1 = near-unanimous agreement (auto), T2 = majority agreement (auto-include), T3 = no consensus (human review)">
+                <span class="th-info" @click.stop="activeTooltip = activeTooltip === 'tier' ? '' : 'tier'">
                   <i class="fas fa-circle-info"></i>
+                  <div v-if="activeTooltip === 'tier'" class="th-popover">
+                    <strong>Decision Tier</strong><br>
+                    T0 — Rule violation → auto-exclude<br>
+                    T1 — Near-unanimous agreement → auto-decision<br>
+                    T2 — Majority agreement → auto-include (recall bias)<br>
+                    T3 — No consensus → human review
+                  </div>
                 </span>
               </th>
               <th>
                 Score
-                <span class="th-info" title="Calibrated ensemble inclusion probability (0.0–1.0). Higher = more likely relevant. Weighted average of all models' scores adjusted by confidence and calibration.">
+                <span class="th-info" @click.stop="activeTooltip = activeTooltip === 'score' ? '' : 'score'">
                   <i class="fas fa-circle-info"></i>
+                  <div v-if="activeTooltip === 'score'" class="th-popover">
+                    <strong>Inclusion Score</strong><br>
+                    Calibrated ensemble probability (0.0–1.0).<br>
+                    Weighted average of all models' scores,<br>
+                    adjusted by confidence and calibration.<br>
+                    Higher = more likely to be relevant.
+                  </div>
                 </span>
               </th>
               <th>
                 Confidence
-                <span class="th-info" title="Ensemble agreement confidence (0.0–1.0). Based on Shannon entropy of model decisions. 1.0 = all models agree, 0.0 = maximum disagreement (50/50 split).">
+                <span class="th-info" @click.stop="activeTooltip = activeTooltip === 'confidence' ? '' : 'confidence'">
                   <i class="fas fa-circle-info"></i>
+                  <div v-if="activeTooltip === 'confidence'" class="th-popover">
+                    <strong>Ensemble Confidence</strong><br>
+                    Agreement level among models (0.0–1.0).<br>
+                    Based on Shannon entropy of decisions.<br>
+                    1.0 = all models agree unanimously.<br>
+                    0.0 = maximum disagreement (50/50 split).
+                  </div>
                 </span>
               </th>
             </tr>
@@ -215,6 +236,7 @@ import CriteriaSelector from '@/components/CriteriaSelector.vue'
 const steps = ['Criteria', 'Upload PDFs', 'Run', 'Results']
 const currentStep = ref(1)
 const sessionId = ref<string | null>(null)
+const activeTooltip = ref('')
 
 // Step 1 - Select Criteria
 const selectedCriteriaId = ref<string | null>(null)
@@ -401,11 +423,31 @@ function resetAll() {
 <style scoped>
 .th-info {
   display: inline-flex;
+  position: relative;
   margin-left: 0.3rem;
   color: var(--text-secondary, #999);
   font-size: 0.7rem;
-  cursor: help;
+  cursor: pointer;
   vertical-align: middle;
+}
+.th-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 30, 45, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: #e0e0e0;
+  line-height: 1.6;
+  white-space: nowrap;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
 }
 .result-row {
   cursor: pointer;
