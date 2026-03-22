@@ -152,13 +152,49 @@ def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
     cleaned = strip_code_fences(raw_response)
 
     try:
-        return json.loads(cleaned)  # type: ignore[no-any-return]
+        result = json.loads(cleaned)
     except json.JSONDecodeError as e:
         raise LLMParseError(
             f"Invalid JSON from {model_id}: {e}",
             raw_response=raw_response,
             model_id=model_id,
         ) from e
+
+    # Handle double-encoded JSON (LLM returned a JSON string containing JSON)
+    if isinstance(result, str):
+        try:
+            result = json.loads(result)
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    if not isinstance(result, dict):
+        raise LLMParseError(
+            f"Expected JSON object from {model_id}, got {type(result).__name__}",
+            raw_response=raw_response,
+            model_id=model_id,
+        )
+
+    return result
+
+
+def _safe_decision(raw: object) -> Decision:
+    """Parse a decision value robustly, handling common LLM formatting quirks.
+
+    Handles: "INCLUDE", ":EXCLUDE", " include ", "Include", etc.
+
+    Args:
+        raw: Raw decision value from LLM response.
+
+    Returns:
+        Validated Decision enum value. Defaults to INCLUDE on failure.
+    """
+    if not isinstance(raw, str):
+        return Decision.INCLUDE
+    cleaned = raw.strip().strip(":").strip().upper()
+    try:
+        return Decision(cleaned)
+    except ValueError:
+        return Decision.INCLUDE
 
 
 class LLMBackend(ABC):
@@ -266,7 +302,7 @@ class LLMBackend(ABC):
 
         return ModelOutput(
             model_id=self.model_id,
-            decision=Decision(parsed.get("decision", "INCLUDE")),
+            decision=_safe_decision(parsed.get("decision", "INCLUDE")),
             score=float(parsed.get("score", 0.5)),
             confidence=float(parsed.get("confidence", 0.5)),
             rationale=str(parsed.get("rationale", "")),
@@ -325,7 +361,7 @@ class LLMBackend(ABC):
 
         return ModelOutput(
             model_id=self.model_id,
-            decision=Decision(parsed.get("decision", "INCLUDE")),
+            decision=_safe_decision(parsed.get("decision", "INCLUDE")),
             score=float(parsed.get("score", 0.5)),
             confidence=float(parsed.get("confidence", 0.5)),
             rationale=str(parsed.get("rationale", "")),

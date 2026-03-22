@@ -187,7 +187,7 @@
                       <div
                         v-for="mo in detailData.model_outputs"
                         :key="mo.model_id"
-                        class="detail-model-card"
+                        class="detail-model-card glass-section"
                         :class="{ 'model-error': mo.error }"
                       >
                         <div class="detail-model-header">
@@ -525,10 +525,7 @@ function resetAll() {
   gap: 0.75rem;
 }
 .detail-model-card {
-  padding: 0.85rem;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1rem 1.25rem;
 }
 .detail-model-card.model-error {
   border-color: rgba(239, 68, 68, 0.3);
@@ -559,7 +556,8 @@ function resetAll() {
   color: var(--text-secondary, #999);
   font-style: italic;
   margin-bottom: 0.5rem;
-  line-height: 1.4;
+  line-height: 1.5;
+  text-align: justify;
 }
 .detail-elements {
   display: flex;
@@ -585,6 +583,7 @@ function resetAll() {
   font-size: 0.72rem;
   line-height: 1.4;
   margin-top: 0.15rem;
+  text-align: justify;
 }
 .detail-model-logo {
   width: 18px;
