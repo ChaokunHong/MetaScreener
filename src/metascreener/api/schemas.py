@@ -227,6 +227,20 @@ class RunScreeningRequest(BaseModel):
     seed: int = 42
 
 
+class ScreeningFeedbackRequest(BaseModel):
+    """Request to submit human feedback on a screening decision.
+
+    Attributes:
+        record_index: Zero-based index of the record in results.
+        decision: Human's decision (INCLUDE or EXCLUDE).
+        rationale: Optional explanation.
+    """
+
+    record_index: int
+    decision: str
+    rationale: str = ""
+
+
 # --- Evaluation API schemas ---
 
 

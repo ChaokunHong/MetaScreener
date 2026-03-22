@@ -27,6 +27,7 @@ from metascreener.api.schemas import (
     PilotSearchRequest,
     RelevanceAssessment,
     RunScreeningRequest,
+    ScreeningFeedbackRequest,
     ScreeningRecordSummary,
     ScreeningResultsResponse,
     ScreeningSessionInfo,
@@ -1480,6 +1481,139 @@ async def export_results(
         "status": "ok",
         "message": f"Export as {format} not yet implemented",
     }
+
+
+@router.post("/feedback/{session_id}")
+async def submit_feedback(
+    session_id: str,
+    req: ScreeningFeedbackRequest,
+) -> dict[str, Any]:
+    """Submit human feedback to override a screening decision.
+
+    Updates the result in-place and records the feedback for
+    active learning recalibration.
+
+    Args:
+        session_id: Screening session ID.
+        req: Feedback with record index and human decision.
+
+    Returns:
+        Updated result summary and recalibration status.
+    """
+    if session_id not in _sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = _sessions[session_id]
+    results = session.get("results", [])
+    raw_decisions = session.get("raw_decisions", [])
+
+    if req.record_index < 0 or req.record_index >= len(results):
+        raise HTTPException(status_code=404, detail="Record index out of range")
+
+    # Validate decision
+    human_decision = req.decision.strip().upper()
+    if human_decision not in ("INCLUDE", "EXCLUDE"):
+        raise HTTPException(status_code=400, detail="Decision must be INCLUDE or EXCLUDE")
+
+    # Update the summary result
+    old_decision = results[req.record_index].get("decision", "")
+    results[req.record_index]["human_decision"] = human_decision
+    results[req.record_index]["decision"] = human_decision  # Override displayed decision
+
+    # Update raw_decision if exists
+    if req.record_index < len(raw_decisions):
+        raw_decisions[req.record_index]["human_decision"] = human_decision
+
+    # Collect feedback for active learning
+    feedback_list = session.setdefault("feedback", [])
+    feedback_list.append({
+        "record_index": req.record_index,
+        "original_decision": old_decision,
+        "human_decision": human_decision,
+        "rationale": req.rationale,
+    })
+
+    n_feedback = len(feedback_list)
+    recalibration_triggered = False
+
+    # Auto-trigger recalibration at thresholds (10, 20, 50, 100...)
+    if n_feedback in (10, 20, 50, 100) or (n_feedback > 100 and n_feedback % 50 == 0):
+        try:
+            _trigger_recalibration(session)
+            recalibration_triggered = True
+        except Exception:
+            logger.warning("recalibration_failed", exc_info=True)
+
+    logger.info(
+        "feedback_submitted",
+        session_id=session_id,
+        record_index=req.record_index,
+        old_decision=old_decision,
+        new_decision=human_decision,
+        n_feedback=n_feedback,
+        recalibrated=recalibration_triggered,
+    )
+
+    return {
+        "status": "ok",
+        "old_decision": old_decision,
+        "new_decision": human_decision,
+        "n_feedback": n_feedback,
+        "recalibration_triggered": recalibration_triggered,
+    }
+
+
+def _trigger_recalibration(session: dict[str, Any]) -> None:
+    """Run active learning recalibration from accumulated feedback.
+
+    Uses FeedbackCollector to recalibrate model weights and calibration
+    factors based on human feedback.
+    """
+    from metascreener.core.enums import Decision as Dec  # noqa: PLC0415
+    from metascreener.core.models import HumanFeedback, ModelOutput  # noqa: PLC0415
+    from metascreener.module1_screening.active_learning import FeedbackCollector  # noqa: PLC0415
+
+    collector = FeedbackCollector()
+    feedback_list = session.get("feedback", [])
+    raw_decisions = session.get("raw_decisions", [])
+
+    for fb in feedback_list:
+        idx = fb["record_index"]
+        if idx >= len(raw_decisions):
+            continue
+
+        raw = raw_decisions[idx]
+        model_outputs = [
+            ModelOutput(
+                model_id=o["model_id"],
+                decision=Dec(o["decision"]),
+                score=float(o.get("score", 0.5)),
+                confidence=float(o.get("confidence", 0.5)),
+                rationale=o.get("rationale", ""),
+            )
+            for o in raw.get("model_outputs", [])
+            if isinstance(o, dict) and "model_id" in o
+        ]
+
+        if model_outputs:
+            human_fb = HumanFeedback(
+                record_id=raw.get("record_id", ""),
+                decision=Dec(fb["human_decision"]),
+                rationale=fb.get("rationale", ""),
+            )
+            collector.add_feedback(human_fb, model_outputs)
+
+    if collector.n_feedback >= 2:
+        states = collector.recalibrate()
+        weights = collector.relearn_weights()
+        session["calibration_states"] = {k: v.model_dump(mode="json") for k, v in states.items()}
+        session["learned_weights"] = weights
+        logger.info(
+            "recalibration_complete",
+            n_feedback=collector.n_feedback,
+            n_models_calibrated=len(states),
+            weights=weights,
+        )
 
 
 # ═══════ Full-Text Screening Endpoints ═══════

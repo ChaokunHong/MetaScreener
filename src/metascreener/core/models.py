@@ -649,5 +649,41 @@ class CriteriaTemplate(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class HumanFeedback(BaseModel):
+    """Human reviewer's decision override for a screening result.
+
+    Attributes:
+        record_id: Reference to the screened Record.
+        decision: Human's decision (INCLUDE, EXCLUDE).
+        rationale: Optional explanation for the override.
+        reviewer_id: Optional reviewer identifier.
+        created_at: Timestamp of the feedback.
+    """
+
+    record_id: str
+    decision: Decision
+    rationale: str = ""
+    reviewer_id: str = "default"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class CalibrationState(BaseModel):
+    """Calibration state for a single model after recalibration.
+
+    Attributes:
+        model_id: Model identifier.
+        phi: Calibration factor φ_i in [0.1, 1.0].
+        method: Calibration method used ("platt", "identity").
+        n_samples: Number of feedback samples used.
+        last_updated: Timestamp of last recalibration.
+    """
+
+    model_id: str
+    phi: float = 1.0
+    method: str = "identity"
+    n_samples: int = 0
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
 # Rebuild for self-referencing model
 ScreeningDecision.model_rebuild()
