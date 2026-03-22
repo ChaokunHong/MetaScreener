@@ -771,14 +771,20 @@ onMounted(() => {
   width: min(640px, 92%);
   max-height: 82vh;
   overflow-y: auto;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.82);
-  background:
-    radial-gradient(120% 100% at 0% 0%, rgba(129,216,208,0.14) 0%, transparent 48%),
-    radial-gradient(120% 110% at 100% 100%, rgba(139,92,246,0.14) 0%, transparent 52%),
-    rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(24px) saturate(145%);
-  box-shadow: 0 24px 56px rgba(15,23,42,0.22), inset 0 1px 0 rgba(255,255,255,0.94);
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: linear-gradient(
+    145deg,
+    rgba(255,255,255,0.58) 0%,
+    rgba(255,255,255,0.42) 40%,
+    rgba(255,255,255,0.50) 100%
+  );
+  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.15);
+  backdrop-filter: blur(40px) saturate(200%) brightness(1.15);
+  box-shadow:
+    0 32px 80px rgba(15,23,42,0.18),
+    0 12px 32px rgba(6,182,212,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.7);
   padding: 2rem;
   color: #1e293b;
 }
