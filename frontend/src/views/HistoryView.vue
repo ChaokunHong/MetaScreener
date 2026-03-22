@@ -295,7 +295,7 @@ onMounted(fetchAll)
   padding: 0.7rem 0.85rem;
   border-radius: 10px;
   background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(0,0,0,0.25);
 }
 .history-item-info {
   display: flex;
