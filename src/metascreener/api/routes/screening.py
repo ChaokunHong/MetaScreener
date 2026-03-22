@@ -249,18 +249,24 @@ def _build_screening_backends(
     )
 
 
-def _apply_screening_token_limits(backends: list[Any]) -> list[Any]:
-    """Reduce max_tokens for screening (responses are small JSON).
+def _apply_screening_token_limits(
+    backends: list[Any], batch_size: int = 1,
+) -> list[Any]:
+    """Set max_tokens for screening, scaled by batch size.
 
-    Screening responses are typically 200-300 tokens. Using lower limits
-    speeds up generation without affecting quality.
+    A single screening response is ~200-300 tokens. For batch mode
+    (multiple papers per prompt), the limit is scaled up accordingly.
+
+    Args:
+        backends: LLM backend instances.
+        batch_size: Number of papers per prompt (1 = individual mode).
     """
     for b in backends:
         if hasattr(b, "_max_tokens"):
             if hasattr(b, "_thinking") and b._thinking:
-                b._max_tokens = min(b._max_tokens, 4096)
+                b._max_tokens = min(b._max_tokens, 1024 * batch_size)
             else:
-                b._max_tokens = min(b._max_tokens, 512)
+                b._max_tokens = min(b._max_tokens, 512 * batch_size)
     return backends
 
 
@@ -1249,13 +1255,13 @@ async def _run_screening_background(
             tau_low=cfg.thresholds.tau_low,
             dissent_tolerance=cfg.thresholds.dissent_tolerance,
         )
-        backends = _apply_screening_token_limits(backends)
-        screener = TAScreener(backends=backends, timeout_s=180.0, router=router)
-
-        # Read user-configured concurrency and batch size
+        # Read user-configured batch size, then scale token limits
         from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
         user_settings = _load_user_settings()
         batch_size = user_settings.get("batch_size", 5)
+
+        backends = _apply_screening_token_limits(backends, batch_size=batch_size)
+        screener = TAScreener(backends=backends, timeout_s=180.0, router=router)
 
         # Use batch screening for performance
         all_decisions = await screener.screen_batch(
