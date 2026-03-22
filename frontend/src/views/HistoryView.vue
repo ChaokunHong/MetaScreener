@@ -439,3 +439,85 @@ onMounted(fetchItems)
   gap: 0.4rem;
 }
 </style>
+
+<style>
+/* Modal styles (unscoped — Teleport renders outside component tree) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+.modal-glass {
+  background: linear-gradient(160deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%);
+  backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 16px;
+  padding: 1.75rem;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.2);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.modal-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.modal-header-title h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.modal-header-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+.modal-header-icon--danger {
+  background: rgba(239,68,68,0.15);
+  color: #ef4444;
+}
+.modal-close-btn {
+  background: rgba(255,255,255,0.08);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary, #999);
+  transition: all 0.15s;
+}
+.modal-close-btn:hover {
+  background: rgba(255,255,255,0.15);
+  color: var(--text-primary, #fff);
+}
+.modal-body {
+  margin-bottom: 1.25rem;
+}
+.modal-subtitle {
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.5;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+</style>
