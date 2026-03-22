@@ -82,15 +82,18 @@
 
     </div>
 
-    <!-- Model Selection -->
+    <!-- Model Selection (collapsible) -->
     <div class="glass-card">
-      <div class="section-title">
+      <div class="section-title section-title-clickable" @click="modelsExpanded = !modelsExpanded">
         <i class="fas fa-robot"></i> Model Selection
-        <button class="info-btn" @click="activeModal = 'models'" title="About Models">
+        <button class="info-btn" @click.stop="activeModal = 'models'" title="About Models">
           <i class="fas fa-circle-info"></i>
         </button>
         <span v-if="enabledModels.length > 0" class="model-count-badge">{{ enabledModels.length }} selected</span>
+        <i class="fas collapse-chevron" :class="modelsExpanded ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
       </div>
+      <transition name="collapse">
+      <div v-show="modelsExpanded">
 
       <!-- Quick Setup — Presets -->
       <div v-if="presets.length > 0" style="margin-bottom: 1.5rem;">
@@ -214,6 +217,8 @@
         <i class="fas fa-certificate"></i>
         All parameters locked for TRIPOD-LLM reproducibility compliance.
       </div>
+      </div>
+      </transition>
     </div>
 
     <!-- Performance Settings -->
@@ -519,6 +524,7 @@ const enabledModels = ref<string[]>([])
 const presets = ref<PresetInfo[]>([])
 
 const activeModal = ref<string | null>(null)
+const modelsExpanded = ref(false)
 const concurrentPapers = ref(25)
 
 const estimatedSpeed = computed(() => {
@@ -1111,6 +1117,33 @@ async function clearKeys() {
   font-size: 0.75rem;
 }
 
+/* ── Collapsible ───────────────────────────────── */
+.section-title-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+.section-title-clickable:hover {
+  opacity: 0.85;
+}
+.collapse-chevron {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #999);
+  transition: transform 0.2s;
+}
+.collapse-enter-active, .collapse-leave-active {
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+.collapse-enter-from, .collapse-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+.collapse-enter-to, .collapse-leave-from {
+  opacity: 1;
+  max-height: 2000px;
+}
+
 /* ── Performance ───────────────────────────────── */
 .perf-slider-row {
   display: flex;
@@ -1122,18 +1155,40 @@ async function clearKeys() {
   height: 6px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(255,255,255,0.1);
+  background: linear-gradient(90deg, rgba(139,92,246,0.25) 0%, rgba(139,92,246,0.15) 100%);
+  border: 1px solid rgba(139,92,246,0.3);
   border-radius: 3px;
   outline: none;
 }
+.perf-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+}
 .perf-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary-purple, #8b5cf6);
+  cursor: pointer;
+  border: 2px solid rgba(255,255,255,0.4);
+  box-shadow: 0 2px 6px rgba(139,92,246,0.35);
+  margin-top: -7px;
+}
+.perf-slider::-moz-range-track {
+  height: 6px;
+  background: linear-gradient(90deg, rgba(139,92,246,0.25) 0%, rgba(139,92,246,0.15) 100%);
+  border: 1px solid rgba(139,92,246,0.3);
+  border-radius: 3px;
+}
+.perf-slider::-moz-range-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
   background: var(--primary-purple, #8b5cf6);
   cursor: pointer;
-  border: 2px solid rgba(255,255,255,0.3);
+  border: 2px solid rgba(255,255,255,0.4);
+  box-shadow: 0 2px 6px rgba(139,92,246,0.35);
 }
 .perf-number {
   width: 64px;
