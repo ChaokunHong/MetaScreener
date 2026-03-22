@@ -1198,9 +1198,10 @@ async function clearKeys() {
   width: 64px;
   padding: 0.35rem 0.5rem;
   border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.15);
+  border: 1px solid rgba(139,92,246,0.3);
   background: rgba(255,255,255,0.05);
-  color: inherit;
+  color: var(--primary-purple, #8b5cf6);
+  font-weight: 700;
   font-size: 0.85rem;
   text-align: center;
 }

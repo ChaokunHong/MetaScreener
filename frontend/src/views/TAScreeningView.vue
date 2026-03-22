@@ -251,41 +251,39 @@
       </div>
     </div>
 
-    <!-- Batch info modal -->
+    <!-- Batch info modal (Settings-style glass panel) -->
     <Teleport to="body">
-      <div v-if="showBatchModal" class="modal-overlay" @click.self="showBatchModal = false">
-        <div class="modal-glass">
-          <div class="modal-header">
-            <div class="modal-header-title">
-              <div class="modal-header-icon" style="background: rgba(139,92,246,0.12); color: #8b5cf6;">
-                <i class="fas fa-layer-group"></i>
-              </div>
-              <h3>Batch Screening</h3>
+      <Transition name="modal">
+        <div v-if="showBatchModal" class="batch-modal-overlay" @click.self="showBatchModal = false">
+          <div class="batch-modal-panel">
+            <div class="batch-modal-refraction"></div>
+            <button class="batch-modal-close" @click="showBatchModal = false"><i class="fas fa-times"></i></button>
+            <div class="batch-modal-header">
+              <div class="batch-modal-icon"><i class="fas fa-layer-group"></i></div>
+              <h2 class="batch-modal-title">Batch Screening</h2>
             </div>
-            <button class="modal-close-btn" @click="showBatchModal = false"><i class="fas fa-times"></i></button>
-          </div>
-          <div class="modal-body">
-            <p class="modal-subtitle">Controls how many papers are grouped into a single LLM prompt. More papers per batch = fewer API calls = faster screening.</p>
-            <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.6rem;">
-              <div style="padding: 0.6rem 0.8rem; border-radius: 8px; background: rgba(6,182,212,0.08);">
-                <strong style="color: #0891b2;">1 paper/prompt</strong>
-                <p style="margin: 0.2rem 0 0; font-size: 0.82rem; color: #64748b;">Most reliable. Each paper gets its own prompt. Use when accuracy is critical.</p>
+            <p class="batch-modal-desc">Controls how many papers are grouped into a single LLM prompt. More papers per batch = fewer API calls = faster screening.</p>
+            <div class="batch-modal-grid">
+              <div class="batch-modal-card">
+                <h3><i class="fas fa-crosshairs"></i> 1 paper / prompt</h3>
+                <p>Most reliable. Each paper gets its own prompt. Use when accuracy is critical or models struggle with batch format.</p>
               </div>
-              <div style="padding: 0.6rem 0.8rem; border-radius: 8px; background: rgba(139,92,246,0.08);">
-                <strong style="color: #7c3aed;">3–5 papers/prompt</strong>
-                <p style="margin: 0.2rem 0 0; font-size: 0.82rem; color: #64748b;">Recommended. Good balance of speed and reliability. 3-5× fewer API calls.</p>
+              <div class="batch-modal-card">
+                <h3><i class="fas fa-bolt"></i> 3–5 papers / prompt</h3>
+                <p>Recommended balance of speed and reliability. Reduces API calls by 3-5×. Best for most screening tasks.</p>
               </div>
-              <div style="padding: 0.6rem 0.8rem; border-radius: 8px; background: rgba(245,158,11,0.08);">
-                <strong style="color: #d97706;">6–10 papers/prompt</strong>
-                <p style="margin: 0.2rem 0 0; font-size: 0.82rem; color: #64748b;">Fastest. Some models may struggle with large batches and automatically fall back to individual calls.</p>
+              <div class="batch-modal-card">
+                <h3><i class="fas fa-rocket"></i> 6–10 papers / prompt</h3>
+                <p>Fastest mode. Some models may produce incomplete JSON and automatically fall back to individual calls.</p>
+              </div>
+              <div class="batch-modal-card">
+                <h3><i class="fas fa-shield-halved"></i> Smart fallback</h3>
+                <p>If a model fails to parse the batch response, MetaScreener automatically retries each paper individually — no papers are lost.</p>
               </div>
             </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-primary" @click="showBatchModal = false">Got it</button>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>
@@ -756,4 +754,114 @@ onMounted(() => {
   font-size: 0.75rem;
   color: var(--text-secondary, #999);
 }
+
+/* ── Batch modal (Settings-style glass) ── */
+.batch-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+}
+.batch-modal-panel {
+  position: relative;
+  width: min(640px, 92%);
+  max-height: 82vh;
+  overflow-y: auto;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(129,216,208,0.14) 0%, transparent 48%),
+    radial-gradient(120% 110% at 100% 100%, rgba(139,92,246,0.14) 0%, transparent 52%),
+    rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(24px) saturate(145%);
+  box-shadow: 0 24px 56px rgba(15,23,42,0.22), inset 0 1px 0 rgba(255,255,255,0.94);
+  padding: 2rem;
+  color: #1e293b;
+}
+.batch-modal-refraction {
+  position: absolute;
+  top: 0; left: 40px; right: 40px;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.95) 30%, rgba(255,255,255,0.95) 70%, transparent 100%);
+  border-radius: 1px;
+}
+.batch-modal-close {
+  position: absolute;
+  top: 16px; right: 16px;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(241,245,249,0.7);
+  color: rgba(51,65,85,0.6);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.batch-modal-close:hover {
+  color: rgba(51,65,85,0.9);
+  background: rgba(255,255,255,1);
+  transform: rotate(90deg);
+}
+.batch-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.batch-modal-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  background: rgba(139,92,246,0.12);
+  color: #8b5cf6;
+}
+.batch-modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  color: #0f172a;
+}
+.batch-modal-desc {
+  font-size: 0.88rem;
+  color: #475569;
+  line-height: 1.55;
+  margin: 0 0 1.25rem 0;
+}
+.batch-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.batch-modal-card {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: linear-gradient(160deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.25) 100%);
+  border: 1px solid rgba(255,255,255,0.6);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+.batch-modal-card h3 {
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  color: #1e293b;
+}
+.batch-modal-card h3 i {
+  color: #8b5cf6;
+  margin-right: 6px;
+  font-size: 0.8rem;
+}
+.batch-modal-card p {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.45;
+}
+.modal-enter-active { transition: opacity 0.2s; }
+.modal-leave-active { transition: opacity 0.15s; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
 </style>
