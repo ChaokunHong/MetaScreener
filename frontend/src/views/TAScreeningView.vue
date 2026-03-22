@@ -86,13 +86,19 @@
       <!-- Progress -->
       <div v-if="running" style="margin-bottom: 1rem;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
-          <span class="text-muted">{{ runStatus }}</span>
+          <span class="text-muted">
+            <i class="fas fa-spinner fa-spin" style="margin-right: 0.4rem;"></i>
+            {{ runStatus }}
+          </span>
           <span class="text-muted">{{ completedCount }} / {{ totalCount }}</span>
         </div>
         <div class="progress">
-          <div class="progress-bar" :style="{ width: progressPct + '%' }"></div>
+          <div class="progress-bar" :class="{ 'progress-bar-animated': completedCount === 0 }" :style="{ width: progressPct + '%' }"></div>
         </div>
-        <div class="progress-log" ref="logEl" style="margin-top: 0.75rem;">{{ logText }}</div>
+        <div v-if="completedCount === 0" class="text-muted" style="margin-top: 0.5rem; font-size: 0.78rem;">
+          <i class="fas fa-clock"></i> Waiting for models to respond... This may take 10–60 seconds.
+        </div>
+        <div class="progress-log" ref="logEl" style="margin-top: 0.75rem;" v-if="logText">{{ logText }}</div>
       </div>
 
       <div v-if="runError" class="alert alert-danger">{{ runError }}</div>
@@ -684,6 +690,23 @@ onMounted(() => {
   object-fit: contain;
   vertical-align: middle;
   margin-right: 0.35rem;
+}
+.progress-bar-animated {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255,255,255,0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255,255,255,0.15) 50%,
+    rgba(255,255,255,0.15) 75%,
+    transparent 75%
+  );
+  background-size: 1rem 1rem;
+  animation: progress-stripe 1s linear infinite;
+}
+@keyframes progress-stripe {
+  0% { background-position: 1rem 0; }
+  100% { background-position: 0 0; }
 }
 .batch-control {
   margin-bottom: 1.25rem;
