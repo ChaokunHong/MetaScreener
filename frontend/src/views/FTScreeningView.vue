@@ -496,6 +496,8 @@ function resetAll() {
 }
 .detail-model-card {
   padding: 1rem 1.25rem;
+  max-height: 260px;
+  overflow-y: auto;
 }
 .detail-model-card.model-error {
   border-color: rgba(239, 68, 68, 0.3);
@@ -526,8 +528,7 @@ function resetAll() {
   color: var(--text-secondary, #999);
   font-style: italic;
   margin-bottom: 0.5rem;
-  line-height: 1.5;
-  text-align: justify;
+  line-height: 1.45;
 }
 .detail-elements {
   display: flex;
@@ -551,9 +552,8 @@ function resetAll() {
 .detail-evidence {
   color: var(--text-secondary, #999);
   font-size: 0.72rem;
-  line-height: 1.4;
-  margin-top: 0.15rem;
-  text-align: justify;
+  line-height: 1.35;
+  margin-top: 0.1rem;
 }
 .detail-model-logo {
   width: 18px;
