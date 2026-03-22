@@ -39,8 +39,8 @@
           <span class="batch-value">{{ batchSize }}</span>
         </div>
         <div class="batch-hint">
-          <span v-if="batchSize === 1">Individual mode — most reliable</span>
-          <span v-else>{{ batchSize }} papers/prompt — faster screening</span>
+          <span v-if="batchSize === 1">Individual mode — recommended, real-time progress</span>
+          <span v-else>{{ batchSize }} papers/prompt — experimental, may be slower with some models</span>
         </div>
       </div>
     </div>
@@ -369,7 +369,7 @@ async function onCriteriaSelected(item: { id: string; name: string }) {
 }
 
 // Batch size control
-const batchSize = ref(3)
+const batchSize = ref(1)
 const showBatchModal = ref(false)
 
 const batchSliderStyle = computed(() => {

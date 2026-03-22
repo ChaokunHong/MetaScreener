@@ -1260,41 +1260,59 @@ async def _run_screening_background(
         backends = _apply_screening_token_limits(backends, batch_size=batch_size)
         screener = TAScreener(backends=backends, timeout_s=180.0, router=router)
 
-        # Split records into batches and process incrementally
-        # so that results appear in the session as each batch completes.
-        record_list = list(records)
-        batches: list[list[Record]] = []
-        for i in range(0, len(record_list), batch_size):
-            batches.append(record_list[i : i + batch_size])
+        if batch_size <= 1:
+            # Individual mode: screen papers concurrently with progress updates
+            from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
+            user_settings = _load_user_settings()
+            concurrent = user_settings.get("concurrent_papers", 25)
+            sem = asyncio.Semaphore(concurrent)
 
-        for batch_idx, batch_records in enumerate(batches):
-            logger.info(
-                "screening_batch_progress",
-                batch=batch_idx + 1,
-                total_batches=len(batches),
-                batch_size=len(batch_records),
-            )
-            # Screen this batch (all models in parallel, Layers 2-4 per record)
-            batch_decisions = await screener.screen_batch(
-                batch_records, criteria, seed=seed, batch_size=batch_size,
-            )
-            # Write results immediately so polling sees progress
-            for decision in batch_decisions:
-                rec = next(
-                    (r for r in batch_records if r.record_id == decision.record_id),
-                    None,
+            async def _screen_one(i: int, record: Record) -> None:
+                async with sem:
+                    try:
+                        decision = await screener.screen_single(record, criteria, seed=seed)
+                        summary = ScreeningRecordSummary(
+                            record_id=decision.record_id,
+                            title=record.title or "(untitled record)",
+                            decision=decision.decision.value,
+                            tier=str(int(decision.tier)),
+                            score=decision.final_score,
+                            confidence=decision.ensemble_confidence,
+                        )
+                        session["results"].append(summary.model_dump())
+                        session["raw_decisions"].append(decision.model_dump(mode="json"))
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning("record_screening_error", record_id=record.record_id, error=str(exc))
+                        session["results"].append({
+                            "record_id": str(record.record_id),
+                            "title": record.title or "(untitled record)",
+                            "decision": "HUMAN_REVIEW", "tier": "3",
+                            "score": 0.0, "confidence": 0.0,
+                        })
+
+            await asyncio.gather(*[_screen_one(i, r) for i, r in enumerate(records)])
+        else:
+            # Batch mode: process in batches with incremental progress
+            record_list = list(records)
+            batches: list[list[Record]] = []
+            for i in range(0, len(record_list), batch_size):
+                batches.append(record_list[i : i + batch_size])
+
+            for batch_idx, batch_records in enumerate(batches):
+                logger.info("screening_batch_progress", batch=batch_idx + 1, total_batches=len(batches))
+                batch_decisions = await screener.screen_batch(
+                    batch_records, criteria, seed=seed, batch_size=batch_size,
                 )
-                title = rec.title if rec else "(untitled record)"
-                summary = ScreeningRecordSummary(
-                    record_id=decision.record_id,
-                    title=title,
-                    decision=decision.decision.value,
-                    tier=str(int(decision.tier)),
-                    score=decision.final_score,
-                    confidence=decision.ensemble_confidence,
-                )
-                session["results"].append(summary.model_dump())
-                session["raw_decisions"].append(decision.model_dump(mode="json"))
+                for decision in batch_decisions:
+                    rec = next((r for r in batch_records if r.record_id == decision.record_id), None)
+                    title = rec.title if rec else "(untitled record)"
+                    summary = ScreeningRecordSummary(
+                        record_id=decision.record_id, title=title,
+                        decision=decision.decision.value, tier=str(int(decision.tier)),
+                        score=decision.final_score, confidence=decision.ensemble_confidence,
+                    )
+                    session["results"].append(summary.model_dump())
+                    session["raw_decisions"].append(decision.model_dump(mode="json"))
 
         session["status"] = "completed"
 
