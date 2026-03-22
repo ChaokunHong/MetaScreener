@@ -1872,3 +1872,47 @@ async def ft_get_record_detail(session_id: str, record_index: int) -> dict[str, 
         raise HTTPException(status_code=404, detail="Record index out of range")
 
     return raw[record_index]
+
+
+@router.post("/ft/feedback/{session_id}")
+async def ft_submit_feedback(
+    session_id: str,
+    req: ScreeningFeedbackRequest,
+) -> dict[str, Any]:
+    """Submit human feedback for an FT screening decision."""
+    if session_id not in _ft_sessions:
+        raise HTTPException(status_code=404, detail="FT session not found")
+
+    session = _ft_sessions[session_id]
+    results = session.get("results", [])
+    raw_decisions = session.get("raw_decisions", [])
+
+    if req.record_index < 0 or req.record_index >= len(results):
+        raise HTTPException(status_code=404, detail="Record index out of range")
+
+    human_decision = req.decision.strip().upper()
+    if human_decision not in ("INCLUDE", "EXCLUDE"):
+        raise HTTPException(status_code=400, detail="Decision must be INCLUDE or EXCLUDE")
+
+    old_decision = results[req.record_index].get("decision", "")
+    results[req.record_index]["human_decision"] = human_decision
+    results[req.record_index]["decision"] = human_decision
+
+    if req.record_index < len(raw_decisions):
+        raw_decisions[req.record_index]["human_decision"] = human_decision
+
+    feedback_list = session.setdefault("feedback", [])
+    feedback_list.append({
+        "record_index": req.record_index,
+        "original_decision": old_decision,
+        "human_decision": human_decision,
+        "rationale": req.rationale,
+    })
+
+    return {
+        "status": "ok",
+        "old_decision": old_decision,
+        "new_decision": human_decision,
+        "n_feedback": len(feedback_list),
+        "recalibration_triggered": False,
+    }
