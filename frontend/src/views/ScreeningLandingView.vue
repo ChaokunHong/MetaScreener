@@ -100,7 +100,7 @@
 .stage-divider {
   width: 1px;
   margin: 0.5rem 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.25) 20%, rgba(255,255,255,0.25) 80%, transparent 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.12) 20%, rgba(0,0,0,0.12) 80%, transparent 100%);
 }
 
 /* ── Card ──────────────────────────────── */
