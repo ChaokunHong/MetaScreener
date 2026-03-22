@@ -1292,6 +1292,7 @@ async def _run_screening_background(
                 data={
                     "stage": "ta",
                     "results": session.get("results", []),
+                    "raw_decisions": session.get("raw_decisions", []),
                     "filename": session.get("filename", ""),
                 },
                 name=f"Screening (TA) — {session.get('filename', 'unknown')}",
@@ -1669,6 +1670,7 @@ async def _run_ft_screening_background(
                 data={
                     "stage": "ft",
                     "results": session.get("results", []),
+                    "raw_decisions": session.get("raw_decisions", []),
                     "filenames": session.get("filenames", []),
                 },
                 name=f"Screening (FT) — {len(session.get('filenames', []))} PDFs",

@@ -417,6 +417,7 @@ function fmt(v: unknown) { return fmtScore(v) }
 const expandedRow = ref<number | null>(null)
 const detailLoading = ref(false)
 const detailData = ref<Record<string, any> | null>(null)
+const localRawDecisions = ref<Record<string, any>[]>([])
 
 async function toggleDetail(index: number) {
   if (expandedRow.value === index) {
@@ -427,6 +428,14 @@ async function toggleDetail(index: number) {
   expandedRow.value = index
   detailLoading.value = true
   detailData.value = null
+
+  // Try local raw_decisions first (from history), then API
+  if (localRawDecisions.value.length > index) {
+    detailData.value = localRawDecisions.value[index]
+    detailLoading.value = false
+    return
+  }
+
   try {
     detailData.value = await apiGet<Record<string, any>>(`/screening/detail/${sessionId.value}/${index}`)
   } catch {
@@ -481,6 +490,9 @@ onMounted(() => {
         results.value = data.results
         currentStep.value = 4
         selectedCriteriaName.value = 'Loaded from history'
+        if (data.raw_decisions && Array.isArray(data.raw_decisions)) {
+          localRawDecisions.value = data.raw_decisions
+        }
       }
     } catch { /* ignore parse errors */ }
   }
