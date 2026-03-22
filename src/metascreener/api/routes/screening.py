@@ -1394,6 +1394,30 @@ async def get_results(session_id: str) -> ScreeningResultsResponse:
     )
 
 
+@router.get("/detail/{session_id}/{record_index}")
+async def get_record_detail(session_id: str, record_index: int) -> dict[str, Any]:
+    """Get detailed screening result for a single record, including per-model outputs.
+
+    Args:
+        session_id: Screening session ID.
+        record_index: Zero-based index of the record in results.
+
+    Returns:
+        Full screening decision with model_outputs.
+
+    Raises:
+        HTTPException: If session not found or index out of range.
+    """
+    if session_id not in _sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    raw = _sessions[session_id].get("raw_decisions", [])
+    if record_index < 0 or record_index >= len(raw):
+        raise HTTPException(status_code=404, detail="Record index out of range")
+
+    return raw[record_index]
+
+
 @router.get("/export/{session_id}")
 async def export_results(
     session_id: str,
@@ -1629,3 +1653,27 @@ async def ft_get_results(session_id: str) -> ScreeningResultsResponse:
         results=results,
         error=session.get("error"),
     )
+
+
+@router.get("/ft/detail/{session_id}/{record_index}")
+async def ft_get_record_detail(session_id: str, record_index: int) -> dict[str, Any]:
+    """Get detailed FT screening result for a single record.
+
+    Args:
+        session_id: FT screening session ID.
+        record_index: Zero-based index of the record in results.
+
+    Returns:
+        Full screening decision with model_outputs.
+
+    Raises:
+        HTTPException: If session not found or index out of range.
+    """
+    if session_id not in _ft_sessions:
+        raise HTTPException(status_code=404, detail="FT session not found")
+
+    raw = _ft_sessions[session_id].get("raw_decisions", [])
+    if record_index < 0 or record_index >= len(raw):
+        raise HTTPException(status_code=404, detail="Record index out of range")
+
+    return raw[record_index]
