@@ -92,8 +92,7 @@
         <span v-if="enabledModels.length > 0" class="model-count-badge">{{ enabledModels.length }} selected</span>
         <i class="fas collapse-chevron" :class="modelsExpanded ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
       </div>
-      <transition name="collapse">
-      <div v-show="modelsExpanded">
+      <div v-show="modelsExpanded" class="collapsible-body">
 
       <!-- Quick Setup — Presets -->
       <div v-if="presets.length > 0" style="margin-bottom: 1.5rem;">
@@ -218,7 +217,6 @@
         All parameters locked for TRIPOD-LLM reproducibility compliance.
       </div>
       </div>
-      </transition>
     </div>
 
     <!-- Performance Settings -->
@@ -1140,17 +1138,15 @@ async function clearKeys() {
   color: var(--text-secondary, #999);
   transition: transform 0.2s;
 }
-.collapse-enter-active, .collapse-leave-active {
-  transition: all 0.25s ease;
+.collapsible-body {
   overflow: hidden;
-}
-.collapse-enter-from, .collapse-leave-to {
-  opacity: 0;
-  max-height: 0;
-}
-.collapse-enter-to, .collapse-leave-from {
+  transition: max-height 0.3s ease, opacity 0.25s ease;
+  max-height: 3000px;
   opacity: 1;
-  max-height: 2000px;
+}
+.collapsible-body[style*="display: none"] {
+  max-height: 0;
+  opacity: 0;
 }
 
 /* ── Performance ───────────────────────────────── */
