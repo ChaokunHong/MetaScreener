@@ -6,7 +6,7 @@
     <div class="glass-card">
       <div class="screening-stage-grid">
         <!-- TI/AB Card -->
-        <router-link to="/screening/ta" class="stage-card">
+        <router-link to="/screening/ta" class="stage-card stage-card--ta">
           <div class="stage-card-glow stage-card-glow--ta"></div>
           <div class="stage-card-content">
             <div class="stage-card-top">
@@ -41,8 +41,11 @@
           </div>
         </router-link>
 
+        <!-- Vertical divider -->
+        <div class="stage-divider"></div>
+
         <!-- FT Card -->
-        <router-link to="/screening/ft" class="stage-card">
+        <router-link to="/screening/ft" class="stage-card stage-card--ft">
           <div class="stage-card-glow stage-card-glow--ft"></div>
           <div class="stage-card-content">
             <div class="stage-card-top">
@@ -84,29 +87,41 @@
 <style scoped>
 .screening-stage-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0;
+  align-items: stretch;
 }
 @media (max-width: 700px) {
   .screening-stage-grid { grid-template-columns: 1fr; }
+  .stage-divider { display: none; }
+}
+
+/* ── Vertical Divider ──────────────────── */
+.stage-divider {
+  width: 1px;
+  margin: 1rem 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.12) 30%, rgba(255,255,255,0.12) 70%, transparent 100%);
 }
 
 /* ── Card ──────────────────────────────── */
 .stage-card {
   position: relative;
-  display: block;
+  display: flex;
+  flex-direction: column;
   border-radius: 14px;
   overflow: hidden;
   text-decoration: none;
   color: inherit;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.025);
+  border: 1px solid transparent;
+  background: transparent;
+  margin: 0 0.75rem;
   transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
 }
 .stage-card:hover {
-  border-color: rgba(139,92,246,0.35);
-  transform: translateY(-3px);
-  box-shadow: 0 12px 32px rgba(139,92,246,0.08);
+  border-color: rgba(139,92,246,0.2);
+  background: rgba(255,255,255,0.015);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(139,92,246,0.06);
 }
 
 /* ── Ambient glow ──────────────────────── */
@@ -128,10 +143,10 @@
 /* ── Content ───────────────────────────── */
 .stage-card-content {
   position: relative;
-  padding: 1.75rem;
+  padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  min-height: 280px;
+  flex: 1;
 }
 .stage-card-top {
   display: flex;
@@ -192,6 +207,7 @@
   flex-direction: column;
   gap: 0.45rem;
   margin-bottom: 1rem;
+  flex: 1;
 }
 .stage-step {
   display: flex;
