@@ -11,9 +11,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-# Max papers screened concurrently. Each paper calls 4 models in parallel,
-# so CONCURRENT_PAPERS=10 → up to 40 simultaneous API calls.
-_CONCURRENT_PAPERS = 10
+# Max papers screened concurrently. Each paper calls N models in parallel,
+# so CONCURRENT_PAPERS=25 with 4 models → up to 100 simultaneous API calls.
+# OpenRouter paid tiers support high concurrency; free tiers may see
+# rate-limit retries at this level but the retry logic handles it.
+_CONCURRENT_PAPERS = 25
 
 import structlog
 import yaml
@@ -1599,7 +1601,7 @@ async def _run_ft_screening_background(
             router=router_obj,
         )
 
-        sem = asyncio.Semaphore(4)
+        sem = asyncio.Semaphore(10)  # FT papers are heavier but still benefit from concurrency
 
         async def _screen_one(i: int, record: Record) -> None:
             async with sem:
