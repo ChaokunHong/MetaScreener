@@ -5,38 +5,76 @@
 
     <div class="glass-card">
       <div class="screening-stage-grid">
-        <router-link to="/screening/ta" class="glass-section screening-stage-link">
-          <div class="stage-card-icon">
-            <i class="fas fa-file-lines"></i>
+        <!-- TI/AB Card -->
+        <router-link to="/screening/ta" class="stage-card">
+          <div class="stage-card-glow stage-card-glow--ta"></div>
+          <div class="stage-card-content">
+            <div class="stage-card-top">
+              <div class="stage-card-icon stage-card-icon--ta">
+                <i class="fas fa-file-lines"></i>
+              </div>
+              <div class="stage-card-badge">Step 1</div>
+            </div>
+            <h2 class="stage-card-title">Title / Abstract</h2>
+            <p class="stage-card-desc">
+              Screen papers by title and abstract using multi-LLM consensus.
+              Upload search exports from PubMed, Scopus, or other databases.
+            </p>
+            <div class="stage-card-divider"></div>
+            <div class="stage-card-steps">
+              <div class="stage-step">
+                <div class="stage-step-dot"></div>
+                <span>Select Criteria</span>
+              </div>
+              <div class="stage-step">
+                <div class="stage-step-dot"></div>
+                <span>Upload RIS / BibTeX / CSV</span>
+              </div>
+              <div class="stage-step">
+                <div class="stage-step-dot"></div>
+                <span>Run HCN Pipeline</span>
+              </div>
+            </div>
+            <div class="stage-card-footer">
+              <span class="stage-card-cta">Get started <i class="fas fa-arrow-right"></i></span>
+            </div>
           </div>
-          <h2 class="stage-card-title">Title / Abstract</h2>
-          <p class="stage-card-desc">
-            Upload search results (RIS, BibTeX, CSV, XML) and screen papers
-            based on their title and abstract using multi-LLM consensus.
-          </p>
-          <div class="stage-card-steps">
-            <span><i class="fas fa-list-check"></i> Select Criteria</span>
-            <span><i class="fas fa-upload"></i> Upload Records</span>
-            <span><i class="fas fa-robot"></i> Run HCN Pipeline</span>
-          </div>
-          <div class="stage-card-arrow"><i class="fas fa-arrow-right"></i></div>
         </router-link>
 
-        <router-link to="/screening/ft" class="glass-section screening-stage-link">
-          <div class="stage-card-icon">
-            <i class="fas fa-file-pdf"></i>
+        <!-- FT Card -->
+        <router-link to="/screening/ft" class="stage-card">
+          <div class="stage-card-glow stage-card-glow--ft"></div>
+          <div class="stage-card-content">
+            <div class="stage-card-top">
+              <div class="stage-card-icon stage-card-icon--ft">
+                <i class="fas fa-file-pdf"></i>
+              </div>
+              <div class="stage-card-badge">Step 2</div>
+            </div>
+            <h2 class="stage-card-title">Full-Text</h2>
+            <p class="stage-card-desc">
+              Deep screening of PDF full-texts with automatic section detection
+              and intelligent chunking for long documents.
+            </p>
+            <div class="stage-card-divider"></div>
+            <div class="stage-card-steps">
+              <div class="stage-step">
+                <div class="stage-step-dot"></div>
+                <span>Select Criteria</span>
+              </div>
+              <div class="stage-step">
+                <div class="stage-step-dot"></div>
+                <span>Upload PDFs</span>
+              </div>
+              <div class="stage-step">
+                <div class="stage-step-dot"></div>
+                <span>Run FT Pipeline</span>
+              </div>
+            </div>
+            <div class="stage-card-footer">
+              <span class="stage-card-cta">Get started <i class="fas fa-arrow-right"></i></span>
+            </div>
           </div>
-          <h2 class="stage-card-title">Full-Text</h2>
-          <p class="stage-card-desc">
-            Upload PDF full-texts of papers that passed title/abstract screening.
-            Deep screening with automatic chunking for long documents.
-          </p>
-          <div class="stage-card-steps">
-            <span><i class="fas fa-list-check"></i> Select Criteria</span>
-            <span><i class="fas fa-file-pdf"></i> Upload PDFs</span>
-            <span><i class="fas fa-robot"></i> Run FT Pipeline</span>
-          </div>
-          <div class="stage-card-arrow"><i class="fas fa-arrow-right"></i></div>
         </router-link>
       </div>
     </div>
@@ -47,53 +85,146 @@
 .screening-stage-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 @media (max-width: 700px) {
   .screening-stage-grid { grid-template-columns: 1fr; }
 }
-.screening-stage-link {
+
+/* ── Card ──────────────────────────────── */
+.stage-card {
   position: relative;
-  display: flex;
-  flex-direction: column;
+  display: block;
+  border-radius: 14px;
+  overflow: hidden;
   text-decoration: none;
   color: inherit;
-  cursor: pointer;
-  transition: border-color 0.2s, transform 0.2s;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.025);
+  transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
 }
-.screening-stage-link:hover {
-  border-color: rgba(139, 92, 246, 0.5);
-  transform: translateY(-2px);
+.stage-card:hover {
+  border-color: rgba(139,92,246,0.35);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(139,92,246,0.08);
 }
-.stage-card-icon {
-  width: 48px; height: 48px; border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.3rem;
-  background: rgba(139, 92, 246, 0.12);
-  color: var(--primary-purple, #8b5cf6);
+
+/* ── Ambient glow ──────────────────────── */
+.stage-card-glow {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.35s;
+  pointer-events: none;
+}
+.stage-card:hover .stage-card-glow { opacity: 1; }
+.stage-card-glow--ta {
+  background: radial-gradient(ellipse at 20% 0%, rgba(6,182,212,0.08) 0%, transparent 65%);
+}
+.stage-card-glow--ft {
+  background: radial-gradient(ellipse at 20% 0%, rgba(139,92,246,0.08) 0%, transparent 65%);
+}
+
+/* ── Content ───────────────────────────── */
+.stage-card-content {
+  position: relative;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+}
+.stage-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 1rem;
 }
-.stage-card-title { font-size: 1.2rem; font-weight: 700; margin: 0 0 0.5rem 0; }
+.stage-card-icon {
+  width: 44px; height: 44px;
+  border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.15rem;
+}
+.stage-card-icon--ta {
+  background: rgba(6,182,212,0.12);
+  color: #67d2df;
+}
+.stage-card-icon--ft {
+  background: rgba(139,92,246,0.12);
+  color: #a78bfa;
+}
+.stage-card-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-secondary, #999);
+}
+
+/* ── Typography ────────────────────────── */
+.stage-card-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+}
 .stage-card-desc {
-  font-size: 0.85rem; color: var(--text-secondary, #999);
-  margin: 0 0 1rem 0; line-height: 1.5; flex: 1;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #999);
+  line-height: 1.55;
+  margin: 0;
+  flex: 1;
 }
+
+/* ── Divider ───────────────────────────── */
+.stage-card-divider {
+  height: 1px;
+  margin: 1rem 0;
+  background: linear-gradient(90deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
+}
+
+/* ── Steps ─────────────────────────────── */
 .stage-card-steps {
-  display: flex; flex-direction: column; gap: 0.3rem;
-  font-size: 0.78rem; color: var(--text-secondary, #999);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
 }
-.stage-card-steps span { display: flex; align-items: center; gap: 0.4rem; }
-.stage-card-steps i {
-  width: 16px; text-align: center;
-  color: var(--primary-purple, #8b5cf6); font-size: 0.7rem;
+.stage-step {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #999);
 }
-.stage-card-arrow {
-  position: absolute; top: 50%; right: 1.25rem;
-  transform: translateY(-50%);
-  font-size: 1.1rem; color: var(--text-secondary, #999);
-  opacity: 0; transition: opacity 0.2s, transform 0.2s;
+.stage-step-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(139,92,246,0.4);
+  flex-shrink: 0;
 }
-.screening-stage-link:hover .stage-card-arrow {
-  opacity: 1; transform: translateY(-50%) translateX(4px);
+
+/* ── Footer CTA ────────────────────────── */
+.stage-card-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+.stage-card-cta {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--primary-purple, #8b5cf6);
+  opacity: 0.6;
+  transition: opacity 0.2s, gap 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.stage-card:hover .stage-card-cta {
+  opacity: 1;
+  gap: 0.55rem;
 }
 </style>
