@@ -30,16 +30,9 @@
       <div class="batch-control" v-if="selectedCriteriaName" style="margin-top: 1rem;">
         <div class="batch-header">
           <label class="form-label" style="margin-bottom: 0;">Papers per batch</label>
-          <span class="th-info" @click.stop="batchTooltip = batchTooltip === 'batch' ? '' : 'batch'">
+          <button class="info-btn" @click="showBatchModal = true" title="About batch screening">
             <i class="fas fa-circle-info"></i>
-            <div v-if="batchTooltip === 'batch'" class="th-popover" style="left: auto; right: 0; transform: none;">
-              <strong>Batch Screening</strong><br>
-              Groups multiple papers into one prompt.<br><br>
-              <strong>1</strong> — One paper per prompt (slowest, most reliable)<br>
-              <strong>3–5</strong> — Recommended balance of speed and reliability<br>
-              <strong>10</strong> — Fastest, but some models may fail and fall back to individual calls
-            </div>
-          </span>
+          </button>
         </div>
         <div class="batch-slider-row">
           <input type="range" v-model.number="batchSize" min="1" max="10" step="1" class="batch-slider" :style="batchSliderStyle" />
@@ -257,6 +250,43 @@
         </table>
       </div>
     </div>
+
+    <!-- Batch info modal -->
+    <Teleport to="body">
+      <div v-if="showBatchModal" class="modal-overlay" @click.self="showBatchModal = false">
+        <div class="modal-glass">
+          <div class="modal-header">
+            <div class="modal-header-title">
+              <div class="modal-header-icon" style="background: rgba(139,92,246,0.12); color: #8b5cf6;">
+                <i class="fas fa-layer-group"></i>
+              </div>
+              <h3>Batch Screening</h3>
+            </div>
+            <button class="modal-close-btn" @click="showBatchModal = false"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="modal-body">
+            <p class="modal-subtitle">Controls how many papers are grouped into a single LLM prompt. More papers per batch = fewer API calls = faster screening.</p>
+            <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.6rem;">
+              <div style="padding: 0.6rem 0.8rem; border-radius: 8px; background: rgba(6,182,212,0.08);">
+                <strong style="color: #0891b2;">1 paper/prompt</strong>
+                <p style="margin: 0.2rem 0 0; font-size: 0.82rem; color: #64748b;">Most reliable. Each paper gets its own prompt. Use when accuracy is critical.</p>
+              </div>
+              <div style="padding: 0.6rem 0.8rem; border-radius: 8px; background: rgba(139,92,246,0.08);">
+                <strong style="color: #7c3aed;">3–5 papers/prompt</strong>
+                <p style="margin: 0.2rem 0 0; font-size: 0.82rem; color: #64748b;">Recommended. Good balance of speed and reliability. 3-5× fewer API calls.</p>
+              </div>
+              <div style="padding: 0.6rem 0.8rem; border-radius: 8px; background: rgba(245,158,11,0.08);">
+                <strong style="color: #d97706;">6–10 papers/prompt</strong>
+                <p style="margin: 0.2rem 0 0; font-size: 0.82rem; color: #64748b;">Fastest. Some models may struggle with large batches and automatically fall back to individual calls.</p>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary" @click="showBatchModal = false">Got it</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -342,7 +372,7 @@ async function onCriteriaSelected(item: { id: string; name: string }) {
 
 // Batch size control
 const batchSize = ref(5)
-const batchTooltip = ref('')
+const showBatchModal = ref(false)
 
 const batchSliderStyle = computed(() => {
   const pct = ((batchSize.value - 1) / 9) * 100
@@ -680,7 +710,7 @@ onMounted(() => {
   height: 8px;
   -webkit-appearance: none;
   appearance: none;
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid rgba(0,0,0,0.15);
   border-radius: 4px;
   outline: none;
 }
@@ -701,7 +731,7 @@ onMounted(() => {
 }
 .batch-slider::-moz-range-track {
   height: 8px;
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid rgba(0,0,0,0.15);
   border-radius: 4px;
   background: transparent;
 }

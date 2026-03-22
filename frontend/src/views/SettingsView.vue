@@ -1160,7 +1160,7 @@ async function clearKeys() {
   height: 8px;
   -webkit-appearance: none;
   appearance: none;
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid rgba(0,0,0,0.15);
   border-radius: 4px;
   outline: none;
 }
@@ -1181,7 +1181,7 @@ async function clearKeys() {
 }
 .perf-slider::-moz-range-track {
   height: 8px;
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid rgba(0,0,0,0.15);
   border-radius: 4px;
   background: transparent;
 }
