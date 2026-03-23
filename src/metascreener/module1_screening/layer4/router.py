@@ -3,7 +3,7 @@
 Routes screening decisions through a 4-tier hierarchy:
   Tier 0: Hard rule override → AUTO-EXCLUDE
   Tier 1: Near-unanimous agreement → AUTO decision (include or exclude)
-  Tier 2: Clear majority + confidence >= tau_mid → AUTO-INCLUDE (recall bias)
+  Tier 2: Clear majority + confidence >= tau_mid → AUTO decision (recall_bias configurable)
   Tier 3: No consensus or low confidence → HUMAN_REVIEW
 
 Tier 1 uses dynamic thresholds that scale with model count:
@@ -66,6 +66,9 @@ class DecisionRouter:
             corresponding to ~68% agreement ratio.
         dissent_tolerance: Maximum fraction of models allowed to disagree
             for Tier 1. Default 0.15 (15%).
+        recall_bias: When True (default), Tier 2 always returns INCLUDE
+            regardless of majority direction, maximising recall. When False,
+            Tier 2 follows the actual majority direction.
     """
 
     def __init__(
@@ -74,11 +77,13 @@ class DecisionRouter:
         tau_mid: float = 0.10,
         tau_low: float = 0.05,
         dissent_tolerance: float = _DEFAULT_DISSENT_TOLERANCE,
+        recall_bias: bool = True,
     ) -> None:
         self.tau_high = tau_high
         self.tau_mid = tau_mid
         self.tau_low = tau_low
         self.dissent_tolerance = dissent_tolerance
+        self.recall_bias = recall_bias
 
     def _dynamic_tau_high(self, n: int) -> float:
         """Compute Tier 1 confidence threshold for *n* models.
@@ -216,19 +221,25 @@ class DecisionRouter:
             )
             return (Decision.HUMAN_REVIEW, Tier.THREE)
 
-        # Tier 2: Clear majority + confidence >= tau_mid → INCLUDE (recall bias)
-        # Recall bias: even if majority is EXCLUDE, return INCLUDE to avoid
-        # missing relevant papers — only hard rules and Tier 1 can EXCLUDE.
+        # Tier 2: Clear majority + confidence >= tau_mid → AUTO decision.
+        # With recall_bias=True (default): always INCLUDE to avoid missing
+        # relevant papers — only hard rules and Tier 1 can EXCLUDE.
+        # With recall_bias=False: follow the actual majority direction.
         has_majority = n_include != n_exclude
         if has_majority and ensemble_confidence >= self.tau_mid:
+            if self.recall_bias:
+                decision = Decision.INCLUDE
+            else:
+                decision = Decision.INCLUDE if n_include > n_exclude else Decision.EXCLUDE
             logger.info(
                 "tier2_majority",
                 n_include=n_include,
                 n_total=n_total,
                 confidence=round(ensemble_confidence, 4),
                 final_score=round(final_score, 4),
+                recall_bias=self.recall_bias,
             )
-            return (Decision.INCLUDE, Tier.TWO)
+            return (decision, Tier.TWO)
 
         # Tier 3: No clear majority, or confidence between tau_low and tau_mid
         logger.info(
