@@ -416,7 +416,7 @@ class LLMBackend(ABC):
         for key, val in assessment_data.items():
             if isinstance(val, dict):
                 raw_match = val.get("match")
-                pico_assessment[key] = PICOAssessment(
+                pico_assessment[key.lower()] = PICOAssessment(
                     match=raw_match if raw_match is None else bool(raw_match),
                     evidence=val.get("evidence"),
                 )
@@ -475,7 +475,7 @@ class LLMBackend(ABC):
         if "pico_assessment" in parsed:
             for key, val in parsed["pico_assessment"].items():
                 if isinstance(val, dict):
-                    pico_assessment[key] = PICOAssessment(
+                    pico_assessment[key.lower()] = PICOAssessment(
                         match=bool(val.get("match", False)),
                         evidence=val.get("evidence"),
                     )

@@ -1797,18 +1797,21 @@ async def submit_feedback(
         "human_decision": human_decision,
         "rationale": req.rationale,
         "criteria_id": criteria_id,
+        "created_at": datetime.now(UTC).isoformat(),
     })
 
     n_feedback = len(feedback_list)
     recalibration_triggered = False
+    recalibration_error = ""
 
     # Auto-trigger recalibration at thresholds (10, 20, 50, 100...)
     if n_feedback in (10, 20, 50, 100) or (n_feedback > 100 and n_feedback % 50 == 0):
         try:
             _trigger_recalibration(session)
             recalibration_triggered = True
-        except Exception:
+        except Exception as exc:
             logger.warning("recalibration_failed", exc_info=True)
+            recalibration_error = str(exc)
 
     logger.info(
         "feedback_submitted",
@@ -1826,6 +1829,7 @@ async def submit_feedback(
         "new_decision": human_decision,
         "n_feedback": n_feedback,
         "recalibration_triggered": recalibration_triggered,
+        "recalibration_error": recalibration_error,
     }
 
 
@@ -2278,17 +2282,20 @@ async def ft_submit_feedback(
         "human_decision": human_decision,
         "rationale": req.rationale,
         "criteria_id": criteria_id,
+        "created_at": datetime.now(UTC).isoformat(),
     })
 
     n_feedback = len(feedback_list)
     recalibration_triggered = False
+    recalibration_error = ""
 
     if n_feedback in (10, 20, 50, 100) or (n_feedback > 100 and n_feedback % 50 == 0):
         try:
             _trigger_recalibration(session)
             recalibration_triggered = True
-        except Exception:
+        except Exception as exc:
             logger.warning("ft_recalibration_failed", exc_info=True)
+            recalibration_error = str(exc)
 
     return {
         "status": "ok",
@@ -2296,6 +2303,7 @@ async def ft_submit_feedback(
         "new_decision": human_decision,
         "n_feedback": n_feedback,
         "recalibration_triggered": recalibration_triggered,
+        "recalibration_error": recalibration_error,
     }
 
 
