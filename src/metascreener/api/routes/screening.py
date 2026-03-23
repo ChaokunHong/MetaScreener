@@ -1256,7 +1256,21 @@ async def _run_screening_background(
             dissent_tolerance=cfg.thresholds.dissent_tolerance,
         )
         backends = _apply_screening_token_limits(backends)
-        screener = TAScreener(backends=backends, timeout_s=180.0, router=router)
+
+        # Read learned weights and calibration from prior feedback
+        from metascreener.module1_screening.layer3.aggregator import CCAggregator  # noqa: PLC0415
+        learned_weights = session.get("learned_weights")
+        aggregator = CCAggregator(weights=learned_weights) if learned_weights else None
+
+        screener = TAScreener(
+            backends=backends,
+            timeout_s=180.0,
+            router=router,
+            aggregator=aggregator,
+        )
+
+        if learned_weights:
+            logger.info("using_learned_weights", weights=learned_weights)
 
         # Concurrent screening with semaphore-based throttling
         from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
@@ -1563,6 +1577,59 @@ async def submit_feedback(
     }
 
 
+@router.post("/undo-feedback/{session_id}")
+async def undo_feedback(
+    session_id: str,
+    req: ScreeningFeedbackRequest,
+) -> dict[str, Any]:
+    """Undo a previous feedback override, reverting to AI decision.
+
+    Args:
+        session_id: Screening session ID.
+        req: Contains record_index and the original AI decision to restore.
+
+    Returns:
+        Updated result.
+    """
+    if session_id not in _sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = _sessions[session_id]
+    results = session.get("results", [])
+    raw_decisions = session.get("raw_decisions", [])
+
+    if req.record_index < 0 or req.record_index >= len(results):
+        raise HTTPException(status_code=404, detail="Record index out of range")
+
+    original_decision = req.decision.strip().upper()
+
+    # Restore original decision
+    results[req.record_index]["decision"] = original_decision
+    results[req.record_index].pop("human_decision", None)
+
+    if req.record_index < len(raw_decisions):
+        raw_decisions[req.record_index]["human_decision"] = None
+
+    # Remove feedback entries for this record
+    feedback_list = session.get("feedback", [])
+    session["feedback"] = [
+        fb for fb in feedback_list if fb.get("record_index") != req.record_index
+    ]
+
+    logger.info(
+        "feedback_undone",
+        session_id=session_id,
+        record_index=req.record_index,
+        restored_decision=original_decision,
+    )
+
+    return {
+        "status": "ok",
+        "decision": original_decision,
+        "n_feedback": len(session["feedback"]),
+    }
+
+
 def _trigger_recalibration(session: dict[str, Any]) -> None:
     """Run active learning recalibration from accumulated feedback.
 
@@ -1573,7 +1640,9 @@ def _trigger_recalibration(session: dict[str, Any]) -> None:
     from metascreener.core.models import HumanFeedback, ModelOutput  # noqa: PLC0415
     from metascreener.module1_screening.active_learning import FeedbackCollector  # noqa: PLC0415
 
-    collector = FeedbackCollector()
+    storage_dir = Path.home() / ".metascreener" / "feedback"
+    storage_dir.mkdir(parents=True, exist_ok=True)
+    collector = FeedbackCollector(storage_path=storage_dir / "feedback.json")
     feedback_list = session.get("feedback", [])
     raw_decisions = session.get("raw_decisions", [])
 
@@ -1763,11 +1832,21 @@ async def _run_ft_screening_background(
             dissent_tolerance=cfg.thresholds.dissent_tolerance,
         )
         backends = _apply_screening_token_limits(backends)
+
+        # Read learned weights and calibration from prior feedback
+        from metascreener.module1_screening.layer3.aggregator import CCAggregator  # noqa: PLC0415
+        learned_weights = session.get("learned_weights")
+        aggregator = CCAggregator(weights=learned_weights) if learned_weights else None
+
         screener = FTScreener(
             backends=backends,
             timeout_s=cfg.inference.timeout_thinking_s,
             router=router_obj,
+            aggregator=aggregator,
         )
+
+        if learned_weights:
+            logger.info("using_learned_weights", weights=learned_weights)
 
         # FT uses half the TA concurrency since each FT paper is heavier
         from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
@@ -1909,10 +1988,55 @@ async def ft_submit_feedback(
         "rationale": req.rationale,
     })
 
+    n_feedback = len(feedback_list)
+    recalibration_triggered = False
+
+    if n_feedback in (10, 20, 50, 100) or (n_feedback > 100 and n_feedback % 50 == 0):
+        try:
+            _trigger_recalibration(session)
+            recalibration_triggered = True
+        except Exception:
+            logger.warning("ft_recalibration_failed", exc_info=True)
+
     return {
         "status": "ok",
         "old_decision": old_decision,
         "new_decision": human_decision,
-        "n_feedback": len(feedback_list),
-        "recalibration_triggered": False,
+        "n_feedback": n_feedback,
+        "recalibration_triggered": recalibration_triggered,
+    }
+
+
+@router.post("/ft/undo-feedback/{session_id}")
+async def ft_undo_feedback(
+    session_id: str,
+    req: ScreeningFeedbackRequest,
+) -> dict[str, Any]:
+    """Undo a previous FT feedback override."""
+    if session_id not in _ft_sessions:
+        raise HTTPException(status_code=404, detail="FT session not found")
+
+    session = _ft_sessions[session_id]
+    results = session.get("results", [])
+    raw_decisions = session.get("raw_decisions", [])
+
+    if req.record_index < 0 or req.record_index >= len(results):
+        raise HTTPException(status_code=404, detail="Record index out of range")
+
+    original_decision = req.decision.strip().upper()
+    results[req.record_index]["decision"] = original_decision
+    results[req.record_index].pop("human_decision", None)
+
+    if req.record_index < len(raw_decisions):
+        raw_decisions[req.record_index]["human_decision"] = None
+
+    feedback_list = session.get("feedback", [])
+    session["feedback"] = [
+        fb for fb in feedback_list if fb.get("record_index") != req.record_index
+    ]
+
+    return {
+        "status": "ok",
+        "decision": original_decision,
+        "n_feedback": len(session["feedback"]),
     }

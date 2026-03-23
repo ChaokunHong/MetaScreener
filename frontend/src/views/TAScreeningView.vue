@@ -491,19 +491,22 @@ async function submitFeedback(index: number, decision: string) {
   }
 }
 
-function undoFeedback(index: number) {
+async function undoFeedback(index: number) {
   const r = results.value[index]
-  if (r && r.original_decision) {
+  if (!r || !r.original_decision || !sessionId.value) return
+  feedbackLoading.value = index
+  try {
+    await apiPost(`/screening/undo-feedback/${sessionId.value}`, {
+      record_index: index,
+      decision: r.original_decision,
+    })
     r.decision = r.original_decision
     r.human_decision = undefined
     r.original_decision = undefined
-    // Fire-and-forget: tell backend to revert
-    if (sessionId.value) {
-      apiPost(`/screening/feedback/${sessionId.value}`, {
-        record_index: index,
-        decision: r.decision,
-      }).catch(() => {})
-    }
+  } catch (e: unknown) {
+    alert(`Undo failed: ${(e as Error).message}`)
+  } finally {
+    feedbackLoading.value = null
   }
 }
 
