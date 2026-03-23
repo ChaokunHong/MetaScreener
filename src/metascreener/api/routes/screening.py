@@ -1549,11 +1549,16 @@ async def continue_screening(
     if not remaining:
         return {"status": "completed", "message": "No remaining papers to screen"}
 
-    if session.get("status") != "pilot_complete":
+    status = session.get("status")
+    if status not in ("pilot_complete", "error"):
         raise HTTPException(
             status_code=400,
-            detail=f"Session status is '{session.get('status')}', expected 'pilot_complete'",
+            detail=f"Session status is '{status}', expected 'pilot_complete' or 'error'",
         )
+    if status == "error":
+        # Reset to allow retry — keep pilot results, clear error
+        session.pop("error", None)
+        session.pop("completed_at", None)
 
     api_key = _get_openrouter_api_key()
     if not api_key:
@@ -1765,35 +1770,6 @@ async def get_record_detail(session_id: str, record_index: int) -> dict[str, Any
         raise HTTPException(status_code=404, detail="Record index out of range")
 
     return raw[record_index]
-
-
-@router.get("/export/{session_id}")
-async def export_results(
-    session_id: str,
-    format: str = "csv",  # noqa: A002
-) -> dict[str, str]:
-    """Export screening results for a session.
-
-    Currently a stub that validates the session exists. Full export
-    will write results via metascreener.io.writers in a future task.
-
-    Args:
-        session_id: Session identifier.
-        format: Export format (csv, json, excel, ris).
-
-    Returns:
-        Status message.
-
-    Raises:
-        HTTPException: If session not found.
-    """
-    if session_id not in _sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    return {
-        "status": "ok",
-        "message": f"Export as {format} not yet implemented",
-    }
 
 
 @router.post("/feedback/{session_id}")
@@ -2511,8 +2487,12 @@ async def ft_continue_screening(
     if not remaining:
         return {"status": "completed", "message": "No remaining papers"}
 
-    if session.get("status") != "pilot_complete":
-        raise HTTPException(status_code=400, detail=f"Expected pilot_complete, got {session.get('status')}")
+    status = session.get("status")
+    if status not in ("pilot_complete", "error"):
+        raise HTTPException(status_code=400, detail=f"Expected pilot_complete or error, got {status}")
+    if status == "error":
+        session.pop("error", None)
+        session.pop("completed_at", None)
 
     api_key = _get_openrouter_api_key()
     if not api_key:
