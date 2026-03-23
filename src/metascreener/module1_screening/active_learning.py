@@ -86,6 +86,13 @@ class FeedbackCollector:
             total_feedback=len(self._feedback),
         )
 
+        # Keep feedback list bounded to prevent unbounded growth
+        _MAX_FEEDBACK = 1000
+        if len(self._feedback) > _MAX_FEEDBACK:
+            # Keep the most recent half
+            self._feedback = self._feedback[-(_MAX_FEEDBACK // 2):]
+            logger.info("feedback_trimmed", kept=len(self._feedback))
+
         if self._storage_path is not None:
             self._save()
 

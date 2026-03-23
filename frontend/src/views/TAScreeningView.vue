@@ -374,6 +374,7 @@ async function doUpload() {
     fd.append('file', selectedFile.value)
     const data = await apiUpload<{ session_id: string; record_count: number }>('/screening/upload', fd)
     sessionId.value = data.session_id
+    sessionStorage.setItem('metascreener_ta_session', data.session_id)
     uploadInfo.value = data
     currentStep.value = 3
   } catch (e: unknown) {
@@ -638,6 +639,7 @@ function resetAll() {
   selectedCriteriaName.value = ''
   selectedCriteriaData.value = null
   sessionId.value = null
+  sessionStorage.removeItem('metascreener_ta_session')
   selectedFile.value = null
   uploadInfo.value = null
   results.value = []
@@ -652,7 +654,7 @@ function resetAll() {
 }
 
 // Load results from history if navigated from HistoryView
-onMounted(() => {
+onMounted(async () => {
   const stored = sessionStorage.getItem('metascreener_history_results')
   if (stored) {
     sessionStorage.removeItem('metascreener_history_results')
@@ -667,6 +669,35 @@ onMounted(() => {
         }
       }
     } catch { /* ignore parse errors */ }
+  }
+
+  // Restore active session on page refresh
+  const savedSessionId = sessionStorage.getItem('metascreener_ta_session')
+  if (savedSessionId && !stored) {
+    try {
+      const data = await apiGet<{
+        status: string; total: number; completed: number;
+        results: Array<{ title?: string; decision: string }>;
+        pilot_count?: number; remaining_count?: number
+      }>(`/screening/results/${savedSessionId}`)
+
+      if (data.status === 'pilot_complete' && data.results?.length) {
+        sessionId.value = savedSessionId
+        results.value = data.results
+        currentStep.value = 4
+        pilotComplete.value = true
+        pilotCount.value = data.pilot_count || 0
+        remainingCount.value = data.remaining_count || 0
+        selectedCriteriaName.value = 'Restored session'
+      } else if (data.status === 'completed' && data.results?.length) {
+        sessionId.value = savedSessionId
+        results.value = data.results
+        currentStep.value = 4
+        selectedCriteriaName.value = 'Restored session'
+      }
+    } catch {
+      sessionStorage.removeItem('metascreener_ta_session')
+    }
   }
 })
 </script>
