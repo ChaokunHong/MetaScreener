@@ -58,12 +58,10 @@ SUPPORTED_EXTENSIONS = {".ris", ".bib", ".csv", ".xlsx", ".xml"}
 
 
 def _feedback_path_for_criteria(criteria_id: str) -> Path:
-    """Return the feedback JSON file path for a specific criteria.
-
-    Each criteria_id gets its own feedback file so learning from
-    one review topic doesn't contaminate another.
-    """
-    p = Path.home() / ".metascreener" / "feedback" / f"{criteria_id}.json"
+    """Return the feedback JSON file path for a specific criteria."""
+    import re as _re  # noqa: PLC0415
+    safe_id = _re.sub(r'[^\w\-]', '_', criteria_id)
+    p = Path.home() / ".metascreener" / "feedback" / f"{safe_id}.json"
     p.parent.mkdir(parents=True, exist_ok=True)
     return p
 
@@ -1177,6 +1175,7 @@ async def upload_file(file: UploadFile) -> UploadResponse:
     Raises:
         HTTPException: If file format is unsupported or parsing fails.
     """
+    _cleanup_expired_sessions()
     filename = file.filename or "unknown"
     ext = Path(filename).suffix.lower()
     if ext not in SUPPORTED_EXTENSIONS:
@@ -1188,9 +1187,17 @@ async def upload_file(file: UploadFile) -> UploadResponse:
             ),
         )
 
+    # Size limit: 100MB
+    content = await file.read()
+    _MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+    if len(content) > _MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large ({len(content) // (1024*1024)}MB). Maximum is 100MB.",
+        )
+
     # Save to temp file and parse with metascreener IO reader.
     with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
-        content = await file.read()
         tmp.write(content)
         tmp_path = Path(tmp.name)
 
@@ -1389,6 +1396,7 @@ async def _run_screening_background(
             )
         else:
             session["status"] = "completed"
+            session["completed_at"] = datetime.now(UTC).isoformat()
 
         if session["status"] == "completed":
             # Save to history for later retrieval
@@ -1414,6 +1422,7 @@ async def _run_screening_background(
     except Exception as exc:  # noqa: BLE001
         logger.error("background_screening_error", error=str(exc))
         session["status"] = "error"
+        session["completed_at"] = datetime.now(UTC).isoformat()
         session["error"] = str(exc)
     finally:
         await _close_backends(backends)
@@ -1443,6 +1452,7 @@ async def run_screening(
         session["results"] = []
         session["raw_decisions"] = []
         session["status"] = "completed"
+        session["completed_at"] = datetime.now(UTC).isoformat()
         return {
             "status": "completed",
             "message": "No records to screen",
@@ -1564,6 +1574,7 @@ async def _run_continue_screening(
         criteria = session.get("criteria_obj")
         if criteria is None:
             session["status"] = "error"
+            session["completed_at"] = datetime.now(UTC).isoformat()
             session["error"] = "No criteria found in session"
             return
 
@@ -1638,6 +1649,7 @@ async def _run_continue_screening(
         await asyncio.gather(*[_screen_one(i, r) for i, r in enumerate(records)])
 
         session["status"] = "completed"
+        session["completed_at"] = datetime.now(UTC).isoformat()
         session["remaining_records"] = []
 
         # Save to history
@@ -1668,6 +1680,7 @@ async def _run_continue_screening(
     except Exception as exc:  # noqa: BLE001
         logger.error("continue_screening_error", error=str(exc))
         session["status"] = "error"
+        session["completed_at"] = datetime.now(UTC).isoformat()
         session["error"] = str(exc)
     finally:
         await _close_backends(backends)
@@ -2010,6 +2023,39 @@ _ft_sessions: dict[str, dict[str, Any]] = {}
 # Per-session asyncio locks for concurrency safety (Task 9)
 _session_locks: dict[str, asyncio.Lock] = {}
 
+_SESSION_TTL_S = 86400  # 24 hours
+
+
+def _cleanup_expired_sessions() -> None:
+    """Remove sessions older than TTL to prevent memory leaks."""
+    now = datetime.now(UTC)
+    expired_ta = []
+    for sid, session in _sessions.items():
+        completed_at = session.get("completed_at")
+        if completed_at and (now - datetime.fromisoformat(completed_at)).total_seconds() > _SESSION_TTL_S:
+            expired_ta.append(sid)
+
+    expired_ft = []
+    for sid, session in _ft_sessions.items():
+        completed_at = session.get("completed_at")
+        if completed_at and (now - datetime.fromisoformat(completed_at)).total_seconds() > _SESSION_TTL_S:
+            expired_ft.append(sid)
+
+    for sid in expired_ta:
+        _sessions.pop(sid, None)
+        _session_locks.pop(sid, None)
+
+    for sid in expired_ft:
+        _ft_sessions.pop(sid, None)
+        _session_locks.pop(f"ft_{sid}", None)
+
+    if expired_ta or expired_ft:
+        logger.info(
+            "sessions_cleaned",
+            ta_removed=len(expired_ta),
+            ft_removed=len(expired_ft),
+        )
+
 
 def _get_session_lock(session_id: str) -> asyncio.Lock:
     """Get or create an asyncio.Lock for a session."""
@@ -2021,6 +2067,7 @@ def _get_session_lock(session_id: str) -> asyncio.Lock:
 @router.post("/ft/upload-pdfs", response_model=FTUploadResponse)
 async def ft_upload_pdfs(files: list[UploadFile]) -> FTUploadResponse:
     """Upload PDF files for full-text screening."""
+    _cleanup_expired_sessions()
     from metascreener.io.pdf_parser import extract_text_from_pdf  # noqa: PLC0415
 
     session_id = str(uuid.uuid4())
@@ -2035,6 +2082,10 @@ async def ft_upload_pdfs(files: list[UploadFile]) -> FTUploadResponse:
             suffix=".pdf", delete=False, prefix="ms_ft_"
         ) as tmp:
             content = await file.read()
+            _MAX_PDF_BYTES = 100 * 1024 * 1024
+            if len(content) > _MAX_PDF_BYTES:
+                logger.warning("pdf_too_large", filename=fname, size_mb=len(content) // (1024*1024))
+                continue  # Skip oversized PDFs
             tmp.write(content)
             tmp_path = Path(tmp.name)
 
@@ -2098,6 +2149,7 @@ async def ft_run_screening(
 
     if not records:
         session["status"] = "completed"
+        session["completed_at"] = datetime.now(UTC).isoformat()
         session["results"] = []
         return {"status": "completed", "total": 0}
 
@@ -2229,6 +2281,7 @@ async def _run_ft_screening_background(
             session["pilot_count"] = len(pilot_records)
         else:
             session["status"] = "completed"
+            session["completed_at"] = datetime.now(UTC).isoformat()
 
         # Save to history only when fully completed
         if session["status"] == "completed":
@@ -2254,6 +2307,7 @@ async def _run_ft_screening_background(
     except Exception as exc:  # noqa: BLE001
         logger.error("ft_background_error", error=str(exc))
         session["status"] = "error"
+        session["completed_at"] = datetime.now(UTC).isoformat()
         session["error"] = str(exc)
     finally:
         await _close_backends(backends)
@@ -2462,6 +2516,7 @@ async def _run_ft_continue_screening(
         criteria = session.get("criteria_obj")
         if criteria is None:
             session["status"] = "error"
+            session["completed_at"] = datetime.now(UTC).isoformat()
             session["error"] = "No criteria found"
             return
 
@@ -2518,6 +2573,7 @@ async def _run_ft_continue_screening(
 
         await asyncio.gather(*[_screen_one(i, r) for i, r in enumerate(records)])
         session["status"] = "completed"
+        session["completed_at"] = datetime.now(UTC).isoformat()
         session["remaining_records"] = []
 
         # Save to history
@@ -2540,6 +2596,7 @@ async def _run_ft_continue_screening(
     except Exception as exc:
         logger.error("ft_continue_error", error=str(exc))
         session["status"] = "error"
+        session["completed_at"] = datetime.now(UTC).isoformat()
         session["error"] = str(exc)
     finally:
         await _close_backends(backends)
