@@ -160,7 +160,20 @@
                   </div>
                 </span>
               </th>
-              <th>Action</th>
+              <th>
+                Action
+                <span class="th-info" @click.stop="activeTooltip = activeTooltip === 'action' ? '' : 'action'">
+                  <i class="fas fa-circle-info"></i>
+                  <div v-if="activeTooltip === 'action'" class="th-popover">
+                    <strong>Your Decision</strong><br>
+                    Override or confirm the AI screening decision.<br>
+                    For HUMAN_REVIEW items, choose Include or Exclude.<br>
+                    For other items, click to change the decision.<br>
+                    Click Undo to revert to the original AI decision.<br>
+                    Your feedback helps improve future screening accuracy.
+                  </div>
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -174,27 +187,32 @@
                 <td>{{ fmt(r.confidence) }}</td>
                 <td @click.stop>
                   <div class="action-cell">
-                    <template v-if="r.decision === 'HUMAN_REVIEW'">
-                      <button class="action-btn action-btn--include" @click="submitFeedback(i, 'INCLUDE')" :disabled="feedbackLoading === i">
-                        <i class="fas fa-check"></i>
-                      </button>
-                      <button class="action-btn action-btn--exclude" @click="submitFeedback(i, 'EXCLUDE')" :disabled="feedbackLoading === i">
-                        <i class="fas fa-times"></i>
-                      </button>
+                    <!-- Not yet overridden -->
+                    <template v-if="!r.human_decision">
+                      <template v-if="r.decision === 'HUMAN_REVIEW'">
+                        <button class="action-text-btn action-text-btn--include" @click="submitFeedback(i, 'INCLUDE')" :disabled="feedbackLoading === i">
+                          <i class="fas fa-check"></i> Include
+                        </button>
+                        <button class="action-text-btn action-text-btn--exclude" @click="submitFeedback(i, 'EXCLUDE')" :disabled="feedbackLoading === i">
+                          <i class="fas fa-times"></i> Exclude
+                        </button>
+                      </template>
+                      <template v-else>
+                        <button class="action-text-btn action-text-btn--change" @click="submitFeedback(i, r.decision === 'INCLUDE' ? 'EXCLUDE' : 'INCLUDE')" :disabled="feedbackLoading === i">
+                          <i v-if="feedbackLoading === i" class="fas fa-spinner fa-spin"></i>
+                          <i v-else class="fas fa-pen"></i> Change
+                        </button>
+                      </template>
                     </template>
+                    <!-- Already overridden: show status + undo -->
                     <template v-else>
-                      <button
-                        class="action-btn action-btn--override"
-                        @click="submitFeedback(i, r.decision === 'INCLUDE' ? 'EXCLUDE' : 'INCLUDE')"
-                        :disabled="feedbackLoading === i"
-                      >
-                        <i v-if="feedbackLoading === i" class="fas fa-spinner fa-spin"></i>
-                        <i v-else class="fas fa-arrow-right-arrow-left"></i>
+                      <span class="action-status">
+                        <i class="fas fa-user-check"></i> {{ r.human_decision === 'INCLUDE' ? 'Included' : 'Excluded' }}
+                      </span>
+                      <button class="action-undo-btn" @click="undoFeedback(i)" :disabled="feedbackLoading === i">
+                        Undo
                       </button>
                     </template>
-                    <span v-if="r.human_decision" class="action-overridden">
-                      <i class="fas fa-user-check"></i>
-                    </span>
                   </div>
                 </td>
               </tr>
@@ -400,7 +418,8 @@ function startPolling() {
 
 // Step 4 - Results
 const results = ref<Array<{
-  title?: string; decision: string; tier?: number; score?: number; confidence?: number; human_decision?: string
+  title?: string; decision: string; tier?: number; score?: number; confidence?: number;
+  human_decision?: string; original_decision?: string
 }>>([])
 
 const includedCount = computed(() => results.value.filter(r => r.decision === 'INCLUDE').length)
@@ -417,12 +436,14 @@ async function submitFeedback(index: number, decision: string) {
   if (!sessionId.value) return
   feedbackLoading.value = index
   try {
-    // TODO: FT feedback endpoint (/screening/ft/feedback/) needs to be added to backend
-    const resp = await apiPost<{ new_decision: string; n_feedback: number; recalibration_triggered: boolean }>(
+    const resp = await apiPost<{ new_decision: string; old_decision: string; n_feedback: number }>(
       `/screening/ft/feedback/${sessionId.value}`,
       { record_index: index, decision }
     )
     if (results.value[index]) {
+      if (!results.value[index].original_decision) {
+        results.value[index].original_decision = resp.old_decision
+      }
       results.value[index].decision = resp.new_decision
       results.value[index].human_decision = resp.new_decision
     }
@@ -430,6 +451,22 @@ async function submitFeedback(index: number, decision: string) {
     alert(`Feedback failed: ${(e as Error).message}`)
   } finally {
     feedbackLoading.value = null
+  }
+}
+
+function undoFeedback(index: number) {
+  const r = results.value[index]
+  if (r && r.original_decision) {
+    r.decision = r.original_decision
+    r.human_decision = undefined
+    r.original_decision = undefined
+    // Fire-and-forget: tell backend to revert
+    if (sessionId.value) {
+      apiPost(`/screening/ft/feedback/${sessionId.value}`, {
+        record_index: index,
+        decision: r.decision,
+      }).catch(() => {})
+    }
   }
 }
 
@@ -643,48 +680,55 @@ onMounted(() => {
 .action-cell {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.35rem;
+  white-space: nowrap;
 }
-.action-btn {
-  width: 28px;
-  height: 28px;
+.action-text-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
   border-radius: 6px;
   border: 1px solid rgba(255,255,255,0.1);
   background: rgba(255,255,255,0.04);
   color: var(--text-secondary, #999);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   transition: all 0.15s;
 }
-.action-btn:hover {
-  border-color: rgba(139,92,246,0.3);
-  color: var(--primary-purple, #8b5cf6);
-}
-.action-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.action-btn--include:hover {
+.action-text-btn:hover { background: rgba(255,255,255,0.08); }
+.action-text-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.action-text-btn--include:hover {
   border-color: rgba(16,185,129,0.4);
   color: #10b981;
   background: rgba(16,185,129,0.08);
 }
-.action-btn--exclude:hover {
+.action-text-btn--exclude:hover {
   border-color: rgba(239,68,68,0.4);
   color: #ef4444;
   background: rgba(239,68,68,0.08);
 }
-.action-btn--override:hover {
+.action-text-btn--change:hover {
   border-color: rgba(245,158,11,0.4);
   color: #f59e0b;
   background: rgba(245,158,11,0.08);
 }
-.action-overridden {
+.action-status {
+  font-size: 0.72rem;
   color: var(--primary-purple, #8b5cf6);
-  font-size: 0.7rem;
-  margin-left: 0.15rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
+.action-undo-btn {
+  font-size: 0.68rem;
+  color: var(--text-secondary, #999);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.action-undo-btn:hover { color: var(--text-primary, #fff); }
+.action-undo-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>
