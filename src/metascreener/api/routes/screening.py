@@ -1314,6 +1314,23 @@ async def _run_screening_background(
         if learned_weights:
             logger.info("using_learned_weights", weights=learned_weights)
 
+        # Progressive screening: pilot batch first, then main batch
+        pilot_threshold = 30  # Below this, screen everything (no pilot needed)
+        if len(records) <= pilot_threshold:
+            # Small batch: screen all at once
+            pilot_records = records
+            session["remaining_records"] = []
+        else:
+            pilot_size = min(max(20, len(records) // 10), 100)
+            pilot_records = records[:pilot_size]
+            session["remaining_records"] = records[pilot_size:]
+            logger.info(
+                "progressive_screening_pilot",
+                total=len(records),
+                pilot_size=len(pilot_records),
+                remaining=len(session["remaining_records"]),
+            )
+
         # Concurrent screening with semaphore-based throttling
         from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
         user_settings = _load_user_settings()
@@ -1343,30 +1360,40 @@ async def _run_screening_background(
                         "score": 0.0, "confidence": 0.0,
                     })
 
-        await asyncio.gather(*[_screen_one(i, r) for i, r in enumerate(records)])
+        await asyncio.gather(*[_screen_one(i, r) for i, r in enumerate(pilot_records)])
 
-        session["status"] = "completed"
-
-        # Save to history for later retrieval
-        try:
-            from metascreener.api.history_store import HistoryStore  # noqa: PLC0415
-            store = HistoryStore()
-            n_include = sum(1 for r in session.get("results", []) if r.get("decision") == "INCLUDE")
-            n_exclude = sum(1 for r in session.get("results", []) if r.get("decision") == "EXCLUDE")
-            n_review = sum(1 for r in session.get("results", []) if r.get("decision") == "HUMAN_REVIEW")
-            store.create(
-                module="screening",
-                data={
-                    "stage": "ta",
-                    "results": session.get("results", []),
-                    "raw_decisions": session.get("raw_decisions", []),
-                    "filename": session.get("filename", ""),
-                },
-                name=f"Screening (TA) — {session.get('filename', 'unknown')}",
-                summary=f"{len(session.get('results', []))} papers: {n_include} include, {n_exclude} exclude, {n_review} review",
+        if session.get("remaining_records"):
+            session["status"] = "pilot_complete"
+            session["pilot_count"] = len(pilot_records)
+            logger.info(
+                "pilot_complete",
+                pilot_screened=len(pilot_records),
+                remaining=len(session["remaining_records"]),
             )
-        except Exception:
-            logger.warning("screening_history_save_failed", exc_info=True)
+        else:
+            session["status"] = "completed"
+
+        if session["status"] == "completed":
+            # Save to history for later retrieval
+            try:
+                from metascreener.api.history_store import HistoryStore  # noqa: PLC0415
+                store = HistoryStore()
+                n_include = sum(1 for r in session.get("results", []) if r.get("decision") == "INCLUDE")
+                n_exclude = sum(1 for r in session.get("results", []) if r.get("decision") == "EXCLUDE")
+                n_review = sum(1 for r in session.get("results", []) if r.get("decision") == "HUMAN_REVIEW")
+                store.create(
+                    module="screening",
+                    data={
+                        "stage": "ta",
+                        "results": session.get("results", []),
+                        "raw_decisions": session.get("raw_decisions", []),
+                        "filename": session.get("filename", ""),
+                    },
+                    name=f"Screening (TA) — {session.get('filename', 'unknown')}",
+                    summary=f"{len(session.get('results', []))} papers: {n_include} include, {n_exclude} exclude, {n_review} review",
+                )
+            except Exception:
+                logger.warning("screening_history_save_failed", exc_info=True)
     except Exception as exc:  # noqa: BLE001
         logger.error("background_screening_error", error=str(exc))
         session["status"] = "error"
@@ -1455,6 +1482,180 @@ async def run_screening(
     }
 
 
+@router.post("/continue/{session_id}")
+async def continue_screening(
+    session_id: str,
+    background_tasks: BackgroundTasks,
+) -> dict[str, Any]:
+    """Continue screening remaining papers after pilot review.
+
+    Uses feedback from the pilot phase to recalibrate model weights
+    before screening the remaining papers.
+    """
+    if session_id not in _sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = _sessions[session_id]
+    remaining = session.get("remaining_records", [])
+
+    if not remaining:
+        return {"status": "completed", "message": "No remaining papers to screen"}
+
+    if session.get("status") != "pilot_complete":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Session status is '{session.get('status')}', expected 'pilot_complete'",
+        )
+
+    api_key = _get_openrouter_api_key()
+    if not api_key:
+        return {"status": "screening_not_configured", "message": "Configure API key"}
+
+    try:
+        backends = _build_screening_backends(api_key)
+    except SystemExit as exc:
+        return {"status": "screening_not_configured", "message": str(exc)}
+
+    if not backends:
+        return {"status": "screening_not_configured", "message": "No models configured"}
+
+    session["status"] = "running"
+
+    background_tasks.add_task(
+        _run_continue_screening, session, remaining, backends,
+    )
+
+    return {
+        "status": "started",
+        "remaining": len(remaining),
+        "pilot_feedback": len(session.get("feedback", [])),
+    }
+
+
+async def _run_continue_screening(
+    session: dict[str, Any],
+    records: list[Record],
+    backends: list[Any],
+) -> None:
+    """Screen remaining papers using weights learned from pilot feedback."""
+    from metascreener.api.deps import get_config  # noqa: PLC0415
+    from metascreener.module1_screening.layer3.aggregator import CCAggregator  # noqa: PLC0415
+    from metascreener.module1_screening.layer4.router import DecisionRouter  # noqa: PLC0415
+    from metascreener.module1_screening.ta_screener import TAScreener  # noqa: PLC0415
+
+    try:
+        criteria = session.get("criteria_obj")
+        if criteria is None:
+            session["status"] = "error"
+            session["error"] = "No criteria found in session"
+            return
+
+        cfg = get_config()
+        router = DecisionRouter(
+            tau_high=cfg.thresholds.tau_high,
+            tau_mid=cfg.thresholds.tau_mid,
+            tau_low=cfg.thresholds.tau_low,
+            dissent_tolerance=cfg.thresholds.dissent_tolerance,
+        )
+        backends = _apply_screening_token_limits(backends)
+
+        # Trigger recalibration from pilot feedback before screening remaining
+        n_feedback = len(session.get("feedback", []))
+        if n_feedback >= 2:
+            try:
+                _trigger_recalibration(session)
+                logger.info("pilot_recalibration_applied", n_feedback=n_feedback)
+            except Exception:
+                logger.warning("pilot_recalibration_failed", exc_info=True)
+
+        # Load learned weights (from pilot recalibration or persistent storage)
+        learned_weights = session.get("learned_weights")
+        if not learned_weights and hasattr(criteria, "criteria_id"):
+            learned_weights = _load_learned_weights(criteria.criteria_id)
+        aggregator = CCAggregator(weights=learned_weights) if learned_weights else None
+
+        if learned_weights:
+            logger.info("continue_with_learned_weights", weights=learned_weights)
+
+        screener = TAScreener(
+            backends=backends,
+            timeout_s=180.0,
+            router=router,
+            aggregator=aggregator,
+        )
+
+        # Screen remaining papers concurrently
+        from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
+
+        user_settings = _load_user_settings()
+        concurrent = user_settings.get("concurrent_papers", 25)
+        sem = asyncio.Semaphore(concurrent)
+
+        async def _screen_one(i: int, record: Record) -> None:
+            async with sem:
+                try:
+                    decision = await screener.screen_single(record, criteria, seed=42)
+                    summary = ScreeningRecordSummary(
+                        record_id=decision.record_id,
+                        title=record.title or "(untitled record)",
+                        decision=decision.decision.value,
+                        tier=str(int(decision.tier)),
+                        score=decision.final_score,
+                        confidence=decision.ensemble_confidence,
+                    )
+                    session["results"].append(summary.model_dump())
+                    session["raw_decisions"].append(decision.model_dump(mode="json"))
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "record_screening_error",
+                        record_id=record.record_id,
+                        error=str(exc),
+                    )
+                    session["results"].append({
+                        "record_id": str(record.record_id),
+                        "title": record.title or "(untitled record)",
+                        "decision": "HUMAN_REVIEW", "tier": "3",
+                        "score": 0.0, "confidence": 0.0,
+                    })
+
+        await asyncio.gather(*[_screen_one(i, r) for i, r in enumerate(records)])
+
+        session["status"] = "completed"
+        session["remaining_records"] = []
+
+        # Save to history
+        try:
+            from metascreener.api.history_store import HistoryStore  # noqa: PLC0415
+
+            store = HistoryStore()
+            results = session.get("results", [])
+            n_include = sum(1 for r in results if r.get("decision") == "INCLUDE")
+            n_exclude = sum(1 for r in results if r.get("decision") == "EXCLUDE")
+            n_review = sum(
+                1 for r in results if r.get("decision") == "HUMAN_REVIEW"
+            )
+            store.create(
+                module="screening",
+                data={
+                    "stage": "ta",
+                    "results": results,
+                    "raw_decisions": session.get("raw_decisions", []),
+                    "filename": session.get("filename", ""),
+                },
+                name=f"Screening (TA) — {session.get('filename', 'unknown')}",
+                summary=f"{len(results)} papers: {n_include} include, {n_exclude} exclude, {n_review} review",
+            )
+        except Exception:
+            logger.warning("screening_history_save_failed", exc_info=True)
+
+    except Exception as exc:  # noqa: BLE001
+        logger.error("continue_screening_error", error=str(exc))
+        session["status"] = "error"
+        session["error"] = str(exc)
+    finally:
+        await _close_backends(backends)
+
+
 @router.get("/results/{session_id}")
 async def get_results(session_id: str) -> ScreeningResultsResponse:
     """Get screening results for a session.
@@ -1483,6 +1684,8 @@ async def get_results(session_id: str) -> ScreeningResultsResponse:
         results=results,
         status=session.get("status", "idle"),
         error=session.get("error"),
+        pilot_count=session.get("pilot_count"),
+        remaining_count=len(session.get("remaining_records", [])),
     )
 
 

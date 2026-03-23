@@ -202,6 +202,8 @@ class ScreeningResultsResponse(BaseModel):
     results: list[ScreeningRecordSummary]
     status: str = "idle"
     error: str | None = None
+    pilot_count: int | None = None
+    remaining_count: int | None = None
 
 
 class ScreeningSessionInfo(BaseModel):
