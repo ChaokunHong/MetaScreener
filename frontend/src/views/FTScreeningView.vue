@@ -95,6 +95,39 @@
         </div>
       </div>
 
+      <!-- Pilot review banner -->
+      <div v-if="pilotComplete" class="pilot-banner">
+        <div class="pilot-banner-content">
+          <div class="pilot-banner-icon"><i class="fas fa-flask"></i></div>
+          <div>
+            <strong>Pilot Screening Complete</strong>
+            <p style="margin: 0.25rem 0 0; font-size: 0.82rem; color: var(--text-secondary);">
+              Screened {{ pilotCount }} pilot papers. Review the results below and override any incorrect decisions.
+              Your feedback will calibrate the AI for the remaining <strong>{{ remainingCount }}</strong> papers.
+            </p>
+          </div>
+        </div>
+        <button class="btn btn-primary" :disabled="continuing" @click="doContinue" style="white-space: nowrap;">
+          <i v-if="continuing" class="fas fa-spinner fa-spin"></i>
+          <i v-else class="fas fa-forward"></i>
+          Continue Screening ({{ remainingCount }} papers)
+        </button>
+      </div>
+
+      <!-- Continue screening progress (inside Step 4) -->
+      <div v-if="continuing && running" style="margin-bottom: 1rem;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+          <span class="text-muted">
+            <i class="fas fa-spinner fa-spin" style="margin-right: 0.4rem;"></i>
+            {{ runStatus }}
+          </span>
+          <span class="text-muted">{{ completedCount }} / {{ totalCount }}</span>
+        </div>
+        <div class="progress">
+          <div class="progress-bar" :class="{ 'progress-bar-animated': true }" :style="{ width: progressPct + '%' }"></div>
+        </div>
+      </div>
+
       <div class="metric-grid" style="margin-bottom: 1.5rem;">
         <div class="metric-card">
           <div class="metric-value">{{ results.length }}</div>
@@ -353,6 +386,12 @@ async function doUpload() {
   }
 }
 
+// Pilot screening state
+const pilotComplete = ref(false)
+const pilotCount = ref(0)
+const remainingCount = ref(0)
+const continuing = ref(false)
+
 // Step 3 - Run
 const running = ref(false)
 const runStatus = ref('')
@@ -387,7 +426,8 @@ function startPolling() {
     try {
       const data = await apiGet<{
         status: string; total: number; completed: number;
-        results: Array<{ title?: string; decision: string }>; error?: string
+        results: Array<{ title?: string; decision: string }>; error?: string;
+        pilot_count?: number; remaining_count?: number
       }>(`/screening/ft/results/${sessionId.value}`)
 
       totalCount.value = data.total || 0
@@ -404,16 +444,47 @@ function startPolling() {
         return
       }
 
+      // Pilot complete: show results but don't finish — wait for user to continue
+      if (data.status === 'pilot_complete') {
+        clearInterval(pollTimer!)
+        results.value = data.results || []
+        running.value = false
+        pilotComplete.value = true
+        pilotCount.value = data.pilot_count || 0
+        remainingCount.value = data.remaining_count || 0
+        currentStep.value = 4
+        return
+      }
+
       if (data.status === 'completed' || (data.completed >= data.total && data.total > 0)) {
         clearInterval(pollTimer!)
         results.value = data.results || []
         running.value = false
+        continuing.value = false
+        pilotComplete.value = false
         currentStep.value = 4
       }
     } catch {
       // transient error, keep polling
     }
   }, 3000)
+}
+
+async function doContinue() {
+  if (!sessionId.value) return
+  continuing.value = true
+  pilotComplete.value = false
+  running.value = true
+  runStatus.value = 'Applying learned weights and screening remaining papers…'
+
+  try {
+    await apiPost(`/screening/ft/continue/${sessionId.value}`, {})
+    startPolling()
+  } catch (e: unknown) {
+    runError.value = `Continue failed: ${(e as Error).message}`
+    running.value = false
+    continuing.value = false
+  }
 }
 
 // Step 4 - Results
@@ -536,6 +607,10 @@ function resetAll() {
   running.value = false
   runError.value = ''
   currentStep.value = 1
+  pilotComplete.value = false
+  pilotCount.value = 0
+  remainingCount.value = 0
+  continuing.value = false
 }
 
 // Load results from history if navigated from HistoryView
@@ -734,4 +809,32 @@ onMounted(() => {
 }
 .action-undo-btn:hover { color: var(--text-primary, #fff); }
 .action-undo-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.pilot-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(6,182,212,0.06) 100%);
+  border: 1px solid rgba(139,92,246,0.2);
+}
+.pilot-banner-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+.pilot-banner-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(139,92,246,0.12);
+  color: var(--primary-purple, #8b5cf6);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
 </style>

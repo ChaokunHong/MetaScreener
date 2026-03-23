@@ -69,13 +69,27 @@ def _feedback_path_for_criteria(criteria_id: str) -> Path:
 
 
 def _load_learned_weights(criteria_id: str) -> dict[str, float] | None:
-    """Load learned model weights from persistent feedback for a criteria.
+    """Load learned model weights from persistent storage.
 
-    Loads the criteria-specific feedback file, fits weights using
-    FeedbackCollector, and returns the optimized weights.
+    Checks for a pre-computed weights file first (faster than re-fitting),
+    then falls back to loading feedback and re-fitting.
 
     Returns None if no feedback exists or insufficient data.
     """
+    import json as _json  # noqa: PLC0415
+
+    # Try pre-computed weights file first (faster than re-fitting)
+    weights_path = _feedback_path_for_criteria(criteria_id).with_suffix(".weights.json")
+    if weights_path.exists():
+        try:
+            weights = _json.loads(weights_path.read_text())
+            if isinstance(weights, dict) and weights:
+                logger.info("loaded_persisted_weights", criteria_id=criteria_id[:8])
+                return weights
+        except Exception:
+            pass
+
+    # Fallback: load feedback and re-fit
     feedback_path = _feedback_path_for_criteria(criteria_id)
     if not feedback_path.exists():
         return None
@@ -89,10 +103,9 @@ def _load_learned_weights(criteria_id: str) -> dict[str, float] | None:
     weights = collector.relearn_weights()
     if weights:
         logger.info(
-            "loaded_learned_weights",
+            "refitted_weights",
             criteria_id=criteria_id[:8],
             n_feedback=collector.n_feedback,
-            weights=weights,
         )
     return weights or None
 
@@ -1766,71 +1779,73 @@ async def submit_feedback(
     if session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    session = _sessions[session_id]
-    results = session.get("results", [])
-    raw_decisions = session.get("raw_decisions", [])
+    lock = _get_session_lock(session_id)
+    async with lock:
+        session = _sessions[session_id]
+        results = session.get("results", [])
+        raw_decisions = session.get("raw_decisions", [])
 
-    if req.record_index < 0 or req.record_index >= len(results):
-        raise HTTPException(status_code=404, detail="Record index out of range")
+        if req.record_index < 0 or req.record_index >= len(results):
+            raise HTTPException(status_code=404, detail="Record index out of range")
 
-    # Validate decision
-    human_decision = req.decision.strip().upper()
-    if human_decision not in ("INCLUDE", "EXCLUDE"):
-        raise HTTPException(status_code=400, detail="Decision must be INCLUDE or EXCLUDE")
+        # Validate decision
+        human_decision = req.decision.strip().upper()
+        if human_decision not in ("INCLUDE", "EXCLUDE"):
+            raise HTTPException(status_code=400, detail="Decision must be INCLUDE or EXCLUDE")
 
-    # Update the summary result
-    old_decision = results[req.record_index].get("decision", "")
-    results[req.record_index]["human_decision"] = human_decision
-    results[req.record_index]["decision"] = human_decision  # Override displayed decision
+        # Update the summary result
+        old_decision = results[req.record_index].get("decision", "")
+        results[req.record_index]["human_decision"] = human_decision
+        results[req.record_index]["decision"] = human_decision  # Override displayed decision
 
-    # Update raw_decision if exists
-    if req.record_index < len(raw_decisions):
-        raw_decisions[req.record_index]["human_decision"] = human_decision
+        # Update raw_decision if exists
+        if req.record_index < len(raw_decisions):
+            raw_decisions[req.record_index]["human_decision"] = human_decision
 
-    # Collect feedback for active learning
-    criteria_obj = session.get("criteria_obj")
-    criteria_id = getattr(criteria_obj, "criteria_id", None) or "default"
-    feedback_list = session.setdefault("feedback", [])
-    feedback_list.append({
-        "record_index": req.record_index,
-        "original_decision": old_decision,
-        "human_decision": human_decision,
-        "rationale": req.rationale,
-        "criteria_id": criteria_id,
-        "created_at": datetime.now(UTC).isoformat(),
-    })
+        # Collect feedback for active learning
+        criteria_obj = session.get("criteria_obj")
+        criteria_id = getattr(criteria_obj, "criteria_id", None) or "default"
+        feedback_list = session.setdefault("feedback", [])
+        feedback_list.append({
+            "record_index": req.record_index,
+            "original_decision": old_decision,
+            "human_decision": human_decision,
+            "rationale": req.rationale,
+            "criteria_id": criteria_id,
+            "created_at": datetime.now(UTC).isoformat(),
+        })
 
-    n_feedback = len(feedback_list)
-    recalibration_triggered = False
-    recalibration_error = ""
+        n_feedback = len(feedback_list)
+        recalibration_triggered = False
+        recalibration_error = ""
 
-    # Auto-trigger recalibration at thresholds (10, 20, 50, 100...)
-    if n_feedback in (10, 20, 50, 100) or (n_feedback > 100 and n_feedback % 50 == 0):
-        try:
-            _trigger_recalibration(session)
-            recalibration_triggered = True
-        except Exception as exc:
-            logger.warning("recalibration_failed", exc_info=True)
-            recalibration_error = str(exc)
+        # Auto-trigger recalibration at thresholds (10, 20, 50, 100...)
+        if n_feedback in (10, 20, 50, 100) or (n_feedback > 100 and n_feedback % 50 == 0):
+            try:
+                _trigger_recalibration(session)
+                recalibration_triggered = True
+            except Exception as exc:
+                logger.warning("recalibration_failed", exc_info=True)
+                recalibration_error = str(exc)
 
-    logger.info(
-        "feedback_submitted",
-        session_id=session_id,
-        record_index=req.record_index,
-        old_decision=old_decision,
-        new_decision=human_decision,
-        n_feedback=n_feedback,
-        recalibrated=recalibration_triggered,
-    )
+        logger.info(
+            "feedback_submitted",
+            session_id=session_id,
+            record_index=req.record_index,
+            old_decision=old_decision,
+            new_decision=human_decision,
+            n_feedback=n_feedback,
+            recalibrated=recalibration_triggered,
+        )
 
-    return {
-        "status": "ok",
-        "old_decision": old_decision,
-        "new_decision": human_decision,
-        "n_feedback": n_feedback,
-        "recalibration_triggered": recalibration_triggered,
-        "recalibration_error": recalibration_error,
-    }
+        return {
+            "status": "ok",
+            "old_decision": old_decision,
+            "new_decision": human_decision,
+            "n_feedback": n_feedback,
+            "recalibration_triggered": recalibration_triggered,
+            "recalibration_error": recalibration_error,
+        }
 
 
 @router.post("/undo-feedback/{session_id}")
@@ -1850,46 +1865,48 @@ async def undo_feedback(
     if session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    session = _sessions[session_id]
-    results = session.get("results", [])
-    raw_decisions = session.get("raw_decisions", [])
+    lock = _get_session_lock(session_id)
+    async with lock:
+        session = _sessions[session_id]
+        results = session.get("results", [])
+        raw_decisions = session.get("raw_decisions", [])
 
-    if req.record_index < 0 or req.record_index >= len(results):
-        raise HTTPException(status_code=404, detail="Record index out of range")
+        if req.record_index < 0 or req.record_index >= len(results):
+            raise HTTPException(status_code=404, detail="Record index out of range")
 
-    original_decision = req.decision.strip().upper()
+        original_decision = req.decision.strip().upper()
 
-    # Restore original decision
-    results[req.record_index]["decision"] = original_decision
-    results[req.record_index].pop("human_decision", None)
+        # Restore original decision
+        results[req.record_index]["decision"] = original_decision
+        results[req.record_index].pop("human_decision", None)
 
-    if req.record_index < len(raw_decisions):
-        raw_decisions[req.record_index]["human_decision"] = None
+        if req.record_index < len(raw_decisions):
+            raw_decisions[req.record_index]["human_decision"] = None
 
-    # Remove feedback entries for this record
-    feedback_list = session.get("feedback", [])
-    session["feedback"] = [
-        fb for fb in feedback_list if fb.get("record_index") != req.record_index
-    ]
+        # Remove feedback entries for this record
+        feedback_list = session.get("feedback", [])
+        session["feedback"] = [
+            fb for fb in feedback_list if fb.get("record_index") != req.record_index
+        ]
 
-    # Update persistent feedback file
-    criteria_obj = session.get("criteria_obj")
-    criteria_id = getattr(criteria_obj, "criteria_id", None)
-    if criteria_id:
-        _persist_feedback_removal(criteria_id, req.record_index)
+        # Update persistent feedback file
+        criteria_obj = session.get("criteria_obj")
+        criteria_id = getattr(criteria_obj, "criteria_id", None)
+        if criteria_id:
+            _persist_feedback_removal(criteria_id, req.record_index)
 
-    logger.info(
-        "feedback_undone",
-        session_id=session_id,
-        record_index=req.record_index,
-        restored_decision=original_decision,
-    )
+        logger.info(
+            "feedback_undone",
+            session_id=session_id,
+            record_index=req.record_index,
+            restored_decision=original_decision,
+        )
 
-    return {
-        "status": "ok",
-        "decision": original_decision,
-        "n_feedback": len(session["feedback"]),
-    }
+        return {
+            "status": "ok",
+            "decision": original_decision,
+            "n_feedback": len(session["feedback"]),
+        }
 
 
 def _persist_feedback_removal(criteria_id: str, record_index: int) -> None:
@@ -1975,10 +1992,30 @@ def _trigger_recalibration(session: dict[str, Any]) -> None:
             weights=weights,
         )
 
+        # Persist learned weights per criteria
+        if weights and criteria_id != "default":
+            import json as _json  # noqa: PLC0415
+            weights_path = _feedback_path_for_criteria(criteria_id).with_suffix(".weights.json")
+            try:
+                weights_path.write_text(_json.dumps(weights, indent=2))
+                logger.info("weights_persisted", criteria_id=criteria_id[:8])
+            except Exception:
+                logger.warning("weights_persist_failed", exc_info=True)
+
 
 # ═══════ Full-Text Screening Endpoints ═══════
 
 _ft_sessions: dict[str, dict[str, Any]] = {}
+
+# Per-session asyncio locks for concurrency safety (Task 9)
+_session_locks: dict[str, asyncio.Lock] = {}
+
+
+def _get_session_lock(session_id: str) -> asyncio.Lock:
+    """Get or create an asyncio.Lock for a session."""
+    if session_id not in _session_locks:
+        _session_locks[session_id] = asyncio.Lock()
+    return _session_locks[session_id]
 
 
 @router.post("/ft/upload-pdfs", response_model=FTUploadResponse)
@@ -2141,6 +2178,19 @@ async def _run_ft_screening_background(
         if learned_weights:
             logger.info("using_learned_weights", weights=learned_weights)
 
+        # Progressive screening: pilot batch first, then main batch
+        pilot_threshold = 50
+        if len(records) <= pilot_threshold:
+            pilot_records = records
+            session["remaining_records"] = []
+        else:
+            import random as _random  # noqa: PLC0415
+            pilot_size = min(max(20, len(records) // 10), 100)
+            rng = _random.Random(42)
+            pilot_indices = set(rng.sample(range(len(records)), pilot_size))
+            pilot_records = [records[i] for i in sorted(pilot_indices)]
+            session["remaining_records"] = [records[i] for i in range(len(records)) if i not in pilot_indices]
+
         # FT uses half the TA concurrency since each FT paper is heavier
         from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
         user_settings = _load_user_settings()
@@ -2172,29 +2222,35 @@ async def _run_ft_screening_background(
                         "confidence": 0.0,
                     })
 
-        await asyncio.gather(*[_screen_one(i, r) for i, r in enumerate(records)])
-        session["status"] = "completed"
+        await asyncio.gather(*[_screen_one(i, r) for i, r in enumerate(pilot_records)])
 
-        # Save to history for later retrieval
-        try:
-            from metascreener.api.history_store import HistoryStore  # noqa: PLC0415
-            store = HistoryStore()
-            n_include = sum(1 for r in session.get("results", []) if r.get("decision") == "INCLUDE")
-            n_exclude = sum(1 for r in session.get("results", []) if r.get("decision") == "EXCLUDE")
-            n_review = sum(1 for r in session.get("results", []) if r.get("decision") == "HUMAN_REVIEW")
-            store.create(
-                module="screening",
-                data={
-                    "stage": "ft",
-                    "results": session.get("results", []),
-                    "raw_decisions": session.get("raw_decisions", []),
-                    "filenames": session.get("filenames", []),
-                },
-                name=f"Screening (FT) — {len(session.get('filenames', []))} PDFs",
-                summary=f"{len(session.get('results', []))} papers: {n_include} include, {n_exclude} exclude, {n_review} review",
-            )
-        except Exception:
-            logger.warning("ft_screening_history_save_failed", exc_info=True)
+        if session.get("remaining_records"):
+            session["status"] = "pilot_complete"
+            session["pilot_count"] = len(pilot_records)
+        else:
+            session["status"] = "completed"
+
+        # Save to history only when fully completed
+        if session["status"] == "completed":
+            try:
+                from metascreener.api.history_store import HistoryStore  # noqa: PLC0415
+                store = HistoryStore()
+                n_include = sum(1 for r in session.get("results", []) if r.get("decision") == "INCLUDE")
+                n_exclude = sum(1 for r in session.get("results", []) if r.get("decision") == "EXCLUDE")
+                n_review = sum(1 for r in session.get("results", []) if r.get("decision") == "HUMAN_REVIEW")
+                store.create(
+                    module="screening",
+                    data={
+                        "stage": "ft",
+                        "results": session.get("results", []),
+                        "raw_decisions": session.get("raw_decisions", []),
+                        "filenames": session.get("filenames", []),
+                    },
+                    name=f"Screening (FT) — {len(session.get('filenames', []))} PDFs",
+                    summary=f"{len(session.get('results', []))} papers: {n_include} include, {n_exclude} exclude, {n_review} review",
+                )
+            except Exception:
+                logger.warning("ft_screening_history_save_failed", exc_info=True)
     except Exception as exc:  # noqa: BLE001
         logger.error("ft_background_error", error=str(exc))
         session["status"] = "error"
@@ -2219,6 +2275,8 @@ async def ft_get_results(session_id: str) -> ScreeningResultsResponse:
         completed=len(results),
         results=results,
         error=session.get("error"),
+        pilot_count=session.get("pilot_count"),
+        remaining_count=len(session.get("remaining_records", [])),
     )
 
 
@@ -2255,56 +2313,58 @@ async def ft_submit_feedback(
     if session_id not in _ft_sessions:
         raise HTTPException(status_code=404, detail="FT session not found")
 
-    session = _ft_sessions[session_id]
-    results = session.get("results", [])
-    raw_decisions = session.get("raw_decisions", [])
+    lock = _get_session_lock(f"ft_{session_id}")
+    async with lock:
+        session = _ft_sessions[session_id]
+        results = session.get("results", [])
+        raw_decisions = session.get("raw_decisions", [])
 
-    if req.record_index < 0 or req.record_index >= len(results):
-        raise HTTPException(status_code=404, detail="Record index out of range")
+        if req.record_index < 0 or req.record_index >= len(results):
+            raise HTTPException(status_code=404, detail="Record index out of range")
 
-    human_decision = req.decision.strip().upper()
-    if human_decision not in ("INCLUDE", "EXCLUDE"):
-        raise HTTPException(status_code=400, detail="Decision must be INCLUDE or EXCLUDE")
+        human_decision = req.decision.strip().upper()
+        if human_decision not in ("INCLUDE", "EXCLUDE"):
+            raise HTTPException(status_code=400, detail="Decision must be INCLUDE or EXCLUDE")
 
-    old_decision = results[req.record_index].get("decision", "")
-    results[req.record_index]["human_decision"] = human_decision
-    results[req.record_index]["decision"] = human_decision
+        old_decision = results[req.record_index].get("decision", "")
+        results[req.record_index]["human_decision"] = human_decision
+        results[req.record_index]["decision"] = human_decision
 
-    if req.record_index < len(raw_decisions):
-        raw_decisions[req.record_index]["human_decision"] = human_decision
+        if req.record_index < len(raw_decisions):
+            raw_decisions[req.record_index]["human_decision"] = human_decision
 
-    criteria_obj = session.get("criteria_obj")
-    criteria_id = getattr(criteria_obj, "criteria_id", None) or "default"
-    feedback_list = session.setdefault("feedback", [])
-    feedback_list.append({
-        "record_index": req.record_index,
-        "original_decision": old_decision,
-        "human_decision": human_decision,
-        "rationale": req.rationale,
-        "criteria_id": criteria_id,
-        "created_at": datetime.now(UTC).isoformat(),
-    })
+        criteria_obj = session.get("criteria_obj")
+        criteria_id = getattr(criteria_obj, "criteria_id", None) or "default"
+        feedback_list = session.setdefault("feedback", [])
+        feedback_list.append({
+            "record_index": req.record_index,
+            "original_decision": old_decision,
+            "human_decision": human_decision,
+            "rationale": req.rationale,
+            "criteria_id": criteria_id,
+            "created_at": datetime.now(UTC).isoformat(),
+        })
 
-    n_feedback = len(feedback_list)
-    recalibration_triggered = False
-    recalibration_error = ""
+        n_feedback = len(feedback_list)
+        recalibration_triggered = False
+        recalibration_error = ""
 
-    if n_feedback in (10, 20, 50, 100) or (n_feedback > 100 and n_feedback % 50 == 0):
-        try:
-            _trigger_recalibration(session)
-            recalibration_triggered = True
-        except Exception as exc:
-            logger.warning("ft_recalibration_failed", exc_info=True)
-            recalibration_error = str(exc)
+        if n_feedback in (10, 20, 50, 100) or (n_feedback > 100 and n_feedback % 50 == 0):
+            try:
+                _trigger_recalibration(session)
+                recalibration_triggered = True
+            except Exception as exc:
+                logger.warning("ft_recalibration_failed", exc_info=True)
+                recalibration_error = str(exc)
 
-    return {
-        "status": "ok",
-        "old_decision": old_decision,
-        "new_decision": human_decision,
-        "n_feedback": n_feedback,
-        "recalibration_triggered": recalibration_triggered,
-        "recalibration_error": recalibration_error,
-    }
+        return {
+            "status": "ok",
+            "old_decision": old_decision,
+            "new_decision": human_decision,
+            "n_feedback": n_feedback,
+            "recalibration_triggered": recalibration_triggered,
+            "recalibration_error": recalibration_error,
+        }
 
 
 @router.post("/ft/undo-feedback/{session_id}")
@@ -2316,33 +2376,170 @@ async def ft_undo_feedback(
     if session_id not in _ft_sessions:
         raise HTTPException(status_code=404, detail="FT session not found")
 
+    lock = _get_session_lock(f"ft_{session_id}")
+    async with lock:
+        session = _ft_sessions[session_id]
+        results = session.get("results", [])
+        raw_decisions = session.get("raw_decisions", [])
+
+        if req.record_index < 0 or req.record_index >= len(results):
+            raise HTTPException(status_code=404, detail="Record index out of range")
+
+        original_decision = req.decision.strip().upper()
+        results[req.record_index]["decision"] = original_decision
+        results[req.record_index].pop("human_decision", None)
+
+        if req.record_index < len(raw_decisions):
+            raw_decisions[req.record_index]["human_decision"] = None
+
+        feedback_list = session.get("feedback", [])
+        session["feedback"] = [
+            fb for fb in feedback_list if fb.get("record_index") != req.record_index
+        ]
+
+        # Update persistent feedback file
+        criteria_obj = session.get("criteria_obj")
+        criteria_id = getattr(criteria_obj, "criteria_id", None)
+        if criteria_id:
+            _persist_feedback_removal(criteria_id, req.record_index)
+
+        return {
+            "status": "ok",
+            "decision": original_decision,
+            "n_feedback": len(session["feedback"]),
+        }
+
+
+@router.post("/ft/continue/{session_id}")
+async def ft_continue_screening(
+    session_id: str,
+    background_tasks: BackgroundTasks,
+) -> dict[str, Any]:
+    """Continue FT screening remaining papers after pilot review."""
+    if session_id not in _ft_sessions:
+        raise HTTPException(status_code=404, detail="FT session not found")
+
     session = _ft_sessions[session_id]
-    results = session.get("results", [])
-    raw_decisions = session.get("raw_decisions", [])
+    remaining = session.get("remaining_records", [])
 
-    if req.record_index < 0 or req.record_index >= len(results):
-        raise HTTPException(status_code=404, detail="Record index out of range")
+    if not remaining:
+        return {"status": "completed", "message": "No remaining papers"}
 
-    original_decision = req.decision.strip().upper()
-    results[req.record_index]["decision"] = original_decision
-    results[req.record_index].pop("human_decision", None)
+    if session.get("status") != "pilot_complete":
+        raise HTTPException(status_code=400, detail=f"Expected pilot_complete, got {session.get('status')}")
 
-    if req.record_index < len(raw_decisions):
-        raw_decisions[req.record_index]["human_decision"] = None
+    api_key = _get_openrouter_api_key()
+    if not api_key:
+        return {"status": "screening_not_configured", "message": "Configure API key"}
 
-    feedback_list = session.get("feedback", [])
-    session["feedback"] = [
-        fb for fb in feedback_list if fb.get("record_index") != req.record_index
-    ]
+    try:
+        backends = _build_screening_backends(api_key)
+    except SystemExit as exc:
+        return {"status": "screening_not_configured", "message": str(exc)}
 
-    # Update persistent feedback file
-    criteria_obj = session.get("criteria_obj")
-    criteria_id = getattr(criteria_obj, "criteria_id", None)
-    if criteria_id:
-        _persist_feedback_removal(criteria_id, req.record_index)
+    if not backends:
+        return {"status": "screening_not_configured", "message": "No models configured"}
 
-    return {
-        "status": "ok",
-        "decision": original_decision,
-        "n_feedback": len(session["feedback"]),
-    }
+    session["status"] = "running"
+    background_tasks.add_task(
+        _run_ft_continue_screening, session, remaining, backends,
+    )
+    return {"status": "started", "remaining": len(remaining)}
+
+
+async def _run_ft_continue_screening(
+    session: dict[str, Any],
+    records: list[Record],
+    backends: list[Any],
+) -> None:
+    """Screen remaining FT papers with learned weights from pilot."""
+    from metascreener.api.deps import get_config  # noqa: PLC0415
+    from metascreener.module1_screening.ft_screener import FTScreener  # noqa: PLC0415
+    from metascreener.module1_screening.layer3.aggregator import CCAggregator  # noqa: PLC0415
+    from metascreener.module1_screening.layer4.router import DecisionRouter  # noqa: PLC0415
+
+    try:
+        criteria = session.get("criteria_obj")
+        if criteria is None:
+            session["status"] = "error"
+            session["error"] = "No criteria found"
+            return
+
+        cfg = get_config()
+        router_obj = DecisionRouter(
+            tau_high=cfg.thresholds.tau_high, tau_mid=cfg.thresholds.tau_mid,
+            tau_low=cfg.thresholds.tau_low, dissent_tolerance=cfg.thresholds.dissent_tolerance,
+        )
+        backends = _apply_screening_token_limits(backends)
+
+        n_feedback = len(session.get("feedback", []))
+        if n_feedback >= 2:
+            try:
+                _trigger_recalibration(session)
+            except Exception:
+                logger.warning("ft_pilot_recalibration_failed", exc_info=True)
+
+        learned_weights = session.get("learned_weights")
+        if not learned_weights and hasattr(criteria, 'criteria_id'):
+            learned_weights = _load_learned_weights(criteria.criteria_id)
+        aggregator = CCAggregator(weights=learned_weights) if learned_weights else None
+
+        screener = FTScreener(
+            backends=backends, timeout_s=cfg.inference.timeout_thinking_s,
+            router=router_obj, aggregator=aggregator,
+        )
+
+        from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
+        user_settings = _load_user_settings()
+        concurrent = max(1, user_settings.get("concurrent_papers", 25) // 2)
+        sem = asyncio.Semaphore(concurrent)
+
+        async def _screen_one(i: int, record: Record) -> None:
+            async with sem:
+                try:
+                    decision = await screener.screen_single(record, criteria, seed=42)
+                    summary = ScreeningRecordSummary(
+                        record_id=decision.record_id,
+                        title=record.source_file or record.title or "(untitled)",
+                        decision=decision.decision.value,
+                        tier=str(int(decision.tier)),
+                        score=decision.final_score,
+                        confidence=decision.ensemble_confidence,
+                    )
+                    session["results"].append(summary.model_dump())
+                    session["raw_decisions"].append(decision.model_dump(mode="json"))
+                except Exception as exc:
+                    logger.warning("ft_record_error", record_id=record.record_id, error=str(exc))
+                    session["results"].append({
+                        "record_id": str(record.record_id),
+                        "title": record.source_file or record.title or "(untitled)",
+                        "decision": "HUMAN_REVIEW", "tier": "3", "score": 0.0, "confidence": 0.0,
+                    })
+
+        await asyncio.gather(*[_screen_one(i, r) for i, r in enumerate(records)])
+        session["status"] = "completed"
+        session["remaining_records"] = []
+
+        # Save to history
+        try:
+            from metascreener.api.history_store import HistoryStore  # noqa: PLC0415
+            store = HistoryStore()
+            results = session.get("results", [])
+            n_inc = sum(1 for r in results if r.get("decision") == "INCLUDE")
+            n_exc = sum(1 for r in results if r.get("decision") == "EXCLUDE")
+            n_rev = sum(1 for r in results if r.get("decision") == "HUMAN_REVIEW")
+            store.create(
+                module="screening",
+                data={"stage": "ft", "results": results, "raw_decisions": session.get("raw_decisions", []),
+                      "filenames": session.get("filenames", [])},
+                name=f"Screening (FT) — {len(session.get('filenames', []))} PDFs",
+                summary=f"{len(results)} papers: {n_inc} include, {n_exc} exclude, {n_rev} review",
+            )
+        except Exception:
+            logger.warning("ft_screening_history_save_failed", exc_info=True)
+    except Exception as exc:
+        logger.error("ft_continue_error", error=str(exc))
+        session["status"] = "error"
+        session["error"] = str(exc)
+    finally:
+        await _close_backends(backends)
