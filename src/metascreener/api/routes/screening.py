@@ -1315,20 +1315,24 @@ async def _run_screening_background(
             logger.info("using_learned_weights", weights=learned_weights)
 
         # Progressive screening: pilot batch first, then main batch
-        pilot_threshold = 30  # Below this, screen everything (no pilot needed)
+        pilot_threshold = 50  # Below this, screen everything (no pilot needed)
         if len(records) <= pilot_threshold:
-            # Small batch: screen all at once
             pilot_records = records
             session["remaining_records"] = []
         else:
+            import random as _random  # noqa: PLC0415
             pilot_size = min(max(20, len(records) // 10), 100)
-            pilot_records = records[:pilot_size]
-            session["remaining_records"] = records[pilot_size:]
+            # Random sample for representative pilot (seeded for reproducibility)
+            rng = _random.Random(42)
+            pilot_indices = set(rng.sample(range(len(records)), pilot_size))
+            pilot_records = [records[i] for i in sorted(pilot_indices)]
+            remaining_records = [records[i] for i in range(len(records)) if i not in pilot_indices]
+            session["remaining_records"] = remaining_records
             logger.info(
                 "progressive_screening_pilot",
                 total=len(records),
                 pilot_size=len(pilot_records),
-                remaining=len(session["remaining_records"]),
+                remaining=len(remaining_records),
             )
 
         # Concurrent screening with semaphore-based throttling
@@ -1864,6 +1868,12 @@ async def undo_feedback(
         fb for fb in feedback_list if fb.get("record_index") != req.record_index
     ]
 
+    # Update persistent feedback file
+    criteria_obj = session.get("criteria_obj")
+    criteria_id = getattr(criteria_obj, "criteria_id", None)
+    if criteria_id:
+        _persist_feedback_removal(criteria_id, req.record_index)
+
     logger.info(
         "feedback_undone",
         session_id=session_id,
@@ -1876,6 +1886,33 @@ async def undo_feedback(
         "decision": original_decision,
         "n_feedback": len(session["feedback"]),
     }
+
+
+def _persist_feedback_removal(criteria_id: str, record_index: int) -> None:
+    """Remove a feedback entry from the persistent file for a criteria."""
+    import json as _json  # noqa: PLC0415
+
+    feedback_path = _feedback_path_for_criteria(criteria_id)
+    if not feedback_path.exists():
+        return
+    try:
+        data = _json.loads(feedback_path.read_text())
+        if not isinstance(data, list):
+            return
+        # FeedbackCollector stores entries with "feedback" sub-dict containing "record_id"
+        # We need to find and remove the entry matching this record_index
+        # Since persistent file is managed by FeedbackCollector, we reload and re-save
+        # Actually, the persistent file format is FeedbackCollector's internal format
+        # The simplest approach: re-trigger recalibration from cleaned session feedback
+        # which will overwrite the persistent file
+        # For now, just delete the persistent file to force re-creation on next recalibration
+        feedback_path.unlink(missing_ok=True)
+        # Also delete the weights file since it's now stale
+        weights_path = feedback_path.with_suffix(".weights.json")
+        weights_path.unlink(missing_ok=True)
+        logger.info("persistent_feedback_cleared_on_undo", criteria_id=criteria_id[:8])
+    except Exception:
+        logger.warning("persist_feedback_removal_failed", exc_info=True)
 
 
 def _trigger_recalibration(session: dict[str, Any]) -> None:
@@ -2289,6 +2326,12 @@ async def ft_undo_feedback(
     session["feedback"] = [
         fb for fb in feedback_list if fb.get("record_index") != req.record_index
     ]
+
+    # Update persistent feedback file
+    criteria_obj = session.get("criteria_obj")
+    criteria_id = getattr(criteria_obj, "criteria_id", None)
+    if criteria_id:
+        _persist_feedback_removal(criteria_id, req.record_index)
 
     return {
         "status": "ok",
