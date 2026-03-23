@@ -60,7 +60,7 @@ SUPPORTED_EXTENSIONS = {".ris", ".bib", ".csv", ".xlsx", ".xml"}
 def _feedback_path_for_criteria(criteria_id: str) -> Path:
     """Return the feedback JSON file path for a specific criteria."""
     import re as _re  # noqa: PLC0415
-    safe_id = _re.sub(r'[^\w\-]', '_', criteria_id)
+    safe_id = _re.sub(r'[^\w\-]', '_', criteria_id) or "unknown"
     p = Path.home() / ".metascreener" / "feedback" / f"{safe_id}.json"
     p.parent.mkdir(parents=True, exist_ok=True)
     return p
@@ -2056,13 +2056,19 @@ def _cleanup_expired_sessions() -> None:
     expired_ta = []
     for sid, session in _sessions.items():
         completed_at = session.get("completed_at")
+        created_at = session.get("created_at")
         if completed_at and (now - datetime.fromisoformat(completed_at)).total_seconds() > _SESSION_TTL_S:
             expired_ta.append(sid)
+        elif created_at and not completed_at and (now - datetime.fromisoformat(created_at)).total_seconds() > _SESSION_TTL_S * 2:
+            expired_ta.append(sid)  # Stuck session (crashed mid-screening)
 
     expired_ft = []
     for sid, session in _ft_sessions.items():
         completed_at = session.get("completed_at")
+        created_at = session.get("created_at")
         if completed_at and (now - datetime.fromisoformat(completed_at)).total_seconds() > _SESSION_TTL_S:
+            expired_ft.append(sid)
+        elif created_at and not completed_at and (now - datetime.fromisoformat(created_at)).total_seconds() > _SESSION_TTL_S * 2:
             expired_ft.append(sid)
 
     for sid in expired_ta:
@@ -2290,7 +2296,7 @@ async def _run_ft_screening_background(
                     session["raw_decisions"].append(decision.model_dump(mode="json"))
                     _trim_raw_decisions(session["raw_decisions"])
                 except Exception as exc:  # noqa: BLE001
-                    logger.error("ft_record_error", record_id=record.record_id, error=str(exc))
+                    logger.warning("ft_record_error", record_id=record.record_id, error=str(exc))
                     session["results"].append({
                         "record_id": str(record.record_id),
                         "title": record.source_file or record.title or "(untitled)",
