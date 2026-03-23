@@ -57,6 +57,46 @@ _sessions: dict[str, dict[str, Any]] = {}
 SUPPORTED_EXTENSIONS = {".ris", ".bib", ".csv", ".xlsx", ".xml"}
 
 
+def _feedback_path_for_criteria(criteria_id: str) -> Path:
+    """Return the feedback JSON file path for a specific criteria.
+
+    Each criteria_id gets its own feedback file so learning from
+    one review topic doesn't contaminate another.
+    """
+    p = Path.home() / ".metascreener" / "feedback" / f"{criteria_id}.json"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def _load_learned_weights(criteria_id: str) -> dict[str, float] | None:
+    """Load learned model weights from persistent feedback for a criteria.
+
+    Loads the criteria-specific feedback file, fits weights using
+    FeedbackCollector, and returns the optimized weights.
+
+    Returns None if no feedback exists or insufficient data.
+    """
+    feedback_path = _feedback_path_for_criteria(criteria_id)
+    if not feedback_path.exists():
+        return None
+
+    from metascreener.module1_screening.active_learning import FeedbackCollector  # noqa: PLC0415
+    collector = FeedbackCollector(storage_path=feedback_path)
+
+    if collector.n_feedback < 2:
+        return None
+
+    weights = collector.relearn_weights()
+    if weights:
+        logger.info(
+            "loaded_learned_weights",
+            criteria_id=criteria_id[:8],
+            n_feedback=collector.n_feedback,
+            weights=weights,
+        )
+    return weights or None
+
+
 def _user_settings_path() -> Path:
     """Return the persisted UI settings file path."""
     return Path.home() / ".metascreener" / "config.yaml"
@@ -1260,6 +1300,8 @@ async def _run_screening_background(
         # Read learned weights and calibration from prior feedback
         from metascreener.module1_screening.layer3.aggregator import CCAggregator  # noqa: PLC0415
         learned_weights = session.get("learned_weights")
+        if not learned_weights and hasattr(criteria, 'criteria_id'):
+            learned_weights = _load_learned_weights(criteria.criteria_id)
         aggregator = CCAggregator(weights=learned_weights) if learned_weights else None
 
         screener = TAScreener(
@@ -1539,12 +1581,15 @@ async def submit_feedback(
         raw_decisions[req.record_index]["human_decision"] = human_decision
 
     # Collect feedback for active learning
+    criteria_obj = session.get("criteria_obj")
+    criteria_id = getattr(criteria_obj, "criteria_id", None) or "default"
     feedback_list = session.setdefault("feedback", [])
     feedback_list.append({
         "record_index": req.record_index,
         "original_decision": old_decision,
         "human_decision": human_decision,
         "rationale": req.rationale,
+        "criteria_id": criteria_id,
     })
 
     n_feedback = len(feedback_list)
@@ -1640,9 +1685,11 @@ def _trigger_recalibration(session: dict[str, Any]) -> None:
     from metascreener.core.models import HumanFeedback, ModelOutput  # noqa: PLC0415
     from metascreener.module1_screening.active_learning import FeedbackCollector  # noqa: PLC0415
 
-    storage_dir = Path.home() / ".metascreener" / "feedback"
-    storage_dir.mkdir(parents=True, exist_ok=True)
-    collector = FeedbackCollector(storage_path=storage_dir / "feedback.json")
+    # Use criteria-specific feedback file
+    criteria_obj = session.get("criteria_obj")
+    criteria_id = getattr(criteria_obj, "criteria_id", None) or "default"
+    feedback_path = _feedback_path_for_criteria(criteria_id)
+    collector = FeedbackCollector(storage_path=feedback_path)
     feedback_list = session.get("feedback", [])
     raw_decisions = session.get("raw_decisions", [])
 
@@ -1836,6 +1883,8 @@ async def _run_ft_screening_background(
         # Read learned weights and calibration from prior feedback
         from metascreener.module1_screening.layer3.aggregator import CCAggregator  # noqa: PLC0415
         learned_weights = session.get("learned_weights")
+        if not learned_weights and hasattr(criteria, 'criteria_id'):
+            learned_weights = _load_learned_weights(criteria.criteria_id)
         aggregator = CCAggregator(weights=learned_weights) if learned_weights else None
 
         screener = FTScreener(
@@ -1980,12 +2029,15 @@ async def ft_submit_feedback(
     if req.record_index < len(raw_decisions):
         raw_decisions[req.record_index]["human_decision"] = human_decision
 
+    criteria_obj = session.get("criteria_obj")
+    criteria_id = getattr(criteria_obj, "criteria_id", None) or "default"
     feedback_list = session.setdefault("feedback", [])
     feedback_list.append({
         "record_index": req.record_index,
         "original_decision": old_decision,
         "human_decision": human_decision,
         "rationale": req.rationale,
+        "criteria_id": criteria_id,
     })
 
     n_feedback = len(feedback_list)
