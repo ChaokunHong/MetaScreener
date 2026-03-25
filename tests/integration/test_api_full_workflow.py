@@ -28,9 +28,10 @@ class TestFullScreeningWorkflow:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Upload file -> store criteria -> attempt run -> get results."""
-        from metascreener.api.routes import screening as screening_routes
+        from metascreener.api.routes import screening_helpers, screening_ta
 
-        monkeypatch.setattr(screening_routes, "_get_openrouter_api_key", lambda: "")
+        monkeypatch.setattr(screening_helpers, "_get_openrouter_api_key", lambda: "")
+        monkeypatch.setattr(screening_ta, "_get_openrouter_api_key", lambda: "")
         client = self._client()
 
         # Step 1: Upload RIS file

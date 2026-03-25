@@ -179,9 +179,9 @@ class TestScreeningRun:
     ) -> None:
         """POST /api/screening/run returns not_configured when no API key is set."""
         client = self._client()
-        from metascreener.api.routes import screening as screening_routes  # noqa: PLC0415
+        from metascreener.api.routes import screening_ta  # noqa: PLC0415
 
-        monkeypatch.setattr(screening_routes, "_get_openrouter_api_key", lambda: "")
+        monkeypatch.setattr(screening_ta, "_get_openrouter_api_key", lambda: "")
 
         # Upload first
         ris_content = b"TY  - JOUR\nTI  - Test Study\nAB  - An abstract\nER  - \n"
@@ -240,13 +240,13 @@ class TestScreeningRun:
     ) -> None:
         """POST /api/screening/run executes screening and stores summaries."""
         client = self._client()
-        from metascreener.api.routes import screening as screening_routes  # noqa: PLC0415
+        from metascreener.api.routes import screening_ta  # noqa: PLC0415
 
-        monkeypatch.setattr(screening_routes, "_get_openrouter_api_key", lambda: "test-key")
+        monkeypatch.setattr(screening_ta, "_get_openrouter_api_key", lambda: "test-key")
         monkeypatch.setattr(
-            screening_routes,
+            screening_ta,
             "_build_screening_backends",
-            lambda _api_key: [
+            lambda _api_key, **kwargs: [
                 MockLLMAdapter(
                     model_id="mock-a",
                     response_json=mock_responses["screening_include_high_conf"],

@@ -145,12 +145,12 @@ class TestEvaluationAPI:
     def test_run_evaluation_uses_screening_results(self) -> None:
         """Evaluation computes real metrics when matching screening results exist."""
         from metascreener.api.routes import evaluation as evaluation_routes  # noqa: PLC0415
-        from metascreener.api.routes import screening as screening_routes  # noqa: PLC0415
+        from metascreener.api.routes import screening_sessions  # noqa: PLC0415
 
         evaluation_routes._eval_sessions.clear()
-        screening_routes._sessions.clear()
+        screening_sessions._sessions.clear()
 
-        screening_routes._sessions["screen-1"] = {
+        screening_sessions._sessions["screen-1"] = {
             "records": [],
             "raw_decisions": [
                 ScreeningDecision(
@@ -172,7 +172,7 @@ class TestEvaluationAPI:
             ],
             "results": [],
         }
-        screening_routes._sessions["screen-2"] = {
+        screening_sessions._sessions["screen-2"] = {
             "records": [],
             "raw_decisions": [
                 ScreeningDecision(
