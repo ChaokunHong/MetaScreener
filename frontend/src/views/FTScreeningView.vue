@@ -77,11 +77,22 @@
 
       <div v-if="runError" class="alert alert-danger">{{ runError }}</div>
 
-      <button class="btn btn-primary" :disabled="running" @click="doRun">
-        <i v-if="running" class="fas fa-spinner fa-spin"></i>
-        <i v-else class="fas fa-play"></i>
-        {{ running ? 'Screening…' : 'Start FT Screening' }}
-      </button>
+      <div style="display:flex;align-items:center;gap:0.75rem;">
+        <button class="btn btn-primary" :disabled="running" @click="doRun">
+          <i v-if="running" class="fas fa-spinner fa-spin"></i>
+          <i v-else class="fas fa-play"></i>
+          {{ running ? 'Screening…' : 'Start FT Screening' }}
+        </button>
+        <span style="display:flex;align-items:center;gap:0.4rem;">
+          <i class="fas fa-brain" style="font-size:0.8rem;opacity:0.6;"></i>
+          <select v-model="screeningReasoningEffort" class="c-select-sm" title="Reasoning effort for thinking models">
+            <option value="none">Reasoning: Off</option>
+            <option value="low">Reasoning: Low</option>
+            <option value="medium">Reasoning: Medium</option>
+            <option value="high">Reasoning: High</option>
+          </select>
+        </span>
+      </div>
     </div>
 
     <!-- STEP 4: Results -->
@@ -128,29 +139,69 @@
         </div>
       </div>
 
-      <div class="metric-grid" style="margin-bottom: 1.5rem;">
-        <div class="metric-card">
-          <div class="metric-value">{{ results.length }}</div>
-          <div class="metric-label">Total</div>
+      <!-- Summary & Filter -->
+      <div class="glass-section filter-panel">
+        <div class="filter-panel-header">
+          <div class="filter-panel-title">
+            <i class="fas fa-chart-bar"></i>
+            <span>Screening Summary</span>
+          </div>
+          <span class="filter-count-badge">{{ filteredResults.length }}<span class="filter-count-of"> / {{ results.length }}</span></span>
+          <button v-if="hasActiveFilters" class="filter-clear-btn" @click="clearFilters"><i class="fas fa-eraser"></i> Reset</button>
         </div>
-        <div class="metric-card" style="border-color: rgba(16,185,129,0.4);">
-          <div class="metric-value text-success">{{ includedCount }}</div>
-          <div class="metric-label">Include</div>
+        <div class="filter-row">
+          <span class="filter-row-label">Tier</span>
+          <button v-for="t in [0,1,2,3]" :key="'tier'+t"
+            class="ftag" :class="[`ftag--tier${t}`, { active: filterTiers.includes(t) }]"
+            @click="toggleTierFilter(t)">
+            <span class="ftag-dot"></span>T{{ t }}<span class="ftag-num">{{ tierCounts[t] }}</span>
+          </button>
         </div>
-        <div class="metric-card" style="border-color: rgba(239,68,68,0.4);">
-          <div class="metric-value text-danger">{{ excludedCount }}</div>
-          <div class="metric-label">Exclude</div>
+        <div class="filter-row">
+          <span class="filter-row-label">Decision</span>
+          <button class="ftag ftag--include" :class="{ active: filterDecisions.includes('INCLUDE') }" @click="toggleDecisionFilter('INCLUDE')">
+            <i class="fas fa-check-circle"></i>Include<span class="ftag-num">{{ includedCount }}</span>
+          </button>
+          <button class="ftag ftag--exclude" :class="{ active: filterDecisions.includes('EXCLUDE') }" @click="toggleDecisionFilter('EXCLUDE')">
+            <i class="fas fa-times-circle"></i>Exclude<span class="ftag-num">{{ excludedCount }}</span>
+          </button>
+          <button class="ftag ftag--review" :class="{ active: filterDecisions.includes('HUMAN_REVIEW') }" @click="toggleDecisionFilter('HUMAN_REVIEW')">
+            <i class="fas fa-user-clock"></i>Review<span class="ftag-num">{{ reviewCount }}</span>
+          </button>
+          <span style="flex:1"></span>
+          <button v-if="hasActiveFilters" class="filter-clear-btn" @click="clearFilters"><i class="fas fa-eraser"></i> Reset</button>
+          <span class="filter-count-badge">{{ filteredResults.length }}<span class="filter-count-of">/{{ results.length }}</span></span>
         </div>
-        <div class="metric-card" style="border-color: rgba(245,158,11,0.4);">
-          <div class="metric-value text-warning">{{ reviewCount }}</div>
-          <div class="metric-label">Review</div>
+        <div class="filter-row filter-row--search">
+          <i class="fas fa-search filter-search-icon"></i>
+          <input v-model="filterSearch" type="text" placeholder="Search titles..." class="filter-search-input" @click.stop />
         </div>
       </div>
 
+      <!-- Batch Action Bar -->
+      <div v-if="selectedIndices.size > 0" class="batch-bar">
+        <span style="font-size: 0.82rem;">{{ selectedIndices.size }} selected</span>
+        <div style="display: flex; gap: 0.4rem;">
+          <button class="action-text-btn action-text-btn--include" @click="batchAction('INCLUDE')" :disabled="batchLoading">
+            <i v-if="batchLoading" class="fas fa-spinner fa-spin"></i>
+            <i v-else class="fas fa-check"></i> Batch Include
+          </button>
+          <button class="action-text-btn action-text-btn--exclude" @click="batchAction('EXCLUDE')" :disabled="batchLoading">
+            <i v-if="batchLoading" class="fas fa-spinner fa-spin"></i>
+            <i v-else class="fas fa-times"></i> Batch Exclude
+          </button>
+          <button class="action-text-btn" @click="selectedIndices = new Set()" style="font-size: 0.72rem;">Cancel</button>
+        </div>
+      </div>
+
+      <div class="glass-section results-panel">
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
+              <th style="width: 32px;" @click.stop>
+                <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" style="cursor: pointer;" />
+              </th>
               <th>#</th>
               <th>File</th>
               <th>Decision</th>
@@ -210,9 +261,12 @@
             </tr>
           </thead>
           <tbody>
-            <template v-for="(r, i) in results" :key="i">
-              <tr class="result-row" :class="{ expanded: expandedRow === i }" @click="toggleDetail(i)">
-                <td class="text-muted">{{ i + 1 }}</td>
+            <template v-for="{ item: r, originalIndex: oi } in filteredResults" :key="oi">
+              <tr class="result-row" :class="{ expanded: expandedRow === oi }" @click="toggleDetail(oi)">
+                <td @click.stop>
+                  <input type="checkbox" :checked="selectedIndices.has(oi)" @change="toggleSelect(oi)" style="cursor: pointer;" />
+                </td>
+                <td class="text-muted">{{ oi + 1 }}</td>
                 <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.title || '(no title)' }}</td>
                 <td><span :class="decisionClass(r.decision)">{{ r.decision }}</span></td>
                 <td><span class="badge badge-unclear">T{{ r.tier ?? '?' }}</span></td>
@@ -223,16 +277,16 @@
                     <!-- Not yet overridden -->
                     <template v-if="!r.human_decision">
                       <template v-if="r.decision === 'HUMAN_REVIEW'">
-                        <button class="action-text-btn action-text-btn--include" @click="submitFeedback(i, 'INCLUDE')" :disabled="feedbackLoading === i">
+                        <button class="action-text-btn action-text-btn--include" @click="submitFeedback(oi, 'INCLUDE')" :disabled="feedbackLoading === oi">
                           <i class="fas fa-check"></i> Include
                         </button>
-                        <button class="action-text-btn action-text-btn--exclude" @click="submitFeedback(i, 'EXCLUDE')" :disabled="feedbackLoading === i">
+                        <button class="action-text-btn action-text-btn--exclude" @click="submitFeedback(oi, 'EXCLUDE')" :disabled="feedbackLoading === oi">
                           <i class="fas fa-times"></i> Exclude
                         </button>
                       </template>
                       <template v-else>
-                        <button class="action-text-btn action-text-btn--change" @click="submitFeedback(i, r.decision === 'INCLUDE' ? 'EXCLUDE' : 'INCLUDE')" :disabled="feedbackLoading === i">
-                          <i v-if="feedbackLoading === i" class="fas fa-spinner fa-spin"></i>
+                        <button class="action-text-btn action-text-btn--change" @click="submitFeedback(oi, r.decision === 'INCLUDE' ? 'EXCLUDE' : 'INCLUDE')" :disabled="feedbackLoading === oi">
+                          <i v-if="feedbackLoading === oi" class="fas fa-spinner fa-spin"></i>
                           <i v-else class="fas fa-pen"></i> Change
                         </button>
                       </template>
@@ -242,7 +296,7 @@
                       <span class="action-status">
                         <i class="fas fa-user-check"></i> {{ r.human_decision === 'INCLUDE' ? 'Included' : 'Excluded' }}
                       </span>
-                      <button class="action-undo-btn" @click="undoFeedback(i)" :disabled="feedbackLoading === i">
+                      <button class="action-undo-btn" @click="undoFeedback(oi)" :disabled="feedbackLoading === oi">
                         Undo
                       </button>
                     </template>
@@ -250,8 +304,8 @@
                 </td>
               </tr>
               <!-- Expanded detail row -->
-              <tr v-if="expandedRow === i" class="detail-row">
-                <td colspan="7">
+              <tr v-if="expandedRow === oi" class="detail-row">
+                <td colspan="8">
                   <div v-if="detailLoading" style="text-align: center; padding: 1rem;">
                     <i class="fas fa-spinner fa-spin"></i> Loading model details...
                   </div>
@@ -303,6 +357,7 @@
             </template>
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   </div>
@@ -394,6 +449,7 @@ const continuing = ref(false)
 
 // Step 3 - Run
 const running = ref(false)
+const screeningReasoningEffort = ref('medium')
 const runStatus = ref('')
 const completedCount = ref(0)
 const totalCount = ref(0)
@@ -412,7 +468,7 @@ async function doRun() {
   try {
     await apiPost(`/screening/ft/criteria/${sessionId.value}`, selectedCriteriaData.value)
     runStatus.value = 'Starting FT screening…'
-    await apiPost(`/screening/ft/run/${sessionId.value}`, { session_id: sessionId.value, seed: 42 })
+    await apiPost(`/screening/ft/run/${sessionId.value}`, { session_id: sessionId.value, seed: 42, reasoning_effort: screeningReasoningEffort.value })
     runStatus.value = 'Screening in progress…'
     startPolling()
   } catch (e: unknown) {
@@ -496,6 +552,128 @@ const results = ref<Array<{
 const includedCount = computed(() => results.value.filter(r => r.decision === 'INCLUDE').length)
 const excludedCount = computed(() => results.value.filter(r => r.decision === 'EXCLUDE').length)
 const reviewCount = computed(() => results.value.filter(r => r.decision === 'HUMAN_REVIEW').length)
+
+// Helper: parse tier (backend may return string "2" or number 2)
+function parseTier(tier: unknown): number {
+  if (typeof tier === 'number') return tier
+  if (typeof tier === 'string') { const n = parseInt(tier, 10); return isNaN(n) ? -1 : n }
+  return -1
+}
+
+// Dashboard: tier distribution and avg confidence
+const tierCounts = computed(() => {
+  const counts = [0, 0, 0, 0]
+  results.value.forEach(r => {
+    const t = parseTier(r.tier)
+    if (t >= 0 && t <= 3) counts[t]++
+  })
+  return counts
+})
+const avgConfidence = computed(() => {
+  const vals = results.value.filter(r => r.confidence != null).map(r => r.confidence as number)
+  if (vals.length === 0) return '—'
+  return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2)
+})
+
+// Filter state
+const filterTiers = ref<number[]>([])
+const filterDecisions = ref<string[]>([])
+const filterScoreMin = ref<number | null>(null)
+const filterScoreMax = ref<number | null>(null)
+const filterSearch = ref('')
+
+function toggleTierFilter(t: number) {
+  const idx = filterTiers.value.indexOf(t)
+  if (idx >= 0) filterTiers.value.splice(idx, 1)
+  else filterTiers.value.push(t)
+}
+function toggleDecisionFilter(d: string) {
+  const idx = filterDecisions.value.indexOf(d)
+  if (idx >= 0) filterDecisions.value.splice(idx, 1)
+  else filterDecisions.value.push(d)
+}
+function clearFilters() {
+  filterTiers.value = []
+  filterDecisions.value = []
+  filterScoreMin.value = null
+  filterScoreMax.value = null
+  filterSearch.value = ''
+}
+
+const hasActiveFilters = computed(() =>
+  filterTiers.value.length > 0 || filterDecisions.value.length > 0 ||
+  filterScoreMin.value != null || filterScoreMax.value != null || filterSearch.value !== ''
+)
+
+const filteredResults = computed(() => {
+  const out: Array<{ item: typeof results.value[0]; originalIndex: number }> = []
+  results.value.forEach((r, i) => {
+    if (filterTiers.value.length > 0 && !filterTiers.value.includes(parseTier(r.tier))) return
+    if (filterDecisions.value.length > 0 && !filterDecisions.value.includes(r.decision)) return
+    if (filterScoreMin.value != null && (r.score == null || r.score < filterScoreMin.value)) return
+    if (filterScoreMax.value != null && (r.score == null || r.score > filterScoreMax.value)) return
+    if (filterSearch.value) {
+      const q = filterSearch.value.toLowerCase()
+      const title = (r.title || '').toLowerCase()
+      if (!title.includes(q)) return
+    }
+    out.push({ item: r, originalIndex: i })
+  })
+  return out
+})
+
+// Batch selection
+const selectedIndices = ref<Set<number>>(new Set())
+const batchLoading = ref(false)
+
+const isAllSelected = computed(() => {
+  if (filteredResults.value.length === 0) return false
+  return filteredResults.value.every(({ originalIndex }) => selectedIndices.value.has(originalIndex))
+})
+
+function toggleSelectAll() {
+  if (isAllSelected.value) {
+    filteredResults.value.forEach(({ originalIndex }) => selectedIndices.value.delete(originalIndex))
+  } else {
+    filteredResults.value.forEach(({ originalIndex }) => selectedIndices.value.add(originalIndex))
+  }
+  selectedIndices.value = new Set(selectedIndices.value)
+}
+
+function toggleSelect(index: number) {
+  if (selectedIndices.value.has(index)) selectedIndices.value.delete(index)
+  else selectedIndices.value.add(index)
+  selectedIndices.value = new Set(selectedIndices.value)
+}
+
+async function batchAction(decision: string) {
+  if (!sessionId.value || selectedIndices.value.size === 0) return
+  batchLoading.value = true
+  try {
+    const items = Array.from(selectedIndices.value).map(idx => ({
+      record_index: idx,
+      decision,
+    }))
+    const resp = await apiPost<{ applied: Array<{ record_index: number; old_decision: string; new_decision: string }> }>(
+      `/screening/ft/batch-feedback/${sessionId.value}`,
+      { items }
+    )
+    resp.applied.forEach(a => {
+      if (results.value[a.record_index]) {
+        if (!results.value[a.record_index].original_decision) {
+          results.value[a.record_index].original_decision = a.old_decision
+        }
+        results.value[a.record_index].decision = a.new_decision
+        results.value[a.record_index].human_decision = a.new_decision
+      }
+    })
+    selectedIndices.value = new Set()
+  } catch (e: unknown) {
+    alert(`Batch feedback failed: ${(e as Error).message}`)
+  } finally {
+    batchLoading.value = false
+  }
+}
 
 function decisionClass(d: string) { return decisionBadgeClass(d) }
 function fmt(v: unknown) { return fmtScore(v) }
@@ -837,4 +1015,45 @@ onMounted(() => {
   font-size: 1rem;
   flex-shrink: 0;
 }
+
+/* ── Filter / Summary Panel ── */
+.filter-panel { margin-bottom: 1.5rem; padding: 0 !important; }
+.filter-panel-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.filter-panel-title { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary, #eee); }
+.filter-panel-title i { font-size: 0.75rem; opacity: 0.6; }
+/* ── Results Panel ── */
+.results-panel { padding: 0 !important; }
+.results-panel .table-wrap { border: none; border-radius: 0; }
+.results-panel thead th { border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); }
+.results-panel tbody td { border-bottom: 1px solid rgba(255,255,255,0.04); }
+.results-panel tbody tr:last-child td { border-bottom: none; }
+.filter-row { display: flex; align-items: center; gap: 0.4rem; padding: 0.55rem 1rem; }
+.filter-row + .filter-row { border-top: 1px solid rgba(255,255,255,0.04); }
+.filter-row-label { font-size: 0.7rem; font-weight: 600; color: var(--text-secondary, #666); text-transform: uppercase; letter-spacing: 0.04em; min-width: 56px; flex-shrink: 0; }
+.filter-count-badge { font-size: 0.8rem; font-weight: 700; color: var(--text-primary, #fff); font-variant-numeric: tabular-nums; }
+.filter-count-of { font-weight: 400; color: var(--text-secondary, #777); }
+.filter-clear-btn { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.55rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); background: transparent; color: var(--text-secondary, #888); cursor: pointer; font-size: 0.7rem; transition: all 0.15s; }
+.filter-clear-btn:hover { color: #ef4444; border-color: rgba(239,68,68,0.3); }
+.filter-clear-btn i { font-size: 0.65rem; }
+.filter-row--search { padding: 0.4rem 1rem 0.55rem; gap: 0.5rem; }
+.filter-search-icon { color: var(--text-secondary, #555); font-size: 0.75rem; flex-shrink: 0; }
+.filter-search-input { flex: 1; border: none; background: transparent; color: var(--text-primary, #fff); font-size: 0.8rem; outline: none; }
+.filter-search-input::placeholder { color: var(--text-secondary, #555); }
+.ftag { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); background: transparent; color: var(--text-secondary, #777); cursor: pointer; font-size: 0.72rem; transition: all 0.15s; white-space: nowrap; }
+.ftag:hover { background: rgba(255,255,255,0.04); }
+.ftag .ftag-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.ftag i { font-size: 0.65rem; }
+.ftag-num { font-size: 0.62rem; opacity: 0.45; margin-left: 0.1rem; font-variant-numeric: tabular-nums; }
+.ftag.active { font-weight: 600; border-color: currentColor; }
+.ftag.active .ftag-num { opacity: 0.8; }
+.ftag--tier0 .ftag-dot { background: #ef4444; } .ftag--tier1 .ftag-dot { background: #10b981; } .ftag--tier2 .ftag-dot { background: #8b5cf6; } .ftag--tier3 .ftag-dot { background: #f59e0b; }
+.ftag--tier0.active { color: #ef4444; background: rgba(239,68,68,0.08); }
+.ftag--tier1.active { color: #10b981; background: rgba(16,185,129,0.08); }
+.ftag--tier2.active { color: #8b5cf6; background: rgba(139,92,246,0.08); }
+.ftag--tier3.active { color: #f59e0b; background: rgba(245,158,11,0.08); }
+.ftag--include.active { color: #10b981; background: rgba(16,185,129,0.08); }
+.ftag--exclude.active { color: #ef4444; background: rgba(239,68,68,0.08); }
+.ftag--review.active { color: #f59e0b; background: rgba(245,158,11,0.08); }
+/* ── Batch Bar ── */
+.batch-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 1rem; margin-bottom: 0.75rem; border-radius: 10px; background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(6,182,212,0.08) 100%); border: 1px solid rgba(139,92,246,0.25); color: var(--text-primary, #fff); }
 </style>

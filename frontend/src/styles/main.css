@@ -451,6 +451,22 @@ h1, h2, h3,
   border-radius: 7px;
 }
 .btn:disabled { opacity: 0.48; cursor: not-allowed; transform: none !important; box-shadow: none; }
+
+.c-select-sm {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.78rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 7px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #1e293b);
+  cursor: pointer;
+}
+.c-select-sm:focus {
+  outline: none;
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.15);
+}
+
 .btn:focus-visible {
   outline: none;
   box-shadow:
@@ -769,21 +785,7 @@ textarea.form-control { resize: vertical; min-height: 90px; }
   background: linear-gradient(90deg, transparent, rgba(129, 216, 208, 0.6) 25%, rgba(6, 182, 212, 0.5) 50%, rgba(139, 92, 246, 0.4) 75%, transparent);
   pointer-events: none;
 }
-/* Fake traffic lights */
-.progress-log::after {
-  content: '';
-  position: absolute;
-  top: 10px;
-  right: 14px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(129, 216, 208, 0.5);
-  box-shadow:
-    -14px 0 0 rgba(245, 158, 11, 0.4),
-    -28px 0 0 rgba(239, 68, 68, 0.35);
-  pointer-events: none;
-}
+
 /* Scrollbar */
 .progress-log::-webkit-scrollbar {
   width: 5px;
