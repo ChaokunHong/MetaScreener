@@ -21,6 +21,7 @@ def test_screening_metrics_creation() -> None:
         f1=0.81,
         wss_at_95=0.60,
         automation_rate=0.70,
+        auto_sensitivity=0.90,
         n_total=100,
         n_include=30,
         n_exclude=70,
@@ -79,6 +80,7 @@ def test_evaluation_report_creation() -> None:
         f1=0.81,
         wss_at_95=0.60,
         automation_rate=0.70,
+        auto_sensitivity=0.90,
         n_total=100,
         n_include=30,
         n_exclude=70,
@@ -106,6 +108,7 @@ def test_evaluation_report_json_roundtrip() -> None:
         f1=0.81,
         wss_at_95=0.60,
         automation_rate=0.70,
+        auto_sensitivity=0.90,
         n_total=100,
         n_include=30,
         n_exclude=70,
@@ -133,10 +136,12 @@ def test_screening_metrics_all_fields() -> None:
         f1=0.73,
         wss_at_95=0.55,
         automation_rate=0.65,
+        auto_sensitivity=0.92,
         n_total=200,
         n_include=50,
         n_exclude=150,
     )
     assert m.specificity == 0.75
     assert m.automation_rate == 0.65
+    assert m.auto_sensitivity == 0.92
     assert m.n_include + m.n_exclude == m.n_total

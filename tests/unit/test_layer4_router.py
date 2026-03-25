@@ -118,8 +118,8 @@ class TestDecisionRouter:
         assert decision == Decision.INCLUDE
         assert tier == Tier.TWO
 
-    def test_tier2_majority_exclude_still_includes(self) -> None:
-        """Recall bias: majority EXCLUDE but no hard violation → INCLUDE."""
+    def test_tier2_majority_exclude_escalates_to_human_review(self) -> None:
+        """Recall bias: majority EXCLUDE → HUMAN_REVIEW (not auto-exclude)."""
         router = DecisionRouter()
         outputs = [
             _make_output(Decision.EXCLUDE, 0.2, 0.8, "m1"),
@@ -127,7 +127,7 @@ class TestDecisionRouter:
             _make_output(Decision.INCLUDE, 0.8, 0.8, "m3"),
         ]
         decision, tier = router.route(outputs, _clean_rules(), 0.3, 0.70)
-        assert decision == Decision.INCLUDE
+        assert decision == Decision.HUMAN_REVIEW
         assert tier == Tier.TWO
 
     def test_tier3_low_confidence(self) -> None:
@@ -307,3 +307,84 @@ def test_route_accepts_optional_ecs_params() -> None:
         element_consensus={}, ecs_result=None, disagreement_result=None,
     )
     assert decision == Decision.INCLUDE
+
+
+# ── ECS Gating Tests ──────────────────────────────────────────────
+
+
+def test_ecs_gating_low_ecs_escalates_to_human_review() -> None:
+    """Tier 2 majority -> HUMAN_REVIEW when ECS is below threshold."""
+    from metascreener.core.models import ECSResult
+
+    router = DecisionRouter(ecs_threshold=0.60)
+    outputs = [
+        _make_output(Decision.INCLUDE, 0.7, 0.7, "m1"),
+        _make_output(Decision.INCLUDE, 0.8, 0.8, "m2"),
+        _make_output(Decision.INCLUDE, 0.6, 0.6, "m3"),
+        _make_output(Decision.EXCLUDE, 0.3, 0.5, "m4"),
+    ]
+    rule_result = RuleCheckResult()
+    ecs = ECSResult(score=0.40)  # Below threshold
+    decision, tier = router.route(
+        outputs, rule_result, 0.65, 0.25, ecs_result=ecs,
+    )
+    assert decision == Decision.HUMAN_REVIEW
+    assert tier == Tier.THREE
+
+
+def test_ecs_gating_high_ecs_allows_tier2() -> None:
+    """Tier 2 majority proceeds normally when ECS is above threshold."""
+    from metascreener.core.models import ECSResult
+
+    router = DecisionRouter(ecs_threshold=0.60)
+    outputs = [
+        _make_output(Decision.INCLUDE, 0.7, 0.7, "m1"),
+        _make_output(Decision.INCLUDE, 0.8, 0.8, "m2"),
+        _make_output(Decision.INCLUDE, 0.6, 0.6, "m3"),
+        _make_output(Decision.EXCLUDE, 0.3, 0.5, "m4"),
+    ]
+    rule_result = RuleCheckResult()
+    ecs = ECSResult(score=0.85)  # Above threshold
+    decision, tier = router.route(
+        outputs, rule_result, 0.65, 0.25, ecs_result=ecs,
+    )
+    assert decision == Decision.INCLUDE
+    assert tier == Tier.TWO
+
+
+def test_ecs_gating_none_ecs_skips_gate() -> None:
+    """When ecs_result is None, Tier 2 routing is unaffected."""
+    router = DecisionRouter(ecs_threshold=0.60)
+    outputs = [
+        _make_output(Decision.INCLUDE, 0.7, 0.7, "m1"),
+        _make_output(Decision.INCLUDE, 0.8, 0.8, "m2"),
+        _make_output(Decision.INCLUDE, 0.6, 0.6, "m3"),
+        _make_output(Decision.EXCLUDE, 0.3, 0.5, "m4"),
+    ]
+    rule_result = RuleCheckResult()
+    decision, tier = router.route(
+        outputs, rule_result, 0.65, 0.25, ecs_result=None,
+    )
+    assert decision == Decision.INCLUDE
+    assert tier == Tier.TWO
+
+
+# ── Confidence-Weighted Tau High Tests ─────────────────────────────
+
+
+def test_dynamic_tau_high_confidence_weighting() -> None:
+    """Higher majority confidence should lower the dynamic threshold."""
+    router = DecisionRouter()
+    # Same model count, different confidence levels
+    tau_high_conf = router._dynamic_tau_high(7, avg_majority_confidence=0.95)
+    tau_low_conf = router._dynamic_tau_high(7, avg_majority_confidence=0.3)
+    # Low confidence -> higher threshold (harder to auto-decide)
+    assert tau_low_conf > tau_high_conf
+
+
+def test_dynamic_tau_high_none_confidence_no_scaling() -> None:
+    """When no confidence provided, threshold equals base."""
+    router = DecisionRouter()
+    tau_base = router._dynamic_tau_high(7, avg_majority_confidence=None)
+    tau_default = router._dynamic_tau_high(7)  # Uses default None
+    assert tau_base == tau_default

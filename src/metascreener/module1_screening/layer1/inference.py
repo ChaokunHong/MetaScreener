@@ -51,7 +51,7 @@ class InferenceEngine:
         Returns:
             List of ModelOutput (one per backend).
         """
-        _ = stage  # Reserved for future stage-specific prompt dispatch
+        effective_stage = stage or "ta"
 
         criteria_type = type(criteria).__name__
         framework = (
@@ -68,7 +68,7 @@ class InferenceEngine:
             seed=seed,
         )
 
-        prompt = self._router.build_prompt(record, criteria)
+        prompt = self._router.build_prompt(record, criteria, stage=effective_stage)
         outputs = await self._runner.run_with_prompt(prompt, seed=seed)
 
         n_errors = sum(1 for o in outputs if o.error is not None)

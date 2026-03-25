@@ -5,20 +5,11 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-# Rough token estimate: ~4 characters per token
+# Reuse the language-aware token estimator from text_chunker
+from metascreener.io.text_chunker import _estimate_tokens  # noqa: E402
+
+# Conservative chars-per-token for chunk size calculation
 _CHARS_PER_TOKEN = 4
-
-
-def _estimate_tokens(text: str) -> int:
-    """Estimate token count from character length.
-
-    Args:
-        text: Input text.
-
-    Returns:
-        Estimated token count.
-    """
-    return len(text) // _CHARS_PER_TOKEN
 
 
 def chunk_text(

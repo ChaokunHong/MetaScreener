@@ -3,27 +3,29 @@
 Extends :class:`HCNScreener` with ``default_stage="ft"`` and automatic
 chunking for PDFs exceeding the LLM context window. Large full-text
 documents are split into overlapping chunks, each screened independently,
-then aggregated with worst-case hard rules and majority-vote decisions.
+then aggregated with confidence-weighted voting and FT assessment signals.
 """
 from __future__ import annotations
 
 import asyncio
 from collections import Counter
 from collections.abc import Sequence
+from typing import Any
 
 import structlog
 
 from metascreener.core.enums import Decision, ScreeningStage, Tier
 from metascreener.core.models import (
-    ElementConsensus,
     PICOCriteria,
     Record,
     ReviewCriteria,
-    RuleCheckResult,
-    RuleViolation,
     ScreeningDecision,
 )
 from metascreener.llm.base import LLMBackend
+from metascreener.module1_screening.ft_chunking import (
+    merge_element_consensus,
+    merge_rule_results,
+)
 from metascreener.module1_screening.hcn_screener import HCNScreener
 from metascreener.module1_screening.layer2.rule_engine import RuleEngine
 from metascreener.module1_screening.layer3.aggregator import CCAggregator
@@ -39,28 +41,65 @@ logger = structlog.get_logger(__name__)
 _FT_CHUNK_THRESHOLD = 30_000
 
 # Maximum concurrent chunk screening tasks.
-# Each chunk triggers N_MODELS parallel LLM calls (e.g., 4 models × 4 chunks
-# = 16 concurrent API requests). Capping chunks prevents rate-limit storms.
 _MAX_CONCURRENT_CHUNKS = 4
 
-# Confidence reduction factor for marginal text quality
-_MARGINAL_CONFIDENCE_FACTOR = 0.85
+# Proportional confidence reduction for marginal text quality.
+# multiplier = 1 - (1 - quality_score) * _MARGINAL_MAX_REDUCTION
+_MARGINAL_MAX_REDUCTION = 0.30
+
+# FT assessment penalty weights: negative-signal values -> penalty.
+# Total penalties summed & clamped so multiplier is in [0.70, 1.00].
+_FT_PENALTY_MAP: dict[str, dict[str, float]] = {
+    "methodology_quality": {"inadequate": 0.08, "unclear": 0.03},
+    "sample_size_adequacy": {"inadequate": 0.05, "unclear": 0.02},
+    "outcome_validity": {"questionable": 0.06, "unclear": 0.02},
+    "bias_risk": {"high": 0.08, "moderate": 0.03, "unclear": 0.02},
+    "intervention_detail_match": {},  # handled separately (bool)
+    "limitations_noted": {},  # handled separately (bool)
+}
+_FT_INTERVENTION_MISMATCH_PENALTY = 0.05
+_FT_MIN_MULTIPLIER = 0.70
+
+
+def _add_chunk_context(chunks: list[str], title: str) -> list[str]:
+    """Prepend contextual header to each chunk after the first.
+
+    Gives the LLM awareness of what preceded the current chunk,
+    reducing misinterpretation of cross-section references like
+    "as described above" or "the aforementioned method".
+
+    Args:
+        chunks: Text chunks from section-aware splitting.
+        title: Paper title for context.
+
+    Returns:
+        Chunks with context headers injected (first chunk unchanged).
+    """
+    if len(chunks) <= 1:
+        return chunks
+
+    result = [chunks[0]]
+    for i in range(1, len(chunks)):
+        prev = chunks[i - 1].rstrip()
+        # Extract last 3 sentences as context summary
+        sentences = [s.strip() for s in prev.split(".") if s.strip()]
+        tail = ". ".join(sentences[-3:])
+        if tail and not tail.endswith("."):
+            tail += "."
+        header = (
+            f"[Context: Part {i + 1} of '{title}'. "
+            f"Previous section ended with: {tail}]\n\n"
+        )
+        result.append(header + chunks[i])
+    return result
 
 
 class FTScreener(HCNScreener):
     """Full-Text screening orchestrator with automatic PDF chunking.
 
-    When a record's ``full_text`` exceeds ``_FT_CHUNK_THRESHOLD`` (30K chars),
-    the text is split into overlapping chunks using paragraph-based splitting,
-    each chunk is screened through the full HCN pipeline independently, and
-    the results are aggregated:
-
-    - **Hard rule violations**: worst-case (any chunk triggers → aggregate excludes)
-    - **Scores/confidence**: averaged across chunks
-    - **Decision**: majority vote (recall-biased: ties → INCLUDE)
-
-    For shorter full-text documents, the standard single-pass HCN pipeline
-    is used directly (no chunking overhead).
+    Large full-text (>30K chars) is split into chunks, each screened via
+    the HCN pipeline, then aggregated with confidence-weighted voting and
+    FT assessment signals.  Shorter documents use single-pass HCN.
     """
 
     default_stage: str = "ft"
@@ -135,7 +174,7 @@ class FTScreener(HCNScreener):
                     text_quality=tq,
                 )
 
-        # Chunk dispatch: large full-text → split, screen, aggregate
+        # Chunk dispatch: large full-text -> split, screen, aggregate
         if (
             stage == "ft"
             and record.full_text
@@ -143,17 +182,33 @@ class FTScreener(HCNScreener):
         ):
             result = await self._screen_ft_chunked(record, criteria, seed)
         else:
-            # Small full-text or TA fallback → standard single-pass HCN
+            # Small full-text or TA fallback -> standard single-pass HCN
             result = await super().screen_single(
                 record, criteria, seed=seed, stage=stage
             )
 
-        # Attach text quality and reduce confidence if marginal
+        # FT assessment confidence adjustment for single-pass screening
+        if stage == "ft" and result.model_outputs:
+            ft_mult = self._ft_confidence_adjustment([result])
+            if ft_mult < 1.0:
+                result.ensemble_confidence = round(
+                    result.ensemble_confidence * ft_mult, 4
+                )
+                logger.info(
+                    "ft_assessment_confidence_adjustment",
+                    record_id=record.record_id,
+                    ft_multiplier=ft_mult,
+                    adjusted_confidence=result.ensemble_confidence,
+                )
+
+        # Attach text quality and reduce confidence proportionally if marginal
         if tq is not None:
             result.text_quality = tq
             if tq.is_marginal:
+                # Proportional reduction: worse quality -> larger penalty
+                reduction = (1.0 - tq.quality_score) * _MARGINAL_MAX_REDUCTION
                 result.ensemble_confidence = round(
-                    result.ensemble_confidence * _MARGINAL_CONFIDENCE_FACTOR, 4
+                    result.ensemble_confidence * (1.0 - reduction), 4
                 )
 
         return result
@@ -164,24 +219,7 @@ class FTScreener(HCNScreener):
         criteria: ReviewCriteria | PICOCriteria,
         seed: int = 42,
     ) -> ScreeningDecision:
-        """Screen a large full-text record by chunking and aggregating.
-
-        Runs section detection first (marking ``## METHODS``, etc. and
-        stripping references), then chunks at section boundaries so that
-        complete sections stay together. Falls back to paragraph-based
-        chunking if no section markers are found.
-
-        Each chunk is screened in parallel through the base HCN pipeline,
-        then results are aggregated.
-
-        Args:
-            record: Record with long full_text (> chunk_threshold).
-            criteria: Review criteria.
-            seed: Random seed.
-
-        Returns:
-            Aggregated ScreeningDecision with ``chunking_applied=True``.
-        """
+        """Screen a large full-text by chunking and aggregating results."""
         from metascreener.io.section_detector import (  # noqa: PLC0415
             detect_and_mark_sections,
         )
@@ -190,8 +228,6 @@ class FTScreener(HCNScreener):
         )
 
         text = record.full_text or ""
-
-        # Detect sections and strip references before chunking
         text = detect_and_mark_sections(text, strip_references=True)
 
         chunks = chunk_text_by_sections(
@@ -205,6 +241,11 @@ class FTScreener(HCNScreener):
             n_chunks=len(chunks),
         )
 
+        # Inject inter-chunk context: each chunk (after the first) gets
+        # a brief summary of what preceded it, so the LLM understands
+        # cross-section references like "as described above".
+        contextualized = _add_chunk_context(chunks, record.title or "")
+
         # Build per-chunk records
         chunk_records = [
             Record(
@@ -214,12 +255,10 @@ class FTScreener(HCNScreener):
                 full_text=chunk,
                 study_type=record.study_type,
             )
-            for i, chunk in enumerate(chunks)
+            for i, chunk in enumerate(contextualized)
         ]
 
         # Screen chunks in parallel with concurrency limit.
-        # Each chunk triggers N_MODELS LLM calls, so we cap parallelism
-        # to avoid rate-limit storms (e.g., 4 chunks × 4 models = 16 calls).
         sem = asyncio.Semaphore(_MAX_CONCURRENT_CHUNKS)
         _screen = super().screen_single
 
@@ -238,25 +277,62 @@ class FTScreener(HCNScreener):
         )
 
     @staticmethod
+    def _ft_confidence_adjustment(
+        chunk_decisions: list[ScreeningDecision],
+    ) -> float:
+        """Compute confidence multiplier from FT assessment dimensions.
+
+        Scans ``ModelOutput.ft_assessment`` across all chunk decisions.
+        Negative signals accumulate penalties; the average penalty is
+        converted to a multiplier in ``[_FT_MIN_MULTIPLIER, 1.0]``.
+
+        Args:
+            chunk_decisions: Per-chunk screening decisions.
+
+        Returns:
+            Multiplier in [0.70, 1.0]. 1.0 means no adjustment.
+        """
+        total_penalty = 0.0
+        n_assessed = 0
+
+        for d in chunk_decisions:
+            for mo in d.model_outputs:
+                if mo.error is not None or mo.ft_assessment is None:
+                    continue
+                ft: dict[str, Any] = mo.ft_assessment
+                n_assessed += 1
+                penalty = 0.0
+
+                for dim, value_map in _FT_PENALTY_MAP.items():
+                    val = ft.get(dim)
+                    if isinstance(val, str):
+                        penalty += value_map.get(val.lower(), 0.0)
+
+                # intervention_detail_match: false -> penalty
+                idm = ft.get("intervention_detail_match")
+                if idm is False:
+                    penalty += _FT_INTERVENTION_MISMATCH_PENALTY
+
+                total_penalty += penalty
+
+        if n_assessed == 0:
+            return 1.0
+
+        avg_penalty = total_penalty / n_assessed
+        multiplier = max(_FT_MIN_MULTIPLIER, 1.0 - avg_penalty)
+        return round(multiplier, 4)
+
+    @staticmethod
     def _aggregate_chunk_decisions(
         chunk_decisions: list[ScreeningDecision],
         original_record: Record,
         criteria: ReviewCriteria | PICOCriteria,  # noqa: ARG004
     ) -> ScreeningDecision:
-        """Aggregate screening decisions from multiple chunks.
+        """Aggregate chunk decisions with confidence-weighted voting.
 
-        Strategy:
-        - Hard rule violations: worst-case (any chunk → aggregate)
-        - Scores/confidence: average across chunks
-        - Decision: majority vote (recall-biased: ties → INCLUDE)
-
-        Args:
-            chunk_decisions: Per-chunk screening decisions.
-            original_record: The original full-text record.
-            criteria: Review criteria (unused, for signature consistency).
-
-        Returns:
-            Single aggregated ScreeningDecision.
+        Hard rules: worst-case. Scores/confidence: averaged. Decision:
+        confidence-weighted vote (ties -> INCLUDE). FT assessment dims
+        apply an additional confidence penalty.
         """
         if not chunk_decisions:
             return ScreeningDecision(
@@ -282,19 +358,23 @@ class FTScreener(HCNScreener):
         avg_score = sum(d.final_score for d in chunk_decisions) / n
         avg_conf = sum(d.ensemble_confidence for d in chunk_decisions) / n
 
-        # Decision: majority vote
-        vote_counter: Counter[str] = Counter()
-        for d in chunk_decisions:
-            vote_counter[d.decision.value] += 1
-
+        # Decision: confidence-weighted vote (Task 2)
         if has_hard:
             agg_decision = Decision.EXCLUDE
             agg_tier = Tier.ZERO
         else:
-            inc_count = vote_counter.get(Decision.INCLUDE.value, 0)
-            exc_count = vote_counter.get(Decision.EXCLUDE.value, 0)
-            # Recall-biased: ties → INCLUDE
-            if inc_count >= exc_count:
+            weighted_include = sum(
+                d.ensemble_confidence
+                for d in chunk_decisions
+                if d.decision == Decision.INCLUDE
+            )
+            weighted_exclude = sum(
+                d.ensemble_confidence
+                for d in chunk_decisions
+                if d.decision == Decision.EXCLUDE
+            )
+            # Recall-biased: ties -> INCLUDE
+            if weighted_include >= weighted_exclude:
                 agg_decision = Decision.INCLUDE
             else:
                 agg_decision = Decision.EXCLUDE
@@ -304,11 +384,9 @@ class FTScreener(HCNScreener):
                     tier_votes[d.tier.value] += 1
             agg_tier = Tier(tier_votes.most_common(1)[0][0])
 
-        # Merge rule results across chunks (worst-case union, deduplicated)
-        merged_rule = _merge_rule_results(chunk_decisions)
-
-        # Merge element consensus across chunks (summed vote counts)
-        merged_consensus = _merge_element_consensus(chunk_decisions)
+        # Merge rule results and element consensus across chunks
+        merged_rule = merge_rule_results(chunk_decisions)
+        merged_consensus = merge_element_consensus(chunk_decisions)
 
         # Compute chunk heterogeneity metric
         from metascreener.module1_screening.chunk_heterogeneity import (  # noqa: PLC0415
@@ -317,7 +395,7 @@ class FTScreener(HCNScreener):
 
         het_result = compute_chunk_heterogeneity(chunk_decisions)
 
-        # High heterogeneity without hard rule → force HUMAN_REVIEW
+        # High heterogeneity without hard rule -> force HUMAN_REVIEW
         if (
             het_result is not None
             and het_result.heterogeneity_level == "high"
@@ -326,13 +404,26 @@ class FTScreener(HCNScreener):
             agg_decision = Decision.HUMAN_REVIEW
             agg_tier = Tier.THREE
 
+        # FT assessment confidence adjustment (Task 1)
+        ft_multiplier = FTScreener._ft_confidence_adjustment(chunk_decisions)
+        adjusted_conf = round(avg_conf * ft_multiplier, 4)
+
+        if ft_multiplier < 1.0:
+            logger.info(
+                "ft_assessment_confidence_adjustment",
+                record_id=original_record.record_id,
+                ft_multiplier=ft_multiplier,
+                original_confidence=round(avg_conf, 4),
+                adjusted_confidence=adjusted_conf,
+            )
+
         return ScreeningDecision(
             record_id=original_record.record_id,
             stage=ScreeningStage.FULL_TEXT,
             decision=agg_decision,
             tier=agg_tier,
             final_score=round(avg_score, 4),
-            ensemble_confidence=round(avg_conf, 4),
+            ensemble_confidence=adjusted_conf,
             rule_result=merged_rule,
             element_consensus=merged_consensus,
             chunking_applied=True,
@@ -340,104 +431,3 @@ class FTScreener(HCNScreener):
             chunk_details=chunk_decisions,
             chunk_heterogeneity=het_result,
         )
-
-
-def _merge_rule_results(
-    chunk_decisions: list[ScreeningDecision],
-) -> RuleCheckResult:
-    """Merge rule results across chunks with deduplication.
-
-    Hard/soft violations are deduplicated by ``rule_name`` — each rule
-    appears at most once (soft: the instance with highest penalty is kept).
-    Flags are deduplicated as a set. ``total_penalty`` is the maximum
-    across all chunks (worst-case).
-
-    Args:
-        chunk_decisions: Per-chunk screening decisions.
-
-    Returns:
-        Merged and deduplicated RuleCheckResult.
-    """
-    seen_hard: dict[str, RuleViolation] = {}
-    seen_soft: dict[str, RuleViolation] = {}
-    seen_flags: set[str] = set()
-    max_penalty = 0.0
-
-    for d in chunk_decisions:
-        if not d.rule_result:
-            continue
-        for v in d.rule_result.hard_violations:
-            if v.rule_name not in seen_hard:
-                seen_hard[v.rule_name] = v
-        for v in d.rule_result.soft_violations:
-            existing = seen_soft.get(v.rule_name)
-            if existing is None or v.penalty > existing.penalty:
-                seen_soft[v.rule_name] = v
-        seen_flags.update(d.rule_result.flags)
-        max_penalty = max(max_penalty, d.rule_result.total_penalty)
-
-    return RuleCheckResult(
-        hard_violations=list(seen_hard.values()),
-        soft_violations=list(seen_soft.values()),
-        total_penalty=max_penalty,
-        flags=sorted(seen_flags),
-    )
-
-
-def _merge_element_consensus(
-    chunk_decisions: list[ScreeningDecision],
-) -> dict[str, ElementConsensus]:
-    """Merge element consensus across chunks by summing vote counts.
-
-    For each element key present in any chunk's ``element_consensus``,
-    vote counts (n_match, n_mismatch, n_unclear) are summed across
-    chunks to produce a unified cross-chunk consensus view.
-
-    Args:
-        chunk_decisions: Per-chunk screening decisions.
-
-    Returns:
-        Merged element consensus dict.
-    """
-    # Accumulate votes per element key
-    totals: dict[str, dict[str, int | str | bool]] = {}
-
-    for d in chunk_decisions:
-        for key, ec in d.element_consensus.items():
-            if key not in totals:
-                totals[key] = {
-                    "name": ec.name,
-                    "required": ec.required,
-                    "exclusion_relevant": ec.exclusion_relevant,
-                    "n_match": 0,
-                    "n_mismatch": 0,
-                    "n_unclear": 0,
-                }
-            totals[key]["n_match"] += ec.n_match  # type: ignore[operator]
-            totals[key]["n_mismatch"] += ec.n_mismatch  # type: ignore[operator]
-            totals[key]["n_unclear"] += ec.n_unclear  # type: ignore[operator]
-
-    merged: dict[str, ElementConsensus] = {}
-    for key, t in totals.items():
-        n_match = int(t["n_match"])
-        n_mismatch = int(t["n_mismatch"])
-        decided = n_match + n_mismatch
-        support_ratio = n_match / decided if decided else None
-        contradiction = n_match > 0 and n_mismatch > 0
-
-        merged[key] = ElementConsensus(
-            name=str(t["name"]),
-            required=bool(t["required"]),
-            exclusion_relevant=bool(t["exclusion_relevant"]),
-            n_match=n_match,
-            n_mismatch=n_mismatch,
-            n_unclear=int(t["n_unclear"]),
-            support_ratio=support_ratio,
-            contradiction=contradiction,
-            # decisive_match/mismatch not meaningful at aggregate level
-            # (they are chunk-level properties based on per-model consensus)
-            decisive_match=False,
-            decisive_mismatch=False,
-        )
-
-    return merged

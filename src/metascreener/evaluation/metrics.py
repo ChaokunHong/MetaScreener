@@ -95,6 +95,22 @@ def compute_screening_metrics(
     n_include = sum(lab == Decision.INCLUDE for lab in labels)
     n_exclude = n_total - n_include
 
+    # Auto-sensitivity: recall computed ONLY on auto-decided records
+    # (excludes HUMAN_REVIEW). This measures the system's autonomous
+    # recall without the conservative HUMAN_REVIEW→INCLUDE assumption.
+    auto_tp = sum(
+        dec == Decision.INCLUDE and lab == Decision.INCLUDE
+        for dec, lab in zip(decisions, labels, strict=True)
+    )
+    auto_fn = sum(
+        dec == Decision.EXCLUDE and lab == Decision.INCLUDE
+        for dec, lab in zip(decisions, labels, strict=True)
+    )
+    auto_sensitivity = (
+        auto_tp / (auto_tp + auto_fn)
+        if (auto_tp + auto_fn) > 0 else 0.0
+    )
+
     return ScreeningMetrics(
         sensitivity=sensitivity,
         specificity=specificity,
@@ -102,6 +118,7 @@ def compute_screening_metrics(
         f1=f1,
         wss_at_95=wss_at_95,
         automation_rate=automation_rate,
+        auto_sensitivity=auto_sensitivity,
         n_total=n_total,
         n_include=n_include,
         n_exclude=n_exclude,

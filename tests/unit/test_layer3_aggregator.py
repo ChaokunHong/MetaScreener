@@ -257,3 +257,70 @@ def test_aggregate_with_calibration_overrides() -> None:
     # Penalizing b should shift score toward a's higher score
     assert isinstance(s2, float)
     assert 0.0 <= s2 <= 1.0
+
+
+# ── Hybrid Confidence Tests ────────────────────────────────────────
+
+
+def test_hybrid_confidence_unanimous_high_scores() -> None:
+    """Unanimous INCLUDE with high scores -> confidence near 1.0."""
+    agg = CCAggregator()
+    outputs = [
+        _make_output(0.95, 0.9, Decision.INCLUDE, "m1"),
+        _make_output(0.90, 0.9, Decision.INCLUDE, "m2"),
+        _make_output(0.92, 0.9, Decision.INCLUDE, "m3"),
+    ]
+    _, conf = agg.aggregate(outputs)
+    assert conf > 0.9  # Both decision and score components high
+
+
+def test_hybrid_confidence_split_polarized_scores() -> None:
+    """50/50 split with polarized scores [0.99, 0.95, 0.05, 0.01]."""
+    agg = CCAggregator()
+    outputs = [
+        _make_output(0.99, 0.9, Decision.INCLUDE, "m1"),
+        _make_output(0.95, 0.9, Decision.INCLUDE, "m2"),
+        _make_output(0.05, 0.9, Decision.EXCLUDE, "m3"),
+        _make_output(0.01, 0.9, Decision.EXCLUDE, "m4"),
+    ]
+    _, conf = agg.aggregate(outputs)
+    # Decision component = 0 (50/50), but score variance is HIGH
+    # C_score = 1 - 4*var -> very low (high variance)
+    # Hybrid confidence should be very low
+    assert conf < 0.15
+
+
+def test_hybrid_confidence_split_moderate_scores() -> None:
+    """50/50 split with moderate scores [0.6, 0.55, 0.45, 0.4]."""
+    agg = CCAggregator()
+    outputs = [
+        _make_output(0.60, 0.7, Decision.INCLUDE, "m1"),
+        _make_output(0.55, 0.7, Decision.INCLUDE, "m2"),
+        _make_output(0.45, 0.7, Decision.EXCLUDE, "m3"),
+        _make_output(0.40, 0.7, Decision.EXCLUDE, "m4"),
+    ]
+    _, conf = agg.aggregate(outputs)
+    # Decision component = 0 (50/50), but scores are close together
+    # C_score = 1 - 4*var -> higher (low variance)
+    # Hybrid confidence should be higher than polarized case
+    assert conf > 0.1  # Score coherence adds some confidence
+
+
+def test_hybrid_confidence_blend_alpha() -> None:
+    """Custom blend_alpha changes the weighting."""
+    # Alpha=1.0 -> pure decision entropy
+    agg_decision = CCAggregator(confidence_blend_alpha=1.0)
+    # Alpha=0.0 -> pure score coherence
+    agg_score = CCAggregator(confidence_blend_alpha=0.0)
+    outputs = [
+        _make_output(0.99, 0.9, Decision.INCLUDE, "m1"),
+        _make_output(0.95, 0.9, Decision.INCLUDE, "m2"),
+        _make_output(0.05, 0.9, Decision.EXCLUDE, "m3"),
+        _make_output(0.01, 0.9, Decision.EXCLUDE, "m4"),
+    ]
+    _, conf_decision = agg_decision.aggregate(outputs)
+    _, conf_score = agg_score.aggregate(outputs)
+    # 50/50 split -> decision entropy = 0
+    assert conf_decision < 0.05
+    # High variance -> score coherence also low
+    assert conf_score < 0.1

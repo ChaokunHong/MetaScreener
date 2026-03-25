@@ -22,7 +22,7 @@ from math import floor, log
 import structlog
 
 from metascreener.core.enums import Decision, Tier
-from metascreener.core.models import ModelOutput, RuleCheckResult
+from metascreener.core.models import ECSResult, ModelOutput, RuleCheckResult
 
 logger = structlog.get_logger(__name__)
 
@@ -30,6 +30,7 @@ logger = structlog.get_logger(__name__)
 # n=2..6 → unanimous required; n=7..13 → 1 dissenter; n=14+ → 2 dissenters.
 _DEFAULT_DISSENT_TOLERANCE = 0.15
 _TAU_HIGH_EPSILON = 0.01  # Small margin below the exact boundary
+_DEFAULT_ECS_THRESHOLD = 0.60  # Minimum ECS for auto-INCLUDE at Tier 2
 
 
 def _shannon_confidence(p: float) -> float:
@@ -69,6 +70,10 @@ class DecisionRouter:
         recall_bias: When True (default), Tier 2 always returns INCLUDE
             regardless of majority direction, maximising recall. When False,
             Tier 2 follows the actual majority direction.
+        ecs_threshold: Minimum ECS for auto-decisions at Tier 2. When ECS
+            is below this threshold, the router escalates to HUMAN_REVIEW
+            even if vote counts qualify for Tier 2. This provides symmetric
+            element-level gating on both INCLUDE and EXCLUDE paths.
     """
 
     def __init__(
@@ -78,14 +83,20 @@ class DecisionRouter:
         tau_low: float = 0.05,
         dissent_tolerance: float = _DEFAULT_DISSENT_TOLERANCE,
         recall_bias: bool = True,
+        ecs_threshold: float = _DEFAULT_ECS_THRESHOLD,
     ) -> None:
         self.tau_high = tau_high
         self.tau_mid = tau_mid
         self.tau_low = tau_low
         self.dissent_tolerance = dissent_tolerance
         self.recall_bias = recall_bias
+        self.ecs_threshold = ecs_threshold
 
-    def _dynamic_tau_high(self, n: int) -> float:
+    def _dynamic_tau_high(
+        self,
+        n: int,
+        avg_majority_confidence: float | None = None,
+    ) -> float:
         """Compute Tier 1 confidence threshold for *n* models.
 
         For small n (where floor(n * tolerance) == 0), requires unanimous
@@ -95,8 +106,16 @@ class DecisionRouter:
         passing agreement ratio (n - max_dissent) / n, then subtracts
         a small epsilon to ensure the boundary case passes.
 
+        When avg_majority_confidence is provided, the threshold is scaled
+        by the average confidence of the majority group. High-confidence
+        majorities get a slightly lower threshold (easier to pass Tier 1),
+        while low-confidence majorities get a higher threshold (harder to
+        pass, more likely to fall to Tier 2/3).
+
         Args:
             n: Number of valid model decisions.
+            avg_majority_confidence: Average confidence of the majority
+                group. If None, no confidence weighting is applied.
 
         Returns:
             Dynamic tau_high threshold for this model count.
@@ -108,12 +127,22 @@ class DecisionRouter:
 
         if max_dissent == 0:
             # Require unanimous — use configured threshold
-            return self.tau_high
+            base = self.tau_high
+        else:
+            # Compute confidence at the boundary agreement ratio
+            p_boundary = (n - max_dissent) / n
+            c_boundary = _shannon_confidence(p_boundary)
+            base = max(c_boundary - _TAU_HIGH_EPSILON, 0.01)
 
-        # Compute confidence at the boundary agreement ratio
-        p_boundary = (n - max_dissent) / n
-        c_boundary = _shannon_confidence(p_boundary)
-        return max(c_boundary - _TAU_HIGH_EPSILON, 0.01)
+        # Apply confidence weighting: scale threshold inversely with
+        # majority confidence. avg_c=1.0 → threshold unchanged;
+        # avg_c=0.5 → threshold raised by 15% (harder to auto-decide).
+        if avg_majority_confidence is not None and avg_majority_confidence > 0:
+            # Scale factor: low confidence → raise threshold; high → keep
+            scale = 1.0 + 0.3 * (1.0 - avg_majority_confidence)
+            base = min(base * scale, 0.99)
+
+        return base
 
     def route(
         self,
@@ -122,7 +151,7 @@ class DecisionRouter:
         final_score: float,
         ensemble_confidence: float,
         element_consensus: dict | None = None,
-        ecs_result: object | None = None,
+        ecs_result: ECSResult | None = None,
         disagreement_result: object | None = None,
     ) -> tuple[Decision, Tier]:
         """Route to a final decision and tier.
@@ -132,17 +161,17 @@ class DecisionRouter:
             rule_result: Rule check result from Layer 2.
             final_score: Calibrated ensemble score from Layer 3.
             ensemble_confidence: Ensemble confidence from Layer 3.
-            element_consensus: Per-element consensus map (reserved for
-                future ECS-gating enhancement).
-            ecs_result: Element-level consensus scoring result (reserved).
+            element_consensus: Per-element consensus map (informational).
+            ecs_result: Element Consensus Score for symmetric gating.
+                When ECS is below ecs_threshold at Tier 2, the decision
+                is escalated to HUMAN_REVIEW regardless of vote direction.
             disagreement_result: Structured disagreement analysis result
-                (reserved for future use).
+                (informational).
 
         Returns:
             Tuple of (Decision, Tier).
         """
-        # Reserved for future ECS-gating enhancement
-        _ = element_consensus, ecs_result, disagreement_result
+        _ = element_consensus, disagreement_result
 
         # Tier 0: Hard rule override
         if rule_result.has_hard_violation:
@@ -152,23 +181,51 @@ class DecisionRouter:
             )
             return (Decision.EXCLUDE, Tier.ZERO)
 
-        # Collect non-error decisions
-        decisions = [
-            o.decision for o in model_outputs if o.error is None
-        ]
+        # Collect non-error outputs and decisions
+        valid_outputs = [o for o in model_outputs if o.error is None]
+        decisions = [o.decision for o in valid_outputs]
+        n_total_models = len(model_outputs)
+        n_errors = n_total_models - len(valid_outputs)
 
         if not decisions:
-            logger.warning("no_valid_decisions")
+            logger.warning("no_valid_decisions", n_errors=n_errors)
+            return (Decision.HUMAN_REVIEW, Tier.THREE)
+
+        # Escalate if >50% models errored — insufficient voting quorum
+        if n_errors > 0 and n_errors >= n_total_models / 2:
+            logger.warning(
+                "high_error_rate_escalation",
+                n_errors=n_errors,
+                n_total=n_total_models,
+                n_valid=len(valid_outputs),
+            )
             return (Decision.HUMAN_REVIEW, Tier.THREE)
 
         n_include = sum(1 for d in decisions if d == Decision.INCLUDE)
         n_exclude = len(decisions) - n_include
         n_total = len(decisions)
 
+        # Compute average confidence of the majority group for
+        # confidence-weighted dynamic threshold
+        if n_include >= n_exclude:
+            majority_confs = [
+                o.confidence for o in valid_outputs
+                if o.decision == Decision.INCLUDE
+            ]
+        else:
+            majority_confs = [
+                o.confidence for o in valid_outputs
+                if o.decision == Decision.EXCLUDE
+            ]
+        avg_majority_conf = (
+            sum(majority_confs) / len(majority_confs)
+            if majority_confs else 0.5
+        )
+
         # Tier 1: Near-unanimous agreement + dynamic confidence threshold
         # The threshold scales with n so that Tier 1 remains reachable
         # regardless of how many models the user selects.
-        dyn_tau_high = self._dynamic_tau_high(n_total)
+        dyn_tau_high = self._dynamic_tau_high(n_total, avg_majority_conf)
         unique_decisions = set(decisions)
 
         if (
@@ -186,13 +243,18 @@ class DecisionRouter:
             )
             return (decision, Tier.ONE)
 
-        # Near-unanimous: at most floor(n * tolerance) dissenters
+        # Near-unanimous: allow up to dissent_tolerance fraction of models
+        # to disagree. For n=4 with tolerance=0.15, this allows 0 dissenters
+        # but the agreement ratio check below (≥85%) still permits 3/4.
+        # This avoids the discontinuity where n=4 requires 100% but n=7
+        # allows 1 dissenter.
         max_dissent = floor(n_total * self.dissent_tolerance)
         n_minority = min(n_include, n_exclude)
+        agreement_ratio = 1.0 - (n_minority / n_total) if n_total > 0 else 0.0
 
         if (
-            max_dissent > 0
-            and n_minority <= max_dissent
+            agreement_ratio >= (1.0 - self.dissent_tolerance)
+            and n_minority > 0  # Not unanimous (handled above)
             and ensemble_confidence >= dyn_tau_high
         ):
             # Near-unanimous — use the majority direction
@@ -222,15 +284,49 @@ class DecisionRouter:
             return (Decision.HUMAN_REVIEW, Tier.THREE)
 
         # Tier 2: Clear majority + confidence >= tau_mid → AUTO decision.
-        # With recall_bias=True (default): always INCLUDE to avoid missing
-        # relevant papers — only hard rules and Tier 1 can EXCLUDE.
-        # With recall_bias=False: follow the actual majority direction.
+        #
+        # recall_bias behavior (default True):
+        #   - Majority INCLUDE → follow majority (INCLUDE)
+        #   - Majority EXCLUDE → escalate to HUMAN_REVIEW instead of
+        #     auto-excluding, because the minority INCLUDE signal may
+        #     indicate the paper is borderline relevant.
+        # recall_bias=False: follow the actual majority direction.
+        #
+        # ECS symmetric gating: if element-level consensus is low
+        # (ECS < ecs_threshold), escalate to HUMAN_REVIEW even when
+        # vote counts qualify.
         has_majority = n_include != n_exclude
         if has_majority and ensemble_confidence >= self.tau_mid:
-            if self.recall_bias:
-                decision = Decision.INCLUDE
-            else:
-                decision = Decision.INCLUDE if n_include > n_exclude else Decision.EXCLUDE
+            # Check ECS gate: low element consensus → human review
+            if (
+                ecs_result is not None
+                and ecs_result.score < self.ecs_threshold
+            ):
+                logger.info(
+                    "tier3_ecs_gate",
+                    ecs_score=round(ecs_result.score, 4),
+                    ecs_threshold=self.ecs_threshold,
+                    n_include=n_include,
+                    n_total=n_total,
+                    confidence=round(ensemble_confidence, 4),
+                )
+                return (Decision.HUMAN_REVIEW, Tier.THREE)
+
+            majority_direction = Decision.INCLUDE if n_include > n_exclude else Decision.EXCLUDE
+
+            if self.recall_bias and majority_direction == Decision.EXCLUDE:
+                # Recall-biased: don't auto-exclude at Tier 2.
+                # Escalate to HUMAN_REVIEW so a human verifies the exclusion.
+                logger.info(
+                    "tier2_recall_bias_escalate",
+                    n_include=n_include,
+                    n_exclude=n_exclude,
+                    n_total=n_total,
+                    confidence=round(ensemble_confidence, 4),
+                )
+                return (Decision.HUMAN_REVIEW, Tier.TWO)
+
+            decision = majority_direction
             logger.info(
                 "tier2_majority",
                 n_include=n_include,

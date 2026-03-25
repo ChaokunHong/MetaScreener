@@ -7,20 +7,65 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-# Rough token estimate: ~4 characters per token
-_CHARS_PER_TOKEN = 4
+# Default chars-per-token for Latin scripts (~3.5-4.5 for English)
+_CHARS_PER_TOKEN_LATIN = 4
+# CJK characters are typically 1-2 tokens each
+_CHARS_PER_TOKEN_CJK = 1.5
+
+# CJK Unicode ranges
+_CJK_RANGES = (
+    ("\u4e00", "\u9fff"),    # CJK Unified Ideographs
+    ("\u3400", "\u4dbf"),    # CJK Extension A
+    ("\uf900", "\ufaff"),    # CJK Compatibility Ideographs
+)
 
 
-def _estimate_tokens(text: str) -> int:
-    """Estimate token count from character length.
+def _is_cjk(char: str) -> bool:
+    """Check if a character is in CJK ranges."""
+    return any(lo <= char <= hi for lo, hi in _CJK_RANGES)
+
+
+def _estimate_tokens(text: str, model: str | None = None) -> int:
+    """Estimate token count, using litellm if available.
+
+    Tries litellm's precise tokenizer first. Falls back to a
+    language-aware character heuristic (CJK-aware) if litellm
+    is unavailable or fails.
 
     Args:
         text: Input text.
+        model: Optional model name for precise tokenization
+            (e.g., "gpt-4"). If None, uses heuristic only.
 
     Returns:
         Estimated token count.
     """
-    return len(text) // _CHARS_PER_TOKEN
+    if not text:
+        return 0
+
+    # Try precise tokenizer via litellm
+    if model:
+        try:
+            from litellm import token_counter  # noqa: PLC0415
+
+            return token_counter(model=model, text=text)
+        except Exception:
+            pass  # Fallback to heuristic
+
+    # Heuristic fallback: language-aware estimation
+    sample = text[:500]
+    cjk_count = sum(1 for c in sample if _is_cjk(c))
+    cjk_ratio = cjk_count / max(len(sample), 1)
+
+    if cjk_ratio > 0.3:
+        effective_cpt = (
+            cjk_ratio * _CHARS_PER_TOKEN_CJK
+            + (1 - cjk_ratio) * _CHARS_PER_TOKEN_LATIN
+        )
+    else:
+        effective_cpt = _CHARS_PER_TOKEN_LATIN
+
+    return int(len(text) / effective_cpt)
 
 
 def chunk_text(
@@ -44,8 +89,8 @@ def chunk_text(
     if not text:
         return [""]
 
-    max_chars = max_chunk_tokens * _CHARS_PER_TOKEN
-    overlap_chars = overlap_tokens * _CHARS_PER_TOKEN
+    max_chars = max_chunk_tokens * _CHARS_PER_TOKEN_LATIN
+    overlap_chars = overlap_tokens * _CHARS_PER_TOKEN_LATIN
 
     # If text fits in one chunk, return as-is
     if _estimate_tokens(text) <= max_chunk_tokens:
@@ -166,8 +211,8 @@ def chunk_text_by_sections(
     if not text:
         return [""]
 
-    max_chars = max_chunk_tokens * _CHARS_PER_TOKEN
-    overlap_chars = overlap_tokens * _CHARS_PER_TOKEN
+    max_chars = max_chunk_tokens * _CHARS_PER_TOKEN_LATIN
+    overlap_chars = overlap_tokens * _CHARS_PER_TOKEN_LATIN
 
     if _estimate_tokens(text) <= max_chunk_tokens:
         return [text]

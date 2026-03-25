@@ -16,12 +16,16 @@ class ScreeningMetrics(BaseModel):
     """Screening performance metrics.
 
     Attributes:
-        sensitivity: True positive rate (recall).
+        sensitivity: True positive rate (recall). HUMAN_REVIEW → INCLUDE.
         specificity: True negative rate.
         precision: Positive predictive value.
         f1: Harmonic mean of precision and recall.
         wss_at_95: Work Saved over Sampling at 95% recall.
         automation_rate: Fraction of records auto-decided (not HUMAN_REVIEW).
+        auto_sensitivity: Sensitivity computed only on auto-decided records
+            (Tier 0-2), excluding HUMAN_REVIEW. Measures the system's
+            autonomous recall without the conservative HUMAN_REVIEW→INCLUDE
+            assumption.
         n_total: Total number of records.
         n_include: Number of true positive (included) records.
         n_exclude: Number of true negative (excluded) records.
@@ -33,6 +37,7 @@ class ScreeningMetrics(BaseModel):
     f1: float
     wss_at_95: float
     automation_rate: float
+    auto_sensitivity: float
     n_total: int
     n_include: int
     n_exclude: int

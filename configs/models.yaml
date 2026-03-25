@@ -207,11 +207,55 @@ inference:
   timeout_s: 45.0
   timeout_thinking_s: 120.0
   max_retries: 2
-  max_tokens_standard: 1024
+  max_tokens_standard: 4096
   max_tokens_thinking: 8192
+  # OpenRouter reasoning effort for thinking models (none/low/medium/high):
+  reasoning_effort_criteria: "none"    # Criteria generation: JSON output, no CoT needed
+  reasoning_effort_screening: "medium" # Screening: CoT improves include/exclude decisions
 
 # ─── Criteria Pipeline ───────────────────────────────────────────
 criteria:
   dedup_quorum_fraction: 0.5
   enable_terminology_enhancement: true
   enable_auto_refine: true
+
+# ─── Element Consensus ──────────────────────────────────────────
+element_weights:
+  # Default weights for ECS computation, reflecting clinical importance.
+  # Configurable per-framework; these are the PICO defaults.
+  default:
+    population: 1.0
+    intervention: 1.0
+    comparison: 0.6
+    outcome: 0.8
+    study_design: 0.7
+  # Framework-specific overrides
+  pico:
+    population: 1.0
+    intervention: 1.0
+    comparison: 0.6
+    outcome: 0.8
+    study_design: 0.7
+  peo:
+    population: 1.0
+    exposure: 1.0
+    outcome: 0.9
+    study_design: 0.7
+  spider:
+    sample: 1.0
+    phenomenon: 1.0
+    design: 0.8
+    evaluation: 0.8
+    research_type: 0.6
+
+# ─── Calibration ────────────────────────────────────────────────
+calibration:
+  camd_alpha: 0.5              # CAMD minority penalty sensitivity [0.0-1.0]
+  confidence_blend_alpha: 0.7  # Hybrid confidence: weight for decision entropy vs score coherence
+  ecs_threshold: 0.60          # Minimum ECS for auto-decisions at Tier 2
+  heterogeneity_high: 0.60     # Chunk heterogeneity threshold for HUMAN_REVIEW
+  heterogeneity_moderate: 0.30 # Chunk heterogeneity moderate warning threshold
+  prior_tier_weights:          # Bayesian prior weights by model tier (cold start)
+    1: 1.00                    # Tier 1 (flagship): full weight
+    2: 0.75                    # Tier 2 (strong): 75%
+    3: 0.50                    # Tier 3 (fallback): 50%

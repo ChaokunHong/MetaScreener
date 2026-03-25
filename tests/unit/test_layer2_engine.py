@@ -27,9 +27,9 @@ def _make_output(
 
 
 def test_default_rules_loaded() -> None:
-    """RuleEngine loads all 6 default rules."""
+    """RuleEngine loads all 7 default rules (4 hard + 3 soft)."""
     engine = RuleEngine()
-    assert len(engine.rules) == 6
+    assert len(engine.rules) == 7
 
 
 def test_hard_violation_detected(

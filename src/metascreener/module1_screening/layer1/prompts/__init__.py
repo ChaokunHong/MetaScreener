@@ -33,12 +33,14 @@ class PromptRouter:
         self,
         record: Record,
         criteria: ReviewCriteria | PICOCriteria,
+        stage: str = "ta",
     ) -> str:
         """Build a framework-specific screening prompt.
 
         Args:
             record: The literature record to screen.
             criteria: Review criteria (auto-converts PICOCriteria).
+            stage: Screening stage — ``"ta"`` or ``"ft"``.
 
         Returns:
             The complete prompt string.
@@ -46,7 +48,7 @@ class PromptRouter:
         if isinstance(criteria, PICOCriteria):
             criteria = ReviewCriteria.from_pico_criteria(criteria)
         prompt_cls = self._REGISTRY.get(criteria.framework, GenericPrompt)
-        return prompt_cls().build(record, criteria)
+        return prompt_cls().build(record, criteria, stage=stage)
 
 
 __all__ = ["PromptRouter"]

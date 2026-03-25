@@ -86,14 +86,20 @@ class InferenceConfig(BaseModel):
         max_retries: Maximum retry attempts per call.
         max_tokens_standard: Max output tokens for standard models.
         max_tokens_thinking: Max output tokens for thinking models.
+        reasoning_effort_criteria: OpenRouter reasoning effort for thinking
+            models during criteria generation (structured JSON output).
+        reasoning_effort_screening: OpenRouter reasoning effort for thinking
+            models during screening (decision-making benefits from CoT).
     """
 
     temperature: float = 0.0
     timeout_s: float = 45.0
     timeout_thinking_s: float = 120.0
     max_retries: int = 2
-    max_tokens_standard: int = 1024
+    max_tokens_standard: int = 4096
     max_tokens_thinking: int = 8192
+    reasoning_effort_criteria: str = "none"
+    reasoning_effort_screening: str = "medium"
 
 
 class CriteriaConfig(BaseModel):
@@ -111,6 +117,26 @@ class CriteriaConfig(BaseModel):
     enable_auto_refine: bool = True
 
 
+class CalibrationConfig(BaseModel):
+    """Calibration and confidence aggregation settings.
+
+    Attributes:
+        camd_alpha: CAMD minority penalty sensitivity in [0.0, 1.0].
+            Higher values penalize low-confidence minorities more.
+        confidence_blend_alpha: Weight for decision entropy in the hybrid
+            confidence formula. The remainder weights score coherence.
+        ecs_threshold: Minimum ECS for auto-decisions at Tier 2. Below
+            this threshold, the router escalates to HUMAN_REVIEW.
+    """
+
+    camd_alpha: float = 0.5
+    confidence_blend_alpha: float = 0.7
+    ecs_threshold: float = 0.60
+    prior_tier_weights: dict[int, float] = Field(
+        default_factory=lambda: {1: 1.0, 2: 0.75, 3: 0.50}
+    )
+
+
 class MetaScreenerConfig(BaseModel):
     """Root configuration for MetaScreener.
 
@@ -120,6 +146,8 @@ class MetaScreenerConfig(BaseModel):
         thresholds: Decision router threshold settings.
         inference: LLM inference settings.
         criteria: Criteria generation pipeline settings.
+        element_weights: Per-framework element weights for ECS computation.
+        calibration: Calibration and confidence aggregation settings.
     """
 
     models: dict[str, ModelEntry] = Field(default_factory=dict)
@@ -127,6 +155,20 @@ class MetaScreenerConfig(BaseModel):
     thresholds: ThresholdConfig = Field(default_factory=ThresholdConfig)
     inference: InferenceConfig = Field(default_factory=InferenceConfig)
     criteria: CriteriaConfig = Field(default_factory=CriteriaConfig)
+    element_weights: dict[str, dict[str, float]] = Field(
+        default_factory=lambda: {
+            "default": {
+                "population": 1.0,
+                "intervention": 1.0,
+                "comparison": 0.6,
+                "outcome": 0.8,
+                "study_design": 0.7,
+            }
+        }
+    )
+    calibration: CalibrationConfig = Field(
+        default_factory=CalibrationConfig
+    )
 
 
 def load_model_config(path: Path) -> MetaScreenerConfig:
@@ -162,4 +204,6 @@ def load_model_config(path: Path) -> MetaScreenerConfig:
         thresholds=ThresholdConfig(**data.get("thresholds", {})),
         inference=InferenceConfig(**data.get("inference", {})),
         criteria=CriteriaConfig(**data.get("criteria", {})),
+        element_weights=data.get("element_weights", {}),
+        calibration=CalibrationConfig(**data.get("calibration", {})),
     )

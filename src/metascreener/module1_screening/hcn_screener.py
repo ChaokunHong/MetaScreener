@@ -67,6 +67,8 @@ class HCNScreener:
         prior_weights: Model-id to weight mapping for CCA.
         fitted_calibrators: Pre-fitted Platt/isotonic calibrators per model.
         heuristic_alpha: Sensitivity for heuristic calibration deviation.
+        element_weights: Custom element weights for ECS (element_key → weight).
+            If None, uses the defaults from element_consensus module.
     """
 
     default_stage: str = "ta"
@@ -83,6 +85,7 @@ class HCNScreener:
             dict[str, PlattCalibrator | IsotonicCalibrator] | None
         ) = None,
         heuristic_alpha: float = 0.5,
+        element_weights: dict[str, float] | None = None,
     ) -> None:
         self._backends = list(backends)
         self._inference = InferenceEngine(backends, timeout_s=timeout_s)
@@ -92,6 +95,7 @@ class HCNScreener:
         self._fitted_calibrators = fitted_calibrators
         self._heuristic_alpha = heuristic_alpha
         self._prior_weights = prior_weights
+        self._element_weights = element_weights
 
     async def screen_single(
         self,
@@ -128,7 +132,9 @@ class HCNScreener:
         element_consensus = build_element_consensus(criteria, model_outputs)
 
         # Layer 3a: Element Consensus Score (ECS)
-        ecs_result = compute_ecs(element_consensus)
+        ecs_result = compute_ecs(
+            element_consensus, element_weights=self._element_weights
+        )
 
         # Layer 3b: Disagreement classification (informational)
         disagreement_result = classify_disagreement(

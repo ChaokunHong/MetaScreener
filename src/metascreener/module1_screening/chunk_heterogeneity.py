@@ -31,6 +31,8 @@ _W_CONFLICTS = 0.15
 
 def compute_chunk_heterogeneity(
     chunk_decisions: list[ScreeningDecision],
+    high_threshold: float = _HIGH_THRESHOLD,
+    moderate_threshold: float = _MODERATE_THRESHOLD,
 ) -> ChunkHeterogeneityResult | None:
     """Compute inter-chunk disagreement from per-chunk screening decisions.
 
@@ -39,6 +41,8 @@ def compute_chunk_heterogeneity(
 
     Args:
         chunk_decisions: Per-chunk screening decisions from FT chunking.
+        high_threshold: Score at or above which level is 'high'. Default 0.60.
+        moderate_threshold: Score at or above which level is 'moderate'. Default 0.30.
 
     Returns:
         ChunkHeterogeneityResult, or None if fewer than 2 chunks.
@@ -82,9 +86,9 @@ def compute_chunk_heterogeneity(
     heterogeneity_score = max(0.0, min(1.0, heterogeneity_score))
 
     # Level classification
-    if heterogeneity_score >= _HIGH_THRESHOLD:
+    if heterogeneity_score >= high_threshold:
         level = "high"
-    elif heterogeneity_score >= _MODERATE_THRESHOLD:
+    elif heterogeneity_score >= moderate_threshold:
         level = "moderate"
     else:
         level = "low"

@@ -66,7 +66,7 @@ class ParallelRunner:
 
         Returns:
             List of ModelOutput (one per backend). Failed calls have
-            `error` set and decision defaulting to INCLUDE (safe default).
+            `error` set and decision=HUMAN_REVIEW (excluded from voting).
         """
         tasks = [
             self._run_single(backend, record, criteria, seed, stage)
@@ -98,6 +98,14 @@ class ParallelRunner:
         outputs: list[ModelOutput] = await asyncio.gather(*tasks)
         return outputs
 
+    def _track_failure(self, model_id: str) -> None:
+        """Track consecutive failures and auto-skip if threshold reached."""
+        count = self._consecutive_failures.get(model_id, 0) + 1
+        self._consecutive_failures[model_id] = count
+        if count >= self._max_consecutive_failures:
+            self._skipped_models.add(model_id)
+            logger.warning("model_auto_skipped", model_id=model_id, consecutive_failures=count)
+
     async def _run_single_with_prompt(
         self,
         backend: LLMBackend,
@@ -106,14 +114,14 @@ class ParallelRunner:
     ) -> ModelOutput:
         """Run a single backend with a pre-built prompt + error handling.
 
-        On failure, returns a ModelOutput with decision=INCLUDE (conservative)
-        and the error message recorded for the audit trail.
+        On failure, returns a ModelOutput with decision=HUMAN_REVIEW and
+        error set. The Router filters these out of voting (error is not None).
         """
         # Auto-skip models that failed too many times consecutively
         if backend.model_id in self._skipped_models:
             return ModelOutput(
                 model_id=backend.model_id,
-                decision=Decision.INCLUDE,
+                decision=Decision.HUMAN_REVIEW,
                 score=0.5,
                 confidence=0.0,
                 rationale="Model skipped — too many consecutive failures.",
@@ -134,22 +142,13 @@ class ParallelRunner:
                 model_id=backend.model_id,
                 timeout_s=self._timeout_s,
             )
-            # Track consecutive failures
-            count = self._consecutive_failures.get(backend.model_id, 0) + 1
-            self._consecutive_failures[backend.model_id] = count
-            if count >= self._max_consecutive_failures:
-                self._skipped_models.add(backend.model_id)
-                logger.warning(
-                    "model_auto_skipped",
-                    model_id=backend.model_id,
-                    consecutive_failures=count,
-                )
+            self._track_failure(backend.model_id)
             return ModelOutput(
                 model_id=backend.model_id,
-                decision=Decision.INCLUDE,
+                decision=Decision.HUMAN_REVIEW,
                 score=0.5,
                 confidence=0.0,
-                rationale="Timeout — defaulting to INCLUDE.",
+                rationale="Timeout — model did not respond in time.",
                 error=f"Timeout after {self._timeout_s}s",
             )
         except LLMError as e:
@@ -158,22 +157,13 @@ class ParallelRunner:
                 model_id=backend.model_id,
                 error=str(e),
             )
-            # Track consecutive failures
-            count = self._consecutive_failures.get(backend.model_id, 0) + 1
-            self._consecutive_failures[backend.model_id] = count
-            if count >= self._max_consecutive_failures:
-                self._skipped_models.add(backend.model_id)
-                logger.warning(
-                    "model_auto_skipped",
-                    model_id=backend.model_id,
-                    consecutive_failures=count,
-                )
+            self._track_failure(backend.model_id)
             return ModelOutput(
                 model_id=backend.model_id,
-                decision=Decision.INCLUDE,
+                decision=Decision.HUMAN_REVIEW,
                 score=0.5,
                 confidence=0.0,
-                rationale="Parse/API error — defaulting to INCLUDE.",
+                rationale=f"Parse/API error: {e}",
                 error=str(e),
             )
         except Exception as e:
@@ -183,22 +173,13 @@ class ParallelRunner:
                 error_type=type(e).__name__,
                 error=str(e),
             )
-            # Track consecutive failures
-            count = self._consecutive_failures.get(backend.model_id, 0) + 1
-            self._consecutive_failures[backend.model_id] = count
-            if count >= self._max_consecutive_failures:
-                self._skipped_models.add(backend.model_id)
-                logger.warning(
-                    "model_auto_skipped",
-                    model_id=backend.model_id,
-                    consecutive_failures=count,
-                )
+            self._track_failure(backend.model_id)
             return ModelOutput(
                 model_id=backend.model_id,
-                decision=Decision.INCLUDE,
+                decision=Decision.HUMAN_REVIEW,
                 score=0.5,
                 confidence=0.0,
-                rationale="Unexpected error — defaulting to INCLUDE.",
+                rationale=f"Unexpected error: {type(e).__name__}: {e}",
                 error=f"{type(e).__name__}: {e}",
             )
 
@@ -229,10 +210,10 @@ class ParallelRunner:
             )
             return ModelOutput(
                 model_id=backend.model_id,
-                decision=Decision.INCLUDE,  # safe default: don't miss papers
+                decision=Decision.HUMAN_REVIEW,
                 score=0.5,
                 confidence=0.0,
-                rationale="Timeout — defaulting to INCLUDE.",
+                rationale="Timeout — model did not respond in time.",
                 error=f"Timeout after {self._timeout_s}s",
             )
         except LLMError as e:
@@ -244,10 +225,10 @@ class ParallelRunner:
             )
             return ModelOutput(
                 model_id=backend.model_id,
-                decision=Decision.INCLUDE,  # safe default
+                decision=Decision.HUMAN_REVIEW,
                 score=0.5,
                 confidence=0.0,
-                rationale="Parse/API error — defaulting to INCLUDE.",
+                rationale=f"Parse/API error: {e}",
                 error=str(e),
             )
         except Exception as e:
@@ -260,9 +241,9 @@ class ParallelRunner:
             )
             return ModelOutput(
                 model_id=backend.model_id,
-                decision=Decision.INCLUDE,  # safe default
+                decision=Decision.HUMAN_REVIEW,
                 score=0.5,
                 confidence=0.0,
-                rationale="Unexpected error — defaulting to INCLUDE.",
+                rationale=f"Unexpected error: {type(e).__name__}: {e}",
                 error=f"{type(e).__name__}: {e}",
             )

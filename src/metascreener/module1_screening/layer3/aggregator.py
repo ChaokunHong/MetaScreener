@@ -11,6 +11,7 @@ of the number of models.
 from __future__ import annotations
 
 from math import log
+from statistics import variance as _variance
 
 import structlog
 
@@ -43,9 +44,11 @@ class CCAggregator:
         calibrators: (
             dict[str, PlattCalibrator | IsotonicCalibrator] | None
         ) = None,
+        confidence_blend_alpha: float = 0.7,
     ) -> None:
         self._weights = weights
         self._calibrators = calibrators
+        self._confidence_blend_alpha = confidence_blend_alpha
 
     @property
     def weights(self) -> dict[str, float] | None:
@@ -94,12 +97,19 @@ class CCAggregator:
             numerator += w_i * s_i * c_i * phi_i
             denominator += w_i * c_i * phi_i
 
-        # CCA score
-        s_raw = numerator / max(denominator, eps)
+        # CCA score — guard against near-zero denominator
+        # When all models have ~0 confidence, return neutral score (0.5)
+        # with zero ensemble confidence rather than a misleading 1.0.
+        if denominator < eps:
+            logger.warning("cca_denominator_near_zero", n_models=n)
+            return (0.5, 0.0)
+        s_raw = numerator / denominator
         s_final = max(0.0, min(1.0, s_raw - rule_penalty))
 
-        # Ensemble confidence via Shannon entropy
-        c_ensemble = self._compute_ensemble_confidence(model_outputs)
+        # Ensemble confidence: blend of decision entropy and score coherence
+        c_ensemble = self._compute_ensemble_confidence(
+            model_outputs, self._confidence_blend_alpha
+        )
 
         logger.debug(
             "cca_aggregation",
@@ -132,18 +142,26 @@ class CCAggregator:
     @staticmethod
     def _compute_ensemble_confidence(
         model_outputs: list[ModelOutput],
+        blend_alpha: float = 0.7,
     ) -> float:
-        """Compute ensemble confidence from decision agreement.
+        """Compute hybrid ensemble confidence from decision agreement and score coherence.
 
-        Uses normalized Shannon entropy:
-            C_ensemble = 1 - H(p_include, p_exclude) / log(2)
+        Blends two complementary signals:
+          C_decision = 1 - H(p_include, p_exclude) / log(2)  [Shannon entropy]
+          C_score    = 1 - 4 × Var(scores)  [score coherence, max var = 0.25]
 
-        Single model → C = 1.0 (no disagreement possible).
-        Unanimous agreement → C = 1.0.
-        Maximum disagreement (50/50) → C = 0.0.
+        C_ensemble = α × C_decision + (1-α) × C_score
+
+        The decision component captures vote-level agreement. The score
+        component captures whether models assign similar magnitudes, catching
+        cases like [0.99, 0.95, 0.05, 0.01] where votes split 50/50 (C_decision=0)
+        but scores are strongly polarized (informative signal).
 
         Args:
             model_outputs: Model outputs with decisions.
+            blend_alpha: Weight for decision entropy component. Default 0.7
+                gives primary weight to vote agreement while incorporating
+                score magnitude information.
 
         Returns:
             Ensemble confidence in [0.0, 1.0].
@@ -152,21 +170,31 @@ class CCAggregator:
         if n <= 1:
             return 1.0
 
+        # Decision agreement component (Shannon entropy)
         n_include = sum(
             1 for o in model_outputs if o.decision == Decision.INCLUDE
         )
         n_exclude = n - n_include
 
-        # Unanimous → C = 1.0
         if n_include == 0 or n_exclude == 0:
-            return 1.0
+            c_decision = 1.0
+        else:
+            p_inc = n_include / n
+            p_exc = n_exclude / n
+            h = -(p_inc * log(p_inc) + p_exc * log(p_exc))
+            c_decision = 1.0 - h / log(2)
 
-        # Shannon entropy of binary distribution
-        p_inc = n_include / n
-        p_exc = n_exclude / n
-        h = -(p_inc * log(p_inc) + p_exc * log(p_exc))
+        # Score coherence component
+        # Variance of [0,1] scores has max = 0.25 (half at 0, half at 1)
+        # Normalize: C_score = 1 - 4*Var so max_var → 0, min_var → 1
+        scores = [o.score for o in model_outputs]
+        if n >= 2:
+            score_var = _variance(scores)
+            c_score = max(0.0, 1.0 - 4.0 * score_var)
+        else:
+            c_score = 1.0
 
-        # Normalize by log(2) — max entropy for binary case
-        c_ensemble = 1.0 - h / log(2)
+        # Blend
+        c_ensemble = blend_alpha * c_decision + (1.0 - blend_alpha) * c_score
 
         return max(0.0, min(1.0, c_ensemble))
