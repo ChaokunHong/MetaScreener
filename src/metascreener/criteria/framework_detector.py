@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from collections import Counter
 from dataclasses import dataclass, field
 
 import structlog
 
 from metascreener.core.enums import CriteriaFramework
-from metascreener.llm.base import LLMBackend, hash_prompt, strip_code_fences
+from metascreener.llm.base import LLMBackend, hash_prompt
+from metascreener.llm.response_parser import parse_llm_response
 
 logger = structlog.get_logger(__name__)
 
@@ -141,9 +141,16 @@ class FrameworkDetector:
                 )
                 return None
 
-        raw_results = await asyncio.gather(
-            *[_query_one(b) for b in self._backends],
-        )
+        async_tasks = [asyncio.ensure_future(_query_one(b)) for b in self._backends]
+        done, pending = await asyncio.wait(async_tasks, timeout=90.0)
+        if pending:
+            logger.warning("framework_detect_total_timeout", timeout_s=90, n_pending=len(pending))
+            for t in pending:
+                t.cancel()
+        raw_results = [
+            t.result() if t in done and not t.exception() else None
+            for t in async_tasks
+        ]
         results: list[FrameworkDetectionResult] = [
             r for r in raw_results if r is not None
         ]
@@ -235,22 +242,7 @@ class FrameworkDetector:
         """
         log_backend = backend or self._backend
         try:
-            cleaned = strip_code_fences(raw_response)
-            parsed = json.loads(cleaned)
-
-            if not isinstance(parsed, dict):
-                logger.warning(
-                    "framework_detection_non_dict",
-                    model_id=log_backend.model_id,
-                    type=type(parsed).__name__,
-                )
-                return FrameworkDetectionResult(
-                    framework=CriteriaFramework.PICO,
-                    confidence=_FALLBACK_CONFIDENCE,
-                    reasoning=f"Fallback to PICO: response was {type(parsed).__name__}, not dict",
-                    alternatives=[],
-                    prompt_hash=prompt_hash,
-                )
+            parsed = parse_llm_response(raw_response, log_backend.model_id)
 
             framework_str = parsed.get("recommended_framework", "")
             if not isinstance(framework_str, str):
@@ -296,11 +288,12 @@ class FrameworkDetector:
                 prompt_hash=prompt_hash,
             )
 
-        except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "framework_detection_fallback",
                 error=str(exc),
                 model_id=log_backend.model_id,
+                raw_response_sample=raw_response[:300] if raw_response else "",
             )
             return FrameworkDetectionResult(
                 framework=CriteriaFramework.PICO,

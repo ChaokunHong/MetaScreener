@@ -1124,6 +1124,28 @@ async function clearKeys() {
   font-size: 0.75rem;
 }
 
+/* ── Form Controls ─────────────────────────────── */
+.form-select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 0.5rem;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #1e293b);
+  font-size: 0.875rem;
+  transition: border-color 0.2s;
+}
+.form-select:focus {
+  outline: none;
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+.form-hint {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #64748b);
+  margin-top: 0.35rem;
+}
+
 /* ── Collapsible ───────────────────────────────── */
 .section-title-clickable {
   cursor: pointer;

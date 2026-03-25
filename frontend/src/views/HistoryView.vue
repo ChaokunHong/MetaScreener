@@ -25,6 +25,11 @@
 
         <!-- Items (collapsible) -->
         <div v-show="expandedModule === mod.key" class="history-section-body">
+          <div v-if="moduleItems[mod.key]?.length" style="display:flex;justify-content:flex-end;margin-bottom:0.5rem;">
+            <button class="btn btn-danger btn-sm" @click="confirmClearModule(mod)">
+              <i class="fas fa-trash-can"></i> Clear All {{ mod.label }}
+            </button>
+          </div>
           <div v-if="!moduleItems[mod.key]?.length" class="text-muted" style="padding: 1rem 0; text-align: center; font-size: 0.85rem;">
             No {{ mod.label.toLowerCase() }} history yet.
           </div>
@@ -66,7 +71,7 @@
       </div>
     </template>
 
-    <!-- Delete confirmation modal -->
+    <!-- Delete confirmation modal (single item) -->
     <Teleport to="body">
       <div v-if="deleteTarget" class="modal-overlay" @click.self="deleteTarget = null">
         <div class="modal-glass">
@@ -87,6 +92,33 @@
               <i v-if="deleting" class="fas fa-spinner fa-spin"></i>
               <i v-else class="fas fa-trash-can"></i>
               Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Clear module confirmation modal -->
+    <Teleport to="body">
+      <div v-if="clearModuleTarget" class="modal-overlay" @click.self="clearModuleTarget = null">
+        <div class="modal-glass">
+          <div class="modal-header">
+            <div class="modal-header-title">
+              <div class="modal-header-icon modal-header-icon--danger"><i class="fas fa-trash-can"></i></div>
+              <h3>Clear All {{ clearModuleTarget.label }}</h3>
+            </div>
+            <button class="modal-close-btn" @click="clearModuleTarget = null"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="modal-body">
+            <p class="modal-subtitle">Delete all <strong>{{ moduleCounts[clearModuleTarget.key] }}</strong> {{ clearModuleTarget.label.toLowerCase() }} records?</p>
+            <p style="margin-top: 0.5rem; font-size: 0.82rem; color: #64748b;">This cannot be undone.</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="clearModuleTarget = null">Cancel</button>
+            <button class="btn btn-danger" :disabled="deleting" @click="doClearModule">
+              <i v-if="deleting" class="fas fa-spinner fa-spin"></i>
+              <i v-else class="fas fa-trash-can"></i>
+              Clear All
             </button>
           </div>
         </div>
@@ -132,6 +164,7 @@ const renameInput = ref<HTMLInputElement[] | null>(null)
 
 // Delete
 const deleteTarget = ref<HistoryItem | null>(null)
+const clearModuleTarget = ref<{ key: string; label: string } | null>(null)
 const deleting = ref(false)
 
 const moduleItems = computed(() => {
@@ -187,6 +220,18 @@ async function doRename(item: HistoryItem) {
 }
 
 function confirmDelete(item: HistoryItem) { deleteTarget.value = item }
+function confirmClearModule(mod: { key: string; label: string }) { clearModuleTarget.value = mod }
+
+async function doClearModule() {
+  if (!clearModuleTarget.value) return
+  deleting.value = true
+  try {
+    await apiDelete(`/history/${clearModuleTarget.value.key}`)
+    allItems.value = allItems.value.filter(i => i.module !== clearModuleTarget.value!.key)
+    clearModuleTarget.value = null
+  } catch { /* ignore */ }
+  deleting.value = false
+}
 
 async function doDelete() {
   if (!deleteTarget.value) return

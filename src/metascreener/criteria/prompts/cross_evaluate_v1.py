@@ -129,7 +129,10 @@ def validate_cross_evaluate_response(response: dict[str, Any]) -> bool:
             preferred = pair.get("preferred")
             polarity = pair.get("polarity")
 
-            if preferred not in (term_a, term_b):
+            # preferred should ideally be term_a or term_b, but models
+            # sometimes return a normalised form (e.g. "antimicrobial resistance"
+            # when term_a="AMR").  Accept as long as preferred is a non-empty string.
+            if not preferred or not isinstance(preferred, str):
                 return False
             if polarity not in _VALID_POLARITIES:
                 return False

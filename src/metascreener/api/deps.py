@@ -58,6 +58,7 @@ def create_backends() -> list[LLMBackend]:
                     api_key=api_key,
                     model_version=entry.version,
                     thinking=entry.thinking,
+                    reasoning_effort=config.inference.reasoning_effort_criteria,
                     timeout_s=(
                         config.inference.timeout_thinking_s if entry.thinking
                         else config.inference.timeout_s

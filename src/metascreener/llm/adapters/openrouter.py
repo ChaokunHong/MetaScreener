@@ -21,7 +21,7 @@ DEFAULT_TIMEOUT_S = 45.0
 DEFAULT_TIMEOUT_THINKING_S = 120.0
 MAX_RETRIES = 2
 RETRY_BASE_DELAY_S = 2.0
-MAX_TOKENS_STANDARD = 1024
+MAX_TOKENS_STANDARD = 4096
 MAX_TOKENS_THINKING = 8192
 
 
@@ -46,6 +46,7 @@ class OpenRouterAdapter(LLMBackend):
         api_key: str,
         model_version: str = "latest",
         thinking: bool = False,
+        reasoning_effort: str = "none",
         timeout_s: float | None = None,
         max_retries: int = MAX_RETRIES,
         max_tokens: int | None = None,
@@ -55,6 +56,7 @@ class OpenRouterAdapter(LLMBackend):
         self._api_key = api_key
         self._model_version = model_version
         self._thinking = thinking
+        self._reasoning_effort = reasoning_effort
         self._max_retries = max_retries
 
         # Set defaults based on thinking flag
@@ -108,6 +110,13 @@ class OpenRouterAdapter(LLMBackend):
             "response_format": {"type": "json_object"},
         }
 
+        # For thinking models: control reasoning via the OpenRouter
+        # `reasoning` parameter.  Without explicit control, OpenRouter
+        # maps max_tokens → thinking_budget (Qwen) or similar, which
+        # can starve the actual content output.
+        if self._thinking:
+            payload["reasoning"] = {"effort": self._reasoning_effort}
+
         last_exc: Exception | None = None
         for attempt in range(self._max_retries):
             try:
@@ -135,7 +144,8 @@ class OpenRouterAdapter(LLMBackend):
 
                 response.raise_for_status()
                 data = response.json()
-                content: str | None = data["choices"][0]["message"].get("content")
+                message = data["choices"][0]["message"]
+                content: str | None = message.get("content")
 
                 # Empty or whitespace-only content: model produced no usable output
                 if not content or not content.strip():

@@ -94,6 +94,20 @@ class TestValidateResponse:
                 }
             }
         }
+        # preferred can be a normalised form (not necessarily term_a or term_b)
+        assert validate_cross_evaluate_response(resp) is True
+
+    def test_preferred_empty_rejected(self) -> None:
+        resp = {
+            "element_evaluations": {
+                "population": {
+                    "duplicate_pairs": [
+                        {"term_a": "a", "term_b": "b", "preferred": "", "polarity": "include"}
+                    ],
+                    "quality": {"precision": 5, "completeness": 5, "actionability": 5},
+                }
+            }
+        }
         assert validate_cross_evaluate_response(resp) is False
 
     def test_invalid_polarity(self) -> None:

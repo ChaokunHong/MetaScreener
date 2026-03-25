@@ -18,6 +18,7 @@ def create_backends(
     cfg: MetaScreenerConfig | None = None,
     api_key: str | None = None,
     enabled_model_ids: list[str] | None = None,
+    reasoning_effort: str | None = None,
 ) -> list[LLMBackend]:
     """Create LLM backends from config and environment.
 
@@ -26,6 +27,8 @@ def create_backends(
         api_key: OpenRouter API key. Falls back to env var if None.
         enabled_model_ids: If provided, only create backends for these model keys.
             If None, creates backends for ALL configured models.
+        reasoning_effort: Override reasoning effort for thinking models.
+            If None, defaults to ``cfg.inference.reasoning_effort_criteria``.
 
     Returns:
         List of LLMBackend instances, one per configured/enabled model.
@@ -55,12 +58,14 @@ def create_backends(
         if enabled_model_ids is not None and name not in enabled_model_ids:
             continue
 
+        effort = reasoning_effort or cfg.inference.reasoning_effort_criteria
         adapter = OpenRouterAdapter(
             model_id=name,
             openrouter_model_name=entry.model_id,
             api_key=key,
             model_version=entry.version,
             thinking=entry.thinking,
+            reasoning_effort=effort,
             timeout_s=(
                 cfg.inference.timeout_thinking_s if entry.thinking
                 else cfg.inference.timeout_s

@@ -698,13 +698,6 @@
           >
             <div class="criteria-element-name">
               {{ capitalise(String(elem.name || key)) }}
-              <span v-if="elem.element_quality != null"
-                    :class="['quality-badge',
-                             elem.element_quality >= 70 ? 'quality-high' :
-                             elem.element_quality >= 40 ? 'quality-mid' : 'quality-low']">
-                {{ elem.element_quality >= 70 ? 'High quality' :
-                   elem.element_quality >= 40 ? 'Review recommended' : 'Needs attention' }}
-              </span>
             </div>
 
             <!-- Include row -->
@@ -943,14 +936,6 @@
               :placeholder="defaultCriteriaName"
             />
           </div>
-          <div class="form-group">
-            <label class="form-label">Tags <span class="text-muted" style="font-weight:400;">(optional)</span></label>
-            <TagInput
-              v-model="criteriaTags"
-              :suggestions="defaultTagSuggestions"
-              placeholder="Type a tag and press Enter"
-            />
-          </div>
         </div>
 
         <!-- Editor actions -->
@@ -1073,7 +1058,6 @@
 import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
 import { apiGet, apiPost } from '@/api'
 import { useCriteriaStore, type SavedCriteria, type CriteriaElements, type GenerationMeta } from '@/stores/criteria'
-import TagInput from '@/components/TagInput.vue'
 
 const { criteria: savedCriteria, topic: savedTopic, setCriteria, setTopic } = useCriteriaStore()
 
@@ -1127,13 +1111,6 @@ const generatingCriteria = ref(false)
 const criteriaError = ref('')
 const criteriaSaved = ref(false)
 const criteriaName = ref('')
-const criteriaTags = ref<string[]>([])
-const defaultTagSuggestions = [
-  'cardiology', 'oncology', 'neurology', 'infectious-disease',
-  'pediatrics', 'surgery', 'mental-health', 'public-health',
-  'RCT-only', 'observational', 'diagnostic', 'prognostic',
-  'draft', 'final', 'pilot',
-]
 const defaultCriteriaName = computed(() => {
   const fw = generatedCriteria.value?.framework?.toUpperCase() || 'PICO'
   const rq = generatedCriteria.value?.research_question || ''
@@ -1150,23 +1127,27 @@ let criteriaProgressTimer: ReturnType<typeof setInterval> | null = null
 function _ts() { return new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }) }
 
 const CRITERIA_PROGRESS_STEPS = [
-  { time: 0, pct: 3, msg: () => `[${_ts()}] Initializing criteria generation pipeline...` },
-  { time: 1500, pct: 8, msg: () => `[${_ts()}] Cleaning and preprocessing input text` },
-  { time: 3000, pct: 14, msg: () => `[${_ts()}] Detecting language → en` },
-  { time: 4000, pct: 20, msg: () => `[${_ts()}] Running multi-model framework detection (voting across ${selectedModelCount.value} models)...` },
-  { time: 6000, pct: 28, msg: () => `[${_ts()}] Framework detected. Initiating Round 1: parallel criteria generation...` },
-  { time: 8000, pct: 36, msg: () => `[${_ts()}] Round 1 → Model 1/${selectedModelCount.value} generating structured elements...` },
-  { time: 10000, pct: 44, msg: () => `[${_ts()}] Round 1 → Model 2/${selectedModelCount.value} generating structured elements...` },
-  { time: 13000, pct: 52, msg: () => `[${_ts()}] Round 1 complete. Merging outputs via ConsensusMerger...` },
-  { time: 15000, pct: 58, msg: () => `[${_ts()}] Building term origin map (tracking which model contributed each term)` },
-  { time: 17000, pct: 63, msg: () => `[${_ts()}] Round 2: Cross-evaluation — each model reviews merged criteria...` },
-  { time: 20000, pct: 70, msg: () => `[${_ts()}] Round 2 complete. Running DedupMerger (Union-Find edge voting)...` },
-  { time: 22000, pct: 76, msg: () => `[${_ts()}] Checking element completeness (required elements for framework)...` },
-  { time: 24000, pct: 80, msg: () => `[${_ts()}] Auto-filling missing required elements via AI Suggest...` },
-  { time: 26000, pct: 84, msg: () => `[${_ts()}] Scanning for vague terms and insufficient coverage...` },
-  { time: 28000, pct: 88, msg: () => `[${_ts()}] Running auto-refine on detected quality issues...` },
-  { time: 30000, pct: 91, msg: () => `[${_ts()}] Terminology enhancement (MeSH headings + clinical synonyms)...` },
-  { time: 33000, pct: 95, msg: () => `[${_ts()}] Computing readiness score...` },
+  { time: 0, pct: 2, msg: () => `[${_ts()}] Initializing criteria generation pipeline...` },
+  { time: 1500, pct: 5, msg: () => `[${_ts()}] Cleaning and preprocessing input text` },
+  { time: 3000, pct: 8, msg: () => `[${_ts()}] Detecting language → en` },
+  { time: 5000, pct: 12, msg: () => `[${_ts()}] Running multi-model framework detection (voting across ${selectedModelCount.value} models)...` },
+  { time: 15000, pct: 18, msg: () => `[${_ts()}] Waiting for thinking models (this may take 30-60s)...` },
+  { time: 30000, pct: 24, msg: () => `[${_ts()}] Framework detected. Initiating Round 1: parallel criteria generation...` },
+  { time: 35000, pct: 30, msg: () => `[${_ts()}] Round 1 → Model 1/${selectedModelCount.value} generating structured elements...` },
+  { time: 45000, pct: 36, msg: () => `[${_ts()}] Round 1 → Model 2/${selectedModelCount.value} generating structured elements...` },
+  { time: 55000, pct: 42, msg: () => `[${_ts()}] Round 1 → Waiting for remaining models...` },
+  { time: 70000, pct: 50, msg: () => `[${_ts()}] Round 1 complete. Merging outputs via ConsensusMerger...` },
+  { time: 75000, pct: 55, msg: () => `[${_ts()}] Building term origin map (tracking which model contributed each term)` },
+  { time: 80000, pct: 60, msg: () => `[${_ts()}] Round 2: Cross-evaluation — each model reviews merged criteria...` },
+  { time: 95000, pct: 67, msg: () => `[${_ts()}] Round 2 → Waiting for model evaluations...` },
+  { time: 110000, pct: 73, msg: () => `[${_ts()}] Round 2 complete. Running DedupMerger (Union-Find edge voting)...` },
+  { time: 115000, pct: 77, msg: () => `[${_ts()}] Checking element completeness (required elements for framework)...` },
+  { time: 120000, pct: 80, msg: () => `[${_ts()}] Auto-filling missing required elements via AI Suggest...` },
+  { time: 130000, pct: 84, msg: () => `[${_ts()}] Scanning for vague terms and insufficient coverage...` },
+  { time: 140000, pct: 88, msg: () => `[${_ts()}] Running auto-refine on detected quality issues...` },
+  { time: 150000, pct: 91, msg: () => `[${_ts()}] Terminology enhancement (MeSH headings + clinical synonyms)...` },
+  { time: 160000, pct: 94, msg: () => `[${_ts()}] Computing readiness score...` },
+  { time: 170000, pct: 96, msg: () => `[${_ts()}] Finalizing criteria (almost done)...` },
 ]
 
 function startCriteriaProgressSim() {
@@ -1774,7 +1755,6 @@ function resetCriteriaEditor() {
   expansionTerms.value = {}
   criteriaSaved.value = false
   criteriaName.value = ''
-  criteriaTags.value = []
   sourceMode.value = mode.value
   resetFilters()
 }
@@ -1786,7 +1766,7 @@ function confirmCriteria() {
   const finalName = criteriaName.value.trim() || defaultCriteriaName.value
   const saved: SavedCriteria = {
     name: finalName,
-    tags: [...criteriaTags.value],
+    tags: [],
     framework: criteria.framework,
     research_question: criteria.research_question,
     detected_language: criteria.detected_language,
@@ -1804,7 +1784,7 @@ function confirmCriteria() {
   apiPost('/history/criteria', {
     data: saved,
     name: finalName,
-    tags: criteriaTags.value,
+    tags: [],
     summary: `${saved.framework} framework, ${elemCount} terms${saved.research_question ? ': ' + saved.research_question.slice(0, 60) : ''}`,
   }).catch(() => { /* non-critical */ })
 }
@@ -2284,21 +2264,22 @@ async function runPilotSearch() {
 
 .criteria-elements-editor {
   display: grid;
-  gap: 12px;
+  gap: 20px;
 }
 
 .criteria-element-editor-card {
   border-radius: 14px;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.82);
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
   background: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.78) 0%,
-    rgba(255, 255, 255, 0.58) 100%
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(241, 245, 249, 0.75) 100%
   );
   box-shadow:
-    0 5px 14px rgba(15, 23, 42, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+    0 4px 16px rgba(15, 23, 42, 0.08),
+    0 1px 3px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 .criteria-element-name {
@@ -2643,35 +2624,6 @@ async function runPilotSearch() {
 }
 
 /* Quality badges */
-.quality-badge {
-  font-size: 0.68rem;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  border: 1px solid var(--btn-frost-border);
-  -webkit-backdrop-filter: blur(8px) saturate(130%);
-  backdrop-filter: blur(8px) saturate(130%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
-}
-
-.quality-high {
-  background: linear-gradient(135deg, rgba(204,250,241,0.55) 0%, rgba(167,243,208,0.35) 100%);
-  color: #0f766e;
-  border-color: rgba(129,216,208,0.45);
-}
-
-.quality-mid {
-  background: linear-gradient(135deg, rgba(254,243,199,0.55) 0%, rgba(253,230,138,0.35) 100%);
-  color: #a16207;
-  border-color: rgba(245,158,11,0.35);
-}
-
-.quality-low {
-  background: linear-gradient(135deg, rgba(254,226,226,0.55) 0%, rgba(252,165,165,0.35) 100%);
-  color: #b91c1c;
-  border-color: rgba(248,113,113,0.35);
-}
-
 /* Ambiguity flags */
 .ambiguity-section { margin-top: 10px; }
 .ambiguity-toggle {

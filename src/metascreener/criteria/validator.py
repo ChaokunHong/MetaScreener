@@ -10,7 +10,6 @@ consistency, and actionability.
 """
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 
 import structlog
@@ -19,7 +18,8 @@ from metascreener.core.models import QualityScore, ReviewCriteria
 from metascreener.criteria.prompts.validate_quality_v1 import (
     build_validate_quality_prompt,
 )
-from metascreener.llm.base import LLMBackend, hash_prompt, strip_code_fences
+from metascreener.llm.base import LLMBackend, hash_prompt
+from metascreener.llm.response_parser import parse_llm_response
 
 logger = structlog.get_logger(__name__)
 
@@ -159,24 +159,7 @@ class CriteriaValidator:
 
         try:
             raw = await backend.complete(prompt, seed)
-            cleaned = strip_code_fences(raw)
-            parsed = json.loads(cleaned)
-        except (json.JSONDecodeError, KeyError, TypeError) as exc:
-            logger.warning(
-                "quality_validation_parse_error",
-                prompt_hash=prompt_hash,
-                error=str(exc),
-            )
-            return QualityScore(
-                total=0,
-                completeness=0,
-                precision=0,
-                consistency=0,
-                actionability=0,
-                suggestions=[
-                    "Quality assessment failed: could not parse LLM response."
-                ],
-            )
+            parsed = parse_llm_response(raw, backend.model_id)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "quality_validation_llm_error",

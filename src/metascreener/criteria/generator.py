@@ -12,7 +12,6 @@ merged via ``ConsensusMerger`` for higher reliability.
 from __future__ import annotations
 
 import asyncio
-import json
 from typing import Any
 
 import structlog
@@ -30,7 +29,8 @@ from metascreener.criteria.prompts.generate_from_topic_v1 import (
     build_generate_from_topic_prompt,
 )
 from metascreener.criteria.prompts.parse_text_v1 import build_parse_text_prompt
-from metascreener.llm.base import LLMBackend, hash_prompt, strip_code_fences
+from metascreener.llm.base import LLMBackend, hash_prompt
+from metascreener.llm.response_parser import parse_llm_response
 
 logger = structlog.get_logger(__name__)
 
@@ -173,11 +173,20 @@ class CriteriaGenerator:
         """
         prompt_hash = hash_prompt(prompt)
 
-        # --- Round 1: parallel generation ---
-        tasks = [
-            self._call_backend(backend, prompt, seed) for backend in self._backends
+        # --- Round 1: parallel generation (with total timeout) ---
+        async_tasks = [
+            asyncio.ensure_future(self._call_backend(backend, prompt, seed))
+            for backend in self._backends
         ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        done, pending = await asyncio.wait(async_tasks, timeout=180.0)
+        if pending:
+            logger.warning("round1_total_timeout", timeout_s=180, n_pending=len(pending))
+            for t in pending:
+                t.cancel()
+        results: list[Any] = [
+            t.result() if not t.cancelled() and not t.exception() else (t.exception() or TimeoutError("timeout"))
+            for t in async_tasks
+        ]
 
         model_outputs: list[dict[str, Any]] = []
         model_ids: list[str] = []
@@ -245,10 +254,7 @@ class CriteriaGenerator:
             """Call one backend for cross-eval and validate response."""
             try:
                 raw = await backend.complete(cross_prompt, seed)
-                cleaned = strip_code_fences(raw)
-                parsed = json.loads(cleaned)
-                if isinstance(parsed, str):
-                    parsed = json.loads(parsed)  # double-encoded JSON
+                parsed = parse_llm_response(raw, backend.model_id)
                 if validate_cross_evaluate_response(parsed):
                     return backend.model_id, parsed
                 logger.warning(
@@ -258,7 +264,7 @@ class CriteriaGenerator:
                     sample=str(parsed)[:200],
                 )
                 return backend.model_id, None
-            except (json.JSONDecodeError, Exception) as exc:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001
                 logger.warning(
                     "round2_backend_error",
                     backend=backend.model_id,
@@ -266,15 +272,19 @@ class CriteriaGenerator:
                 )
                 return backend.model_id, None
 
-        eval_tasks = [_eval_one(b) for b in self._backends]
-        eval_results = await asyncio.gather(*eval_tasks, return_exceptions=True)
+        async_eval_tasks = [asyncio.ensure_future(_eval_one(b)) for b in self._backends]
+        done, pending = await asyncio.wait(async_eval_tasks, timeout=120.0)
+        if pending:
+            logger.warning("round2_total_timeout", timeout_s=120, n_pending=len(pending))
+            for t in pending:
+                t.cancel()
 
         evaluations: dict[str, Any] = {}
-        for result in eval_results:
-            if isinstance(result, BaseException):
-                logger.warning("round2_gather_error", error=str(result))
+        for t in done:
+            if t.exception():
+                logger.warning("round2_gather_error", error=str(t.exception()))
                 continue
-            model_id, parsed = result
+            model_id, parsed = t.result()
             if parsed is not None:
                 evaluations[model_id] = transform_cross_evaluate_response(parsed)
 
@@ -303,11 +313,20 @@ class CriteriaGenerator:
         """
         prompt_hash = hash_prompt(prompt)
 
-        # Gather responses from all backends in parallel
-        tasks = [
-            self._call_backend(backend, prompt, seed) for backend in self._backends
+        # Gather responses from all backends in parallel (with total timeout)
+        async_tasks = [
+            asyncio.ensure_future(self._call_backend(backend, prompt, seed))
+            for backend in self._backends
         ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        done, pending = await asyncio.wait(async_tasks, timeout=180.0)
+        if pending:
+            logger.warning("generate_total_timeout", timeout_s=180, n_pending=len(pending))
+            for t in pending:
+                t.cancel()
+        results = [
+            t.result() if not t.cancelled() and not t.exception() else (t.exception() or TimeoutError("timeout"))
+            for t in async_tasks
+        ]
 
         # Filter successful results
         model_outputs: list[dict[str, Any]] = []
@@ -355,16 +374,8 @@ class CriteriaGenerator:
         """
         try:
             raw = await backend.complete(prompt, seed)
-            cleaned = strip_code_fences(raw)
-            parsed = json.loads(cleaned)
+            parsed = parse_llm_response(raw, backend.model_id)
             # Validate minimum expected structure
-            if not isinstance(parsed, dict):
-                logger.warning(
-                    "non_dict_response",
-                    backend=backend.model_id,
-                    type=type(parsed).__name__,
-                )
-                return None
             if "elements" not in parsed:
                 logger.warning("missing_elements_key", backend=backend.model_id)
                 return None
@@ -376,11 +387,6 @@ class CriteriaGenerator:
                 )
                 return None
             return parsed  # type: ignore[no-any-return]
-        except json.JSONDecodeError as exc:
-            logger.warning(
-                "backend_json_error", backend=backend.model_id, error=str(exc)
-            )
-            return None
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "backend_call_error", backend=backend.model_id, error=str(exc)
