@@ -1,4 +1,8 @@
-"""LLM response parsing and JSON extraction utilities."""
+"""LLM response parsing and JSON extraction utilities.
+
+Multi-stage parsing pipeline for robustness against common LLM output
+quirks: thinking tags, code fences, broken JSON, double encoding.
+"""
 from __future__ import annotations
 
 import json
@@ -18,35 +22,43 @@ _THINK_CLOSED_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 def strip_thinking_tags(text: str) -> str:
     """Remove ``<think>...</think>`` blocks emitted by reasoning models.
 
-    Thinking models (e.g. Qwen3, Kimi-K2.5) may embed chain-of-thought
-    inside ``<think>`` tags before the actual JSON response.  This strips
-    them so downstream parsing sees only the payload.
+    For thinking models (Qwen3, Kimi-K2.5, GLM5-Turbo), the JSON payload
+    may appear either AFTER or INSIDE thinking tags.  This function tries
+    to extract the JSON regardless of where the model placed it.
 
-    Handles both closed and unclosed (truncated) ``<think>`` blocks:
-    - Closed: ``<think>...</think>`` stripped entirely.
-    - Unclosed: everything before the **last** ``{`` is discarded,
-      preserving any trailing JSON payload the model emitted after
-      its thinking.  If no ``{`` exists the whole text is kept so
-      downstream stages can report the real error.
+    Strategy:
+      1. Strip closed ``<think>...</think>`` blocks.
+      2. If unclosed ``<think>`` remains, find the last ``{``.
+      3. If stripping produced no ``{``, search INSIDE the original
+         thinking content for a JSON object (the model may have put
+         the answer inside the tags by mistake).
 
     Args:
         text: Raw LLM response that may contain thinking blocks.
 
     Returns:
-        Text with thinking blocks removed.
+        Text with thinking blocks removed, preserving JSON payload.
     """
     # Strip properly closed blocks
     result = _THINK_CLOSED_RE.sub("", text)
 
     # Handle unclosed <think> (model hit max_tokens while still thinking)
     if "<think>" in result:
-        # Find the last '{' — the JSON payload is likely at the tail
         last_brace = result.rfind("{")
         if last_brace != -1:
             result = result[last_brace:]
-        # else: no JSON at all, leave text for downstream error reporting
+        # else: no JSON outside tags
 
-    return result.strip()
+    stripped = result.strip()
+
+    # If stripping left nothing useful (empty, or no '{'), the JSON
+    # might be INSIDE the thinking tags.  Extract from original text.
+    if not stripped or "{" not in stripped:
+        obj = _extract_json_object(text)
+        if obj:
+            return obj
+
+    return stripped
 
 
 def strip_code_fences(text: str) -> str:
@@ -54,38 +66,22 @@ def strip_code_fences(text: str) -> str:
 
     Handles both complete (````...````) and unclosed fences, as well as
     fences with language tags (e.g., ````json``).
-
-    Args:
-        text: Raw text that may be wrapped in code fences.
-
-    Returns:
-        Text with code fences removed.
     """
     cleaned = text.strip()
     if not cleaned.startswith("```"):
         return cleaned
 
     lines = cleaned.split("\n")
+    lines = lines[1:]  # Remove opening fence
 
-    # Remove opening fence line (```json, ```yaml, ```, etc.)
-    lines = lines[1:]
-
-    # Remove closing fence if present
     if lines and lines[-1].strip() == "```":
-        lines = lines[:-1]
+        lines = lines[:-1]  # Remove closing fence
 
     return "\n".join(lines).strip()
 
 
 def _try_json_loads(text: str) -> Any | None:
-    """Attempt ``json.loads`` without raising on failure.
-
-    Args:
-        text: JSON string to parse.
-
-    Returns:
-        Parsed result, or None on any error.
-    """
+    """Attempt ``json.loads`` without raising on failure."""
     try:
         return json.loads(text)
     except (json.JSONDecodeError, ValueError, TypeError):
@@ -97,12 +93,6 @@ def _extract_json_object(text: str) -> str | None:
 
     Finds the first ``{`` and its matching ``}`` using brace counting,
     ignoring braces inside JSON string literals.
-
-    Args:
-        text: Text that may contain a JSON object mixed with prose.
-
-    Returns:
-        The extracted JSON substring, or None if no valid pair found.
     """
     start = text.find("{")
     if start == -1:
@@ -125,8 +115,7 @@ def _extract_json_object(text: str) -> str | None:
             continue
         if in_string:
             # JSON strings cannot contain raw newlines; if we see one
-            # the string is likely unterminated (truncated LLM output).
-            # Reset in_string so brace counting can continue.
+            # the string is likely unterminated (truncated output).
             if c == "\n":
                 in_string = False
             continue
@@ -140,32 +129,73 @@ def _extract_json_object(text: str) -> str | None:
 
 
 def _repair_json(text: str) -> str:
-    """Attempt to repair common JSON formatting issues from LLMs.
+    """Repair common JSON formatting issues from LLMs.
 
     Fixes:
     - Trailing commas before ``}`` or ``]``
-    - Single quotes used instead of double quotes (outside strings)
-    - Unquoted keys
-
-    Args:
-        text: Possibly malformed JSON string.
-
-    Returns:
-        Repaired JSON string (may still be invalid).
+    - Unescaped newlines inside string values
+    - Broken string continuations (``"val1", "val2"`` → ``"val1; val2"``)
     """
     # Remove trailing commas: ,} or ,]
     repaired = re.sub(r",\s*([}\]])", r"\1", text)
+
+    # Fix broken evidence strings: LLMs sometimes produce
+    #   "evidence": "part1", "part2", "part3"
+    # which is invalid JSON (looks like multiple key-value pairs).
+    # Detect and join them: "evidence": "part1; part2; part3"
+    repaired = _fix_broken_string_values(repaired)
+
     return repaired
+
+
+def _fix_broken_string_values(text: str) -> str:
+    """Fix LLM-generated broken string values.
+
+    Pattern: ``"key": "val1", "val2", "val3"`` where the model intended
+    a single string with commas but forgot to keep them inside quotes.
+    We join them with ``; `` and re-quote.
+
+    Only applied when the "continuation" strings don't contain ``:``
+    (which would indicate they're actually new key-value pairs).
+    """
+    # Match: "string", "string" where the second string has no : after it
+    # (meaning it's not a new key-value pair, just a continuation)
+    pattern = re.compile(
+        r'"([^"]*)"'      # Captured quoted string
+        r'(\s*,\s*'        # Comma separator
+        r'"[^"]*"'         # Another quoted string (no colon after)
+        r'(?!\s*:))'       # Negative lookahead: NOT followed by :
+    )
+
+    max_iterations = 20
+    for _ in range(max_iterations):
+        # Find a match where a quoted string is followed by comma + quoted
+        # string without a colon (not a new key).
+        m = re.search(
+            r'("(?:[^"\\]|\\.)*")\s*,\s*("(?:[^"\\]|\\.)*")(?!\s*:)',
+            text,
+        )
+        if not m:
+            break
+        # Join the two strings with "; "
+        s1 = m.group(1)[1:-1]  # Remove quotes
+        s2 = m.group(2)[1:-1]
+        joined = f'"{s1}; {s2}"'
+        text = text[: m.start()] + joined + text[m.end() :]
+
+    return text
 
 
 def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
     """Parse and validate JSON response from an LLM.
 
-    Uses a multi-stage approach for robustness:
-    1. Strip code fences and try ``json.loads`` directly.
-    2. If that fails, extract the first ``{...}`` block and retry.
-    3. If that fails, attempt JSON repair (trailing commas, etc.) and retry.
-    4. Handle double-encoded JSON strings.
+    Multi-stage approach for robustness:
+    1. Strip thinking tags (preserving JSON whether inside or outside).
+    2. Strip code fences and try direct ``json.loads``.
+    3. Extract the first ``{...}`` block and retry.
+    4. Repair common JSON issues (trailing commas, broken strings).
+    5. Handle double-encoded JSON strings.
+    6. Last resort: search the raw response for any JSON object.
 
     Args:
         raw_response: Raw string response from the LLM API.
@@ -184,7 +214,8 @@ def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
             model_id=model_id,
         )
 
-    # Strip thinking tags first (reasoning models like Qwen3, Kimi-K2.5)
+    # Strip thinking tags first (reasoning models like Qwen3, Kimi-K2.5).
+    # This also searches INSIDE thinking tags if the JSON is embedded there.
     without_thinking = strip_thinking_tags(raw_response)
     if not without_thinking:
         raise LLMParseError(
@@ -199,6 +230,7 @@ def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
     result = _try_json_loads(cleaned)
 
     # Stage 2: Extract JSON object from mixed text
+    extracted: str | None = None
     if result is None:
         extracted = _extract_json_object(cleaned)
         if extracted:
@@ -209,6 +241,14 @@ def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
         target = extracted or cleaned
         repaired = _repair_json(target)
         result = _try_json_loads(repaired)
+
+    # Stage 4: Try repair on the raw response (JSON might have been
+    # broken by thinking tag stripping)
+    if result is None:
+        raw_extracted = _extract_json_object(raw_response)
+        if raw_extracted:
+            repaired_raw = _repair_json(raw_extracted)
+            result = _try_json_loads(repaired_raw)
 
     if result is None:
         logger.warning(
@@ -229,7 +269,6 @@ def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
         if isinstance(inner, dict):
             result = inner
         else:
-            # Last resort: try to extract JSON object from the string
             extracted_inner = _extract_json_object(result)
             if extracted_inner:
                 inner2 = _try_json_loads(extracted_inner)
@@ -237,12 +276,11 @@ def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
                     result = inner2
 
     if not isinstance(result, dict):
-        # Last resort: the model may have returned a bare int/float/list
-        # alongside a JSON object somewhere in the raw response.  Try to
-        # find it in the original text before giving up.
+        # Last resort: search the entire raw response for any JSON object
         fallback = _extract_json_object(raw_response)
         if fallback:
-            fb_result = _try_json_loads(fallback)
+            fb_repaired = _repair_json(fallback)
+            fb_result = _try_json_loads(fb_repaired)
             if isinstance(fb_result, dict):
                 logger.info(
                     "parse_llm_recovered_from_raw",

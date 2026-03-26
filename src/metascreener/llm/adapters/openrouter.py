@@ -101,21 +101,36 @@ class OpenRouterAdapter(LLMBackend):
             LLMTimeoutError: If request times out after all retries.
             LLMRateLimitError: If rate limit is exceeded.
         """
-        payload: dict = {
-            "model": self._openrouter_model_name,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": INFERENCE_TEMPERATURE,
-            "seed": seed,
-            "max_tokens": self._max_tokens,
-            "response_format": {"type": "json_object"},
-        }
-
-        # For thinking models: control reasoning effort via OpenRouter.
-        if self._thinking:
-            payload["reasoning"] = {"effort": self._reasoning_effort}
-
         last_exc: Exception | None = None
+        empty_retries = 0
+
         for attempt in range(self._max_retries):
+            # Build payload fresh each attempt — may adjust parameters
+            # on retry for thinking models that return empty content.
+            payload: dict = {
+                "model": self._openrouter_model_name,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": INFERENCE_TEMPERATURE,
+                "seed": seed,
+                "max_tokens": self._max_tokens,
+                "response_format": {"type": "json_object"},
+            }
+
+            if self._thinking:
+                payload["reasoning"] = {"effort": self._reasoning_effort}
+
+            # On retry after empty content from thinking models:
+            # some models (Kimi-K2.5) conflict between JSON mode and
+            # reasoning — drop response_format and let the prompt's
+            # JSON instruction handle it.
+            if empty_retries > 0 and self._thinking:
+                payload.pop("response_format", None)
+                logger.info(
+                    "openrouter_retry_without_json_mode",
+                    model_id=self.model_id,
+                    attempt=attempt + 1,
+                )
+
             try:
                 t0 = time.perf_counter()
                 response = await self._client.post("/chat/completions", json=payload)
@@ -152,7 +167,9 @@ class OpenRouterAdapter(LLMBackend):
                         model_id=self.model_id,
                         finish_reason=finish_reason,
                         is_thinking=self._thinking,
+                        attempt=attempt + 1,
                     )
+                    empty_retries += 1
                     raise LLMTimeoutError(
                         f"Empty content from {self.model_id} (finish={finish_reason})",
                         model_id=self.model_id,
