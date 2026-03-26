@@ -111,3 +111,27 @@ async def test_full_hcn_pipeline_batch(
     )
     assert len(decisions) == 3
     assert all(d.decision == Decision.INCLUDE for d in decisions)
+
+
+@pytest.mark.asyncio
+async def test_ta_screener_produces_full_hcn_fields(
+    sample_record_include: Record,
+    amr_review_criteria: ReviewCriteria,
+    include_adapters: list[MockLLMAdapter],
+) -> None:
+    """TAScreener (HCNScreener subclass) populates all Layer 3 fields."""
+    screener = TAScreener(backends=include_adapters)
+    decision = await screener.screen_single(
+        sample_record_include, amr_review_criteria, seed=42
+    )
+    assert decision.decision is not None
+    assert decision.tier is not None
+    assert 0.0 <= decision.final_score <= 1.0
+    assert 0.0 <= decision.ensemble_confidence <= 1.0
+    assert decision.element_consensus is not None
+    assert len(decision.element_consensus) > 0
+    assert decision.ecs_result is not None
+    assert decision.ecs_result.score >= 0.0
+    assert decision.disagreement_result is not None
+    assert len(decision.model_outputs) == len(include_adapters)
+    assert decision.rule_result is not None
