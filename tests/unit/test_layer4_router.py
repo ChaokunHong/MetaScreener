@@ -453,3 +453,86 @@ def test_dynamic_tau_high_none_confidence_no_scaling() -> None:
     tau_base = router._dynamic_tau_high(7, avg_majority_confidence=None)
     tau_default = router._dynamic_tau_high(7)  # Uses default None
     assert tau_base == tau_default
+
+
+# ── HUMAN_REVIEW Vote Mapping Tests ───────────────────────────────
+
+
+def test_human_review_counted_as_include_in_router() -> None:
+    """HUMAN_REVIEW model outputs count as INCLUDE for vote tallying.
+
+    3 INCLUDE + 1 HUMAN_REVIEW should behave like 4-0 INCLUDE (not 3-1).
+    """
+    router = DecisionRouter()
+    outputs = [
+        _make_output(Decision.INCLUDE, 0.9, 0.9, "m1"),
+        _make_output(Decision.INCLUDE, 0.9, 0.9, "m2"),
+        _make_output(Decision.INCLUDE, 0.9, 0.9, "m3"),
+        ModelOutput(
+            model_id="m4", decision=Decision.HUMAN_REVIEW,
+            score=0.5, confidence=0.5, rationale="",
+        ),
+    ]
+    decision, tier = router.route(outputs, RuleCheckResult(), 0.85, 0.90)
+    # Should be INCLUDE (not HUMAN_REVIEW) — the HUMAN_REVIEW vote
+    # counts toward the INCLUDE majority, reaching Tier 2.
+    assert decision == Decision.INCLUDE
+
+
+def test_human_review_not_counted_as_exclude_in_router() -> None:
+    """2 EXCLUDE + 1 HUMAN_REVIEW → only 2 EXCLUDE votes (not 3)."""
+    router = DecisionRouter()
+    outputs = [
+        _make_output(Decision.EXCLUDE, 0.1, 0.9, "m1"),
+        _make_output(Decision.EXCLUDE, 0.1, 0.9, "m2"),
+        ModelOutput(
+            model_id="m3", decision=Decision.HUMAN_REVIEW,
+            score=0.5, confidence=0.5, rationale="",
+        ),
+    ]
+    # n_exclude=2, n_include=1 (HUMAN_REVIEW) → majority EXCLUDE
+    # recall_bias → HUMAN_REVIEW at Tier 2
+    decision, tier = router.route(outputs, RuleCheckResult(), 0.3, 0.30)
+    assert decision == Decision.HUMAN_REVIEW
+    assert tier == Tier.TWO
+
+
+def test_human_review_counted_as_include_in_aggregator() -> None:
+    """HUMAN_REVIEW should count as INCLUDE for Shannon entropy."""
+    from metascreener.module1_screening.layer3.aggregator import CCAggregator
+
+    outputs = [
+        _make_output(Decision.INCLUDE, 0.9, 0.9, "m1"),
+        _make_output(Decision.INCLUDE, 0.9, 0.9, "m2"),
+        ModelOutput(
+            model_id="m3", decision=Decision.HUMAN_REVIEW,
+            score=0.5, confidence=0.5, rationale="",
+        ),
+    ]
+    _, c = CCAggregator().aggregate(outputs)
+    # All non-EXCLUDE → c_decision should be 1.0 (unanimous INCLUDE)
+    # c_ensemble = 0.7*1.0 + 0.3*c_score > 0.7
+    assert c > 0.7
+
+
+# ── Tier 1 Near-Unanimous EXCLUDE + ECS Gate ──────────────────────
+
+
+def test_tier1_near_unanimous_exclude_low_ecs_escalates() -> None:
+    """7 models: 6 EXCLUDE + 1 INCLUDE, near-unanimous EXCLUDE with low ECS → HUMAN_REVIEW."""
+    from metascreener.core.models import ECSResult
+    from metascreener.module1_screening.layer3.aggregator import CCAggregator
+
+    router = DecisionRouter(ecs_threshold=0.60)
+    outputs = [
+        _make_output(Decision.EXCLUDE, 0.1, 0.9, f"m{i}") for i in range(6)
+    ] + [
+        _make_output(Decision.INCLUDE, 0.9, 0.5, "m6"),
+    ]
+    _, c = CCAggregator().aggregate(outputs)
+    ecs = ECSResult(score=0.40)  # Below threshold
+    decision, tier = router.route(
+        outputs, RuleCheckResult(), 0.15, c, ecs_result=ecs,
+    )
+    assert decision == Decision.HUMAN_REVIEW
+    assert tier == Tier.ONE

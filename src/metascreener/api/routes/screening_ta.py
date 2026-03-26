@@ -228,7 +228,11 @@ async def _run_screening_bg(session: dict[str, Any], records: list[Record], back
             session["criteria_obj"] = criteria
         session["seed"] = seed
         cfg = get_config()
-        dr = DecisionRouter(tau_high=cfg.thresholds.tau_high, tau_mid=cfg.thresholds.tau_mid, tau_low=cfg.thresholds.tau_low, dissent_tolerance=cfg.thresholds.dissent_tolerance)
+        dr = DecisionRouter(
+            tau_high=cfg.thresholds.tau_high, tau_mid=cfg.thresholds.tau_mid,
+            tau_low=cfg.thresholds.tau_low, dissent_tolerance=cfg.thresholds.dissent_tolerance,
+            ecs_threshold=cfg.calibration.ecs_threshold,
+        )
         backends = _apply_screening_token_limits(backends)
         tracker = RuntimeTracker(model_ids=[b.model_id for b in backends])
         session["runtime_tracker"] = tracker
@@ -237,7 +241,10 @@ async def _run_screening_bg(session: dict[str, Any], records: list[Record], back
             lw = _load_learned_weights(criteria.criteria_id)
         # Cold start: equal weights (maximum entropy prior).
         # Learned weights replace equal weights after pilot feedback.
-        agg = CCAggregator(weights=lw) if lw else None
+        agg = CCAggregator(
+            weights=lw,
+            confidence_blend_alpha=cfg.calibration.confidence_blend_alpha,
+        ) if lw else CCAggregator(confidence_blend_alpha=cfg.calibration.confidence_blend_alpha)
         screener = TAScreener(backends=backends, timeout_s=180.0, router=dr, aggregator=agg)
         if lw:
             logger.info("using_learned_weights", weights=lw)
@@ -279,7 +286,11 @@ async def _run_continue_bg(session: dict[str, Any], records: list[Record], backe
             session.update({"status": "error", "completed_at": datetime.now(UTC).isoformat(), "error": "No criteria found in session"})
             return
         cfg = get_config()
-        dr = DecisionRouter(tau_high=cfg.thresholds.tau_high, tau_mid=cfg.thresholds.tau_mid, tau_low=cfg.thresholds.tau_low, dissent_tolerance=cfg.thresholds.dissent_tolerance)
+        dr = DecisionRouter(
+            tau_high=cfg.thresholds.tau_high, tau_mid=cfg.thresholds.tau_mid,
+            tau_low=cfg.thresholds.tau_low, dissent_tolerance=cfg.thresholds.dissent_tolerance,
+            ecs_threshold=cfg.calibration.ecs_threshold,
+        )
         backends = _apply_screening_token_limits(backends)
         if len(session.get("feedback", [])) >= 2:
             try:
@@ -297,7 +308,10 @@ async def _run_continue_bg(session: dict[str, Any], records: list[Record], backe
             effective_weights = lw
         else:
             effective_weights = None  # Equal weights (no learned data)
-        agg = CCAggregator(weights=effective_weights)
+        agg = CCAggregator(
+            weights=effective_weights,
+            confidence_blend_alpha=cfg.calibration.confidence_blend_alpha,
+        )
         if lw:
             logger.info("continue_with_learned_weights", weights=lw)
         screener = TAScreener(backends=backends, timeout_s=180.0, router=dr, aggregator=agg)

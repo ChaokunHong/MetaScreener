@@ -217,11 +217,13 @@ class DecisionRouter:
         n_total = len(decisions)
 
         # Compute average confidence of the majority group for
-        # confidence-weighted dynamic threshold
+        # confidence-weighted dynamic threshold.  HUMAN_REVIEW is
+        # counted in the INCLUDE group (sensitivity-first), consistent
+        # with vote counting above.
         if n_include >= n_exclude:
             majority_confs = [
                 o.confidence for o in valid_outputs
-                if o.decision == Decision.INCLUDE
+                if o.decision != Decision.EXCLUDE
             ]
         else:
             majority_confs = [

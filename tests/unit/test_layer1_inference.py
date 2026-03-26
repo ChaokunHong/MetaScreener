@@ -216,3 +216,56 @@ async def test_infer_accepts_stage_parameter(mock_include_adapter: MockLLMAdapte
     criteria = ReviewCriteria(framework=CriteriaFramework.PICO)
     outputs = await engine.infer(record, criteria, seed=42, stage="ft")
     assert len(outputs) == 1
+
+
+# ── _safe_decision Tests ──────────────────────────────────────────
+
+
+class TestSafeDecision:
+    """Tests for the _safe_decision defensive parser."""
+
+    def test_valid_include(self) -> None:
+        from metascreener.core.enums import Decision
+        from metascreener.llm.base import _safe_decision
+        assert _safe_decision("INCLUDE") == Decision.INCLUDE
+
+    def test_valid_exclude(self) -> None:
+        from metascreener.core.enums import Decision
+        from metascreener.llm.base import _safe_decision
+        assert _safe_decision("EXCLUDE") == Decision.EXCLUDE
+
+    def test_valid_human_review(self) -> None:
+        from metascreener.core.enums import Decision
+        from metascreener.llm.base import _safe_decision
+        assert _safe_decision("HUMAN_REVIEW") == Decision.HUMAN_REVIEW
+
+    def test_strips_whitespace_and_colons(self) -> None:
+        from metascreener.core.enums import Decision
+        from metascreener.llm.base import _safe_decision
+        assert _safe_decision("  :include:  ") == Decision.INCLUDE
+        assert _safe_decision(":EXCLUDE:") == Decision.EXCLUDE
+
+    def test_case_insensitive(self) -> None:
+        from metascreener.core.enums import Decision
+        from metascreener.llm.base import _safe_decision
+        assert _safe_decision("Include") == Decision.INCLUDE
+        assert _safe_decision("exclude") == Decision.EXCLUDE
+
+    def test_unknown_string_returns_human_review(self) -> None:
+        from metascreener.core.enums import Decision
+        from metascreener.llm.base import _safe_decision
+        assert _safe_decision("YES") == Decision.HUMAN_REVIEW
+        assert _safe_decision("INCLUD") == Decision.HUMAN_REVIEW
+        assert _safe_decision("maybe") == Decision.HUMAN_REVIEW
+
+    def test_non_string_returns_human_review(self) -> None:
+        from metascreener.core.enums import Decision
+        from metascreener.llm.base import _safe_decision
+        assert _safe_decision(None) == Decision.HUMAN_REVIEW
+        assert _safe_decision(123) == Decision.HUMAN_REVIEW
+        assert _safe_decision(True) == Decision.HUMAN_REVIEW
+
+    def test_empty_string_returns_human_review(self) -> None:
+        from metascreener.core.enums import Decision
+        from metascreener.llm.base import _safe_decision
+        assert _safe_decision("") == Decision.HUMAN_REVIEW
