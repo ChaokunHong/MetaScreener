@@ -107,7 +107,7 @@ async def test_full_hcn_pipeline_batch(
     ]
     screener = TAScreener(backends=include_adapters)
     decisions = await screener.screen_batch(
-        records, amr_review_criteria, seed=42, batch_size=1,
+        records, amr_review_criteria, seed=42,
     )
     assert len(decisions) == 3
     assert all(d.decision == Decision.INCLUDE for d in decisions)

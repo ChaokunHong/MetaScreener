@@ -245,7 +245,12 @@ async def _run_screening_bg(session: dict[str, Any], records: list[Record], back
             weights=lw,
             confidence_blend_alpha=cfg.calibration.confidence_blend_alpha,
         ) if lw else CCAggregator(confidence_blend_alpha=cfg.calibration.confidence_blend_alpha)
-        screener = TAScreener(backends=backends, timeout_s=180.0, router=dr, aggregator=agg)
+        fw = criteria.framework.value if hasattr(criteria, "framework") else "default"
+        ew = cfg.element_weights.get(fw, cfg.element_weights.get("default"))
+        screener = TAScreener(
+            backends=backends, timeout_s=180.0, router=dr, aggregator=agg,
+            heuristic_alpha=cfg.calibration.camd_alpha, element_weights=ew,
+        )
         if lw:
             logger.info("using_learned_weights", weights=lw)
         if len(records) <= 50:
@@ -314,7 +319,12 @@ async def _run_continue_bg(session: dict[str, Any], records: list[Record], backe
         )
         if lw:
             logger.info("continue_with_learned_weights", weights=lw)
-        screener = TAScreener(backends=backends, timeout_s=180.0, router=dr, aggregator=agg)
+        fw = criteria.framework.value if hasattr(criteria, "framework") else "default"
+        ew = cfg.element_weights.get(fw, cfg.element_weights.get("default"))
+        screener = TAScreener(
+            backends=backends, timeout_s=180.0, router=dr, aggregator=agg,
+            heuristic_alpha=cfg.calibration.camd_alpha, element_weights=ew,
+        )
         await _screen_batch(session, records, screener, criteria, session.get("seed", 42))
         session.update({"status": "completed", "completed_at": datetime.now(UTC).isoformat(), "remaining_records": []})
         _save_ta_history(session)
