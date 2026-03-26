@@ -248,7 +248,7 @@ async def _run_screening_bg(session: dict[str, Any], records: list[Record], back
         fw = criteria.framework.value if hasattr(criteria, "framework") else "default"
         ew = cfg.element_weights.get(fw, cfg.element_weights.get("default"))
         screener = TAScreener(
-            backends=backends, timeout_s=180.0, router=dr, aggregator=agg,
+            backends=backends, timeout_s=cfg.inference.timeout_thinking_s, router=dr, aggregator=agg,
             heuristic_alpha=cfg.calibration.camd_alpha, element_weights=ew,
         )
         if lw:
@@ -338,7 +338,7 @@ async def _run_continue_bg(session: dict[str, Any], records: list[Record], backe
         fw = criteria.framework.value if hasattr(criteria, "framework") else "default"
         ew = cfg.element_weights.get(fw, cfg.element_weights.get("default"))
         screener = TAScreener(
-            backends=backends, timeout_s=180.0, router=dr, aggregator=agg,
+            backends=backends, timeout_s=cfg.inference.timeout_thinking_s, router=dr, aggregator=agg,
             heuristic_alpha=cfg.calibration.camd_alpha, element_weights=ew,
             calibration_overrides=fitted_overrides,
         )
