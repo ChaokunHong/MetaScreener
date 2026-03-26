@@ -184,13 +184,21 @@ class CCAggregator:
             h = -(p_inc * log(p_inc) + p_exc * log(p_exc))
             c_decision = 1.0 - h / log(2)
 
-        # Score coherence component
-        # Variance of [0,1] scores has max = 0.25 (half at 0, half at 1)
-        # Normalize: C_score = 1 - 4*Var so max_var → 0, min_var → 1
+        # Score coherence component — blends variance and range signals.
+        #
+        # Pure variance (1 - 4*Var) is insensitive when scores cluster in
+        # the mid-range (e.g. [0.4, 0.6] → Var=0.02, C=0.92 despite
+        # meaningful disagreement).  Adding a range penalty makes the
+        # metric responsive to any spread, not just extreme polarization.
+        #
+        # C_score = 0.5 × (1 - 4*Var) + 0.5 × (1 - range)
         scores = [o.score for o in model_outputs]
         if n >= 2:
             score_var = _variance(scores)
-            c_score = max(0.0, 1.0 - 4.0 * score_var)
+            score_range = max(scores) - min(scores)
+            c_var = max(0.0, 1.0 - 4.0 * score_var)
+            c_range = 1.0 - score_range
+            c_score = 0.5 * c_var + 0.5 * c_range
         else:
             c_score = 1.0
 

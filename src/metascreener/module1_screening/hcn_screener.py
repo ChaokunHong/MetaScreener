@@ -15,7 +15,7 @@ Subclasses:
 """
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 import structlog
 
@@ -199,33 +199,55 @@ class HCNScreener:
         criteria: ReviewCriteria | PICOCriteria,
         seed: int = 42,
         stage: str | None = None,
+        completed_ids: set[str] | None = None,
+        on_result: Callable[[ScreeningDecision, int, int], None] | None = None,
     ) -> list[ScreeningDecision]:
-        """Screen a batch of records sequentially.
+        """Screen a batch of records sequentially with checkpoint support.
 
         Args:
             records: Records to screen.
             criteria: Review criteria (shared across all records).
             seed: Random seed for reproducibility.
             stage: Screening stage. If None, uses ``default_stage``.
+            completed_ids: Record IDs already screened (for resume).
+                Records in this set are skipped.
+            on_result: Optional callback invoked after each record is
+                screened, receiving ``(decision, current_index, total)``.
+                Use this for progress reporting or persisting intermediate
+                results to disk.
 
         Returns:
-            List of ScreeningDecision, one per record.
+            List of ScreeningDecision, one per record (excludes skipped).
         """
         if stage is None:
             stage = self.default_stage
 
+        skip = completed_ids or set()
         results: list[ScreeningDecision] = []
+        total = len(records)
+
         for i, record in enumerate(records):
+            if str(record.record_id) in skip:
+                logger.debug(
+                    "screening_skipped_checkpoint",
+                    record_id=record.record_id,
+                )
+                continue
+
             logger.info(
                 "screening_progress",
                 current=i + 1,
-                total=len(records),
+                total=total,
                 record_id=record.record_id,
             )
             result = await self.screen_single(
                 record, criteria, seed=seed, stage=stage
             )
             results.append(result)
+
+            if on_result is not None:
+                on_result(result, i + 1, total)
+
         return results
 
     def build_audit_entry(

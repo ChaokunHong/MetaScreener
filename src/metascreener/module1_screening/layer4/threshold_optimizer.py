@@ -22,15 +22,18 @@ logger = structlog.get_logger(__name__)
 class Thresholds:
     """Threshold configuration for the DecisionRouter.
 
+    Defaults match the DecisionRouter constructor so that un-optimized
+    Thresholds produce the same routing behaviour as a default router.
+
     Attributes:
         tau_high: Confidence threshold for Tier 1 (unanimous).
         tau_mid: Confidence threshold for Tier 2 (majority).
         tau_low: Confidence floor below which → Tier 3.
     """
 
-    tau_high: float = 0.85
-    tau_mid: float = 0.65
-    tau_low: float = 0.45
+    tau_high: float = 0.50
+    tau_mid: float = 0.10
+    tau_low: float = 0.05
 
 
 class ThresholdOptimizer:
@@ -82,15 +85,19 @@ class ThresholdOptimizer:
         best_automation_rate = -1.0
         clean_rules = RuleCheckResult()
 
-        # Grid search
+        # Grid search — ranges cover the full operating region of the
+        # hybrid ensemble confidence metric (decision entropy + score
+        # coherence).  The lower bounds include the DecisionRouter defaults
+        # (tau_high=0.50, tau_mid=0.10, tau_low=0.05) so the optimizer
+        # can validate or improve upon them.
         tau_high_range = [
-            x / 100.0 for x in range(70, 100, 5)
+            x / 100.0 for x in range(30, 100, 5)
         ]
         tau_mid_range = [
-            x / 100.0 for x in range(40, 85, 5)
+            x / 100.0 for x in range(5, 70, 5)
         ]
         tau_low_range = [
-            x / 100.0 for x in range(20, 65, 5)
+            x / 100.0 for x in range(1, 40, 3)
         ]
 
         for tau_high in tau_high_range:

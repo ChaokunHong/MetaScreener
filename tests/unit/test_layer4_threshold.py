@@ -30,11 +30,11 @@ class TestThresholds:
     """Tests for the Thresholds dataclass."""
 
     def test_defaults(self) -> None:
-        """Default thresholds match design spec."""
+        """Default thresholds match DecisionRouter defaults."""
         t = Thresholds()
-        assert t.tau_high == 0.85
-        assert t.tau_mid == 0.65
-        assert t.tau_low == 0.45
+        assert t.tau_high == 0.50
+        assert t.tau_mid == 0.10
+        assert t.tau_low == 0.05
 
     def test_ordering(self) -> None:
         """tau_high > tau_mid > tau_low."""
@@ -46,12 +46,12 @@ class TestThresholdOptimizer:
     """Tests for threshold optimization via grid search."""
 
     def test_default_thresholds(self) -> None:
-        """Unfitted optimizer returns defaults."""
+        """Unfitted optimizer returns defaults matching DecisionRouter."""
         opt = ThresholdOptimizer()
         defaults = opt.get_thresholds()
-        assert defaults.tau_high == 0.85
-        assert defaults.tau_mid == 0.65
-        assert defaults.tau_low == 0.45
+        assert defaults.tau_high == 0.50
+        assert defaults.tau_mid == 0.10
+        assert defaults.tau_low == 0.05
 
     def test_returns_valid_ordering(self) -> None:
         """Optimized thresholds maintain tau_high > tau_mid > tau_low."""

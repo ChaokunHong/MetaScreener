@@ -279,7 +279,13 @@ def test_router_fifteen_models_unanimous() -> None:
 
 
 def test_router_fifteen_models_two_dissent() -> None:
-    """n=15: 13+2, floor(15*0.15)=2 → Tier 1."""
+    """n=15: 13+2, floor(15*0.15)=2.
+
+    With the hybrid score-coherence formula (variance + range blend),
+    polarised scores (0.9 vs 0.1) reduce ensemble confidence enough
+    that this case falls to Tier 2 instead of Tier 1.  Decision is
+    still INCLUDE via Tier 2 majority + recall bias.
+    """
     from metascreener.core.enums import Decision, Tier
     from metascreener.core.models import RuleCheckResult
     from metascreener.module1_screening.layer3.aggregator import CCAggregator
@@ -289,7 +295,7 @@ def test_router_fifteen_models_two_dissent() -> None:
     _, c = CCAggregator().aggregate(outputs)
     decision, tier = router.route(outputs, RuleCheckResult(), 0.85, c)
     assert decision == Decision.INCLUDE
-    assert tier == Tier.ONE
+    assert tier == Tier.TWO
 
 
 def test_route_accepts_optional_ecs_params() -> None:

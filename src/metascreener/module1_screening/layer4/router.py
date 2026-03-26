@@ -234,6 +234,24 @@ class DecisionRouter:
         ):
             # All agree — auto-decide with the unanimous direction
             decision = decisions[0]
+
+            # ECS gate for Tier 1 EXCLUDE: even with unanimous EXCLUDE,
+            # low element consensus suggests models may be wrong about
+            # which criteria elements match. Escalate to human review.
+            if (
+                decision == Decision.EXCLUDE
+                and ecs_result is not None
+                and ecs_result.score < self.ecs_threshold
+            ):
+                logger.info(
+                    "tier1_ecs_gate_exclude",
+                    ecs_score=round(ecs_result.score, 4),
+                    ecs_threshold=self.ecs_threshold,
+                    confidence=round(ensemble_confidence, 4),
+                    n_models=n_total,
+                )
+                return (Decision.HUMAN_REVIEW, Tier.ONE)
+
             logger.info(
                 "tier1_unanimous",
                 decision=decision.value,
@@ -262,6 +280,24 @@ class DecisionRouter:
                 Decision.INCLUDE if n_include >= n_exclude
                 else Decision.EXCLUDE
             )
+
+            # ECS gate for Tier 1 EXCLUDE (same rationale as unanimous)
+            if (
+                decision == Decision.EXCLUDE
+                and ecs_result is not None
+                and ecs_result.score < self.ecs_threshold
+            ):
+                logger.info(
+                    "tier1_ecs_gate_exclude",
+                    ecs_score=round(ecs_result.score, 4),
+                    ecs_threshold=self.ecs_threshold,
+                    n_include=n_include,
+                    n_exclude=n_exclude,
+                    n_total=n_total,
+                    confidence=round(ensemble_confidence, 4),
+                )
+                return (Decision.HUMAN_REVIEW, Tier.ONE)
+
             logger.info(
                 "tier1_near_unanimous",
                 decision=decision.value,

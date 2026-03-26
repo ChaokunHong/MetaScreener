@@ -123,19 +123,25 @@ def _safe_decision(raw: object) -> Decision:
 
     Handles: "INCLUDE", ":EXCLUDE", " include ", "Include", etc.
 
+    When the value cannot be mapped to a valid decision, returns
+    HUMAN_REVIEW instead of silently defaulting to INCLUDE — this
+    prevents malformed responses from injecting bias into the ensemble.
+
     Args:
         raw: Raw decision value from LLM response.
 
     Returns:
-        Validated Decision enum value. Defaults to INCLUDE on failure.
+        Validated Decision enum value. Defaults to HUMAN_REVIEW on failure.
     """
     if not isinstance(raw, str):
-        return Decision.INCLUDE
+        logger.warning("decision_parse_non_string", raw_type=type(raw).__name__)
+        return Decision.HUMAN_REVIEW
     cleaned = raw.strip().strip(":").strip().upper()
     try:
         return Decision(cleaned)
     except ValueError:
-        return Decision.INCLUDE
+        logger.warning("decision_parse_unknown", raw_value=raw[:50])
+        return Decision.HUMAN_REVIEW
 
 
 class LLMBackend(ABC):
@@ -258,7 +264,7 @@ class LLMBackend(ABC):
 
         return ModelOutput(
             model_id=self.model_id,
-            decision=_safe_decision(parsed.get("decision", "INCLUDE")),
+            decision=_safe_decision(parsed.get("decision")),
             score=float(parsed.get("score", 0.5)),
             confidence=float(parsed.get("confidence", 0.5)),
             rationale=str(parsed.get("rationale", "")),
@@ -318,7 +324,7 @@ class LLMBackend(ABC):
 
         return ModelOutput(
             model_id=self.model_id,
-            decision=_safe_decision(parsed.get("decision", "INCLUDE")),
+            decision=_safe_decision(parsed.get("decision")),
             score=float(parsed.get("score", 0.5)),
             confidence=float(parsed.get("confidence", 0.5)),
             rationale=str(parsed.get("rationale", "")),

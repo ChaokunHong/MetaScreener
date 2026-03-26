@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import structlog
@@ -245,6 +246,7 @@ async def _run_screening_bg(session: dict[str, Any], records: list[Record], back
             session["completed_at"] = datetime.now(UTC).isoformat()
         if session["status"] == "completed":
             _save_ta_history(session)
+            clear_checkpoint(session.get("session_id", ""))
     except Exception as exc:  # noqa: BLE001
         logger.error("background_screening_error", error=str(exc))
         session.update({"status": "error", "completed_at": datetime.now(UTC).isoformat(), "error": str(exc)})
@@ -289,6 +291,7 @@ async def _run_continue_bg(session: dict[str, Any], records: list[Record], backe
         await _screen_batch(session, records, screener, criteria, session.get("seed", 42))
         session.update({"status": "completed", "completed_at": datetime.now(UTC).isoformat(), "remaining_records": []})
         _save_ta_history(session)
+        clear_checkpoint(session.get("session_id", ""))
     except Exception as exc:  # noqa: BLE001
         logger.error("continue_screening_error", error=str(exc))
         session.update({"status": "error", "completed_at": datetime.now(UTC).isoformat(), "error": str(exc)})
@@ -300,15 +303,63 @@ async def _run_continue_bg(session: dict[str, Any], records: list[Record], backe
 _MAX_BATCH_RUNTIME_S = 4 * 3600
 
 
+_CHECKPOINT_INTERVAL = 10  # Save checkpoint every N records
+
+
+def _checkpoint_path(session_id: str) -> Path:
+    """Return the checkpoint file path for a session."""
+    d = Path.home() / ".metascreener" / "checkpoints"
+    d.mkdir(parents=True, exist_ok=True)
+    return d / f"{session_id}.json"
+
+
+def _save_checkpoint(session: dict[str, Any]) -> None:
+    """Persist current results to disk for crash recovery."""
+    sid = session.get("session_id", "")
+    if not sid:
+        return
+    cp = _checkpoint_path(sid)
+    try:
+        cp.write_text(json.dumps({
+            "results": session.get("results", []),
+            "completed_ids": [r.get("record_id") for r in session.get("results", [])],
+        }))
+    except Exception:
+        logger.warning("checkpoint_save_failed", session_id=sid, exc_info=True)
+
+
+def load_checkpoint(session_id: str) -> tuple[list[dict[str, Any]], set[str]]:
+    """Load checkpoint data for resume. Returns (results, completed_ids)."""
+    cp = _checkpoint_path(session_id)
+    if not cp.exists():
+        return [], set()
+    try:
+        data = json.loads(cp.read_text())
+        results = data.get("results", [])
+        completed = set(data.get("completed_ids", []))
+        logger.info("checkpoint_loaded", session_id=session_id, n_completed=len(completed))
+        return results, completed
+    except Exception:
+        logger.warning("checkpoint_load_failed", session_id=session_id, exc_info=True)
+        return [], set()
+
+
+def clear_checkpoint(session_id: str) -> None:
+    """Remove checkpoint file after successful completion."""
+    cp = _checkpoint_path(session_id)
+    cp.unlink(missing_ok=True)
+
+
 async def _screen_batch(session: dict[str, Any], records: list[Record], screener: Any, criteria: ReviewCriteria, seed: int) -> None:
-    """Screen a batch of records concurrently with timeout protection."""
+    """Screen a batch of records concurrently with timeout protection and checkpointing."""
     from metascreener.api.routes.settings import _load_user_settings  # noqa: PLC0415
     sem = asyncio.Semaphore(_load_user_settings().get("concurrent_papers", 25))
     start_time = asyncio.get_event_loop().time()
     timed_out = False
+    records_since_checkpoint = 0
 
     async def _one(record: Record) -> None:
-        nonlocal timed_out
+        nonlocal timed_out, records_since_checkpoint
         # Check timeout before starting each record
         elapsed = asyncio.get_event_loop().time() - start_time
         if elapsed > _MAX_BATCH_RUNTIME_S:
@@ -333,7 +384,13 @@ async def _screen_batch(session: dict[str, Any], records: list[Record], screener
             except Exception as exc:  # noqa: BLE001
                 logger.warning("record_screening_error", record_id=record.record_id, error=str(exc))
                 session["results"].append({"record_id": str(record.record_id), "title": record.title or "(untitled record)", "decision": "HUMAN_REVIEW", "tier": "3", "score": 0.0, "confidence": 0.0})
+            records_since_checkpoint += 1
+            if records_since_checkpoint >= _CHECKPOINT_INTERVAL:
+                _save_checkpoint(session)
+                records_since_checkpoint = 0
     await asyncio.gather(*[_one(r) for r in records])
+    # Final checkpoint after batch completes
+    _save_checkpoint(session)
 
 
 def _save_ta_history(session: dict[str, Any]) -> None:

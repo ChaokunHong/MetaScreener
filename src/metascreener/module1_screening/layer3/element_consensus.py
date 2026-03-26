@@ -118,14 +118,26 @@ _DEFAULT_ELEMENT_WEIGHTS: dict[str, float] = {
 # Elements below this support_ratio are flagged as weak
 _WEAK_ELEMENT_THRESHOLD = 0.5
 
+# Minimum number of models that must cast a definitive vote (match or
+# mismatch) for an element's support_ratio to be trusted.  When fewer
+# models have an opinion, we fall back to a neutral 0.5 to avoid
+# inflated ECS from a single-vote "consensus".
+_MIN_DECIDED_VOTES = 2
+
 
 def compute_ecs(
     element_consensus: dict[str, ElementConsensus],
     element_weights: dict[str, float] | None = None,
+    min_decided: int = _MIN_DECIDED_VOTES,
 ) -> ECSResult:
     """Compute scalar Element Consensus Score from per-element consensus.
 
     ECS = Σ(w_e × support_ratio_e) / Σ(w_e)
+
+    When an element has fewer than ``min_decided`` definitive votes
+    (match + mismatch), its support_ratio is treated as 0.5 (uncertain)
+    instead of the raw ratio, preventing a single vote from producing
+    a perfect 1.0 or 0.0.
 
     Higher ECS means models consistently agree on element assessments.
     Used by the decision router for asymmetric EXCLUDE gating: high
@@ -136,6 +148,8 @@ def compute_ecs(
         element_consensus: Per-element consensus from build_element_consensus().
         element_weights: Custom element weights (element_key -> weight).
             Defaults to population=1.0, intervention=1.0, outcome=0.8, etc.
+        min_decided: Minimum definitive votes required per element.
+            Elements with fewer votes use a neutral 0.5 ratio.
 
     Returns:
         ECSResult with scalar score, conflict pattern, and weak elements.
@@ -158,7 +172,14 @@ def compute_ecs(
             continue
 
         w = weights.get(key, 0.5)
-        ratio = ec.support_ratio
+        decided = ec.n_match + ec.n_mismatch
+
+        # Require minimum votes for a trustworthy ratio
+        if decided < min_decided:
+            ratio = 0.5  # Neutral: insufficient evidence
+        else:
+            ratio = ec.support_ratio
+
         element_scores[key] = ratio
 
         numerator += w * ratio
