@@ -102,34 +102,26 @@ class OpenRouterAdapter(LLMBackend):
             LLMRateLimitError: If rate limit is exceeded.
         """
         last_exc: Exception | None = None
-        empty_retries = 0
 
         for attempt in range(self._max_retries):
-            # Build payload fresh each attempt — may adjust parameters
-            # on retry for thinking models that return empty content.
             payload: dict = {
                 "model": self._openrouter_model_name,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": INFERENCE_TEMPERATURE,
                 "seed": seed,
                 "max_tokens": self._max_tokens,
-                "response_format": {"type": "json_object"},
             }
 
             if self._thinking:
+                # Thinking models: use reasoning parameter but NOT
+                # response_format.  JSON mode + reasoning conflict on
+                # many models (Qwen3 returns bare str/int, Kimi-K2.5
+                # returns empty content).  The prompt's JSON instruction
+                # is sufficient to guide output format.
                 payload["reasoning"] = {"effort": self._reasoning_effort}
-
-            # On retry after empty content from thinking models:
-            # some models (Kimi-K2.5) conflict between JSON mode and
-            # reasoning — drop response_format and let the prompt's
-            # JSON instruction handle it.
-            if empty_retries > 0 and self._thinking:
-                payload.pop("response_format", None)
-                logger.info(
-                    "openrouter_retry_without_json_mode",
-                    model_id=self.model_id,
-                    attempt=attempt + 1,
-                )
+            else:
+                # Non-thinking models: enforce JSON mode via API.
+                payload["response_format"] = {"type": "json_object"}
 
             try:
                 t0 = time.perf_counter()
