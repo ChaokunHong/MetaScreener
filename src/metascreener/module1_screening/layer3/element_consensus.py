@@ -205,12 +205,63 @@ def compute_ecs(
         n_skipped_unclear=n_skipped,
     )
 
+    eas = compute_eas(element_consensus, element_weights=weights, min_decided=min_decided)
+
     return ECSResult(
         score=score,
+        eas_score=eas,
         conflict_pattern=conflict,
         weak_elements=weak_elements,
         element_scores=element_scores,
     )
+
+
+def compute_eas(
+    element_consensus: dict[str, ElementConsensus],
+    element_weights: dict[str, float] | None = None,
+    min_decided: int = _MIN_DECIDED_VOTES,
+) -> float:
+    """Element Agreement Score — direction-agnostic model consistency.
+
+    EAS = Σ(w_e × agreement_ratio_e) / Σ(w_e)
+
+    Unlike ECS (which measures element *support*/match), EAS measures
+    whether models *agree* on each element, regardless of whether they
+    agree it matches or mismatches.  This makes it symmetric for both
+    INCLUDE and EXCLUDE gating.
+
+    Args:
+        element_consensus: Per-element consensus from build_element_consensus().
+        element_weights: Custom element weights. Defaults to standard weights.
+        min_decided: Minimum votes for trustworthy ratio (else 0.5).
+
+    Returns:
+        EAS in [0.0, 1.0]. 1.0 = perfect agreement on all elements.
+    """
+    if not element_consensus:
+        return 0.0
+
+    weights = element_weights or _DEFAULT_ELEMENT_WEIGHTS
+    numerator = 0.0
+    denominator = 0.0
+
+    for key, ec in element_consensus.items():
+        if ec.support_ratio is None:
+            continue  # All unclear — skip
+
+        w = weights.get(key, 0.5)
+        decided = ec.n_match + ec.n_mismatch
+
+        if decided < min_decided:
+            agreement = 0.5  # Insufficient evidence
+        else:
+            agreement = max(ec.n_match, ec.n_mismatch) / decided
+
+        numerator += w * agreement
+        denominator += w
+
+    score = numerator / denominator if denominator > 0 else 0.0
+    return max(0.0, min(1.0, score))
 
 
 def classify_conflict(

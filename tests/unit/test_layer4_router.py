@@ -329,7 +329,7 @@ def test_ecs_gating_low_ecs_escalates_to_human_review() -> None:
         _make_output(Decision.EXCLUDE, 0.3, 0.5, "m4"),
     ]
     rule_result = RuleCheckResult()
-    ecs = ECSResult(score=0.40)  # Below threshold
+    ecs = ECSResult(score=0.40, eas_score=0.40)  # Below threshold
     decision, tier = router.route(
         outputs, rule_result, 0.65, 0.25, ecs_result=ecs,
     )
@@ -349,7 +349,7 @@ def test_ecs_gating_high_ecs_allows_tier2() -> None:
         _make_output(Decision.EXCLUDE, 0.3, 0.5, "m4"),
     ]
     rule_result = RuleCheckResult()
-    ecs = ECSResult(score=0.85)  # Above threshold
+    ecs = ECSResult(score=0.85, eas_score=0.85)  # Above threshold
     decision, tier = router.route(
         outputs, rule_result, 0.65, 0.25, ecs_result=ecs,
     )
@@ -388,7 +388,7 @@ def test_tier1_unanimous_exclude_low_ecs_escalates() -> None:
         _make_output(Decision.EXCLUDE, 0.1, 0.9, "m3"),
         _make_output(Decision.EXCLUDE, 0.1, 0.9, "m4"),
     ]
-    ecs = ECSResult(score=0.40)  # Below threshold
+    ecs = ECSResult(score=0.40, eas_score=0.40)  # Below threshold
     decision, tier = router.route(
         outputs, RuleCheckResult(), 0.1, 1.0, ecs_result=ecs,
     )
@@ -407,7 +407,7 @@ def test_tier1_unanimous_exclude_high_ecs_passes() -> None:
         _make_output(Decision.EXCLUDE, 0.1, 0.9, "m3"),
         _make_output(Decision.EXCLUDE, 0.1, 0.9, "m4"),
     ]
-    ecs = ECSResult(score=0.85)  # Above threshold
+    ecs = ECSResult(score=0.85, eas_score=0.85)  # Above threshold
     decision, tier = router.route(
         outputs, RuleCheckResult(), 0.1, 1.0, ecs_result=ecs,
     )
@@ -426,7 +426,7 @@ def test_tier1_unanimous_include_low_ecs_not_gated() -> None:
         _make_output(Decision.INCLUDE, 0.9, 0.9, "m3"),
         _make_output(Decision.INCLUDE, 0.9, 0.9, "m4"),
     ]
-    ecs = ECSResult(score=0.30)  # Below threshold, but INCLUDE is safe
+    ecs = ECSResult(score=0.30, eas_score=0.30)  # Below threshold, but INCLUDE is safe
     decision, tier = router.route(
         outputs, RuleCheckResult(), 0.9, 1.0, ecs_result=ecs,
     )
@@ -530,7 +530,7 @@ def test_tier1_near_unanimous_exclude_low_ecs_escalates() -> None:
         _make_output(Decision.INCLUDE, 0.9, 0.5, "m6"),
     ]
     _, c = CCAggregator().aggregate(outputs)
-    ecs = ECSResult(score=0.40)  # Below threshold
+    ecs = ECSResult(score=0.40, eas_score=0.40)  # Below threshold
     decision, tier = router.route(
         outputs, RuleCheckResult(), 0.15, c, ecs_result=ecs,
     )

@@ -35,16 +35,22 @@ class ElementConsensus(BaseModel):
 
 
 class ECSResult(BaseModel):
-    """Scalar Element Consensus Score result.
+    """Element consensus scores — both ECS and EAS.
 
     Attributes:
-        score: Weighted average support ratio across elements in [0.0, 1.0].
+        score: ECS — weighted average element *support* ratio in [0, 1].
+            High = elements match criteria. Informational only (not used
+            for routing).
+        eas_score: EAS — weighted average element *agreement* ratio in
+            [0, 1].  High = models agree on element assessments regardless
+            of direction.  Used by the router for decision gating.
         conflict_pattern: Dominant conflict pattern detected.
         weak_elements: Element keys with support_ratio below threshold.
-        element_scores: Per-element support ratios.
+        element_scores: Per-element support ratios (ECS).
     """
 
     score: float = Field(ge=0.0, le=1.0)
+    eas_score: float = Field(ge=0.0, le=1.0, default=0.0)
     conflict_pattern: ConflictPattern = ConflictPattern.NONE
     weak_elements: list[str] = Field(default_factory=list)
     element_scores: dict[str, float] = Field(default_factory=dict)

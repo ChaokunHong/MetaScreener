@@ -248,17 +248,17 @@ class DecisionRouter:
             # All agree — auto-decide with the unanimous direction
             decision = decisions[0]
 
-            # ECS gate for Tier 1 EXCLUDE: even with unanimous EXCLUDE,
-            # low element consensus suggests models may be wrong about
-            # which criteria elements match. Escalate to human review.
+            # EAS gate for Tier 1 EXCLUDE: unanimous EXCLUDE with low
+            # element *agreement* means models disagree on which elements
+            # match/mismatch. Escalate to human review.
             if (
                 decision == Decision.EXCLUDE
                 and ecs_result is not None
-                and ecs_result.score < self.ecs_threshold
+                and ecs_result.eas_score < self.ecs_threshold
             ):
                 logger.info(
-                    "tier1_ecs_gate_exclude",
-                    ecs_score=round(ecs_result.score, 4),
+                    "tier1_eas_gate_exclude",
+                    eas_score=round(ecs_result.eas_score, 4),
                     ecs_threshold=self.ecs_threshold,
                     confidence=round(ensemble_confidence, 4),
                     n_models=n_total,
@@ -294,15 +294,15 @@ class DecisionRouter:
                 else Decision.EXCLUDE
             )
 
-            # ECS gate for Tier 1 EXCLUDE (same rationale as unanimous)
+            # EAS gate for Tier 1 EXCLUDE (same rationale as unanimous)
             if (
                 decision == Decision.EXCLUDE
                 and ecs_result is not None
-                and ecs_result.score < self.ecs_threshold
+                and ecs_result.eas_score < self.ecs_threshold
             ):
                 logger.info(
-                    "tier1_ecs_gate_exclude",
-                    ecs_score=round(ecs_result.score, 4),
+                    "tier1_eas_gate_exclude",
+                    eas_score=round(ecs_result.eas_score, 4),
                     ecs_threshold=self.ecs_threshold,
                     n_include=n_include,
                     n_exclude=n_exclude,
@@ -346,14 +346,14 @@ class DecisionRouter:
         # vote counts qualify.
         has_majority = n_include != n_exclude
         if has_majority and ensemble_confidence >= self.tau_mid:
-            # Check ECS gate: low element consensus → human review
+            # Check EAS gate: low element agreement → human review
             if (
                 ecs_result is not None
-                and ecs_result.score < self.ecs_threshold
+                and ecs_result.eas_score < self.ecs_threshold
             ):
                 logger.info(
-                    "tier3_ecs_gate",
-                    ecs_score=round(ecs_result.score, 4),
+                    "tier2_eas_gate",
+                    eas_score=round(ecs_result.eas_score, 4),
                     ecs_threshold=self.ecs_threshold,
                     n_include=n_include,
                     n_total=n_total,
