@@ -1208,13 +1208,13 @@ onMounted(async () => {
 }
 .filter-search-icon { color: var(--text-secondary, #555); font-size: 0.75rem; flex-shrink: 0; }
 .filter-search-input {
-  flex: 1; background: rgba(0,0,0,0.25);
-  border: 1px solid rgba(255,255,255,0.1); border-radius: 5px;
+  flex: 1; background: transparent;
+  border: 1px solid rgba(0,0,0,0.6); border-radius: 5px;
   padding: 0.3rem 0.5rem;
   color: var(--text-primary, #fff); font-size: 0.8rem; outline: none;
   transition: border-color 0.15s;
 }
-.filter-search-input:focus { border-color: rgba(255,255,255,0.25); }
+.filter-search-input:focus { border-color: rgba(0,0,0,0.9); }
 .filter-search-input::placeholder { color: var(--text-secondary, #555); }
 /* Filter tags */
 .ftag {
