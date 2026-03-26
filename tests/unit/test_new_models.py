@@ -121,3 +121,18 @@ class TestScreeningDecisionExtended:
         assert parent.chunk_details is not None
         assert len(parent.chunk_details) == 1
         assert parent.chunk_details[0].record_id == "c1"
+
+
+def test_model_output_serializes_as_element_assessment() -> None:
+    """JSON serialization uses 'element_assessment' as field name."""
+    from metascreener.core.enums import Decision
+    from metascreener.core.models import ModelOutput, PICOAssessment
+
+    mo = ModelOutput(
+        model_id="test", decision=Decision.INCLUDE,
+        score=0.9, confidence=0.9, rationale="ok",
+        element_assessment={"population": PICOAssessment(match=True, evidence="ev")},
+    )
+    data = mo.model_dump()
+    assert "element_assessment" in data
+    assert mo.pico_assessment == mo.element_assessment

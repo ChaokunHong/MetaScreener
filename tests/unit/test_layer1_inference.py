@@ -269,3 +269,50 @@ class TestSafeDecision:
         from metascreener.core.enums import Decision
         from metascreener.llm.base import _safe_decision
         assert _safe_decision("") == Decision.HUMAN_REVIEW
+
+
+class TestScoreConfidenceClamping:
+    """Verify score and confidence are clamped to [0, 1]."""
+
+    @pytest.mark.asyncio
+    async def test_out_of_range_score_clamped(self) -> None:
+        """Score > 1.0 from LLM is clamped to 1.0."""
+        from metascreener.llm.adapters.mock import MockLLMAdapter
+        import json
+
+        response = json.dumps({
+            "decision": "INCLUDE", "score": 1.5, "confidence": 0.9,
+            "element_assessment": {}, "rationale": "test",
+        })
+        adapter = MockLLMAdapter(model_id="clamp-test", response_json=response)
+        output = await adapter.call_with_prompt("test", seed=42)
+        assert output.score == 1.0
+
+    @pytest.mark.asyncio
+    async def test_negative_confidence_clamped(self) -> None:
+        """Negative confidence from LLM is clamped to 0.0."""
+        from metascreener.llm.adapters.mock import MockLLMAdapter
+        import json
+
+        response = json.dumps({
+            "decision": "EXCLUDE", "score": 0.5, "confidence": -0.3,
+            "element_assessment": {}, "rationale": "test",
+        })
+        adapter = MockLLMAdapter(model_id="clamp-test-neg-conf", response_json=response)
+        output = await adapter.call_with_prompt("test", seed=42)
+        assert output.confidence == 0.0
+
+    @pytest.mark.asyncio
+    async def test_non_numeric_score_defaults(self) -> None:
+        """Non-numeric score from LLM defaults to 0.5."""
+        from metascreener.llm.adapters.mock import MockLLMAdapter
+        import json
+
+        response = json.dumps({
+            "decision": "INCLUDE", "score": "high", "confidence": "very confident",
+            "element_assessment": {}, "rationale": "test",
+        })
+        adapter = MockLLMAdapter(model_id="clamp-test-non-numeric", response_json=response)
+        output = await adapter.call_with_prompt("test", seed=42)
+        assert output.score == 0.5
+        assert output.confidence == 0.5
