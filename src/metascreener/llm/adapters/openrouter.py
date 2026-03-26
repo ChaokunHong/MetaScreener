@@ -108,14 +108,19 @@ class OpenRouterAdapter(LLMBackend):
             "seed": seed,
             "max_tokens": self._max_tokens,
             "response_format": {"type": "json_object"},
+            # Prefer fastest available provider for this model
+            "provider": {"sort": "throughput"},
         }
 
         # For thinking models: control reasoning via the OpenRouter
-        # `reasoning` parameter.  Without explicit control, OpenRouter
-        # maps max_tokens → thinking_budget (Qwen) or similar, which
-        # can starve the actual content output.
+        # `reasoning` parameter.  Cap reasoning tokens to prevent the
+        # model from spending its entire budget on thinking and leaving
+        # nothing for the actual JSON response.
         if self._thinking:
-            payload["reasoning"] = {"effort": self._reasoning_effort}
+            payload["reasoning"] = {
+                "effort": self._reasoning_effort,
+                "max_tokens": self._max_tokens // 2,  # Reserve half for output
+            }
 
         last_exc: Exception | None = None
         for attempt in range(self._max_retries):
@@ -173,6 +178,7 @@ class OpenRouterAdapter(LLMBackend):
                 httpx.TimeoutException,
                 httpx.ConnectError,
                 LLMRateLimitError,
+                LLMTimeoutError,  # Retry on empty content too
             ) as e:
                 last_exc = e
                 delay = RETRY_BASE_DELAY_S * (2**attempt)

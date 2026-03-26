@@ -237,6 +237,20 @@ def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
                     result = inner2
 
     if not isinstance(result, dict):
+        # Last resort: the model may have returned a bare int/float/list
+        # alongside a JSON object somewhere in the raw response.  Try to
+        # find it in the original text before giving up.
+        fallback = _extract_json_object(raw_response)
+        if fallback:
+            fb_result = _try_json_loads(fallback)
+            if isinstance(fb_result, dict):
+                logger.info(
+                    "parse_llm_recovered_from_raw",
+                    model_id=model_id,
+                    original_type=type(result).__name__,
+                )
+                return fb_result
+
         raise LLMParseError(
             f"Expected JSON object from {model_id}, got {type(result).__name__}",
             raw_response=raw_response,
