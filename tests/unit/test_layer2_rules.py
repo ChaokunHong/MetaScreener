@@ -31,7 +31,7 @@ def _make_output(
     score: float = 0.9,
     confidence: float = 0.9,
     model_id: str = "test-model",
-    pico_assessment: dict[str, PICOAssessment] | None = None,
+    element_assessment: dict[str, PICOAssessment] | None = None,
 ) -> ModelOutput:
     return ModelOutput(
         model_id=model_id,
@@ -39,7 +39,7 @@ def _make_output(
         score=score,
         confidence=confidence,
         rationale="test",
-        pico_assessment=pico_assessment or {},
+        element_assessment=element_assessment or {},
     )
 
 
@@ -301,13 +301,13 @@ class TestPopulationPartialMatchRule:
         outputs = [
             _make_output(
                 model_id="m1",
-                pico_assessment={
+                element_assessment={
                     "population": PICOAssessment(match=False, evidence="mismatch"),
                 },
             ),
             _make_output(
                 model_id="m2",
-                pico_assessment={
+                element_assessment={
                     "population": PICOAssessment(match=False, evidence="mismatch"),
                 },
             ),
@@ -324,13 +324,13 @@ class TestPopulationPartialMatchRule:
         outputs = [
             _make_output(
                 model_id="m1",
-                pico_assessment={
+                element_assessment={
                     "population": PICOAssessment(match=True, evidence="ok"),
                 },
             ),
             _make_output(
                 model_id="m2",
-                pico_assessment={
+                element_assessment={
                     "population": PICOAssessment(match=True, evidence="ok"),
                 },
             ),
@@ -364,13 +364,13 @@ class TestOutcomePartialMatchRule:
         outputs = [
             _make_output(
                 model_id="m1",
-                pico_assessment={
+                element_assessment={
                     "outcome": PICOAssessment(match=False, evidence="no"),
                 },
             ),
             _make_output(
                 model_id="m2",
-                pico_assessment={
+                element_assessment={
                     "outcome": PICOAssessment(match=False, evidence="no"),
                 },
             ),
@@ -386,7 +386,7 @@ class TestOutcomePartialMatchRule:
         outputs = [
             _make_output(
                 model_id="m1",
-                pico_assessment={
+                element_assessment={
                     "outcome": PICOAssessment(match=True, evidence="yes"),
                 },
             ),
@@ -408,13 +408,13 @@ class TestAmbiguousInterventionRule:
         outputs = [
             _make_output(
                 model_id="m1",
-                pico_assessment={
+                element_assessment={
                     "intervention": PICOAssessment(match=True, evidence="yes"),
                 },
             ),
             _make_output(
                 model_id="m2",
-                pico_assessment={
+                element_assessment={
                     "intervention": PICOAssessment(match=False, evidence="no"),
                 },
             ),
@@ -430,13 +430,13 @@ class TestAmbiguousInterventionRule:
         outputs = [
             _make_output(
                 model_id="m1",
-                pico_assessment={
+                element_assessment={
                     "intervention": PICOAssessment(match=True, evidence="yes"),
                 },
             ),
             _make_output(
                 model_id="m2",
-                pico_assessment={
+                element_assessment={
                     "intervention": PICOAssessment(match=True, evidence="yes"),
                 },
             ),
@@ -459,13 +459,13 @@ class TestAmbiguousInterventionRule:
         outputs = [
             _make_output(
                 model_id="m1",
-                pico_assessment={
+                element_assessment={
                     "exposure": PICOAssessment(match=True, evidence="yes"),
                 },
             ),
             _make_output(
                 model_id="m2",
-                pico_assessment={
+                element_assessment={
                     "exposure": PICOAssessment(match=False, evidence="no"),
                 },
             ),
@@ -488,13 +488,13 @@ class TestSoftRulesCrossFramework:
         outputs = [
             _make_output(
                 model_id="m1",
-                pico_assessment={
+                element_assessment={
                     "sample": PICOAssessment(match=False, evidence="mismatch"),
                 },
             ),
             _make_output(
                 model_id="m2",
-                pico_assessment={
+                element_assessment={
                     "sample": PICOAssessment(match=False, evidence="mismatch"),
                 },
             ),
@@ -510,13 +510,13 @@ class TestSoftRulesCrossFramework:
         outputs = [
             _make_output(
                 model_id="m1",
-                pico_assessment={
+                element_assessment={
                     "evaluation": PICOAssessment(match=False, evidence="no"),
                 },
             ),
             _make_output(
                 model_id="m2",
-                pico_assessment={
+                element_assessment={
                     "evaluation": PICOAssessment(match=False, evidence="no"),
                 },
             ),
@@ -532,13 +532,13 @@ class TestSoftRulesCrossFramework:
         outputs = [
             _make_output(
                 model_id="m1",
-                pico_assessment={
+                element_assessment={
                     "population": PICOAssessment(match=None, evidence="unclear"),
                 },
             ),
             _make_output(
                 model_id="m2",
-                pico_assessment={
+                element_assessment={
                     "population": PICOAssessment(match=True, evidence="ok"),
                 },
             ),
@@ -554,13 +554,13 @@ class TestSoftRulesCrossFramework:
         outputs = [
             _make_output(
                 model_id="m1",
-                pico_assessment={
+                element_assessment={
                     "concept": PICOAssessment(match=True, evidence="yes"),
                 },
             ),
             _make_output(
                 model_id="m2",
-                pico_assessment={
+                element_assessment={
                     "concept": PICOAssessment(match=False, evidence="no"),
                 },
             ),

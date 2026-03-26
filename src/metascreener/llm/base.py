@@ -31,6 +31,10 @@ INFERENCE_TEMPERATURE: float = 0.0
 def build_screening_prompt(record: Record, criteria: PICOCriteria) -> str:
     """Build the standardized screening prompt for a record.
 
+    .. deprecated::
+        Use the PromptRouter / framework-specific prompt classes instead.
+        This function only supports PICO criteria.
+
     Args:
         record: The literature record to screen.
         criteria: The PICO inclusion/exclusion criteria.
@@ -200,7 +204,7 @@ class LLMBackend(ABC):
         """Call LLM with a pre-built prompt and parse the response.
 
         Handles both ``element_assessment`` and ``pico_assessment`` keys
-        in the LLM response, mapping either to the ``pico_assessment``
+        in the LLM response, mapping either to the ``element_assessment``
         field on :class:`ModelOutput`.
 
         Args:
@@ -233,7 +237,7 @@ class LLMBackend(ABC):
             self._log.warning("parse_error", model_id=self.model_id, error=str(e))
             raise
 
-        # Map element_assessment OR pico_assessment -> pico_assessment field
+        # Map element_assessment OR pico_assessment → element_assessment field
         assessment_data = parsed.get("element_assessment") or parsed.get(
             "pico_assessment", {}
         )
@@ -245,11 +249,11 @@ class LLMBackend(ABC):
                 assessment_data = {}
         if not isinstance(assessment_data, dict):
             assessment_data = {}
-        pico_assessment: dict[str, PICOAssessment] = {}
+        element_assessment: dict[str, PICOAssessment] = {}
         for key, val in assessment_data.items():
             if isinstance(val, dict):
                 raw_match = val.get("match")
-                pico_assessment[key.lower()] = PICOAssessment(
+                element_assessment[key.lower()] = PICOAssessment(
                     match=raw_match if raw_match is None else bool(raw_match),
                     evidence=val.get("evidence"),
                 )
@@ -262,13 +266,24 @@ class LLMBackend(ABC):
             else None
         )
 
+        # Clamp score and confidence to [0, 1] — LLMs occasionally
+        # return values outside this range (e.g., 1.5 or -0.1).
+        try:
+            raw_score = float(parsed.get("score", 0.5))
+        except (ValueError, TypeError):
+            raw_score = 0.5
+        try:
+            raw_conf = float(parsed.get("confidence", 0.5))
+        except (ValueError, TypeError):
+            raw_conf = 0.5
+
         return ModelOutput(
             model_id=self.model_id,
             decision=_safe_decision(parsed.get("decision")),
-            score=float(parsed.get("score", 0.5)),
-            confidence=float(parsed.get("confidence", 0.5)),
+            score=max(0.0, min(1.0, raw_score)),
+            confidence=max(0.0, min(1.0, raw_conf)),
             rationale=str(parsed.get("rationale", "")),
-            pico_assessment=pico_assessment,
+            element_assessment=element_assessment,
             ft_assessment=ft_assessment,
             raw_response=raw_response,
             prompt_hash=prompt_hash_val,
@@ -312,23 +327,33 @@ class LLMBackend(ABC):
             self._log.warning("parse_error", model_id=self.model_id, error=str(e))
             raise
 
-        # Build PICO assessment
-        pico_assessment: dict[str, PICOAssessment] = {}
-        if "pico_assessment" in parsed:
-            for key, val in parsed["pico_assessment"].items():
+        # Build element assessment
+        element_assessment: dict[str, PICOAssessment] = {}
+        assessment_raw = parsed.get("element_assessment") or parsed.get("pico_assessment", {})
+        if isinstance(assessment_raw, dict):
+            for key, val in assessment_raw.items():
                 if isinstance(val, dict):
-                    pico_assessment[key.lower()] = PICOAssessment(
+                    element_assessment[key.lower()] = PICOAssessment(
                         match=bool(val.get("match", False)),
                         evidence=val.get("evidence"),
                     )
 
+        try:
+            raw_score = float(parsed.get("score", 0.5))
+        except (ValueError, TypeError):
+            raw_score = 0.5
+        try:
+            raw_conf = float(parsed.get("confidence", 0.5))
+        except (ValueError, TypeError):
+            raw_conf = 0.5
+
         return ModelOutput(
             model_id=self.model_id,
             decision=_safe_decision(parsed.get("decision")),
-            score=float(parsed.get("score", 0.5)),
-            confidence=float(parsed.get("confidence", 0.5)),
+            score=max(0.0, min(1.0, raw_score)),
+            confidence=max(0.0, min(1.0, raw_conf)),
             rationale=str(parsed.get("rationale", "")),
-            pico_assessment=pico_assessment,
+            element_assessment=element_assessment,
             raw_response=raw_response,
             prompt_hash=prompt_hash,
         )

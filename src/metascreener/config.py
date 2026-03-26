@@ -132,6 +132,8 @@ class CalibrationConfig(BaseModel):
     camd_alpha: float = 0.5
     confidence_blend_alpha: float = 0.7
     ecs_threshold: float = 0.60
+    heterogeneity_high: float = 0.60
+    heterogeneity_moderate: float = 0.30
     prior_tier_weights: dict[int, float] = Field(
         default_factory=lambda: {1: 1.0, 2: 0.75, 3: 0.50}
     )

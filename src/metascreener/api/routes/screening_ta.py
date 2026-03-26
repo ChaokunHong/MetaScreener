@@ -319,11 +319,28 @@ async def _run_continue_bg(session: dict[str, Any], records: list[Record], backe
         )
         if lw:
             logger.info("continue_with_learned_weights", weights=lw)
+        # Extract fitted calibration factors from pilot recalibration
+        # (CalibrationState.phi values override CAMD heuristic)
+        cal_states = session.get("calibration_states", {})
+        fitted_overrides: dict[str, float] | None = None
+        if cal_states:
+            fitted_overrides = {
+                mid: state["phi"] if isinstance(state, dict) else state.phi
+                for mid, state in cal_states.items()
+                if (isinstance(state, dict) and state.get("method") != "identity")
+                or (hasattr(state, "method") and state.method != "identity")
+            }
+            if fitted_overrides:
+                logger.info("using_fitted_calibration", n_models=len(fitted_overrides), overrides=fitted_overrides)
+            else:
+                fitted_overrides = None
+
         fw = criteria.framework.value if hasattr(criteria, "framework") else "default"
         ew = cfg.element_weights.get(fw, cfg.element_weights.get("default"))
         screener = TAScreener(
             backends=backends, timeout_s=180.0, router=dr, aggregator=agg,
             heuristic_alpha=cfg.calibration.camd_alpha, element_weights=ew,
+            calibration_overrides=fitted_overrides,
         )
         await _screen_batch(session, records, screener, criteria, session.get("seed", 42))
         session.update({"status": "completed", "completed_at": datetime.now(UTC).isoformat(), "remaining_records": []})

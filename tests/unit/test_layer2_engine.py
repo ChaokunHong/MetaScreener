@@ -14,7 +14,7 @@ from metascreener.module1_screening.layer2.rule_engine import RuleEngine
 
 def _make_output(
     decision: Decision = Decision.INCLUDE,
-    pico_assessment: dict[str, PICOAssessment] | None = None,
+    element_assessment: dict[str, PICOAssessment] | None = None,
 ) -> ModelOutput:
     return ModelOutput(
         model_id="test",
@@ -22,7 +22,7 @@ def _make_output(
         score=0.9,
         confidence=0.9,
         rationale="test",
-        pico_assessment=pico_assessment or {},
+        element_assessment=element_assessment or {},
     )
 
 
@@ -52,7 +52,7 @@ def test_no_violations_clean(
     """Clean record with matching outputs produces no violations."""
     outputs = [
         _make_output(
-            pico_assessment={
+            element_assessment={
                 "population": PICOAssessment(match=True, evidence="ok"),
                 "intervention": PICOAssessment(match=True, evidence="ok"),
                 "outcome": PICOAssessment(match=True, evidence="ok"),
@@ -69,7 +69,7 @@ def test_soft_penalty_accumulated() -> None:
     """Population + outcome mismatch accumulates penalty > 0."""
     outputs = [
         _make_output(
-            pico_assessment={
+            element_assessment={
                 "population": PICOAssessment(match=False, evidence="no"),
                 "outcome": PICOAssessment(match=False, evidence="no"),
             }

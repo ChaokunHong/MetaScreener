@@ -10,14 +10,14 @@ def count_element_matches(
 ) -> tuple[int, int]:
     """Count match/mismatch votes for a specific element across models.
 
-    Inspects ``model_output.pico_assessment[element_key].match`` for
+    Inspects ``model_output.element_assessment[element_key].match`` for
     each output. Outputs without the element key are skipped.
     Assessments with ``match=None`` (unable to assess) are skipped
     to avoid penalizing uncertain evaluations.
 
     Args:
         element_key: The assessment element to inspect (e.g., "population").
-        model_outputs: LLM outputs with pico_assessment dicts.
+        model_outputs: LLM outputs with element_assessment dicts.
 
     Returns:
         Tuple of (n_match, n_mismatch).
@@ -26,7 +26,7 @@ def count_element_matches(
     n_mismatch = 0
 
     for output in model_outputs:
-        assessment = output.pico_assessment.get(element_key)
+        assessment = output.element_assessment.get(element_key)
         if assessment is None:
             continue
         # Skip assessments where match is None (unable to assess)

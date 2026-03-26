@@ -22,7 +22,7 @@ def _make_mock_backend(model_id: str, decision: str = "INCLUDE") -> MagicMock:
             score=0.85,
             confidence=0.9,
             rationale="Mock rationale",
-            pico_assessment={
+            element_assessment={
                 "population": PICOAssessment(match=True, evidence="ev"),
                 "intervention": PICOAssessment(match=True, evidence="ev"),
             },

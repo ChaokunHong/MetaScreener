@@ -69,6 +69,10 @@ class HCNScreener:
         heuristic_alpha: Sensitivity for heuristic calibration deviation.
         element_weights: Custom element weights for ECS (element_key → weight).
             If None, uses the defaults from element_consensus module.
+        calibration_overrides: Fixed per-model calibration factors
+            (model_id → φ_i) from active learning / pilot recalibration.
+            When provided, these override CAMD heuristic factors for the
+            specified models.  Models not in the dict still use CAMD.
     """
 
     default_stage: str = "ta"
@@ -86,6 +90,7 @@ class HCNScreener:
         ) = None,
         heuristic_alpha: float = 0.5,
         element_weights: dict[str, float] | None = None,
+        calibration_overrides: dict[str, float] | None = None,
     ) -> None:
         self._backends = list(backends)
         self._inference = InferenceEngine(backends, timeout_s=timeout_s)
@@ -96,6 +101,7 @@ class HCNScreener:
         self._heuristic_alpha = heuristic_alpha
         self._prior_weights = prior_weights
         self._element_weights = element_weights
+        self._calibration_overrides = calibration_overrides
 
     async def screen_single(
         self,
@@ -148,6 +154,13 @@ class HCNScreener:
             alpha=self._heuristic_alpha,
             prior_weights=self._prior_weights,
         )
+
+        # Merge static overrides from active learning (pilot recalibration)
+        # with heuristic factors — overrides take precedence.
+        if self._calibration_overrides:
+            merged = dict(calibration_factors) if calibration_factors else {}
+            merged.update(self._calibration_overrides)
+            calibration_factors = merged
 
         # Layer 3d: Calibrated confidence aggregation
         s_final, c_ensemble = self._aggregator.aggregate(

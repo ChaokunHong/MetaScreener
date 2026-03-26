@@ -93,23 +93,23 @@ class TestCallWithPrompt:
         self,
         mock_responses: dict,  # type: ignore[type-arg]
     ) -> None:
-        """element_assessment key in response is mapped to pico_assessment field."""
+        """element_assessment key in response is mapped to element_assessment field."""
         adapter = MockLLMAdapter(
             model_id="mock-element",
             response_json=mock_responses["screening_include_element_assessment"],
         )
         output = await adapter.call_with_prompt("test", seed=42)
-        assert "population" in output.pico_assessment
-        assert output.pico_assessment["population"].match is True
+        assert "population" in output.element_assessment
+        assert output.element_assessment["population"].match is True
 
     @pytest.mark.asyncio
     async def test_maps_pico_assessment_backward_compat(
         self,
         mock_include_adapter: MockLLMAdapter,
     ) -> None:
-        """pico_assessment key still works (backward compat)."""
+        """pico_assessment key in LLM response still works (backward compat)."""
         output = await mock_include_adapter.call_with_prompt("test", seed=42)
-        assert "population" in output.pico_assessment
+        assert "population" in output.element_assessment
 
     @pytest.mark.asyncio
     async def test_prompt_hash_deterministic(

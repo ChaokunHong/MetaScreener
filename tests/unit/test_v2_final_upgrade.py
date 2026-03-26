@@ -23,19 +23,19 @@ from metascreener.module1_screening.layer1.prompts.ta_common import (
 
 
 class TestElementAssessmentNaming:
-    """Verify pico_assessment naming and output spec consistency."""
+    """Verify element_assessment naming and output spec consistency."""
 
-    def test_model_output_uses_pico_assessment(self) -> None:
-        """ModelOutput field is named pico_assessment."""
+    def test_model_output_uses_element_assessment(self) -> None:
+        """ModelOutput field is named element_assessment."""
         output = ModelOutput(
             model_id="test", decision=Decision.INCLUDE,
             score=0.9, confidence=0.9, rationale="ok",
-            pico_assessment={
+            element_assessment={
                 "population": PICOAssessment(match=True, evidence="ok"),
             },
         )
-        assert "population" in output.pico_assessment
-        assert output.pico_assessment["population"].match is True
+        assert "population" in output.element_assessment
+        assert output.element_assessment["population"].match is True
 
     def test_element_assessment_in_prompt_spec(self) -> None:
         """Screening prompt output spec uses 'element_assessment' key."""

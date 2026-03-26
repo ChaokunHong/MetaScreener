@@ -24,7 +24,7 @@ def _make_output(
         score=score,
         confidence=confidence,
         rationale="test",
-        pico_assessment={
+        element_assessment={
             "population": PICOAssessment(match=True, evidence="test"),
         },
     )

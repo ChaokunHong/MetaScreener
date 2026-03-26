@@ -83,7 +83,7 @@ class TestModelOutputElementAssessment:
         mo = ModelOutput(
             model_id="test", decision=Decision.INCLUDE,
             score=0.8, confidence=0.9, rationale="test",
-            pico_assessment={"population": PICOAssessment(match=True, evidence="ev")},
+            element_assessment={"population": PICOAssessment(match=True, evidence="ev")},
         )
         assert mo.element_assessment == mo.pico_assessment
         assert "population" in mo.element_assessment

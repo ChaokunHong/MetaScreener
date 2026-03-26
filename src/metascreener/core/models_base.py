@@ -118,7 +118,9 @@ class ModelOutput(BaseModel):
         score: Inclusion probability in [0.0, 1.0].
         confidence: Model's self-reported confidence in [0.0, 1.0].
         rationale: Free-text justification for the decision.
-        pico_assessment: Per-element PICO assessments keyed by element name.
+        element_assessment: Per-element assessments keyed by element name
+            (e.g., "population", "intervention"). Works for all frameworks
+            (PICO, PEO, SPIDER, PCC, custom).
         raw_response: Full raw text response from the model for audit trail.
         prompt_hash: SHA256 hash of the prompt sent to this model.
         latency_ms: Wall-clock latency of the LLM API call in milliseconds.
@@ -130,7 +132,7 @@ class ModelOutput(BaseModel):
     score: float = Field(ge=0.0, le=1.0)
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str
-    pico_assessment: dict[str, PICOAssessment] = Field(default_factory=dict)
+    element_assessment: dict[str, PICOAssessment] = Field(default_factory=dict)
     ft_assessment: dict[str, Any] | None = None
     raw_response: str | None = None
     prompt_hash: str | None = None
@@ -138,9 +140,9 @@ class ModelOutput(BaseModel):
     error: str | None = None
 
     @property
-    def element_assessment(self) -> dict[str, PICOAssessment]:
-        """Alias for pico_assessment (framework-agnostic name)."""
-        return self.pico_assessment
+    def pico_assessment(self) -> dict[str, PICOAssessment]:
+        """Backward-compatible alias for element_assessment."""
+        return self.element_assessment
 
 
 class CriteriaElement(BaseModel):

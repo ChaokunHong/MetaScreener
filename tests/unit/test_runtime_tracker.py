@@ -24,7 +24,7 @@ def _make_output(
         score=score,
         confidence=confidence,
         rationale="test",
-        pico_assessment=pico,
+        element_assessment=pico,
     )
 
 

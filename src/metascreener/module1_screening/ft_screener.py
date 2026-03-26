@@ -58,6 +58,7 @@ _FT_PENALTY_MAP: dict[str, dict[str, float]] = {
     "limitations_noted": {},  # handled separately (bool)
 }
 _FT_INTERVENTION_MISMATCH_PENALTY = 0.05
+_FT_MAX_PER_MODEL_PENALTY = 0.20
 _FT_MIN_MULTIPLIER = 0.70
 
 
@@ -313,7 +314,9 @@ class FTScreener(HCNScreener):
                 if idm is False:
                     penalty += _FT_INTERVENTION_MISMATCH_PENALTY
 
-                total_penalty += penalty
+                # Cap per-model penalty to prevent a single pathological
+                # assessment from dominating the aggregate multiplier.
+                total_penalty += min(penalty, _FT_MAX_PER_MODEL_PENALTY)
 
         if n_assessed == 0:
             return 1.0
