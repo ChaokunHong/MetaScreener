@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/dist/logo.svg" alt="MetaScreener Logo" width="72" />
+  <img src="frontend/public/logo.svg" alt="MetaScreener Logo" width="72" />
   <h1 align="center">MetaScreener</h1>
   <p align="center">
     Open-source multi-LLM ensemble for systematic review screening
