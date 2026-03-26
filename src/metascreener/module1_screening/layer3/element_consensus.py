@@ -2,7 +2,10 @@
 
 Provides both the per-element consensus summary (informational) and
 the scalar Element Consensus Score (ECS) used by the decision router
-for asymmetric EXCLUDE gating.
+for EXCLUDE gating at Tier 1 (asymmetric: EXCLUDE only) and Tier 2
+(symmetric: both directions).  Elements with fewer than ``min_decided``
+definitive votes use a neutral 0.5 ratio to prevent single-vote
+false consensus.
 """
 from __future__ import annotations
 

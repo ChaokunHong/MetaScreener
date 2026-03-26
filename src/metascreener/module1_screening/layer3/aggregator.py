@@ -2,11 +2,14 @@
 
 Implements the CCA formula from the MetaScreener architecture:
     S_final = Σ(w_i × s_i × c_i × φ_i) / Σ(w_i × c_i × φ_i)
-    C_ensemble = 1 - H(p_inc, p_exc) / log(2)
 
-Note: Ensemble confidence uses binary Shannon entropy (INCLUDE vs EXCLUDE)
-normalized by log(2), since the decision space is always binary regardless
-of the number of models.
+Ensemble confidence is a hybrid of two signals:
+    C_decision = 1 - H(p_inc, p_exc) / log(2)   (vote agreement)
+    C_score    = 0.5 × (1 - 4×Var) + 0.5 × (1 - range)  (score coherence)
+    C_ensemble = α × C_decision + (1-α) × C_score
+
+HUMAN_REVIEW decisions are mapped to INCLUDE for vote counting
+(sensitivity-first, consistent with CAMD heuristic calibrator).
 """
 from __future__ import annotations
 
@@ -170,11 +173,13 @@ class CCAggregator:
         if n <= 1:
             return 1.0
 
-        # Decision agreement component (Shannon entropy)
-        n_include = sum(
-            1 for o in model_outputs if o.decision == Decision.INCLUDE
+        # Decision agreement component (Shannon entropy).
+        # HUMAN_REVIEW maps to INCLUDE (sensitivity-first, consistent
+        # with CAMD heuristic calibrator).
+        n_exclude = sum(
+            1 for o in model_outputs if o.decision == Decision.EXCLUDE
         )
-        n_exclude = n - n_include
+        n_include = n - n_exclude
 
         if n_include == 0 or n_exclude == 0:
             c_decision = 1.0

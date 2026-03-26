@@ -249,7 +249,7 @@ async def upload_file(file: UploadFile) -> UploadResponse:
     finally:
         tmp_path.unlink(missing_ok=True)
     session_id = str(uuid.uuid4())
-    _sessions[session_id] = {"records": records, "filename": filename, "created_at": datetime.now(UTC).isoformat(), "criteria": None, "criteria_obj": None, "results": [], "raw_decisions": []}
+    _sessions[session_id] = {"session_id": session_id, "records": records, "filename": filename, "created_at": datetime.now(UTC).isoformat(), "criteria": None, "criteria_obj": None, "results": [], "raw_decisions": []}
     return UploadResponse(session_id=session_id, record_count=len(records), filename=filename)
 
 

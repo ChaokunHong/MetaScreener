@@ -6,6 +6,13 @@ Routes screening decisions through a 4-tier hierarchy:
   Tier 2: Clear majority + confidence >= tau_mid → AUTO decision (recall_bias configurable)
   Tier 3: No consensus or low confidence → HUMAN_REVIEW
 
+ECS gating: at Tier 1, unanimous/near-unanimous EXCLUDE decisions are
+escalated to HUMAN_REVIEW when element consensus is low (ECS < threshold).
+At Tier 2, low ECS escalates both directions.
+
+HUMAN_REVIEW decisions from models are mapped to INCLUDE for vote
+counting (sensitivity-first, consistent with CAMD calibrator).
+
 Tier 1 uses dynamic thresholds that scale with model count:
   - For n≤6 models: require 100% agreement (unanimous)
   - For n>6: allow floor(n × dissent_tolerance) dissenters (~15%)
@@ -70,10 +77,11 @@ class DecisionRouter:
         recall_bias: When True (default), Tier 2 always returns INCLUDE
             regardless of majority direction, maximising recall. When False,
             Tier 2 follows the actual majority direction.
-        ecs_threshold: Minimum ECS for auto-decisions at Tier 2. When ECS
-            is below this threshold, the router escalates to HUMAN_REVIEW
-            even if vote counts qualify for Tier 2. This provides symmetric
-            element-level gating on both INCLUDE and EXCLUDE paths.
+        ecs_threshold: Minimum ECS for auto-decisions. At Tier 1, gates
+            only EXCLUDE decisions (asymmetric — INCLUDE is safe). At
+            Tier 2, gates both directions (symmetric). When ECS is below
+            this threshold, the router escalates to HUMAN_REVIEW even if
+            vote counts would otherwise qualify.
     """
 
     def __init__(
@@ -201,8 +209,11 @@ class DecisionRouter:
             )
             return (Decision.HUMAN_REVIEW, Tier.THREE)
 
-        n_include = sum(1 for d in decisions if d == Decision.INCLUDE)
-        n_exclude = len(decisions) - n_include
+        # Map HUMAN_REVIEW → INCLUDE for vote counting (sensitivity-first,
+        # consistent with CAMD heuristic calibrator).  Only explicit
+        # EXCLUDE votes count as exclusion signals.
+        n_exclude = sum(1 for d in decisions if d == Decision.EXCLUDE)
+        n_include = len(decisions) - n_exclude
         n_total = len(decisions)
 
         # Compute average confidence of the majority group for

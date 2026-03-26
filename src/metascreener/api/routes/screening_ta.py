@@ -140,7 +140,7 @@ async def run_screening(session_id: str, req: RunScreeningRequest, background_ta
     if not backends:
         return {"status": "screening_not_configured", "message": "No models configured. Check configs/models.yaml."}
     # Resume from checkpoint if available (crash recovery)
-    prev_results, completed_ids = load_checkpoint(session_id)
+    prev_results, completed_ids = load_checkpoint(session_id, session=session)
     if prev_results:
         session.update({"results": prev_results, "raw_decisions": [], "status": "running"})
         # Filter out already-completed records
@@ -320,10 +320,26 @@ _CHECKPOINT_INTERVAL = 10  # Save checkpoint every N records
 
 
 def _checkpoint_path(session_id: str) -> Path:
-    """Return the checkpoint file path for a session."""
+    """Return the checkpoint file path for a session.
+
+    Sanitises ``session_id`` to prevent path-traversal attacks:
+    only alphanumeric characters and hyphens are kept.
+    """
+    import re  # noqa: PLC0415
+    safe_id = re.sub(r"[^a-zA-Z0-9\-]", "", session_id)
+    if not safe_id:
+        safe_id = "invalid"
     d = Path.home() / ".metascreener" / "checkpoints"
     d.mkdir(parents=True, exist_ok=True)
-    return d / f"{session_id}.json"
+    return d / f"{safe_id}.json"
+
+
+def _criteria_hash(session: dict[str, Any]) -> str:
+    """Compute a short hash of session criteria for checkpoint validation."""
+    import hashlib  # noqa: PLC0415
+    criteria = session.get("criteria")
+    raw = json.dumps(criteria, sort_keys=True, default=str) if criteria else ""
+    return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
 def _save_checkpoint(session: dict[str, Any]) -> None:
@@ -336,18 +352,37 @@ def _save_checkpoint(session: dict[str, Any]) -> None:
         cp.write_text(json.dumps({
             "results": session.get("results", []),
             "completed_ids": [r.get("record_id") for r in session.get("results", [])],
+            "criteria_hash": _criteria_hash(session),
         }))
     except Exception:
         logger.warning("checkpoint_save_failed", session_id=sid, exc_info=True)
 
 
-def load_checkpoint(session_id: str) -> tuple[list[dict[str, Any]], set[str]]:
-    """Load checkpoint data for resume. Returns (results, completed_ids)."""
+def load_checkpoint(session_id: str, session: dict[str, Any] | None = None) -> tuple[list[dict[str, Any]], set[str]]:
+    """Load checkpoint data for resume. Returns (results, completed_ids).
+
+    When ``session`` is provided, validates that the checkpoint's criteria
+    hash matches the current session criteria.  Stale checkpoints (from
+    a different criteria set) are discarded.
+    """
     cp = _checkpoint_path(session_id)
     if not cp.exists():
         return [], set()
     try:
         data = json.loads(cp.read_text())
+        # Validate criteria hash if session is available
+        if session is not None:
+            saved_hash = data.get("criteria_hash", "")
+            current_hash = _criteria_hash(session)
+            if saved_hash and saved_hash != current_hash:
+                logger.warning(
+                    "checkpoint_criteria_mismatch",
+                    session_id=session_id,
+                    saved_hash=saved_hash,
+                    current_hash=current_hash,
+                )
+                cp.unlink(missing_ok=True)
+                return [], set()
         results = data.get("results", [])
         completed = set(data.get("completed_ids", []))
         logger.info("checkpoint_loaded", session_id=session_id, n_completed=len(completed))
