@@ -12,7 +12,7 @@ from collections.abc import Sequence
 import structlog
 
 from metascreener.core.enums import Decision, ScreeningStage
-from metascreener.core.exceptions import LLMError
+from metascreener.core.exceptions import LLMError, LLMParseError
 from metascreener.core.models import ModelOutput, PICOCriteria, Record
 from metascreener.llm.base import LLMBackend
 
@@ -114,8 +114,11 @@ class ParallelRunner:
     ) -> ModelOutput:
         """Run a single backend with a pre-built prompt + error handling.
 
-        On failure, returns a ModelOutput with decision=HUMAN_REVIEW and
-        error set. The Router filters these out of voting (error is not None).
+        Parse failures (LLMParseError) get one retry with cache bypass,
+        since some models intermittently return malformed JSON.
+
+        On final failure, returns a ModelOutput with decision=HUMAN_REVIEW
+        and error set. The Router filters these out of voting.
         """
         # Auto-skip models that failed too many times consecutively
         if backend.model_id in self._skipped_models:
@@ -128,60 +131,108 @@ class ParallelRunner:
                 error="auto-skipped",
             )
 
-        try:
-            result = await asyncio.wait_for(
-                backend.call_with_prompt(prompt, seed=seed),
-                timeout=self._timeout_s,
-            )
-            # Reset failure counter on success
-            self._consecutive_failures.pop(backend.model_id, None)
-            return result
-        except TimeoutError:
-            logger.warning(
-                "backend_timeout",
-                model_id=backend.model_id,
-                timeout_s=self._timeout_s,
-            )
-            self._track_failure(backend.model_id)
-            return ModelOutput(
-                model_id=backend.model_id,
-                decision=Decision.HUMAN_REVIEW,
-                score=0.5,
-                confidence=0.0,
-                rationale="Timeout — model did not respond in time.",
-                error=f"Timeout after {self._timeout_s}s",
-            )
-        except LLMError as e:
-            logger.warning(
-                "backend_error",
-                model_id=backend.model_id,
-                error=str(e),
-            )
-            self._track_failure(backend.model_id)
-            return ModelOutput(
-                model_id=backend.model_id,
-                decision=Decision.HUMAN_REVIEW,
-                score=0.5,
-                confidence=0.0,
-                rationale=f"Parse/API error: {e}",
-                error=str(e),
-            )
-        except Exception as e:
-            logger.warning(
-                "backend_unexpected_error",
-                model_id=backend.model_id,
-                error_type=type(e).__name__,
-                error=str(e),
-            )
-            self._track_failure(backend.model_id)
-            return ModelOutput(
-                model_id=backend.model_id,
-                decision=Decision.HUMAN_REVIEW,
-                score=0.5,
-                confidence=0.0,
-                rationale=f"Unexpected error: {type(e).__name__}: {e}",
-                error=f"{type(e).__name__}: {e}",
-            )
+        last_error: Exception | None = None
+
+        for attempt in range(2):  # At most 1 retry
+            try:
+                if attempt > 0:
+                    # Clear cached response on retry — the cached response
+                    # may be the malformed one causing the parse failure.
+                    from metascreener.llm.response_cache import evict_cached  # noqa: PLC0415
+                    from metascreener.llm.base import hash_prompt  # noqa: PLC0415
+                    evict_cached(backend.model_id, hash_prompt(prompt))
+                    logger.info(
+                        "backend_parse_retry",
+                        model_id=backend.model_id,
+                        attempt=attempt + 1,
+                    )
+
+                result = await asyncio.wait_for(
+                    backend.call_with_prompt(prompt, seed=seed),
+                    timeout=self._timeout_s,
+                )
+                # Reset failure counter on success
+                self._consecutive_failures.pop(backend.model_id, None)
+                return result
+
+            except LLMParseError as e:
+                last_error = e
+                if attempt == 0:
+                    # Will retry
+                    logger.warning(
+                        "backend_parse_error_will_retry",
+                        model_id=backend.model_id,
+                        error=str(e),
+                    )
+                    continue
+                # Final attempt failed
+                break
+
+            except TimeoutError:
+                logger.warning(
+                    "backend_timeout",
+                    model_id=backend.model_id,
+                    timeout_s=self._timeout_s,
+                )
+                self._track_failure(backend.model_id)
+                return ModelOutput(
+                    model_id=backend.model_id,
+                    decision=Decision.HUMAN_REVIEW,
+                    score=0.5,
+                    confidence=0.0,
+                    rationale="Timeout — model did not respond in time.",
+                    error=f"Timeout after {self._timeout_s}s",
+                )
+
+            except LLMError as e:
+                logger.warning(
+                    "backend_error",
+                    model_id=backend.model_id,
+                    error=str(e),
+                )
+                self._track_failure(backend.model_id)
+                return ModelOutput(
+                    model_id=backend.model_id,
+                    decision=Decision.HUMAN_REVIEW,
+                    score=0.5,
+                    confidence=0.0,
+                    rationale=f"Parse/API error: {e}",
+                    error=str(e),
+                )
+
+            except Exception as e:
+                logger.warning(
+                    "backend_unexpected_error",
+                    model_id=backend.model_id,
+                    error_type=type(e).__name__,
+                    error=str(e),
+                )
+                self._track_failure(backend.model_id)
+                return ModelOutput(
+                    model_id=backend.model_id,
+                    decision=Decision.HUMAN_REVIEW,
+                    score=0.5,
+                    confidence=0.0,
+                    rationale=f"Unexpected error: {type(e).__name__}: {e}",
+                    error=f"{type(e).__name__}: {e}",
+                )
+
+        # Parse retry exhausted
+        self._track_failure(backend.model_id)
+        error_msg = str(last_error) if last_error else "Unknown parse error"
+        logger.warning(
+            "backend_parse_error_final",
+            model_id=backend.model_id,
+            error=error_msg,
+        )
+        return ModelOutput(
+            model_id=backend.model_id,
+            decision=Decision.HUMAN_REVIEW,
+            score=0.5,
+            confidence=0.0,
+            rationale=f"Parse error after retry: {error_msg}",
+            error=error_msg,
+        )
 
     async def _run_single(
         self,

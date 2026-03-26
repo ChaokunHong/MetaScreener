@@ -44,6 +44,15 @@ def put_cached(model_id: str, prompt_hash: str, response: str) -> None:
         logger.debug("cache_eviction", evicted=n_evict, remaining=len(_cache))
 
 
+def evict_cached(model_id: str, prompt_hash: str) -> bool:
+    """Remove a specific cached response (e.g. after parse failure)."""
+    key = (model_id, prompt_hash)
+    if key in _cache:
+        del _cache[key]
+        return True
+    return False
+
+
 def cache_stats() -> dict[str, int]:
     """Return cache hit/miss statistics."""
     return {"hits": _hits, "misses": _misses, "size": len(_cache)}

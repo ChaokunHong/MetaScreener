@@ -402,7 +402,10 @@ class TestECSMinDecided:
             ),
         }
         result = compute_ecs(consensus, min_decided=2)
-        assert result.score == 0.0  # Skipped entirely
+        # All elements skipped (no data) → 1.0 (trust vote-level decision,
+        # don't block via gate due to missing element data)
+        assert result.score == 1.0
+        assert result.eas_score == 1.0
 
 
 def test_calibration_overrides_applied_in_aggregation() -> None:

@@ -191,7 +191,9 @@ def compute_ecs(
         if ratio < _WEAK_ELEMENT_THRESHOLD:
             weak_elements.append(key)
 
-    score = numerator / denominator if denominator > 0 else 0.0
+    # If no elements contributed (all unclear), default to 1.0 (trust
+    # the vote-level decision) rather than 0.0 (block the decision).
+    score = numerator / denominator if denominator > 0 else 1.0
     score = max(0.0, min(1.0, score))
 
     conflict = classify_conflict(element_consensus)
@@ -206,6 +208,16 @@ def compute_ecs(
     )
 
     eas = compute_eas(element_consensus, element_weights=weights, min_decided=min_decided)
+
+    # When no elements had enough decided votes, both ECS and EAS are
+    # based on zero evidence.  Set them to 1.0 (maximum trust) so the
+    # router's gate does NOT block decisions due to missing data.
+    # The vote-level decision (Tier 1/2/3) and recall bias already
+    # provide sufficient protection.
+    n_with_data = len(element_consensus) - n_skipped
+    if n_with_data == 0:
+        score = 1.0
+        eas = 1.0
 
     return ECSResult(
         score=score,
@@ -260,7 +272,8 @@ def compute_eas(
         numerator += w * agreement
         denominator += w
 
-    score = numerator / denominator if denominator > 0 else 0.0
+    # No element data → trust the vote-level decision (1.0 = don't gate)
+    score = numerator / denominator if denominator > 0 else 1.0
     return max(0.0, min(1.0, score))
 
 
