@@ -1214,13 +1214,14 @@ onMounted(async () => {
 }
 .filter-search-icon { color: var(--text-secondary, #555); font-size: 0.75rem; flex-shrink: 0; }
 .filter-search-input {
-  flex: 1; background: transparent;
-  border: 1px solid rgba(0,0,0,0.6); border-radius: 5px;
+  flex: 1; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 6px;
   padding: 0.3rem 0.5rem;
   color: var(--text-primary, #fff); font-size: 0.8rem; outline: none;
-  transition: border-color 0.15s;
+  backdrop-filter: blur(4px);
+  transition: all 0.15s;
 }
-.filter-search-input:focus { border-color: rgba(0,0,0,0.9); }
+.filter-search-input:focus { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
 .filter-search-input::placeholder { color: var(--text-secondary, #555); }
 /* Filter tags */
 .ftag {
