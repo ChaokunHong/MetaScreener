@@ -24,13 +24,6 @@ class Tier(IntEnum):
     THREE = 3  # No consensus → HUMAN_REVIEW
 
 
-class ConfidenceLevel(StrEnum):
-    """Qualitative confidence level."""
-
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
-
 
 class StudyType(StrEnum):
     """Study design classification."""

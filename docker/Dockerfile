@@ -80,7 +80,6 @@ RUN uv sync --frozen --extra dev --extra viz
 # Copy validation infrastructure
 COPY validation/ validation/
 COPY scripts/ scripts/
-COPY paper/ paper/
 COPY tests/ tests/
 
 LABEL org.opencontainers.image.title="MetaScreener (full)" \

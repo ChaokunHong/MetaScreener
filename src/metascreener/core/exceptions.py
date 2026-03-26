@@ -40,11 +40,11 @@ class LLMParseError(LLMError):
 
 
 # I/O exceptions
-class IOError(MetaScreenerError):  # noqa: A001
+class MetaScreenerIOError(MetaScreenerError):
     """Base for file I/O failures."""
 
 
-class UnsupportedFormatError(IOError):
+class UnsupportedFormatError(MetaScreenerIOError):
     """Unsupported file format."""
 
     def __init__(self, format: str, supported: list[str] | None = None) -> None:  # noqa: A002
@@ -54,7 +54,7 @@ class UnsupportedFormatError(IOError):
         self.supported = supported or []
 
 
-class PDFParseError(IOError):
+class PDFParseError(MetaScreenerIOError):
     """Failed to extract text from PDF."""
 
 
