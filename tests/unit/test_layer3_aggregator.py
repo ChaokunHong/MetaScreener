@@ -403,3 +403,33 @@ class TestECSMinDecided:
         }
         result = compute_ecs(consensus, min_decided=2)
         assert result.score == 0.0  # Skipped entirely
+
+
+def test_calibration_overrides_applied_in_aggregation() -> None:
+    """Static calibration overrides from active learning should override
+    CAMD heuristic factors in CCA aggregation."""
+    from metascreener.module1_screening.layer3.heuristic_calibrator import (
+        get_calibration_factors,
+    )
+
+    outputs = [
+        _make_output(0.9, 0.9, Decision.INCLUDE, "m1"),
+        _make_output(0.9, 0.9, Decision.INCLUDE, "m2"),
+        _make_output(0.9, 0.9, Decision.INCLUDE, "m3"),
+        _make_output(0.1, 0.3, Decision.EXCLUDE, "m4"),
+    ]
+
+    camd_factors = get_calibration_factors(outputs, alpha=0.5)
+    assert camd_factors["m4"] < 1.0
+
+    overrides = {"m4": 1.0}
+    merged = dict(camd_factors)
+    merged.update(overrides)
+    assert merged["m4"] == 1.0
+
+    agg = CCAggregator()
+    s_with_camd, _ = agg.aggregate(outputs, calibration_overrides=camd_factors)
+    s_with_override, _ = agg.aggregate(outputs, calibration_overrides=merged)
+    # Raising m4's factor from <1.0 to 1.0 gives its low score more weight,
+    # pulling the final score down compared to the penalised-m4 baseline.
+    assert s_with_override != s_with_camd
