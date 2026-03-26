@@ -1144,15 +1144,21 @@ onMounted(async () => {
 }
 .summary-card--total .summary-card-number { color: var(--text-primary, #fff); }
 .summary-card--total .summary-card-label { color: var(--text-secondary, #888); }
-.summary-card--include .summary-card-number { color: #10b981; }
-.summary-card--include .summary-card-label { color: #10b981; }
-.summary-card--include { border-color: rgba(16,185,129,0.15); background: rgba(16,185,129,0.05); }
-.summary-card--exclude .summary-card-number { color: #ef4444; }
-.summary-card--exclude .summary-card-label { color: #ef4444; }
-.summary-card--exclude { border-color: rgba(239,68,68,0.15); background: rgba(239,68,68,0.05); }
-.summary-card--review .summary-card-number { color: #f59e0b; }
-.summary-card--review .summary-card-label { color: #f59e0b; }
-.summary-card--review { border-color: rgba(245,158,11,0.15); background: rgba(245,158,11,0.05); }
+.summary-card--include .summary-card-number { color: var(--text-primary, #fff); }
+.summary-card--include .summary-card-label { color: var(--text-primary, #fff); }
+.summary-card--include:hover { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); }
+.summary-card--include:hover .summary-card-number { color: #10b981; }
+.summary-card--include:hover .summary-card-label { color: #10b981; }
+.summary-card--exclude .summary-card-number { color: var(--text-primary, #fff); }
+.summary-card--exclude .summary-card-label { color: var(--text-primary, #fff); }
+.summary-card--exclude:hover { border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.08); }
+.summary-card--exclude:hover .summary-card-number { color: #ef4444; }
+.summary-card--exclude:hover .summary-card-label { color: #ef4444; }
+.summary-card--review .summary-card-number { color: var(--text-primary, #fff); }
+.summary-card--review .summary-card-label { color: var(--text-primary, #fff); }
+.summary-card--review:hover { border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.08); }
+.summary-card--review:hover .summary-card-number { color: #f59e0b; }
+.summary-card--review:hover .summary-card-label { color: #f59e0b; }
 
 /* ── Filter Panel ── */
 .filter-panel {
