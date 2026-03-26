@@ -139,12 +139,32 @@
         </div>
       </div>
 
-      <!-- Summary & Filter -->
+      <!-- Summary Cards -->
+      <div class="summary-cards">
+        <div class="summary-card summary-card--total">
+          <div class="summary-card-number">{{ results.length }}</div>
+          <div class="summary-card-label">Total</div>
+        </div>
+        <div class="summary-card summary-card--include" @click="toggleDecisionFilter('INCLUDE')">
+          <div class="summary-card-number">{{ includedCount }}</div>
+          <div class="summary-card-label"><i class="fas fa-check-circle"></i> Include</div>
+        </div>
+        <div class="summary-card summary-card--exclude" @click="toggleDecisionFilter('EXCLUDE')">
+          <div class="summary-card-number">{{ excludedCount }}</div>
+          <div class="summary-card-label"><i class="fas fa-times-circle"></i> Exclude</div>
+        </div>
+        <div class="summary-card summary-card--review" @click="toggleDecisionFilter('HUMAN_REVIEW')">
+          <div class="summary-card-number">{{ reviewCount }}</div>
+          <div class="summary-card-label"><i class="fas fa-user-clock"></i> Review</div>
+        </div>
+      </div>
+
+      <!-- Filters -->
       <div class="glass-section filter-panel">
         <div class="filter-panel-header">
           <div class="filter-panel-title">
-            <i class="fas fa-chart-bar"></i>
-            <span>Screening Summary</span>
+            <i class="fas fa-filter"></i>
+            <span>Filters</span>
           </div>
           <span class="filter-count-badge">{{ filteredResults.length }}<span class="filter-count-of"> / {{ results.length }}</span></span>
           <button v-if="hasActiveFilters" class="filter-clear-btn" @click="clearFilters"><i class="fas fa-eraser"></i> Reset</button>
@@ -156,21 +176,6 @@
             @click="toggleTierFilter(t)">
             <span class="ftag-dot"></span>T{{ t }}<span class="ftag-num">{{ tierCounts[t] }}</span>
           </button>
-        </div>
-        <div class="filter-row">
-          <span class="filter-row-label">Decision</span>
-          <button class="ftag ftag--include" :class="{ active: filterDecisions.includes('INCLUDE') }" @click="toggleDecisionFilter('INCLUDE')">
-            <i class="fas fa-check-circle"></i>Include<span class="ftag-num">{{ includedCount }}</span>
-          </button>
-          <button class="ftag ftag--exclude" :class="{ active: filterDecisions.includes('EXCLUDE') }" @click="toggleDecisionFilter('EXCLUDE')">
-            <i class="fas fa-times-circle"></i>Exclude<span class="ftag-num">{{ excludedCount }}</span>
-          </button>
-          <button class="ftag ftag--review" :class="{ active: filterDecisions.includes('HUMAN_REVIEW') }" @click="toggleDecisionFilter('HUMAN_REVIEW')">
-            <i class="fas fa-user-clock"></i>Review<span class="ftag-num">{{ reviewCount }}</span>
-          </button>
-          <span style="flex:1"></span>
-          <button v-if="hasActiveFilters" class="filter-clear-btn" @click="clearFilters"><i class="fas fa-eraser"></i> Reset</button>
-          <span class="filter-count-badge">{{ filteredResults.length }}<span class="filter-count-of">/{{ results.length }}</span></span>
         </div>
         <div class="filter-row filter-row--search">
           <i class="fas fa-search filter-search-icon"></i>
@@ -1016,7 +1021,53 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-/* ── Filter / Summary Panel ── */
+/* ── Summary Cards ── */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.summary-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 1rem 0.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.03);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.summary-card:hover { background: rgba(255,255,255,0.06); transform: translateY(-1px); }
+.summary-card-number {
+  font-size: 2rem; font-weight: 800; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.summary-card-label {
+  font-size: 0.75rem; font-weight: 600; margin-top: 0.35rem;
+  display: flex; align-items: center; gap: 0.3rem;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.summary-card-label i { font-size: 0.7rem; }
+.summary-card--total { cursor: default; }
+.summary-card--total .summary-card-number { color: var(--text-primary, #fff); }
+.summary-card--total .summary-card-label { color: var(--text-secondary, #888); }
+.summary-card--include .summary-card-number { color: var(--text-primary, #fff); }
+.summary-card--include .summary-card-label { color: var(--text-primary, #fff); }
+.summary-card--include:hover { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); }
+.summary-card--include:hover .summary-card-number { color: #10b981; }
+.summary-card--include:hover .summary-card-label { color: #10b981; }
+.summary-card--exclude .summary-card-number { color: var(--text-primary, #fff); }
+.summary-card--exclude .summary-card-label { color: var(--text-primary, #fff); }
+.summary-card--exclude:hover { border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.08); }
+.summary-card--exclude:hover .summary-card-number { color: #ef4444; }
+.summary-card--exclude:hover .summary-card-label { color: #ef4444; }
+.summary-card--review .summary-card-number { color: var(--text-primary, #fff); }
+.summary-card--review .summary-card-label { color: var(--text-primary, #fff); }
+.summary-card--review:hover { border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.08); }
+.summary-card--review:hover .summary-card-number { color: #f59e0b; }
+.summary-card--review:hover .summary-card-label { color: #f59e0b; }
+
+/* ── Filter Panel ── */
 .filter-panel { margin-bottom: 1.5rem; padding: 0 !important; }
 .filter-panel-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
 .filter-panel-title { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary, #eee); }
@@ -1037,7 +1088,15 @@ onMounted(() => {
 .filter-clear-btn i { font-size: 0.65rem; }
 .filter-row--search { padding: 0.4rem 1rem 0.55rem; gap: 0.5rem; }
 .filter-search-icon { color: var(--text-secondary, #555); font-size: 0.75rem; flex-shrink: 0; }
-.filter-search-input { flex: 1; border: none; background: transparent; color: var(--text-primary, #fff); font-size: 0.8rem; outline: none; }
+.filter-search-input {
+  flex: 1; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  color: var(--text-primary, #fff); font-size: 0.8rem; outline: none;
+  backdrop-filter: blur(4px);
+  transition: all 0.15s;
+}
+.filter-search-input:focus { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
 .filter-search-input::placeholder { color: var(--text-secondary, #555); }
 .ftag { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); background: transparent; color: var(--text-secondary, #777); cursor: pointer; font-size: 0.72rem; transition: all 0.15s; white-space: nowrap; }
 .ftag:hover { background: rgba(255,255,255,0.04); }
