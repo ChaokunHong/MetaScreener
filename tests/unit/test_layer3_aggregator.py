@@ -324,3 +324,82 @@ def test_hybrid_confidence_blend_alpha() -> None:
     assert conf_decision < 0.05
     # High variance -> score coherence also low
     assert conf_score < 0.1
+
+
+# ── ECS min_decided Tests ──────────────────────────────────────────
+
+
+class TestECSMinDecided:
+    """Tests for minimum decided votes threshold in ECS computation."""
+
+    def test_single_vote_uses_neutral_ratio(self) -> None:
+        """1 match + 0 mismatch + 3 unclear → ratio 0.5 (not 1.0)."""
+        from metascreener.core.models import ElementConsensus
+        from metascreener.module1_screening.layer3.element_consensus import (
+            compute_ecs,
+        )
+
+        consensus = {
+            "population": ElementConsensus(
+                name="Population",
+                required=True,
+                exclusion_relevant=True,
+                n_match=1,
+                n_mismatch=0,
+                n_unclear=3,
+                support_ratio=1.0,  # Raw ratio
+                contradiction=False,
+                decisive_match=False,
+                decisive_mismatch=False,
+            ),
+        }
+        result = compute_ecs(consensus, min_decided=2)
+        assert result.score == 0.5  # Neutral, not 1.0
+
+    def test_two_votes_uses_real_ratio(self) -> None:
+        """2 match + 0 mismatch → ratio 1.0 (enough votes)."""
+        from metascreener.core.models import ElementConsensus
+        from metascreener.module1_screening.layer3.element_consensus import (
+            compute_ecs,
+        )
+
+        consensus = {
+            "population": ElementConsensus(
+                name="Population",
+                required=True,
+                exclusion_relevant=True,
+                n_match=2,
+                n_mismatch=0,
+                n_unclear=2,
+                support_ratio=1.0,
+                contradiction=False,
+                decisive_match=False,
+                decisive_mismatch=False,
+            ),
+        }
+        result = compute_ecs(consensus, min_decided=2)
+        assert result.score == 1.0  # Real ratio used
+
+    def test_zero_votes_skipped(self) -> None:
+        """All unclear → element skipped, ECS = 0.0."""
+        from metascreener.core.models import ElementConsensus
+        from metascreener.module1_screening.layer3.element_consensus import (
+            compute_ecs,
+        )
+
+        consensus = {
+            "population": ElementConsensus(
+                name="Population",
+                required=True,
+                exclusion_relevant=True,
+                n_match=0,
+                n_mismatch=0,
+                n_unclear=4,
+                support_ratio=None,
+                contradiction=False,
+                decisive_match=False,
+                decisive_mismatch=False,
+            ),
+        }
+        result = compute_ecs(consensus, min_decided=2)
+        assert result.score == 0.0  # Skipped entirely

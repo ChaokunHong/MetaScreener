@@ -279,12 +279,11 @@ def test_router_fifteen_models_unanimous() -> None:
 
 
 def test_router_fifteen_models_two_dissent() -> None:
-    """n=15: 13+2, floor(15*0.15)=2.
+    """n=15: 13+2, floor(15*0.15)=2 → Tier 1.
 
-    With the hybrid score-coherence formula (variance + range blend),
-    polarised scores (0.9 vs 0.1) reduce ensemble confidence enough
-    that this case falls to Tier 2 instead of Tier 1.  Decision is
-    still INCLUDE via Tier 2 majority + recall bias.
+    With population variance and the blended score coherence formula,
+    ensemble confidence (0.439) narrowly exceeds the dynamic tau_high
+    (0.436) for this split, keeping it at Tier 1.
     """
     from metascreener.core.enums import Decision, Tier
     from metascreener.core.models import RuleCheckResult
@@ -295,7 +294,7 @@ def test_router_fifteen_models_two_dissent() -> None:
     _, c = CCAggregator().aggregate(outputs)
     decision, tier = router.route(outputs, RuleCheckResult(), 0.85, c)
     assert decision == Decision.INCLUDE
-    assert tier == Tier.TWO
+    assert tier == Tier.ONE
 
 
 def test_route_accepts_optional_ecs_params() -> None:
@@ -373,6 +372,66 @@ def test_ecs_gating_none_ecs_skips_gate() -> None:
     )
     assert decision == Decision.INCLUDE
     assert tier == Tier.TWO
+
+
+# ── Tier 1 ECS Gate Tests ──────────────────────────────────────────
+
+
+def test_tier1_unanimous_exclude_low_ecs_escalates() -> None:
+    """Unanimous EXCLUDE with low ECS → HUMAN_REVIEW at Tier 1."""
+    from metascreener.core.models import ECSResult
+
+    router = DecisionRouter(ecs_threshold=0.60)
+    outputs = [
+        _make_output(Decision.EXCLUDE, 0.1, 0.9, "m1"),
+        _make_output(Decision.EXCLUDE, 0.1, 0.9, "m2"),
+        _make_output(Decision.EXCLUDE, 0.1, 0.9, "m3"),
+        _make_output(Decision.EXCLUDE, 0.1, 0.9, "m4"),
+    ]
+    ecs = ECSResult(score=0.40)  # Below threshold
+    decision, tier = router.route(
+        outputs, RuleCheckResult(), 0.1, 1.0, ecs_result=ecs,
+    )
+    assert decision == Decision.HUMAN_REVIEW
+    assert tier == Tier.ONE
+
+
+def test_tier1_unanimous_exclude_high_ecs_passes() -> None:
+    """Unanimous EXCLUDE with high ECS → auto-EXCLUDE at Tier 1."""
+    from metascreener.core.models import ECSResult
+
+    router = DecisionRouter(ecs_threshold=0.60)
+    outputs = [
+        _make_output(Decision.EXCLUDE, 0.1, 0.9, "m1"),
+        _make_output(Decision.EXCLUDE, 0.1, 0.9, "m2"),
+        _make_output(Decision.EXCLUDE, 0.1, 0.9, "m3"),
+        _make_output(Decision.EXCLUDE, 0.1, 0.9, "m4"),
+    ]
+    ecs = ECSResult(score=0.85)  # Above threshold
+    decision, tier = router.route(
+        outputs, RuleCheckResult(), 0.1, 1.0, ecs_result=ecs,
+    )
+    assert decision == Decision.EXCLUDE
+    assert tier == Tier.ONE
+
+
+def test_tier1_unanimous_include_low_ecs_not_gated() -> None:
+    """Unanimous INCLUDE with low ECS is NOT gated (asymmetric)."""
+    from metascreener.core.models import ECSResult
+
+    router = DecisionRouter(ecs_threshold=0.60)
+    outputs = [
+        _make_output(Decision.INCLUDE, 0.9, 0.9, "m1"),
+        _make_output(Decision.INCLUDE, 0.9, 0.9, "m2"),
+        _make_output(Decision.INCLUDE, 0.9, 0.9, "m3"),
+        _make_output(Decision.INCLUDE, 0.9, 0.9, "m4"),
+    ]
+    ecs = ECSResult(score=0.30)  # Below threshold, but INCLUDE is safe
+    decision, tier = router.route(
+        outputs, RuleCheckResult(), 0.9, 1.0, ecs_result=ecs,
+    )
+    assert decision == Decision.INCLUDE
+    assert tier == Tier.ONE
 
 
 # ── Confidence-Weighted Tau High Tests ─────────────────────────────

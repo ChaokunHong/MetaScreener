@@ -139,9 +139,22 @@ async def run_screening(session_id: str, req: RunScreeningRequest, background_ta
         raise HTTPException(status_code=500, detail=f"Failed to initialize screening backends: {exc}") from exc
     if not backends:
         return {"status": "screening_not_configured", "message": "No models configured. Check configs/models.yaml."}
-    session.update({"results": [], "raw_decisions": [], "status": "running"})
+    # Resume from checkpoint if available (crash recovery)
+    prev_results, completed_ids = load_checkpoint(session_id)
+    if prev_results:
+        session.update({"results": prev_results, "raw_decisions": [], "status": "running"})
+        # Filter out already-completed records
+        records = [r for r in records if str(r.record_id) not in completed_ids]
+        logger.info("screening_resume_from_checkpoint", session_id=session_id, n_recovered=len(prev_results), n_remaining=len(records))
+    else:
+        session.update({"results": [], "raw_decisions": [], "status": "running"})
+    if not records:
+        session["status"] = "completed"
+        session["completed_at"] = datetime.now(UTC).isoformat()
+        clear_checkpoint(session_id)
+        return {"status": "completed", "message": "All records already screened (recovered from checkpoint)", "total": len(prev_results), "completed": len(prev_results)}
     background_tasks.add_task(_run_screening_bg, session, records, backends, criteria_payload, req.seed)
-    return {"status": "started", "total": len(records), "message": f"Screening {len(records)} records in the background"}
+    return {"status": "started", "total": len(session["results"]) + len(records), "message": f"Screening {len(records)} records in the background"}
 
 
 @ta_router.post("/continue/{session_id}")

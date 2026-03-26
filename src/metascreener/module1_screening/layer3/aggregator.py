@@ -11,7 +11,7 @@ of the number of models.
 from __future__ import annotations
 
 from math import log
-from statistics import variance as _variance
+from statistics import pvariance as _pvariance
 
 import structlog
 
@@ -194,7 +194,9 @@ class CCAggregator:
         # C_score = 0.5 × (1 - 4*Var) + 0.5 × (1 - range)
         scores = [o.score for o in model_outputs]
         if n >= 2:
-            score_var = _variance(scores)
+            # Use population variance (divides by n, not n-1) so the
+            # scaling factor 4 correctly maps max variance 0.25 to 0.
+            score_var = _pvariance(scores)
             score_range = max(scores) - min(scores)
             c_var = max(0.0, 1.0 - 4.0 * score_var)
             c_range = 1.0 - score_range
