@@ -436,7 +436,7 @@ void schemaSheets
       <p class="text-muted">{{ uploadedPdfCount }} PDF(s) ready. Dual-model extraction with HCN 4-layer quality control.</p>
 
       <div v-if="!extractionRunning && !results.length">
-        <button class="btn btn-primary btn-lg" @click="runExtraction">
+        <button class="btn btn-primary" @click="runExtraction">
           <i class="fas fa-play"></i> Start Extraction
         </button>
       </div>
@@ -549,7 +549,7 @@ void schemaSheets
       <h2 class="section-title"><i class="fas fa-file-export"></i> Export Results</h2>
       <p class="text-muted">Download your extraction results as an Excel file with audit log.</p>
 
-      <button class="btn btn-primary btn-lg" :disabled="loading" @click="exportExcel">
+      <button class="btn btn-primary" :disabled="loading" @click="exportExcel">
         <i class="fas fa-download"></i>
         {{ loading ? 'Generating...' : 'Download Excel' }}
       </button>
@@ -1096,19 +1096,7 @@ void schemaSheets
   color: #2e7d32;
 }
 
-/* Buttons */
-.btn-lg {
-  padding: 0.8rem 2rem;
-  font-size: 1.1rem;
-}
-.btn-sm {
-  padding: 0.2rem 0.5rem;
-  font-size: 0.85rem;
-}
-.btn-danger {
-  color: #e74c3c;
-  border-color: #e74c3c;
-}
+/* Buttons — use global .btn styles, no overrides */
 
 /* Alert */
 .alert-error {
