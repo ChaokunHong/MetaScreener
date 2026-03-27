@@ -1,7 +1,7 @@
 <!-- frontend/src/views/ExtractionV2View.vue -->
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { apiGet, apiPost, apiUpload } from '@/api'
+import { apiGet, apiPost, apiPut, apiUpload } from '@/api'
 
 /* ───── types ───── */
 interface SchemaField {
@@ -161,7 +161,7 @@ async function confirmSchema() {
   if (!sessionId.value) return
   loading.value = true
   try {
-    await apiPost(`/v2/extraction/sessions/${sessionId.value}/schema`, {
+    await apiPut(`/v2/extraction/sessions/${sessionId.value}/schema`, {
       plugin_id: selectedPlugin.value,
     })
     currentStep.value = 3
