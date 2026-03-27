@@ -19,6 +19,7 @@ from metascreener.module2_extraction.validator import (
 
 # --- v2 (new Excel-driven extraction) ---
 from metascreener.module2_extraction.compiler import compile_template
+from metascreener.module2_extraction.engine import extract_pdf
 
 __all__ = [
     # v1
@@ -31,4 +32,5 @@ __all__ = [
     "validate_extraction",
     # v2
     "compile_template",
+    "extract_pdf",
 ]
