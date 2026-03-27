@@ -9,6 +9,7 @@ from typing import Any
 
 import structlog
 from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 
 from metascreener.api.schemas_extraction_v2 import (
     CreateSessionResponse,
@@ -27,13 +28,38 @@ router = APIRouter(prefix="/api/v2/extraction", tags=["extraction-v2"])
 _store = SessionStore()
 
 
+# ── Helpers ──────────────────────────────────────────────────────────────
+
+
+def _get_api_key() -> str:
+    """Resolve OpenRouter API key from env or user settings."""
+    from metascreener.api.routes.screening_helpers import (
+        _get_openrouter_api_key,
+    )
+
+    return _get_openrouter_api_key()
+
+
+def _build_extraction_backends(api_key: str) -> list[Any]:
+    """Create LLM backends for extraction (need at least 2 for dual mode)."""
+    from metascreener.api.deps import get_config
+    from metascreener.api.routes.settings import _load_user_settings
+    from metascreener.llm.factory import create_backends
+
+    user = _load_user_settings()
+    enabled = user.get("enabled_models") or None
+    backends = create_backends(
+        cfg=get_config(), api_key=api_key, enabled_model_ids=enabled,
+    )
+    return backends
+
+
+# ── Session CRUD ─────────────────────────────────────────────────────────
+
+
 @router.post("/sessions", response_model=CreateSessionResponse)
 async def create_session() -> CreateSessionResponse:
-    """Create a new extraction session.
-
-    Returns:
-        Session ID for the newly created session.
-    """
+    """Create a new extraction session."""
     session = _store.create()
     log.info("session_created", session_id=session.session_id)
     return CreateSessionResponse(session_id=session.session_id)
@@ -41,17 +67,7 @@ async def create_session() -> CreateSessionResponse:
 
 @router.get("/sessions/{session_id}", response_model=SessionStatusResponse)
 async def get_session(session_id: str) -> SessionStatusResponse:
-    """Get current status of an extraction session.
-
-    Args:
-        session_id: Unique session identifier.
-
-    Returns:
-        Session status including PDF count, schema confirmation, and results count.
-
-    Raises:
-        HTTPException: 404 if session not found.
-    """
+    """Get current status of an extraction session."""
     session = _store.get(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -65,20 +81,12 @@ async def get_session(session_id: str) -> SessionStatusResponse:
     )
 
 
+# ── Template + Schema ────────────────────────────────────────────────────
+
+
 @router.post("/sessions/{session_id}/template", response_model=UploadTemplateResponse)
 async def upload_template(session_id: str, file: UploadFile) -> UploadTemplateResponse:
-    """Upload an Excel template to a session and compile its schema.
-
-    Args:
-        session_id: Unique session identifier.
-        file: Uploaded Excel template file.
-
-    Returns:
-        Detected sheets, data sheets, mapping sheets, and optional plugin recommendation.
-
-    Raises:
-        HTTPException: 404 if session not found.
-    """
+    """Upload Excel template and compile its schema."""
     session = _store.get(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -113,18 +121,7 @@ async def upload_template(session_id: str, file: UploadFile) -> UploadTemplateRe
 
 @router.put("/sessions/{session_id}/schema")
 async def confirm_schema(session_id: str, plugin_id: str | None = None) -> dict[str, Any]:
-    """Confirm the compiled schema and optionally assign a domain plugin.
-
-    Args:
-        session_id: Unique session identifier.
-        plugin_id: Optional domain plugin identifier to attach.
-
-    Returns:
-        Confirmation dict with session_id, status, and plugin_id.
-
-    Raises:
-        HTTPException: 404 if session not found; 400 if no template uploaded yet.
-    """
+    """Confirm schema and optionally assign a domain plugin."""
     session = _store.get(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -136,20 +133,12 @@ async def confirm_schema(session_id: str, plugin_id: str | None = None) -> dict[
     return {"session_id": session_id, "status": "ready", "plugin_id": plugin_id}
 
 
+# ── PDF Upload ───────────────────────────────────────────────────────────
+
+
 @router.post("/sessions/{session_id}/pdfs", response_model=UploadPdfsResponse)
 async def upload_pdfs(session_id: str, files: list[UploadFile]) -> UploadPdfsResponse:
-    """Upload one or more PDF files to a session for later extraction.
-
-    Args:
-        session_id: Unique session identifier.
-        files: List of uploaded PDF files.
-
-    Returns:
-        Updated PDF count and list of saved filenames.
-
-    Raises:
-        HTTPException: 404 if session not found.
-    """
+    """Upload PDF files for extraction."""
     session = _store.get(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -162,15 +151,22 @@ async def upload_pdfs(session_id: str, files: list[UploadFile]) -> UploadPdfsRes
         with open(pdf_path, "wb") as out:
             content = await f.read()
             out.write(content)
-        session.pdfs.append(PDFInfo(pdf_id=uuid.uuid4().hex[:8], filename=fname, path=pdf_path))
+        session.pdfs.append(PDFInfo(
+            pdf_id=uuid.uuid4().hex[:8], filename=fname, path=pdf_path,
+        ))
         filenames.append(fname)
 
-    return UploadPdfsResponse(session_id=session_id, pdf_count=len(session.pdfs), filenames=filenames)
+    return UploadPdfsResponse(
+        session_id=session_id, pdf_count=len(session.pdfs), filenames=filenames,
+    )
+
+
+# ── Run Extraction ───────────────────────────────────────────────────────
 
 
 @router.post("/sessions/{session_id}/run")
 async def run_extraction(session_id: str) -> dict[str, Any]:
-    """Run extraction on all uploaded PDFs."""
+    """Run dual-model HCN extraction on all uploaded PDFs."""
     session = _store.get(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -179,11 +175,29 @@ async def run_extraction(session_id: str) -> dict[str, Any]:
     if not session.pdfs:
         raise HTTPException(status_code=400, detail="No PDFs uploaded")
 
+    # Resolve API key
+    api_key = _get_api_key()
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="No OpenRouter API key configured. Go to Settings to add one.",
+        )
+
     session.status = "running"
 
     from metascreener.io.pdf_parser import extract_text_from_pdf
     from metascreener.module2_extraction.engine import extract_pdf
-    from metascreener.module2_extraction.plugins import load_plugin
+
+    # Create LLM backends (need at least 2 for dual extraction)
+    backends = _build_extraction_backends(api_key)
+    if len(backends) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Dual extraction requires at least 2 models, but only {len(backends)} enabled. "
+            "Go to Settings to enable more models.",
+        )
+    backend_a = backends[0]
+    backend_b = backends[1]
 
     # Load plugin if selected
     plugin_prompt: str | None = None
@@ -191,7 +205,6 @@ async def run_extraction(session_id: str) -> dict[str, Any]:
     if session.plugin_id:
         try:
             plugin = load_plugin(session.plugin_id)
-            # Combine all prompt fragments
             if plugin.prompt_fragments:
                 plugin_prompt = "\n\n".join(plugin.prompt_fragments.values())
             if plugin.rule_callbacks:
@@ -199,8 +212,6 @@ async def run_extraction(session_id: str) -> dict[str, Any]:
         except Exception:
             log.warning("plugin_load_failed", plugin_id=session.plugin_id)
 
-    # For now, use mock backends since we don't have real LLM config here
-    # In production this would read from config and create real backends
     completed = 0
     failed = 0
 
@@ -209,14 +220,29 @@ async def run_extraction(session_id: str) -> dict[str, Any]:
             # Extract text from PDF
             text = extract_text_from_pdf(pdf_info.path)
             pdf_info.text = text
-
-            # TODO: Create real LLM backends from config
-            # For now, return a placeholder indicating extraction needs LLM backends
             log.info("pdf_text_extracted", pdf_id=pdf_info.pdf_id,
                      filename=pdf_info.filename, chars=len(text))
+
+            # Run HCN 4-layer dual extraction
+            result = await extract_pdf(
+                schema=session.schema,
+                text=text,
+                pdf_id=pdf_info.pdf_id,
+                pdf_filename=pdf_info.filename,
+                backend_a=backend_a,
+                backend_b=backend_b,
+                plugin_prompt=plugin_prompt,
+                extra_rules=extra_rules,
+            )
+
+            session.results[pdf_info.pdf_id] = result
             completed += 1
+            log.info("pdf_extraction_done", pdf_id=pdf_info.pdf_id,
+                     sheets=len(result.sheets))
+
         except Exception as exc:
-            log.warning("pdf_extraction_failed", pdf_id=pdf_info.pdf_id, error=str(exc))
+            log.warning("pdf_extraction_failed", pdf_id=pdf_info.pdf_id,
+                        error=str(exc), exc_info=True)
             failed += 1
 
     session.status = "completed"
@@ -229,6 +255,33 @@ async def run_extraction(session_id: str) -> dict[str, Any]:
     }
 
 
+# ── Results ──────────────────────────────────────────────────────────────
+
+
+@router.get("/sessions/{session_id}/results")
+async def get_results(session_id: str) -> dict[str, Any]:
+    """Get extraction results for all PDFs."""
+    session = _store.get(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    results_summary: dict[str, Any] = {}
+    for pdf_id, result in session.results.items():
+        sheets_summary = {}
+        for sheet_name, sr in result.sheets.items():
+            sheets_summary[sheet_name] = {
+                "rows": len(sr.rows),
+                "needs_review": sr.cells_needing_review,
+            }
+        results_summary[pdf_id] = {
+            "pdf_filename": result.pdf_filename,
+            "sheets": sheets_summary,
+        }
+    return {"session_id": session_id, "results": results_summary}
+
+
+# ── Export + Download ────────────────────────────────────────────────────
+
+
 @router.post("/sessions/{session_id}/export")
 async def export_results(session_id: str) -> dict[str, Any]:
     """Export extraction results to Excel."""
@@ -237,8 +290,6 @@ async def export_results(session_id: str) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail="Session not found")
     if session.schema is None:
         raise HTTPException(status_code=400, detail="No schema available")
-
-    import tempfile
 
     from metascreener.module2_extraction.exporter import export_to_excel
 
@@ -253,6 +304,9 @@ async def export_results(session_id: str) -> dict[str, Any]:
         template_path=session.template_path,
     )
 
+    # Store path for download
+    session.export_path = output_path
+
     return {
         "session_id": session_id,
         "download_url": f"/api/v2/extraction/sessions/{session_id}/download",
@@ -260,38 +314,30 @@ async def export_results(session_id: str) -> dict[str, Any]:
     }
 
 
-@router.get("/sessions/{session_id}/results")
-async def get_results(session_id: str) -> dict[str, Any]:
-    """Retrieve extraction results for a session.
-
-    Args:
-        session_id: Unique session identifier.
-
-    Returns:
-        Summary of results keyed by PDF ID, with per-sheet row counts and review flags.
-
-    Raises:
-        HTTPException: 404 if session not found.
-    """
+@router.get("/sessions/{session_id}/download")
+async def download_export(session_id: str) -> FileResponse:
+    """Download the exported Excel file."""
     session = _store.get(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    results_summary: dict[str, Any] = {}
-    for pdf_id, result in session.results.items():
-        sheets_summary = {}
-        for sheet_name, sr in result.sheets.items():
-            sheets_summary[sheet_name] = {"rows": len(sr.rows), "needs_review": sr.cells_needing_review}
-        results_summary[pdf_id] = {"pdf_filename": result.pdf_filename, "sheets": sheets_summary}
-    return {"session_id": session_id, "results": results_summary}
+
+    export_path = getattr(session, "export_path", None)
+    if export_path is None or not Path(export_path).exists():
+        raise HTTPException(status_code=404, detail="No export available. Run export first.")
+
+    return FileResponse(
+        path=export_path,
+        filename="extraction_results.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+# ── Plugins ──────────────────────────────────────────────────────────────
 
 
 @router.get("/plugins", response_model=list[PluginInfo])
 async def list_plugins() -> list[PluginInfo]:
-    """List all available domain extraction plugins.
-
-    Returns:
-        List of plugin metadata including ID, name, version, description, and domain.
-    """
+    """List available domain plugins."""
     from metascreener.module2_extraction.plugins import _PLUGINS_DIR
 
     plugins: list[PluginInfo] = []
@@ -301,15 +347,13 @@ async def list_plugins() -> list[PluginInfo]:
             continue
         try:
             plugin = load_plugin(plugin_dir.name)
-            plugins.append(
-                PluginInfo(
-                    plugin_id=plugin.config.plugin_id,
-                    name=plugin.config.name,
-                    version=plugin.config.version,
-                    description=plugin.config.description,
-                    domain=plugin.config.domain,
-                )
-            )
+            plugins.append(PluginInfo(
+                plugin_id=plugin.config.plugin_id,
+                name=plugin.config.name,
+                version=plugin.config.version,
+                description=plugin.config.description,
+                domain=plugin.config.domain,
+            ))
         except Exception:
             continue
     return plugins

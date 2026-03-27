@@ -24,6 +24,7 @@ class ExtractionSession:
     plugin_id: str | None = None
     pdfs: list[PDFInfo] = field(default_factory=list)
     results: dict[str, ExtractionSessionResult] = field(default_factory=dict)
+    export_path: Path | None = None
 
 class SessionStore:
     def __init__(self) -> None:
