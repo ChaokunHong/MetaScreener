@@ -505,22 +505,54 @@ h1, h2, h3,
 }
 textarea.form-control { resize: vertical; min-height: 90px; }
 
-/* ── Upload Zone ──────────────────────────────────── */
+/* ── Upload Zone — frosted glass ──────────────────── */
 .upload-zone {
-  border: 2px dashed rgba(139,92,246,0.32);
-  border-radius: 10px;
-  padding: 1.75rem 1.5rem;
+  position: relative;
+  border: 1.5px solid rgba(139,92,246,0.18);
+  border-radius: 14px;
+  padding: 2rem 1.5rem;
   text-align: center;
   cursor: pointer;
-  background: rgba(139,92,246,0.03);
-  transition: all 0.18s ease;
+  background: linear-gradient(135deg,
+    rgba(255,255,255,0.55) 0%,
+    rgba(245,240,255,0.35) 50%,
+    rgba(235,230,255,0.25) 100%);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow:
+    0 4px 24px rgba(139,92,246,0.06),
+    0 1px 3px rgba(0,0,0,0.04),
+    inset 0 1px 0 rgba(255,255,255,0.8),
+    inset 0 -1px 0 rgba(255,255,255,0.2);
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+.upload-zone::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent);
 }
 .upload-zone:hover, .upload-zone.dragover {
-  border-color: var(--primary-purple);
-  background: rgba(139,92,246,0.07);
+  border-color: rgba(139,92,246,0.45);
+  background: linear-gradient(135deg,
+    rgba(255,255,255,0.65) 0%,
+    rgba(240,235,255,0.5) 50%,
+    rgba(225,218,255,0.35) 100%);
+  box-shadow:
+    0 8px 32px rgba(139,92,246,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.7);
+  transform: translateY(-1px);
 }
 .upload-zone input[type="file"] { display: none; }
-.upload-zone .zone-icon { font-size: 1.875rem; color: rgba(139,92,246,0.55); margin-bottom: 0.5rem; }
+.upload-zone .zone-icon {
+  font-size: 1.875rem;
+  color: rgba(139,92,246,0.45);
+  margin-bottom: 0.5rem;
+  transition: color 0.3s;
+}
+.upload-zone:hover .zone-icon { color: var(--primary-purple); }
 .upload-zone .zone-title { font-size: 0.9rem; font-weight: 500; color: var(--text-primary); }
 .upload-zone .zone-hint  { font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.2rem; }
 
