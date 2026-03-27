@@ -315,8 +315,17 @@ void schemaSheets
         </div>
       </div>
 
+      <!-- Glass progress bar -->
+      <div v-if="loading" class="glass-progress">
+        <div class="glass-progress-track">
+          <div class="glass-progress-fill"></div>
+        </div>
+        <span class="glass-progress-label">Analyzing template structure...</span>
+      </div>
+
       <button class="btn btn-primary" :disabled="!templateFile || loading" @click="uploadTemplate">
-        <i class="fas fa-upload"></i>
+        <i v-if="!loading" class="fas fa-upload"></i>
+        <i v-else class="fas fa-spinner fa-spin"></i>
         {{ loading ? 'Analyzing...' : 'Upload & Analyze' }}
       </button>
     </div>
@@ -918,6 +927,52 @@ void schemaSheets
   gap: 0.5rem;
   padding: 0.5rem;
   border-bottom: 1px solid #eee;
+}
+
+/* Glass progress bar */
+.glass-progress {
+  margin: 1.2rem 0 1.5rem;
+  text-align: center;
+}
+.glass-progress-track {
+  position: relative;
+  height: 6px;
+  border-radius: 6px;
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(235, 245, 255, 0.3) 100%);
+  border: 1px solid rgba(74, 144, 217, 0.15);
+  overflow: hidden;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 1px 4px rgba(74, 144, 217, 0.06);
+}
+.glass-progress-fill {
+  position: absolute;
+  top: 0; left: 0;
+  height: 100%;
+  width: 35%;
+  border-radius: 6px;
+  background: linear-gradient(90deg,
+    rgba(74, 144, 217, 0.6),
+    rgba(74, 144, 217, 0.35),
+    rgba(74, 144, 217, 0.6));
+  background-size: 200% 100%;
+  animation: glass-shimmer 1.8s ease-in-out infinite;
+  box-shadow: 0 0 12px rgba(74, 144, 217, 0.2);
+}
+@keyframes glass-shimmer {
+  0% { left: -35%; background-position: 0% 50%; }
+  100% { left: 100%; background-position: 200% 50%; }
+}
+.glass-progress-label {
+  display: block;
+  margin-top: 0.6rem;
+  font-size: 0.78rem;
+  color: #8aa8c4;
+  letter-spacing: 0.02em;
 }
 
 /* Progress */
