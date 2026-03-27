@@ -376,7 +376,7 @@ void schemaSheets
             <select v-model="selectedPlugin" class="form-control">
               <option :value="null">No plugin</option>
               <option v-for="p in availablePlugins" :key="p.plugin_id" :value="p.plugin_id">
-                {{ p.name }} ({{ p.version }}) — {{ p.domain }}
+                {{ p.name }}
               </option>
             </select>
           </div>
