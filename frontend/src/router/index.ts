@@ -6,6 +6,7 @@ import TAScreeningView from '@/views/TAScreeningView.vue'
 import FTScreeningView from '@/views/FTScreeningView.vue'
 import EvaluationView from '@/views/EvaluationView.vue'
 import ExtractionView from '@/views/ExtractionView.vue'
+import ExtractionV2View from '@/views/ExtractionV2View.vue'
 import QualityView from '@/views/QualityView.vue'
 import HistoryView from '@/views/HistoryView.vue'
 import SettingsView from '@/views/SettingsView.vue'
@@ -20,6 +21,7 @@ const router = createRouter({
     { path: '/screening/ft', component: FTScreeningView },
     { path: '/evaluation', component: EvaluationView },
     { path: '/extraction', component: ExtractionView },
+    { path: '/extraction-v2', component: ExtractionV2View },
     { path: '/quality', component: QualityView },
     { path: '/history', component: HistoryView },
     { path: '/settings', component: SettingsView },
