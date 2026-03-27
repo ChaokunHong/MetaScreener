@@ -292,3 +292,90 @@ def sample_gold_labels() -> dict[str, Decision]:
     for i in range(10, 20):
         labels[f"eval_r{i}"] = Decision.EXCLUDE
     return labels
+
+
+@pytest.fixture()
+def sample_extraction_template(tmp_path: Path) -> Path:
+    """Generate a realistic multi-sheet Excel template for compiler tests."""
+    import openpyxl
+    from openpyxl.worksheet.datavalidation import DataValidation
+
+    wb = openpyxl.Workbook()
+
+    # --- Sheet 1: Study_Characteristics ---
+    ws1 = wb.active
+    ws1.title = "Study_Characteristics"
+    headers1 = [
+        "Row_ID", "Study_ID", "First_Author", "Publication_Year",
+        "Study_Design", "Country", "N_Participants", "Age_Mean",
+        "Female_Percent", "Notes",
+    ]
+    ws1.append(headers1)
+    ws1["A2"] = "=ROW()-1"
+    ws1["B2"] = '=C2&"_"&D2'
+    ws1["C2"] = "Smith"
+    ws1["D2"] = 2023
+    ws1["E2"] = "Cross-sectional"
+    ws1["F2"] = "GBR - United Kingdom"
+    ws1["G2"] = 150
+    ws1["H2"] = 45.2
+    ws1["I2"] = 52.3
+    ws1["J2"] = "Multi-center study"
+    dv = DataValidation(
+        type="list",
+        formula1='"Cross-sectional,Cohort,Case-control,RCT,Surveillance"',
+        allow_blank=True,
+    )
+    ws1.add_data_validation(dv)
+    dv.add(ws1["E2"])
+    dv.add(ws1["E3"])
+
+    # --- Sheet 2: Resistance_Data ---
+    ws2 = wb.create_sheet("Resistance_Data")
+    headers2 = [
+        "Row_ID", "Study_ID_Display", "Pathogen_Species", "Antibiotic",
+        "Antibiotic_Class", "N_Tested", "N_Resistant", "Prevalence_Percent",
+    ]
+    ws2.append(headers2)
+    ws2["A2"] = 1
+    ws2["B2"] = "Smith_2023"
+    ws2["C2"] = "E. coli"
+    ws2["D2"] = "Ampicillin"
+    ws2["E2"] = "Penicillins"
+    ws2["F2"] = 150
+    ws2["G2"] = 98
+    ws2["H2"] = "=G2/F2*100"
+    ws2["A3"] = 1
+    ws2["B3"] = "Smith_2023"
+    ws2["C3"] = "E. coli"
+    ws2["D3"] = "Ceftriaxone"
+    ws2["E3"] = "Cephalosporins (3rd gen)"
+    ws2["F3"] = 150
+    ws2["G3"] = 23
+    ws2["H3"] = "=G3/F3*100"
+
+    # --- Sheet 3: Antibiotic_Mappings ---
+    ws3 = wb.create_sheet("Antibiotic_Mappings")
+    ws3.append(["Antibiotic", "Drug_Class", "AWaRe_Category"])
+    ws3.append(["Amikacin", "Aminoglycosides", "Access"])
+    ws3.append(["Ampicillin", "Penicillins", "Access"])
+    ws3.append(["Azithromycin", "Macrolides", "Watch"])
+    ws3.append(["Ceftriaxone", "Cephalosporins (3rd gen)", "Watch"])
+
+    # --- Sheet 4: Data_Dictionary ---
+    ws4 = wb.create_sheet("Data_Dictionary")
+    ws4.append(["Sheet", "Field", "Description", "Type"])
+    ws4.append(["Study_Characteristics", "Row_ID", "Auto-generated sequential ID", "Auto-formula"])
+    ws4.append(["Study_Characteristics", "Study_ID", "Auto: Author_Year", "Auto-formula"])
+    ws4.append(["Study_Characteristics", "First_Author", "First author surname", "Text"])
+    ws4.append(["Study_Characteristics", "Publication_Year", "Year published", "Number"])
+    ws4.append(["Study_Characteristics", "Study_Design", "Standardized design type", "Dropdown"])
+    ws4.append(["Study_Characteristics", "Country", "Country name", "Dropdown"])
+    ws4.append(["Study_Characteristics", "N_Participants", "Number enrolled", "Number"])
+    ws4.append(["Resistance_Data", "N_Tested", "Isolates tested", "Number"])
+    ws4.append(["Resistance_Data", "N_Resistant", "Resistant isolates", "Number"])
+    ws4.append(["Resistance_Data", "Prevalence_Percent", "Auto: N_R/N_T*100", "Auto-formula"])
+
+    out = tmp_path / "sample_template.xlsx"
+    wb.save(out)
+    return out
