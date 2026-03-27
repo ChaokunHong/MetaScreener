@@ -612,23 +612,50 @@ void schemaSheets
   max-width: 100%;
 }
 
-/* Upload zone */
+/* Upload zone — frosted glass */
 .upload-zone {
-  border: 2px dashed #ccc;
-  border-radius: 12px;
-  padding: 2rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
   text-align: center;
   margin: 1rem 0;
-  transition: border-color 0.3s;
   cursor: pointer;
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(240, 247, 255, 0.35) 50%,
+    rgba(230, 240, 255, 0.25) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    0 4px 24px rgba(74, 144, 217, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: all 0.35s ease;
 }
-.upload-zone:hover, .upload-zone.has-file {
-  border-color: #4a90d9;
+.upload-zone:hover {
+  border-color: rgba(74, 144, 217, 0.5);
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(230, 243, 255, 0.45) 50%,
+    rgba(210, 233, 255, 0.35) 100%);
+  box-shadow:
+    0 8px 32px rgba(74, 144, 217, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  transform: translateY(-1px);
+}
+.upload-zone.has-file {
+  border-color: rgba(39, 174, 96, 0.4);
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(232, 245, 233, 0.4) 100%);
 }
 .upload-icon {
   font-size: 2.5rem;
-  color: #999;
+  color: #a0b8d0;
   margin-bottom: 0.5rem;
+  transition: color 0.3s;
+}
+.upload-zone:hover .upload-icon {
+  color: #4a90d9;
 }
 .file-info {
   display: flex;
