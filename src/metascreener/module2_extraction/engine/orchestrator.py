@@ -84,6 +84,16 @@ async def extract_pdf(
         )
         model_a_result, model_b_result = extractions
 
+        # Log extraction failures explicitly
+        if not model_a_result.success:
+            log.error("sheet_model_a_failed", sheet=sheet_schema.sheet_name,
+                      model=model_a_result.model_id, error=model_a_result.error)
+        if not model_b_result.success:
+            log.error("sheet_model_b_failed", sheet=sheet_schema.sheet_name,
+                      model=model_b_result.model_id, error=model_b_result.error)
+        if not model_a_result.success and not model_b_result.success:
+            log.error("sheet_both_models_failed", sheet=sheet_schema.sheet_name)
+
         # Determine row count
         n_rows = _determine_row_count(model_a_result, model_b_result, sheet_schema)
 

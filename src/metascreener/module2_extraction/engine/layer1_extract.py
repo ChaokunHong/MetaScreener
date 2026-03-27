@@ -151,10 +151,11 @@ async def _extract_single_model(
             )
 
     except Exception as exc:
-        logger.warning(
+        logger.error(
             "layer1.model_failed",
             model_id=model_id,
             error=str(exc),
+            exc_info=True,
         )
         return ModelExtraction(
             model_id=model_id,

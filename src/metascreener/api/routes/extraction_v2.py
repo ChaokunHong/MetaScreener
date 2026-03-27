@@ -212,8 +212,16 @@ async def run_extraction(session_id: str) -> dict[str, Any]:
         except Exception:
             log.warning("plugin_load_failed", plugin_id=session.plugin_id)
 
+    # Verify backends work with a quick test
+    log.info("extraction_starting",
+             backend_a=backend_a.model_id,
+             backend_b=backend_b.model_id,
+             n_pdfs=len(session.pdfs),
+             n_data_sheets=len(session.schema.data_sheets))
+
     completed = 0
     failed = 0
+    errors: list[str] = []
 
     for pdf_info in session.pdfs:
         try:
@@ -235,24 +243,40 @@ async def run_extraction(session_id: str) -> dict[str, Any]:
                 extra_rules=extra_rules,
             )
 
-            session.results[pdf_info.pdf_id] = result
-            completed += 1
+            # Check if extraction actually produced data
+            total_cells = sum(
+                len(rr.fields) for sr in result.sheets.values() for rr in sr.rows
+            )
             log.info("pdf_extraction_done", pdf_id=pdf_info.pdf_id,
-                     sheets=len(result.sheets))
+                     sheets=len(result.sheets), total_cells=total_cells)
+
+            if total_cells == 0:
+                log.error("pdf_extraction_empty", pdf_id=pdf_info.pdf_id,
+                          filename=pdf_info.filename)
+                errors.append(f"{pdf_info.filename}: extraction produced 0 cells")
+                failed += 1
+            else:
+                session.results[pdf_info.pdf_id] = result
+                completed += 1
 
         except Exception as exc:
-            log.warning("pdf_extraction_failed", pdf_id=pdf_info.pdf_id,
-                        error=str(exc), exc_info=True)
+            log.error("pdf_extraction_failed", pdf_id=pdf_info.pdf_id,
+                      error=str(exc), exc_info=True)
+            errors.append(f"{pdf_info.filename}: {exc!s}")
             failed += 1
 
     session.status = "completed"
-    return {
+
+    response: dict[str, Any] = {
         "session_id": session_id,
-        "status": "completed",
+        "status": "completed" if completed > 0 else "failed",
         "total": len(session.pdfs),
         "completed": completed,
         "failed": failed,
     }
+    if errors:
+        response["errors"] = errors
+    return response
 
 
 # ── Results ──────────────────────────────────────────────────────────────

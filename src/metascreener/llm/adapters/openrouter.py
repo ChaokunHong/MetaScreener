@@ -161,7 +161,6 @@ class OpenRouterAdapter(LLMBackend):
                         is_thinking=self._thinking,
                         attempt=attempt + 1,
                     )
-                    empty_retries += 1
                     raise LLMTimeoutError(
                         f"Empty content from {self.model_id} (finish={finish_reason})",
                         model_id=self.model_id,

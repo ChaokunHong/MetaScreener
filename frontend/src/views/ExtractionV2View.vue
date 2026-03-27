@@ -205,10 +205,23 @@ async function uploadPdfs() {
 async function runExtraction() {
   if (!sessionId.value) return
   extractionRunning.value = true
-  progressMessages.value = ['Starting extraction...']
+  error.value = null
+  progressMessages.value = ['Starting dual-model extraction...', 'This may take several minutes for multiple PDFs.']
   try {
-    await apiPost(`/v2/extraction/sessions/${sessionId.value}/run`, {})
-    progressMessages.value.push('Extraction completed!')
+    const runResp = await apiPost<{
+      status: string; completed: number; failed: number; errors?: string[]
+    }>(`/v2/extraction/sessions/${sessionId.value}/run`, {})
+
+    if (runResp.errors?.length) {
+      progressMessages.value.push(`Warnings: ${runResp.errors.join('; ')}`)
+    }
+    if (runResp.completed === 0) {
+      error.value = `Extraction failed for all PDFs. ${runResp.errors?.join('; ') ?? 'Check server logs for details.'}`
+      return
+    }
+
+    progressMessages.value.push(`Completed: ${runResp.completed}/${runResp.completed + runResp.failed} PDFs`)
+
     // Load results
     const resp = await apiGet<{ results: Record<string, PdfResultData> }>(
       `/v2/extraction/sessions/${sessionId.value}/results`
