@@ -359,7 +359,7 @@ void schemaSheets
           <div v-for="name in templateResponse.data_sheets" :key="name" class="sheet-tag data">
             <i class="fas fa-table"></i> {{ name }}
           </div>
-          <h3 v-if="templateResponse.mapping_sheets.length">Mapping Tables</h3>
+          <h3 v-if="templateResponse.mapping_sheets.length" style="margin-top: 1.2rem;">Mapping Tables</h3>
           <div v-for="name in templateResponse.mapping_sheets" :key="name" class="sheet-tag mapping">
             <i class="fas fa-exchange-alt"></i> {{ name }}
           </div>
@@ -386,7 +386,7 @@ void schemaSheets
         </div>
       </div>
 
-      <button class="btn btn-primary" style="margin-top: 0.5rem;" :disabled="loading" @click="confirmSchema">
+      <button class="btn btn-primary" style="margin-top: 1.5rem;" :disabled="loading" @click="confirmSchema">
         <i class="fas fa-check"></i>
         {{ loading ? 'Confirming...' : 'Confirm Schema' }}
       </button>
