@@ -491,94 +491,117 @@ void schemaSheets
     </div>
 
     <!-- Step 5: Review & Edit -->
-    <div v-if="currentStep === 5" class="glass-card step-card wide">
-      <h2 class="section-title"><i class="fas fa-edit"></i> Review Extraction Results</h2>
-
-      <!-- PDF selector -->
-      <div v-if="results.length > 1" class="pdf-selector">
-        <label>PDF:</label>
-        <select v-model="selectedPdfIndex" class="form-control">
-          <option v-for="(r, i) in results" :key="i" :value="i">
-            {{ r.pdf_filename }} ({{ i + 1 }}/{{ results.length }})
-          </option>
-        </select>
+    <div v-if="currentStep === 5" class="review-step">
+      <!-- Top bar: PDF selector + sheet tabs -->
+      <div class="review-toolbar glass-card">
+        <div class="review-toolbar-left">
+          <select v-if="results.length > 1" v-model="selectedPdfIndex" class="form-control pdf-select">
+            <option v-for="(r, i) in results" :key="i" :value="i">
+              {{ r.pdf_filename }} ({{ i + 1 }}/{{ results.length }})
+            </option>
+          </select>
+          <span v-else-if="currentPdf" class="pdf-name">
+            <i class="fas fa-file-pdf"></i> {{ currentPdf.pdf_filename }}
+          </span>
+        </div>
+        <div class="review-toolbar-tabs">
+          <button v-for="name in sheetNames" :key="name"
+                  class="tab-btn" :class="{ active: selectedSheet === name }"
+                  @click="selectedSheet = name; selectedCell = null">
+            {{ name }}
+          </button>
+        </div>
       </div>
 
-      <!-- Sheet tabs -->
-      <div class="sheet-tabs">
-        <button v-for="name in sheetNames" :key="name"
-                class="tab-btn"
-                :class="{ active: selectedSheet === name }"
-                @click="selectedSheet = name; selectedCell = null">
-          {{ name }}
-        </button>
-      </div>
-
-      <!-- Results table -->
-      <div v-if="currentSheetData" class="table-container">
-        <table class="result-table">
-          <thead>
-            <tr>
-              <th v-for="field in extractFields" :key="field">{{ field }}</th>
-              <th>Confidence</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in currentSheetData.rows" :key="row.row_index">
-              <td v-for="field in extractFields" :key="field"
-                  :class="confidenceClass(row.fields[field]?.confidence || '')"
-                  @click="selectCell(row.row_index, field)"
-                  class="clickable-cell">
-                {{ row.fields[field]?.value ?? '—' }}
-              </td>
-              <td>
-                <span v-for="field in extractFields" :key="field"
-                      :title="field + ': ' + (row.fields[field]?.confidence || 'N/A')">
-                  <i :class="confidenceIcon(row.fields[field]?.confidence || '')"></i>
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Cell detail panel -->
-      <div v-if="selectedCell && currentSheetData" class="cell-detail glass-card">
-        <h3>Cell Detail</h3>
-        <template v-if="currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]">
-          <div class="detail-row">
-            <span class="detail-label">Field:</span>
-            <span>{{ selectedCell.field }}</span>
+      <!-- Main content: table + detail panel side by side -->
+      <div class="review-body">
+        <!-- Table area -->
+        <div class="review-table-area" :class="{ 'has-detail': selectedCell }">
+          <div v-if="currentSheetData" class="table-scroll">
+            <table class="review-table">
+              <thead>
+                <tr>
+                  <th class="row-num-th">#</th>
+                  <th v-for="field in extractFields" :key="field">
+                    <span class="th-text">{{ field.replace(/_/g, ' ') }}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in currentSheetData.rows" :key="row.row_index"
+                    :class="{ 'row-selected': selectedCell?.row === row.row_index }">
+                  <td class="row-num">{{ row.row_index + 1 }}</td>
+                  <td v-for="field in extractFields" :key="field"
+                      class="data-cell"
+                      :class="[
+                        confidenceClass(row.fields[field]?.confidence || ''),
+                        { 'cell-selected': selectedCell?.row === row.row_index && selectedCell?.field === field }
+                      ]"
+                      @click="selectCell(row.row_index, field)">
+                    <span class="cell-value">{{ row.fields[field]?.value ?? '—' }}</span>
+                    <span class="cell-dot" :class="'dot-' + (row.fields[field]?.confidence || '').toLowerCase()"></span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <div class="detail-row">
-            <span class="detail-label">Confidence:</span>
-            <span :class="confidenceClass(currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.confidence ?? '')">
+          <div v-else class="empty-sheet">
+            <i class="fas fa-inbox"></i>
+            <p>No data extracted for this sheet</p>
+          </div>
+        </div>
+
+        <!-- Detail panel (right side) -->
+        <Transition name="slide">
+          <div v-if="selectedCell && currentSheetData && currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]"
+               class="detail-panel glass-card">
+            <div class="detail-header">
+              <h3>{{ selectedCell.field.replace(/_/g, ' ') }}</h3>
+              <button class="detail-close" @click="selectedCell = null"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="detail-conf" :class="confidenceClass(currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.confidence ?? '')">
+              <i :class="confidenceIcon(currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.confidence ?? '')"></i>
               {{ currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.confidence }}
-            </span>
+            </div>
+
+            <div class="detail-section">
+              <div class="detail-label">Final Value</div>
+              <div class="detail-value">{{ currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.value ?? '—' }}</div>
+            </div>
+
+            <div class="detail-compare">
+              <div class="detail-model">
+                <div class="detail-label">Model A</div>
+                <div class="detail-value">{{ currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.model_a_value ?? '—' }}</div>
+              </div>
+              <div class="detail-model">
+                <div class="detail-label">Model B</div>
+                <div class="detail-value">{{ currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.model_b_value ?? '—' }}</div>
+              </div>
+            </div>
+
+            <div v-if="currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.evidence" class="detail-section">
+              <div class="detail-label">Evidence</div>
+              <div class="detail-evidence">{{ currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.evidence }}</div>
+            </div>
+
+            <div v-if="currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.warnings?.length" class="detail-section">
+              <div class="detail-label">Warnings</div>
+              <div v-for="(w, i) in currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.warnings" :key="i" class="detail-warning">
+                <i class="fas fa-exclamation-triangle"></i> {{ w }}
+              </div>
+            </div>
           </div>
-          <div class="detail-row">
-            <span class="detail-label">Model A:</span>
-            <span>{{ currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.model_a_value ?? '—' }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Model B:</span>
-            <span>{{ currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.model_b_value ?? '—' }}</span>
-          </div>
-          <div v-if="currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.evidence" class="detail-row">
-            <span class="detail-label">Evidence:</span>
-            <span class="evidence-text">{{ currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.evidence }}</span>
-          </div>
-          <div v-if="currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.warnings?.length" class="detail-row">
-            <span class="detail-label">Warnings:</span>
-            <ul>
-              <li v-for="(w, i) in currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]?.warnings" :key="i">{{ w }}</li>
-            </ul>
-          </div>
-        </template>
-        <button class="btn btn-sm" @click="selectedCell = null">Close</button>
+        </Transition>
       </div>
 
-      <div class="step-actions">
+      <!-- Bottom bar -->
+      <div class="review-footer glass-card">
+        <div class="review-stats">
+          <span v-if="currentSheetData">{{ currentSheetData.rows.length }} rows</span>
+          <span>{{ extractFields.length }} fields</span>
+        </div>
         <button class="btn btn-primary" @click="currentStep = 6">
           <i class="fas fa-download"></i> Proceed to Export
         </button>
@@ -711,6 +734,11 @@ void schemaSheets
   max-width: 960px;
   margin: 0 auto;
   padding: 2.5rem 2rem 4rem;
+}
+/* Review step breaks out of max-width for full-width table */
+.extraction-v2:has(.review-step) {
+  max-width: 100%;
+  padding: 1rem 1.5rem;
 }
 
 /* Horizontal stepper */
@@ -1102,87 +1130,297 @@ void schemaSheets
   margin: 0.3rem 0;
 }
 
-/* Sheet tabs */
-.sheet-tabs {
+/* ── Review Step (full-width, not inside .extraction-v2 max-width) ── */
+.review-step {
   display: flex;
-  gap: 0.5rem;
-  margin: 1rem 0;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+  gap: 0;
+}
+
+/* Toolbar */
+.review-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+  flex-shrink: 0;
+}
+.review-toolbar-left {
+  flex-shrink: 0;
+}
+.pdf-select {
+  max-width: 300px;
+  font-size: 0.82rem;
+}
+.pdf-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #555;
+}
+.review-toolbar-tabs {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  flex: 1;
 }
 .tab-btn {
-  padding: 0.5rem 1rem;
-  border: 1px solid #ddd;
-  border-radius: 6px 6px 0 0;
-  background: #f8f9fa;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  transition: all 0.2s;
+  color: #777;
 }
+.tab-btn:hover { background: rgba(74, 144, 217, 0.08); color: #4a90d9; }
 .tab-btn.active {
-  background: #fff;
-  border-bottom-color: #fff;
-  font-weight: 600;
+  background: rgba(74, 144, 217, 0.1);
+  border-color: rgba(74, 144, 217, 0.25);
   color: #4a90d9;
+  font-weight: 600;
 }
 
-/* Result table */
-.table-container {
-  overflow-x: auto;
-  margin: 1rem 0;
+/* Body: table + detail side by side */
+.review-body {
+  display: flex;
+  gap: 0.75rem;
+  flex: 1;
+  min-height: 0;
 }
-.result-table {
+.review-table-area {
+  flex: 1;
+  min-width: 0;
+  transition: flex 0.3s;
+}
+.review-table-area.has-detail {
+  flex: 3;
+}
+
+/* Scrollable table */
+.table-scroll {
+  height: 100%;
+  overflow: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: #fff;
+}
+.review-table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.78rem;
 }
-.result-table th {
-  background: #f8f9fa;
-  padding: 0.6rem;
+.review-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.review-table th {
+  background: #f7f8fa;
+  padding: 0.55rem 0.7rem;
   text-align: left;
-  border-bottom: 2px solid #ddd;
-  font-size: 0.85rem;
+  border-bottom: 2px solid #e8e8e8;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: capitalize;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+.row-num-th {
+  width: 36px;
+  text-align: center;
+}
+.review-table td {
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid #f2f2f2;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.result-table td {
-  padding: 0.5rem 0.6rem;
-  border-bottom: 1px solid #eee;
+.review-table tbody tr:nth-child(even) {
+  background: rgba(248, 249, 250, 0.5);
 }
-.clickable-cell {
+.review-table tbody tr:hover {
+  background: rgba(74, 144, 217, 0.04);
+}
+.review-table tbody tr.row-selected {
+  background: rgba(74, 144, 217, 0.08);
+}
+.row-num {
+  text-align: center;
+  color: #bbb;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+/* Data cells */
+.data-cell {
   cursor: pointer;
-  transition: background 0.2s;
+  position: relative;
+  transition: background 0.15s;
 }
-.clickable-cell:hover {
-  background: #f0f7ff;
+.data-cell:hover {
+  background: rgba(74, 144, 217, 0.06) !important;
 }
+.data-cell.cell-selected {
+  background: rgba(74, 144, 217, 0.12) !important;
+  box-shadow: inset 0 0 0 1.5px rgba(74, 144, 217, 0.4);
+}
+.cell-value {
+  display: inline;
+}
+.cell-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.dot-high { background: #27ae60; }
+.dot-medium { background: #f39c12; }
+.dot-low { background: #e74c3c; }
+.dot-single { background: #bbb; }
 
-/* Confidence colors */
+/* Confidence row tinting */
 .conf-high { }
-.conf-medium { background: #fff8e1; }
-.conf-low { background: #fce4ec; }
-.conf-single { background: #f5f5f5; color: #999; }
+.conf-medium { background: rgba(255, 248, 225, 0.5); }
+.conf-low { background: rgba(252, 228, 236, 0.4); }
+.conf-single { color: #aaa; }
 
-/* Cell detail */
-.cell-detail {
-  position: sticky;
-  bottom: 1rem;
-  padding: 1.5rem;
-  margin-top: 1rem;
-  border: 1px solid #4a90d9;
-}
-.detail-row {
+.empty-sheet {
   display: flex;
-  gap: 0.5rem;
-  margin: 0.4rem 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #bbb;
+  font-size: 0.9rem;
 }
-.detail-label {
+.empty-sheet i { font-size: 2rem; margin-bottom: 0.5rem; }
+
+/* Detail panel (right side) */
+.detail-panel {
+  width: 320px;
+  flex-shrink: 0;
+  padding: 1.2rem 1.4rem;
+  border-radius: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.detail-header h3 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #333;
+  text-transform: capitalize;
+  margin: 0;
+}
+.detail-close {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.04);
+  color: #999;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem;
+  transition: all 0.2s;
+}
+.detail-close:hover { background: rgba(0,0,0,0.08); color: #555; }
+
+.detail-conf {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
   font-weight: 600;
-  min-width: 100px;
-  color: #666;
+  width: fit-content;
 }
-.evidence-text {
-  font-style: italic;
+.detail-conf.conf-high { background: rgba(39, 174, 96, 0.1); color: #27ae60; }
+.detail-conf.conf-medium { background: rgba(243, 156, 18, 0.1); color: #e67e22; }
+.detail-conf.conf-low { background: rgba(231, 76, 60, 0.1); color: #e74c3c; }
+.detail-conf.conf-single { background: rgba(0,0,0,0.05); color: #999; }
+
+.detail-section { }
+.detail-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+.detail-value {
+  font-size: 0.85rem;
+  color: #333;
+  word-break: break-word;
+}
+.detail-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.detail-model {
+  padding: 0.6rem;
+  background: rgba(248, 249, 250, 0.7);
+  border-radius: 8px;
+}
+.detail-evidence {
+  font-size: 0.8rem;
   color: #555;
-  background: #f8f9fa;
-  padding: 0.3rem 0.5rem;
-  border-radius: 4px;
+  font-style: italic;
+  background: rgba(248, 249, 250, 0.7);
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  border-left: 3px solid rgba(74, 144, 217, 0.3);
+  line-height: 1.5;
+}
+.detail-warning {
+  font-size: 0.78rem;
+  color: #e67e22;
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+.detail-warning i { margin-top: 2px; flex-shrink: 0; }
+
+/* Detail slide transition */
+.slide-enter-active { transition: all 0.25s ease-out; }
+.slide-leave-active { transition: all 0.2s ease-in; }
+.slide-enter-from { opacity: 0; transform: translateX(20px); }
+.slide-leave-to { opacity: 0; transform: translateX(20px); }
+
+/* Footer */
+.review-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1.5rem;
+  border-radius: 12px;
+  margin-top: 0.75rem;
+  flex-shrink: 0;
+}
+.review-stats {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.78rem;
+  color: #999;
 }
 
 /* Actions */
@@ -1222,14 +1460,5 @@ void schemaSheets
   cursor: pointer;
 }
 
-/* PDF selector */
-.pdf-selector {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-.pdf-selector select {
-  max-width: 400px;
-}
+/* Buttons — use global .btn styles, no overrides */
 </style>
