@@ -325,7 +325,7 @@ void schemaSheets
     <div v-if="currentStep === 2" class="glass-card step-card">
       <h2 class="section-title">
         <i class="fas fa-project-diagram"></i> Template Analysis
-        <button class="info-btn" @click="activeModal = 'schema'" title="About Schema Analysis">
+        <button class="info-btn" style="margin-left: 6px;" @click="activeModal = 'schema'" title="About Schema Analysis">
           <i class="fas fa-circle-info"></i>
         </button>
       </h2>
@@ -386,7 +386,7 @@ void schemaSheets
         </div>
       </div>
 
-      <button class="btn btn-primary" :disabled="loading" @click="confirmSchema">
+      <button class="btn btn-primary" style="margin-top: 0.5rem;" :disabled="loading" @click="confirmSchema">
         <i class="fas fa-check"></i>
         {{ loading ? 'Confirming...' : 'Confirm Schema' }}
       </button>
@@ -731,7 +731,7 @@ void schemaSheets
 
 /* Cards */
 .step-card {
-  padding: 2rem;
+  padding: 2rem 2.5rem;
   margin-bottom: 1.5rem;
 }
 .step-card.wide {
@@ -812,55 +812,65 @@ void schemaSheets
 }
 
 /* Schema summary */
+.schema-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
 .stat-row {
   display: flex;
-  gap: 1.5rem;
-  margin: 1rem 0;
+  gap: 1rem;
 }
 .stat {
   text-align: center;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 8px;
+  padding: 1.2rem 1rem;
+  background: rgba(248, 249, 250, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
   flex: 1;
 }
 .stat-value {
   display: block;
-  font-size: 2rem;
-  font-weight: bold;
+  font-size: 1.8rem;
+  font-weight: 700;
   color: #4a90d9;
+  line-height: 1.2;
 }
 .stat-label {
-  font-size: 0.85rem;
-  color: #666;
+  font-size: 0.82rem;
+  color: #888;
+  margin-top: 0.3rem;
 }
 .sheet-list h3 {
-  margin: 1rem 0 0.5rem;
-  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: #555;
+  font-weight: 600;
 }
 .sheet-tag {
   display: inline-block;
-  padding: 0.3rem 0.8rem;
-  border-radius: 6px;
+  padding: 0.35rem 0.9rem;
+  border-radius: 8px;
   margin: 0.2rem;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 500;
 }
 .sheet-tag.data {
-  background: #e3f2fd;
+  background: rgba(227, 242, 253, 0.7);
   color: #1565c0;
 }
 .sheet-tag.mapping {
-  background: #fff3e0;
+  background: rgba(255, 243, 224, 0.7);
   color: #e65100;
 }
 .plugin-rec {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin: 1rem 0;
-  padding: 0.8rem;
-  background: #f0f7ff;
-  border-radius: 8px;
+  gap: 0.75rem;
+  padding: 1rem 1.2rem;
+  background: rgba(240, 247, 255, 0.6);
+  border: 1px solid rgba(74, 144, 217, 0.1);
+  border-radius: 12px;
 }
 .plugin-select-wrap {
   flex: 1;
