@@ -658,9 +658,9 @@ void schemaSheets
 
 <style scoped>
 .extraction-v2 {
-  max-width: 1200px;
+  max-width: 960px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 2.5rem 2rem 4rem;
 }
 
 /* Horizontal stepper */
@@ -668,7 +668,7 @@ void schemaSheets
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  margin-bottom: 2rem;
+  margin-bottom: 3rem;
   gap: 0;
 }
 .stepper-item {
@@ -677,18 +677,18 @@ void schemaSheets
   align-items: center;
   position: relative;
   flex: 1;
-  max-width: 120px;
+  max-width: 130px;
 }
 .stepper-dot {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 2px solid #ddd;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
-  color: #999;
+  font-size: 0.82rem;
+  color: #bbb;
   background: #fff;
   transition: all 0.3s;
   z-index: 1;
@@ -697,7 +697,7 @@ void schemaSheets
   border-color: #4a90d9;
   color: #4a90d9;
   font-weight: 700;
-  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
+  box-shadow: 0 0 0 4px rgba(74, 144, 217, 0.12);
 }
 .stepper-item.done .stepper-dot {
   border-color: #27ae60;
@@ -705,10 +705,11 @@ void schemaSheets
   color: #fff;
 }
 .stepper-label {
-  margin-top: 6px;
-  font-size: 0.75rem;
-  color: #999;
+  margin-top: 8px;
+  font-size: 0.72rem;
+  color: #aaa;
   text-align: center;
+  letter-spacing: 0.02em;
 }
 .stepper-item.active .stepper-label {
   color: #4a90d9;
@@ -719,11 +720,11 @@ void schemaSheets
 }
 .stepper-line {
   position: absolute;
-  top: 16px;
-  left: calc(50% + 20px);
-  width: calc(100% - 8px);
+  top: 18px;
+  left: calc(50% + 22px);
+  width: calc(100% - 12px);
   height: 2px;
-  background: #ddd;
+  background: #e8e8e8;
 }
 .stepper-line.filled {
   background: #27ae60;
@@ -731,28 +732,35 @@ void schemaSheets
 
 /* Cards */
 .step-card {
-  padding: 2rem 2.5rem;
-  margin-bottom: 1.5rem;
+  padding: 2.5rem 3rem;
+  margin-bottom: 2rem;
 }
 .step-card.wide {
   max-width: 100%;
+}
+.step-card .section-title {
+  margin-bottom: 1.2rem;
+}
+.step-card .text-muted {
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
 }
 
 /* Upload zone — frosted glass */
 .upload-zone {
   position: relative;
   border: 1.5px solid rgba(74, 144, 217, 0.25);
-  border-radius: 16px;
-  padding: 2.5rem 2rem;
+  border-radius: 18px;
+  padding: 3rem 2rem;
   text-align: center;
-  margin: 1rem 0;
+  margin: 0.5rem 0 1.5rem;
   cursor: pointer;
   background: linear-gradient(135deg,
     rgba(255, 255, 255, 0.6) 0%,
     rgba(235, 245, 255, 0.4) 40%,
     rgba(220, 238, 255, 0.3) 100%);
-  backdrop-filter: blur(16px) saturate(1.4);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
   box-shadow:
     0 4px 24px rgba(74, 144, 217, 0.08),
     0 1px 3px rgba(0, 0, 0, 0.04),
@@ -761,18 +769,12 @@ void schemaSheets
   transition: all 0.35s ease;
   overflow: hidden;
 }
-/* Subtle shimmer highlight along top edge */
 .upload-zone::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 10%;
-  right: 10%;
+  top: 0; left: 10%; right: 10%;
   height: 1px;
-  background: linear-gradient(90deg,
-    transparent,
-    rgba(255, 255, 255, 0.9),
-    transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent);
 }
 .upload-zone:hover {
   border-color: rgba(74, 144, 217, 0.5);
@@ -791,10 +793,15 @@ void schemaSheets
     rgba(255, 255, 255, 0.5) 0%,
     rgba(232, 245, 233, 0.4) 100%);
 }
+.upload-zone p {
+  color: #999;
+  font-size: 0.88rem;
+  margin-top: 0.4rem;
+}
 .upload-icon {
-  font-size: 2.5rem;
-  color: #a0b8d0;
-  margin-bottom: 0.5rem;
+  font-size: 2.2rem;
+  color: #a8c4dd;
+  margin-bottom: 0.3rem;
   transition: color 0.3s;
 }
 .upload-zone:hover .upload-icon {
@@ -803,7 +810,7 @@ void schemaSheets
 .file-info {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   justify-content: center;
 }
 .file-icon {
@@ -815,62 +822,69 @@ void schemaSheets
 .schema-summary {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 2rem;
 }
 .stat-row {
   display: flex;
-  gap: 1rem;
+  gap: 1.2rem;
 }
 .stat {
   text-align: center;
-  padding: 1.2rem 1rem;
-  background: rgba(248, 249, 250, 0.7);
+  padding: 1.5rem 1rem;
+  background: rgba(248, 249, 250, 0.6);
   border: 1px solid rgba(0, 0, 0, 0.04);
-  border-radius: 12px;
+  border-radius: 14px;
   flex: 1;
 }
 .stat-value {
   display: block;
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   font-weight: 700;
   color: #4a90d9;
-  line-height: 1.2;
+  line-height: 1;
 }
 .stat-label {
-  font-size: 0.82rem;
-  color: #888;
-  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  color: #999;
+  margin-top: 0.5rem;
+  letter-spacing: 0.01em;
+}
+.sheet-list {
+  padding: 0.2rem 0;
 }
 .sheet-list h3 {
-  margin: 0 0 0.5rem;
-  font-size: 0.9rem;
-  color: #555;
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  color: #777;
   font-weight: 600;
+  letter-spacing: 0.01em;
 }
 .sheet-tag {
-  display: inline-block;
-  padding: 0.35rem 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 1rem;
   border-radius: 8px;
-  margin: 0.2rem;
-  font-size: 0.82rem;
+  margin: 0.25rem 0.3rem 0.25rem 0;
+  font-size: 0.8rem;
   font-weight: 500;
 }
 .sheet-tag.data {
-  background: rgba(227, 242, 253, 0.7);
+  background: rgba(227, 242, 253, 0.65);
   color: #1565c0;
 }
 .sheet-tag.mapping {
-  background: rgba(255, 243, 224, 0.7);
+  background: rgba(255, 243, 224, 0.65);
   color: #e65100;
 }
 .plugin-rec {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 1rem 1.2rem;
-  background: rgba(240, 247, 255, 0.6);
+  padding: 1.1rem 1.4rem;
+  background: rgba(240, 247, 255, 0.5);
   border: 1px solid rgba(74, 144, 217, 0.1);
-  border-radius: 12px;
+  border-radius: 14px;
 }
 .plugin-select-wrap {
   flex: 1;
