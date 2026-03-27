@@ -615,7 +615,7 @@ void schemaSheets
 /* Upload zone — frosted glass */
 .upload-zone {
   position: relative;
-  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border: 1.5px solid rgba(74, 144, 217, 0.25);
   border-radius: 16px;
   padding: 2.5rem 2rem;
   text-align: center;
