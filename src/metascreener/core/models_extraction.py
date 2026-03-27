@@ -7,7 +7,7 @@ export) operate on this schema rather than raw Excel.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -120,3 +120,41 @@ class CellValue(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     edited_by_user: bool = False
     edit_history: list[EditRecord] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Sheet and session result models (output of extraction engine)
+# ---------------------------------------------------------------------------
+
+
+class RowResult(BaseModel):
+    """Extraction result for a single row (one entry in a sheet)."""
+
+    row_index: int
+    fields: dict[str, CellValue]
+
+
+class SheetResult(BaseModel):
+    """Extraction result for an entire sheet across one PDF."""
+
+    sheet_name: str
+    rows: list[RowResult]
+
+    @property
+    def cells_needing_review(self) -> int:
+        """Count cells with MEDIUM or LOW confidence."""
+        count = 0
+        for row in self.rows:
+            for cell in row.fields.values():
+                if cell.confidence in (Confidence.MEDIUM, Confidence.LOW):
+                    count += 1
+        return count
+
+
+class ExtractionSessionResult(BaseModel):
+    """Full extraction result for one PDF across all sheets."""
+
+    pdf_id: str
+    pdf_filename: str
+    sheets: dict[str, SheetResult] = Field(default_factory=dict)
+    extracted_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

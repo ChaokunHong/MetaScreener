@@ -328,3 +328,58 @@ class TestEditRecord:
         )
         assert record.edited_by.startswith("auto_rule:")
         assert record.reason is None
+
+
+from metascreener.core.models_extraction import (
+    ExtractionSessionResult,
+    RowResult,
+    SheetResult,
+)
+
+
+class TestSheetResult:
+    def test_empty_sheet(self) -> None:
+        sr = SheetResult(sheet_name="Study_Characteristics", rows=[])
+        assert sr.sheet_name == "Study_Characteristics"
+        assert len(sr.rows) == 0
+
+    def test_sheet_with_rows(self) -> None:
+        row = RowResult(
+            row_index=0,
+            fields={
+                "author": CellValue(value="Smith", confidence=Confidence.HIGH,
+                                    model_a_value="Smith", model_b_value="Smith"),
+                "year": CellValue(value=2023, confidence=Confidence.HIGH,
+                                  model_a_value=2023, model_b_value=2023),
+            },
+        )
+        sr = SheetResult(sheet_name="Study", rows=[row])
+        assert len(sr.rows) == 1
+        assert sr.rows[0].fields["author"].value == "Smith"
+
+    def test_needs_review_count(self) -> None:
+        rows = [
+            RowResult(row_index=0, fields={
+                "a": CellValue(value=1, confidence=Confidence.HIGH),
+                "b": CellValue(value=2, confidence=Confidence.LOW),
+            }),
+            RowResult(row_index=1, fields={
+                "a": CellValue(value=3, confidence=Confidence.MEDIUM),
+                "b": CellValue(value=4, confidence=Confidence.HIGH),
+            }),
+        ]
+        sr = SheetResult(sheet_name="Test", rows=rows)
+        assert sr.cells_needing_review == 2
+
+
+class TestExtractionSessionResult:
+    def test_session_result(self) -> None:
+        result = ExtractionSessionResult(
+            pdf_id="pdf-001",
+            pdf_filename="Smith_2023.pdf",
+            sheets={
+                "Study": SheetResult(sheet_name="Study", rows=[]),
+            },
+        )
+        assert result.pdf_id == "pdf-001"
+        assert "Study" in result.sheets
