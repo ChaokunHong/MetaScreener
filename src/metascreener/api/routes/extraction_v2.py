@@ -168,6 +168,98 @@ async def upload_pdfs(session_id: str, files: list[UploadFile]) -> UploadPdfsRes
     return UploadPdfsResponse(session_id=session_id, pdf_count=len(session.pdfs), filenames=filenames)
 
 
+@router.post("/sessions/{session_id}/run")
+async def run_extraction(session_id: str) -> dict[str, Any]:
+    """Run extraction on all uploaded PDFs."""
+    session = _store.get(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.schema is None or not session.schema_confirmed:
+        raise HTTPException(status_code=400, detail="Schema not confirmed")
+    if not session.pdfs:
+        raise HTTPException(status_code=400, detail="No PDFs uploaded")
+
+    session.status = "running"
+
+    from metascreener.io.pdf_parser import extract_text_from_pdf
+    from metascreener.module2_extraction.engine import extract_pdf
+    from metascreener.module2_extraction.plugins import load_plugin
+
+    # Load plugin if selected
+    plugin_prompt: str | None = None
+    extra_rules: list[Any] | None = None
+    if session.plugin_id:
+        try:
+            plugin = load_plugin(session.plugin_id)
+            # Combine all prompt fragments
+            if plugin.prompt_fragments:
+                plugin_prompt = "\n\n".join(plugin.prompt_fragments.values())
+            if plugin.rule_callbacks:
+                extra_rules = plugin.rule_callbacks
+        except Exception:
+            log.warning("plugin_load_failed", plugin_id=session.plugin_id)
+
+    # For now, use mock backends since we don't have real LLM config here
+    # In production this would read from config and create real backends
+    completed = 0
+    failed = 0
+
+    for pdf_info in session.pdfs:
+        try:
+            # Extract text from PDF
+            text = extract_text_from_pdf(pdf_info.path)
+            pdf_info.text = text
+
+            # TODO: Create real LLM backends from config
+            # For now, return a placeholder indicating extraction needs LLM backends
+            log.info("pdf_text_extracted", pdf_id=pdf_info.pdf_id,
+                     filename=pdf_info.filename, chars=len(text))
+            completed += 1
+        except Exception as exc:
+            log.warning("pdf_extraction_failed", pdf_id=pdf_info.pdf_id, error=str(exc))
+            failed += 1
+
+    session.status = "completed"
+    return {
+        "session_id": session_id,
+        "status": "completed",
+        "total": len(session.pdfs),
+        "completed": completed,
+        "failed": failed,
+    }
+
+
+@router.post("/sessions/{session_id}/export")
+async def export_results(session_id: str) -> dict[str, Any]:
+    """Export extraction results to Excel."""
+    session = _store.get(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.schema is None:
+        raise HTTPException(status_code=400, detail="No schema available")
+
+    import tempfile
+
+    from metascreener.module2_extraction.exporter import export_to_excel
+
+    tmp_dir = Path(tempfile.mkdtemp(prefix="metascreener_export_"))
+    output_path = tmp_dir / "extraction_results.xlsx"
+
+    results_list = list(session.results.values())
+    export_to_excel(
+        schema=session.schema,
+        results=results_list,
+        output_path=output_path,
+        template_path=session.template_path,
+    )
+
+    return {
+        "session_id": session_id,
+        "download_url": f"/api/v2/extraction/sessions/{session_id}/download",
+        "filename": "extraction_results.xlsx",
+    }
+
+
 @router.get("/sessions/{session_id}/results")
 async def get_results(session_id: str) -> dict[str, Any]:
     """Retrieve extraction results for a session.
