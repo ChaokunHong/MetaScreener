@@ -90,6 +90,42 @@ class ExtractionFieldType(StrEnum):
     CATEGORICAL = "categorical"
 
 
+class SheetRole(StrEnum):
+    """Role of a sheet within an extraction template."""
+
+    DATA = "data"
+    MAPPING = "mapping"
+    REFERENCE = "reference"
+    DOCUMENTATION = "documentation"
+
+
+class SheetCardinality(StrEnum):
+    """How many rows a sheet produces per study."""
+
+    ONE_PER_STUDY = "one_per_study"
+    MANY_PER_STUDY = "many_per_study"
+
+
+class FieldRole(StrEnum):
+    """Role of a field in extraction: what should happen to it."""
+
+    EXTRACT = "extract"
+    AUTO_CALC = "auto_calc"
+    LOOKUP = "lookup"
+    OVERRIDE = "override"
+    METADATA = "metadata"
+    QC_FLAG = "qc_flag"
+
+
+class Confidence(StrEnum):
+    """Confidence level for an extracted cell value."""
+
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+    SINGLE = "SINGLE"
+
+
 class ScreeningStage(StrEnum):
     """Screening stage identifier."""
 
