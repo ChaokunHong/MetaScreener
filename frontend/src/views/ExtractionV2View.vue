@@ -449,15 +449,43 @@ void schemaSheets
       <p class="text-muted">{{ uploadedPdfCount }} PDF(s) ready. Dual-model extraction with HCN 4-layer quality control.</p>
 
       <div v-if="!extractionRunning && !results.length">
+        <div class="extraction-info">
+          <div class="extraction-info-item">
+            <i class="fas fa-file-pdf"></i>
+            <span>{{ uploadedPdfCount }} PDFs</span>
+          </div>
+          <div class="extraction-info-item">
+            <i class="fas fa-table"></i>
+            <span>{{ templateResponse?.data_sheets.length ?? 0 }} sheets per PDF</span>
+          </div>
+          <div class="extraction-info-item">
+            <i class="fas fa-robot"></i>
+            <span>2 models (dual extraction)</span>
+          </div>
+        </div>
         <button class="btn btn-primary" @click="runExtraction">
           <i class="fas fa-play"></i> Start Extraction
         </button>
       </div>
 
       <div v-if="extractionRunning" class="progress-area">
-        <div class="spinner"></div>
-        <div v-for="(msg, i) in progressMessages" :key="i" class="progress-msg">
-          {{ msg }}
+        <!-- Glass progress bar -->
+        <div class="glass-progress" style="margin-bottom: 1.5rem;">
+          <div class="glass-progress-track">
+            <div class="glass-progress-fill"></div>
+          </div>
+        </div>
+
+        <!-- Log window -->
+        <div class="log-window" ref="logWindow">
+          <div v-for="(msg, i) in progressMessages" :key="i" class="log-line">
+            <span class="log-time">{{ new Date().toLocaleTimeString() }}</span>
+            <span class="log-text">{{ msg }}</span>
+          </div>
+          <div class="log-line log-active">
+            <span class="log-cursor"></span>
+            <span class="log-text">Processing...</span>
+          </div>
         </div>
       </div>
     </div>
@@ -988,11 +1016,75 @@ void schemaSheets
   letter-spacing: 0.02em;
 }
 
+/* Extraction info cards */
+.extraction-info {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.extraction-info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.2rem;
+  background: rgba(248, 249, 250, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  color: #555;
+}
+.extraction-info-item i {
+  color: #4a90d9;
+}
+
 /* Progress */
 .progress-area {
-  text-align: center;
-  padding: 2rem;
+  padding: 1rem 0;
 }
+
+/* Log window */
+.log-window {
+  background: #1a1d23;
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  max-height: 280px;
+  overflow-y: auto;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.78rem;
+  line-height: 1.7;
+  margin-top: 0.5rem;
+}
+.log-line {
+  display: flex;
+  gap: 0.6rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+.log-time {
+  color: rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
+}
+.log-text {
+  color: rgba(255, 255, 255, 0.75);
+}
+.log-active {
+  color: #4a90d9;
+}
+.log-active .log-text {
+  color: #6db3f2;
+}
+.log-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  background: #4a90d9;
+  animation: blink 1s step-end infinite;
+  vertical-align: middle;
+  margin-right: 0.3rem;
+}
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
 .spinner {
   width: 40px;
   height: 40px;

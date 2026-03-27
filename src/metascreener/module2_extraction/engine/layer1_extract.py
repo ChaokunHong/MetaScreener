@@ -86,6 +86,7 @@ async def _extract_single_model(
     backend: Any,
     build_prompt: Any,
     prior_context: dict[str, Any] | None,
+    plugin_prompt: str | None,
     seed: int,
 ) -> ModelExtraction:
     """Run one model across all chunks and merge results.
@@ -111,6 +112,7 @@ async def _extract_single_model(
                 sheet,
                 chunk,
                 prior_context=prior_context,
+                plugin_prompt=plugin_prompt,
             )
             raw_response: str = await backend.complete(prompt, seed=seed)
 
@@ -173,6 +175,7 @@ async def extract_dual(
     backend_b: Any,
     *,
     prior_context: dict[str, Any] | None = None,
+    plugin_prompt: str | None = None,
     max_chunk_tokens: int = 6000,
     overlap_tokens: int = 200,
     seed: int = 42,
@@ -211,6 +214,7 @@ async def extract_dual(
             backend=backend_a,
             build_prompt=build_alpha_prompt,
             prior_context=prior_context,
+            plugin_prompt=plugin_prompt,
             seed=seed,
         ),
         _extract_single_model(
@@ -219,6 +223,7 @@ async def extract_dual(
             backend=backend_b,
             build_prompt=build_beta_prompt,
             prior_context=prior_context,
+            plugin_prompt=plugin_prompt,
             seed=seed,
         ),
     )
