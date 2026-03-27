@@ -73,6 +73,7 @@ const pdfInput = ref<HTMLInputElement | null>(null)
 const currentStep = ref(1)
 const sessionId = ref<string | null>(null)
 const loading = ref(false)
+const activeModal = ref<string | null>(null)
 const error = ref<string | null>(null)
 
 // Step 1: Template
@@ -322,13 +323,22 @@ void schemaSheets
 
     <!-- Step 2: Confirm Schema -->
     <div v-if="currentStep === 2" class="glass-card step-card">
-      <h2 class="section-title"><i class="fas fa-project-diagram"></i> Template Analysis</h2>
+      <h2 class="section-title">
+        <i class="fas fa-project-diagram"></i> Template Analysis
+        <button class="info-btn" @click="activeModal = 'schema'" title="About Schema Analysis">
+          <i class="fas fa-circle-info"></i>
+        </button>
+      </h2>
 
       <div v-if="templateResponse" class="schema-summary">
         <div class="stat-row">
           <div class="stat">
             <span class="stat-value">{{ templateResponse.sheets_detected }}</span>
-            <span class="stat-label">Sheets Detected</span>
+            <span class="stat-label">Sheets Detected
+              <button class="info-btn info-btn-inline" @click="activeModal = 'sheets'" title="About Sheet Detection">
+                <i class="fas fa-circle-info"></i>
+              </button>
+            </span>
           </div>
           <div class="stat">
             <span class="stat-value">{{ templateResponse.data_sheets.length }}</span>
@@ -336,7 +346,11 @@ void schemaSheets
           </div>
           <div class="stat">
             <span class="stat-value">{{ templateResponse.mapping_sheets.length }}</span>
-            <span class="stat-label">Mapping Tables</span>
+            <span class="stat-label">Mapping Tables
+              <button class="info-btn info-btn-inline" @click="activeModal = 'mappings'" title="About Mapping Tables">
+                <i class="fas fa-circle-info"></i>
+              </button>
+            </span>
           </div>
         </div>
 
@@ -351,15 +365,24 @@ void schemaSheets
           </div>
         </div>
 
-        <div v-if="pluginRecommendation" class="plugin-rec">
+        <div class="plugin-rec">
           <i class="fas fa-plug"></i>
-          <span>Recommended plugin: <strong>{{ pluginRecommendation }}</strong></span>
-          <select v-model="selectedPlugin" class="form-control form-control-sm">
-            <option :value="null">No plugin</option>
-            <option v-for="p in availablePlugins" :key="p.plugin_id" :value="p.plugin_id">
-              {{ p.name }} ({{ p.version }})
-            </option>
-          </select>
+          <span>Domain Plugin
+            <button class="info-btn info-btn-inline" @click="activeModal = 'plugin'" title="About Plugins">
+              <i class="fas fa-circle-info"></i>
+            </button>
+          </span>
+          <div class="plugin-select-wrap">
+            <select v-model="selectedPlugin" class="form-control">
+              <option :value="null">No plugin</option>
+              <option v-for="p in availablePlugins" :key="p.plugin_id" :value="p.plugin_id">
+                {{ p.name }} ({{ p.version }}) — {{ p.domain }}
+              </option>
+            </select>
+          </div>
+          <span v-if="pluginRecommendation && selectedPlugin === pluginRecommendation" class="plugin-badge">
+            <i class="fas fa-star"></i> Recommended
+          </span>
         </div>
       </div>
 
@@ -527,6 +550,109 @@ void schemaSheets
         <a :href="exportUrl" download>Download Excel File</a>
       </div>
     </div>
+
+    <!-- Info Modals -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="activeModal" class="modal-overlay" @click.self="activeModal = null">
+          <div class="modal-glass-panel">
+            <div class="modal-refraction"></div>
+            <button class="modal-close" @click="activeModal = null">
+              <i class="fas fa-times"></i>
+            </button>
+
+            <!-- Schema Analysis -->
+            <template v-if="activeModal === 'schema'">
+              <div class="modal-header-row">
+                <div class="modal-icon-wrap modal-icon-cyan"><i class="fas fa-project-diagram"></i></div>
+                <h2 class="modal-title">Template Analysis</h2>
+              </div>
+              <div class="modal-body-scroll">
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-question-circle"></i> What is this?</h3>
+                  <p>The system automatically analyzes your Excel template's structure — detecting which sheets contain data to extract, which are lookup/mapping tables, and how they relate to each other.</p>
+                </div>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-check-double"></i> What to check</h3>
+                  <p>Verify that the detected <strong>Data Sheets</strong> and <strong>Mapping Tables</strong> are correct. Data sheets are where the AI will fill in extracted values. Mapping tables provide standardized terminology (e.g., antibiotic classifications).</p>
+                </div>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-arrows-alt-h"></i> Extraction order</h3>
+                  <p>Data sheets are processed in order — earlier sheets' results are passed as context to later sheets. For example, study-level info extracted first helps the AI correctly extract pathogen-level data.</p>
+                </div>
+              </div>
+            </template>
+
+            <!-- Sheet Detection -->
+            <template v-if="activeModal === 'sheets'">
+              <div class="modal-header-row">
+                <div class="modal-icon-wrap modal-icon-purple"><i class="fas fa-layer-group"></i></div>
+                <h2 class="modal-title">Sheet Detection</h2>
+              </div>
+              <div class="modal-body-scroll">
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-table"></i> Data Sheets</h3>
+                  <p>Sheets where the AI will extract and fill data from your PDF literature. Detected by the presence of column headers, formulas, dropdown validations, and data rows.</p>
+                </div>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-exchange-alt"></i> Mapping Tables</h3>
+                  <p>Lookup tables used for terminology standardization (e.g., antibiotic name → drug class). These are not filled by the AI — they serve as reference data.</p>
+                </div>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-book"></i> Documentation Sheets</h3>
+                  <p>Sheets like "Data_Dictionary" or "Filling_Guide" are recognized as documentation and excluded from extraction.</p>
+                </div>
+              </div>
+            </template>
+
+            <!-- Mapping Tables -->
+            <template v-if="activeModal === 'mappings'">
+              <div class="modal-header-row">
+                <div class="modal-icon-wrap modal-icon-purple"><i class="fas fa-exchange-alt"></i></div>
+                <h2 class="modal-title">Mapping Tables</h2>
+              </div>
+              <div class="modal-body-scroll">
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-spell-check"></i> What they do</h3>
+                  <p>Mapping tables standardize extracted terminology. When the AI extracts a value that matches a key in a mapping table, related columns (e.g., drug class, category) are auto-filled from the mapping.</p>
+                </div>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-lightbulb"></i> Example</h3>
+                  <p>If your template has an "Antibiotic_Mappings" table mapping "Ampicillin" → Drug_Class: "Penicillins", then when the AI extracts "Ampicillin", the drug class column is filled automatically.</p>
+                </div>
+              </div>
+            </template>
+
+            <!-- Plugin -->
+            <template v-if="activeModal === 'plugin'">
+              <div class="modal-header-row">
+                <div class="modal-icon-wrap modal-icon-cyan"><i class="fas fa-plug"></i></div>
+                <h2 class="modal-title">Domain Plugins</h2>
+              </div>
+              <div class="modal-body-scroll">
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-question-circle"></i> What is a plugin?</h3>
+                  <p>Plugins provide domain-specific knowledge to improve extraction accuracy: terminology standardization, validation rules, and specialized prompts tailored to your research field.</p>
+                </div>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-star"></i> Auto-detection</h3>
+                  <p>The system analyzes your template's column names and keywords to recommend the best-matching plugin. You can accept the recommendation, choose a different plugin, or proceed without one.</p>
+                </div>
+                <div class="modal-sub-glass">
+                  <h3><i class="fas fa-cogs"></i> What plugins provide</h3>
+                  <ul style="margin: 0.5rem 0 0 1rem; line-height: 1.8;">
+                    <li><strong>Terminology</strong> — standardizes variant names to canonical forms</li>
+                    <li><strong>Validation rules</strong> — domain-specific data quality checks</li>
+                    <li><strong>Extraction guidance</strong> — specialized prompts for the AI models</li>
+                  </ul>
+                </div>
+              </div>
+            </template>
+
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -736,8 +862,26 @@ void schemaSheets
   background: #f0f7ff;
   border-radius: 8px;
 }
-.plugin-rec select {
-  max-width: 250px;
+.plugin-select-wrap {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+.plugin-select-wrap select {
+  width: 100%;
+  min-width: 280px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.plugin-badge {
+  font-size: 0.78rem;
+  color: #e67e22;
+  white-space: nowrap;
+}
+.info-btn-inline {
+  font-size: 0.65rem;
+  vertical-align: middle;
+  margin-left: 2px;
 }
 
 /* PDF list */
