@@ -12,6 +12,7 @@ log = structlog.get_logger()
 _DOCUMENTATION_KEYWORDS = {
     "dictionary", "guide", "instruction", "readme", "help", "notes", "changelog",
     "filling_guide", "data_dictionary", "how_to",
+    "draft", "scratch", "temp", "test", "archive", "old", "backup",
 }
 
 _MAPPING_KEYWORDS = {

@@ -107,6 +107,34 @@ def _heuristic_role(f_info: RawSheetInfo | object) -> FieldRole:
     return FieldRole.EXTRACT
 
 
+def _heuristic_required(name: str) -> bool:
+    """Heuristic: only key identifier fields are required."""
+    name_lower = name.lower()
+    # Only a few core fields should be required by default
+    required_patterns = {
+        "first_author", "publication_year", "study_design", "country",
+        "pathogen_species", "antibiotic", "n_tested", "n_resistant",
+        "risk_factor", "effect_measure", "effect_value",
+    }
+    return name_lower in required_patterns
+
+
+def _heuristic_cardinality(sheet: RawSheetInfo) -> str:
+    """Heuristic: guess cardinality from sheet name and row count."""
+    name_lower = sheet.sheet_name.lower().replace(" ", "_")
+    # Sheets with these patterns typically have multiple rows per study
+    many_patterns = [
+        "resistance", "pathogen", "molecular", "risk_factor",
+        "outcome", "antibiotic", "isolate", "specimen",
+    ]
+    if any(p in name_lower for p in many_patterns):
+        return "many_per_study"
+    # If row count is much higher than typical single-study sheets
+    if sheet.row_count > 200:
+        return "many_per_study"
+    return "one_per_study"
+
+
 def _heuristic_enhancement(sheet: RawSheetInfo) -> SheetEnhancement:
     """Pure heuristic enhancement — no LLM needed."""
     fields: dict[str, FieldEnhancement] = {}
@@ -115,9 +143,10 @@ def _heuristic_enhancement(sheet: RawSheetInfo) -> SheetEnhancement:
         fields[f.name] = FieldEnhancement(
             role=role,
             description=f.name.replace("_", " "),
-            required=(role == FieldRole.EXTRACT),
+            required=_heuristic_required(f.name) if role == FieldRole.EXTRACT else False,
         )
-    return SheetEnhancement(fields=fields, cardinality="one_per_study")
+    cardinality = _heuristic_cardinality(sheet)
+    return SheetEnhancement(fields=fields, cardinality=cardinality)
 
 
 def parse_enhancement_response(

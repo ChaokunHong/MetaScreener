@@ -67,11 +67,17 @@ def scan_template(path: Path) -> list[RawSheetInfo]:
         dropdown_map: dict[str, list[str]] = {}
         for dv in ws.data_validations.dataValidation:
             if dv.type == "list" and dv.formula1:
-                options = [o.strip() for o in dv.formula1.strip('"').split(",")]
-                for cell_range in dv.sqref.ranges:
-                    for col in range(cell_range.min_col, cell_range.max_col + 1):
-                        col_letter = openpyxl.utils.get_column_letter(col)
-                        dropdown_map[col_letter] = options
+                formula = dv.formula1.strip('"')
+                # Check if it's a cell range reference (e.g. "Sheet!$A$2:$A$60")
+                if "!" in formula and "$" in formula:
+                    options = _resolve_range_reference(wb_data, formula)
+                else:
+                    options = [o.strip() for o in formula.split(",")]
+                if options:
+                    for cell_range in dv.sqref.ranges:
+                        for col in range(cell_range.min_col, cell_range.max_col + 1):
+                            col_letter = openpyxl.utils.get_column_letter(col)
+                            dropdown_map[col_letter] = options
 
         # Scan fields
         fields: list[RawFieldInfo] = []
@@ -126,6 +132,25 @@ def scan_template(path: Path) -> list[RawSheetInfo]:
     log.info("template_scanned", sheets=len(sheets),
              total_fields=sum(len(s.fields) for s in sheets))
     return sheets
+
+
+def _resolve_range_reference(wb: Any, formula: str) -> list[str]:
+    """Resolve an Excel range reference like 'Sheet!$A$2:$A$60' to actual values."""
+    try:
+        # Parse "SheetName!$COL$ROW:$COL$ROW"
+        sheet_part, range_part = formula.split("!")
+        sheet_part = sheet_part.strip("'")
+        if sheet_part not in wb.sheetnames:
+            return []
+        ref_ws = wb[sheet_part]
+        values: list[str] = []
+        for row in ref_ws[range_part]:
+            for cell in row:
+                if cell.value is not None and str(cell.value).strip():
+                    values.append(str(cell.value).strip())
+        return values
+    except Exception:
+        return []
 
 
 def _infer_type(values: list[Any]) -> str:
