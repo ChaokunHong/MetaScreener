@@ -1,47 +1,9 @@
-"""Extraction, evaluation, history, and suggest-terms API schemas."""
+"""Evaluation, history, and suggest-terms API schemas."""
 from __future__ import annotations
 
 from typing import Any
 
 from pydantic import BaseModel, Field
-
-
-class ExtractionUploadResponse(BaseModel):
-    """Response after uploading PDFs for extraction.
-
-    Attributes:
-        session_id: Unique session identifier for this upload.
-        pdf_count: Number of PDFs uploaded.
-    """
-
-    session_id: str
-    pdf_count: int
-
-
-class ExtractionResultItem(BaseModel):
-    """Single field extraction result.
-
-    Attributes:
-        field_name: Name of the extracted field.
-        value: Extracted value (None if not found).
-        consensus: Whether models reached consensus on this field.
-    """
-
-    field_name: str
-    value: str | None = None
-    consensus: bool = False
-
-
-class ExtractionResultsResponse(BaseModel):
-    """Response containing extraction results.
-
-    Attributes:
-        session_id: Session identifier.
-        results: List of per-paper extraction result dictionaries.
-    """
-
-    session_id: str
-    results: list[dict[str, Any]]
 
 
 # --- Evaluation API schemas ---

@@ -54,7 +54,7 @@ const navItems = [
   { path: '/settings',   icon: 'fas fa-microchip',         label: 'LLM Config' },
   { path: '/criteria',   icon: 'fas fa-list-check',        label: 'Criteria'   },
   { path: '/screening',  icon: 'fas fa-filter',             label: 'Screening'  },
-  { path: '/extraction-v2', icon: 'fas fa-table',           label: 'Extraction' },
+  { path: '/extraction', icon: 'fas fa-table',              label: 'Extraction' },
   { path: '/quality',    icon: 'fas fa-clipboard-check',    label: 'Quality'    },
   { path: '/evaluation', icon: 'fas fa-chart-bar',          label: 'Evaluation' },
   { path: '/history',    icon: 'fas fa-clock-rotate-left',  label: 'History'    },

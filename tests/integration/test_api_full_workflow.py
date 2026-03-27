@@ -121,45 +121,17 @@ class TestFullScreeningWorkflow:
         results_resp = client.get(f"/api/evaluation/results/{sid}")
         assert results_resp.status_code == 200
 
-    def test_extraction_workflow(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """Upload PDFs -> attempt extraction."""
-        from metascreener.api.routes import extraction as extraction_routes
-
-        monkeypatch.setattr(extraction_routes, "_get_openrouter_api_key", lambda: "")
+    def test_extraction_v2_session(self) -> None:
+        """Create extraction v2 session and verify status."""
         client = self._client()
 
-        upload_resp = client.post(
-            "/api/extraction/upload-pdfs",
-            files=[
-                (
-                    "files",
-                    ("paper.pdf", io.BytesIO(b"%PDF-1.4 test"), "application/pdf"),
-                )
-            ],
-        )
-        assert upload_resp.status_code == 200
-        sid = upload_resp.json()["session_id"]
+        resp = client.post("/api/v2/extraction/sessions")
+        assert resp.status_code == 200
+        sid = resp.json()["session_id"]
 
-        form_resp = client.post(
-            f"/api/extraction/upload-form/{sid}",
-            files={
-                "file": (
-                    "form.yaml",
-                    io.BytesIO(
-                        b'form_name: Test\nform_version: "1.0"\nfields:\n'
-                        b'  study_id:\n    type: text\n    description: Study ID\n'
-                    ),
-                    "application/yaml",
-                )
-            },
-        )
-        assert form_resp.status_code == 200
-
-        run_resp = client.post(f"/api/extraction/run/{sid}")
-        assert run_resp.status_code == 200
+        status_resp = client.get(f"/api/v2/extraction/sessions/{sid}")
+        assert status_resp.status_code == 200
+        assert status_resp.json()["status"] == "template_pending"
 
     def test_quality_workflow(
         self,
