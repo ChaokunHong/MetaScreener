@@ -260,23 +260,42 @@ async def run_extraction(session_id: str) -> dict[str, Any]:
 
 @router.get("/sessions/{session_id}/results")
 async def get_results(session_id: str) -> dict[str, Any]:
-    """Get extraction results for all PDFs."""
+    """Get full extraction results for all PDFs (with cell-level data)."""
     session = _store.get(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
-    results_summary: dict[str, Any] = {}
+
+    results_full: dict[str, Any] = {}
     for pdf_id, result in session.results.items():
-        sheets_summary = {}
+        sheets_data: dict[str, Any] = {}
         for sheet_name, sr in result.sheets.items():
-            sheets_summary[sheet_name] = {
-                "rows": len(sr.rows),
-                "needs_review": sr.cells_needing_review,
+            rows_data = []
+            for rr in sr.rows:
+                fields_data: dict[str, Any] = {}
+                for field_name, cv in rr.fields.items():
+                    fields_data[field_name] = {
+                        "value": cv.value,
+                        "confidence": cv.confidence.value if hasattr(cv.confidence, "value") else cv.confidence,
+                        "model_a_value": cv.model_a_value,
+                        "model_b_value": cv.model_b_value,
+                        "evidence": cv.evidence,
+                        "warnings": cv.warnings,
+                        "edited_by_user": cv.edited_by_user,
+                    }
+                rows_data.append({
+                    "row_index": rr.row_index,
+                    "fields": fields_data,
+                })
+            sheets_data[sheet_name] = {
+                "sheet_name": sheet_name,
+                "rows": rows_data,
             }
-        results_summary[pdf_id] = {
+        results_full[pdf_id] = {
+            "pdf_id": pdf_id,
             "pdf_filename": result.pdf_filename,
-            "sheets": sheets_summary,
+            "sheets": sheets_data,
         }
-    return {"session_id": session_id, "results": results_summary}
+    return {"session_id": session_id, "results": results_full}
 
 
 # ── Export + Download ────────────────────────────────────────────────────
