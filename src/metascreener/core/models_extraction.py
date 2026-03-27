@@ -7,14 +7,13 @@ export) operate on this schema rather than raw Excel.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from metascreener.core.enums import (
     Confidence,
-    ExtractionFieldType,
     FieldRole,
     SheetCardinality,
     SheetRole,

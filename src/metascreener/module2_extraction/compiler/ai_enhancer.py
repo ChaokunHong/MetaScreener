@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
 from metascreener.core.enums import FieldRole
 from metascreener.module2_extraction.compiler.scanner import RawSheetInfo
+
+if TYPE_CHECKING:
+    from metascreener.llm.base import BaseLLMBackend
 
 log = structlog.get_logger()
 
@@ -89,11 +92,12 @@ def _build_prompt(sheet: RawSheetInfo) -> str:
     )
 
 
-def _heuristic_role(f_info: Any) -> FieldRole:
+def _heuristic_role(f_info: RawSheetInfo | object) -> FieldRole:
     """Fallback heuristic when AI is unavailable."""
-    if f_info.has_formula:
+    if hasattr(f_info, "has_formula") and f_info.has_formula:  # noqa: ARG001
         return FieldRole.AUTO_CALC
-    name_lower = f_info.name.lower()
+    name = getattr(f_info, "name", "")
+    name_lower = str(name).lower()
     if "flag" in name_lower or "qc" in name_lower:
         return FieldRole.QC_FLAG
     if "override" in name_lower:
@@ -150,7 +154,7 @@ def parse_enhancement_response(
 async def enhance_fields(
     sheet: RawSheetInfo,
     *,
-    backend: Any,
+    backend: BaseLLMBackend | None = None,
     data_dictionary: dict[str, str] | None = None,
 ) -> SheetEnhancement:
     """Enhance field understanding using LLM, with heuristic fallback.
@@ -163,6 +167,9 @@ async def enhance_fields(
     Returns:
         SheetEnhancement with per-field roles, descriptions, and cardinality.
     """
+    if backend is None:
+        return _heuristic_enhancement(sheet)
+
     prompt = _build_prompt(sheet)
     try:
         raw_response = await backend.generate(prompt)

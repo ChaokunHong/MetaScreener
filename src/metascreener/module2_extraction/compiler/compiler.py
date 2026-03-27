@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import openpyxl
 import structlog
@@ -39,13 +39,16 @@ from metascreener.module2_extraction.compiler.scanner import (
     scan_template,
 )
 
+if TYPE_CHECKING:
+    from metascreener.llm.base import BaseLLMBackend
+
 log = structlog.get_logger()
 
 
 async def compile_template(
     path: Path,
     *,
-    llm_backend: Any | None = None,
+    llm_backend: BaseLLMBackend | None = None,
 ) -> ExtractionSchema:
     """Compile an Excel template into an ExtractionSchema.
 
