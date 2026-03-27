@@ -65,6 +65,10 @@ interface SessionStatus {
   results_count: number
 }
 
+/* ───── refs ───── */
+const templateInput = ref<HTMLInputElement | null>(null)
+const pdfInput = ref<HTMLInputElement | null>(null)
+
 /* ───── state ───── */
 const currentStep = ref(1)
 const sessionId = ref<string | null>(null)
@@ -269,21 +273,16 @@ void schemaSheets
 
 <template>
   <div class="extraction-v2">
-    <!-- Step indicator -->
-    <div class="step-indicator">
-      <div v-for="s in 6" :key="s"
-           class="step-dot"
-           :class="{ active: currentStep === s, done: currentStep > s }">
-        <span v-if="currentStep > s"><i class="fas fa-check"></i></span>
-        <span v-else>{{ s }}</span>
-      </div>
-      <div class="step-labels">
-        <span :class="{ active: currentStep === 1 }">Upload Template</span>
-        <span :class="{ active: currentStep === 2 }">Confirm Schema</span>
-        <span :class="{ active: currentStep === 3 }">Upload PDFs</span>
-        <span :class="{ active: currentStep === 4 }">Extract</span>
-        <span :class="{ active: currentStep === 5 }">Review</span>
-        <span :class="{ active: currentStep === 6 }">Export</span>
+    <!-- Step indicator — horizontal stepper -->
+    <div class="stepper">
+      <div v-for="(label, i) in ['Template', 'Schema', 'PDFs', 'Extract', 'Review', 'Export']"
+           :key="i" class="stepper-item" :class="{ active: currentStep === i + 1, done: currentStep > i + 1 }">
+        <div class="stepper-dot">
+          <i v-if="currentStep > i + 1" class="fas fa-check"></i>
+          <span v-else>{{ i + 1 }}</span>
+        </div>
+        <span class="stepper-label">{{ label }}</span>
+        <div v-if="i < 5" class="stepper-line" :class="{ filled: currentStep > i + 1 }"></div>
       </div>
     </div>
 
@@ -299,18 +298,16 @@ void schemaSheets
       <p class="text-muted">Upload your data extraction template (.xlsx). The system will analyze its structure automatically.</p>
 
       <div class="upload-zone"
+           :class="{ 'has-file': templateFile }"
+           @click="templateInput?.click()"
            @dragover.prevent
-           @drop="onTemplateDrop"
-           :class="{ 'has-file': templateFile }">
+           @drop="onTemplateDrop">
+        <input ref="templateInput" type="file" accept=".xlsx" hidden @change="onTemplateSelect" />
         <div v-if="!templateFile">
           <i class="fas fa-cloud-upload-alt upload-icon"></i>
-          <p>Drag & drop your Excel template here</p>
-          <label class="btn btn-outline">
-            Or browse files
-            <input type="file" accept=".xlsx" hidden @change="onTemplateSelect" />
-          </label>
+          <p>Drag & drop or click to select your Excel template</p>
         </div>
-        <div v-else class="file-info">
+        <div v-else class="file-info" @click.stop>
           <i class="fas fa-file-excel file-icon"></i>
           <span>{{ templateFile.name }}</span>
           <button class="btn btn-sm" @click="templateFile = null">&times;</button>
@@ -378,14 +375,12 @@ void schemaSheets
       <p class="text-muted">Upload the PDF files you want to extract data from.</p>
 
       <div class="upload-zone"
+           @click="pdfInput?.click()"
            @dragover.prevent
            @drop="onPdfDrop">
+        <input ref="pdfInput" type="file" accept=".pdf" multiple hidden @change="onPdfSelect" />
         <i class="fas fa-cloud-upload-alt upload-icon"></i>
-        <p>Drag & drop PDF files here</p>
-        <label class="btn btn-outline">
-          Browse files
-          <input type="file" accept=".pdf" multiple hidden @change="onPdfSelect" />
-        </label>
+        <p>Drag & drop or click to select PDF files</p>
       </div>
 
       <div v-if="pdfFiles.length" class="pdf-list">
@@ -542,46 +537,70 @@ void schemaSheets
   padding: 2rem;
 }
 
-/* Step indicator */
-.step-indicator {
+/* Horizontal stepper */
+.stepper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  margin-bottom: 2rem;
+  gap: 0;
+}
+.stepper-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 2rem;
+  position: relative;
+  flex: 1;
+  max-width: 120px;
 }
-.step-indicator .step-dot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.stepper-dot {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 2px solid #ccc;
-  margin: 0 0.5rem;
-  font-size: 0.85rem;
+  border: 2px solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
   color: #999;
+  background: #fff;
   transition: all 0.3s;
+  z-index: 1;
 }
-.step-dot.active {
+.stepper-item.active .stepper-dot {
   border-color: #4a90d9;
   color: #4a90d9;
-  font-weight: bold;
+  font-weight: 700;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
 }
-.step-dot.done {
+.stepper-item.done .stepper-dot {
   border-color: #27ae60;
   background: #27ae60;
   color: #fff;
 }
-.step-labels {
-  display: flex;
-  gap: 1.5rem;
-  margin-top: 0.5rem;
-  font-size: 0.8rem;
+.stepper-label {
+  margin-top: 6px;
+  font-size: 0.75rem;
   color: #999;
+  text-align: center;
 }
-.step-labels span.active {
+.stepper-item.active .stepper-label {
   color: #4a90d9;
   font-weight: 600;
+}
+.stepper-item.done .stepper-label {
+  color: #27ae60;
+}
+.stepper-line {
+  position: absolute;
+  top: 16px;
+  left: calc(50% + 20px);
+  width: calc(100% - 8px);
+  height: 2px;
+  background: #ddd;
+}
+.stepper-line.filled {
+  background: #27ae60;
 }
 
 /* Cards */
