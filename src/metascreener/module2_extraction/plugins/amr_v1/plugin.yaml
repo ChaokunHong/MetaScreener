@@ -1,0 +1,31 @@
+plugin_id: amr_v1
+name: "Antimicrobial Resistance"
+version: "1.0.0"
+description: "AMR systematic review data extraction plugin"
+domain: "antimicrobial_resistance"
+
+sheet_patterns:
+  - pattern: "study|characteristics|general"
+    maps_to: "study"
+  - pattern: "pathogen|organism|bacteria"
+    maps_to: "pathogen"
+  - pattern: "resistance|susceptibility|AST"
+    maps_to: "resistance"
+  - pattern: "molecular|gene|genotype"
+    maps_to: "molecular"
+  - pattern: "risk.?factor|association|determinant"
+    maps_to: "risk_factor"
+
+auto_detect_keywords:
+  - "antimicrobial"
+  - "resistance"
+  - "MIC"
+  - "susceptibility"
+  - "ESBL"
+  - "MRSA"
+
+auto_detect_columns:
+  - "Pathogen_Species"
+  - "Antibiotic"
+  - "N_Resistant"
+  - "AST_Method"

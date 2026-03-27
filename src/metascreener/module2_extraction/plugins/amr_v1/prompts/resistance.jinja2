@@ -1,0 +1,21 @@
+## AMR DOMAIN GUIDANCE
+
+You are extracting antibiotic resistance data. Pay special attention to:
+
+1. **AST Method identification**: Look for "disk diffusion", "Kirby-Bauer",
+   "broth microdilution", "Vitek", "Etest" etc. in Methods section.
+
+2. **Breakpoint standard**: CLSI vs EUCAST vs BSAC. Often stated near AST method.
+
+3. **Intermediate handling**: Check if authors counted intermediate as resistant
+   or susceptible. If unclear, note "Not specified".
+
+4. **Reading resistance tables**: Papers often present results as tables with
+   antibiotics in rows and R/I/S counts in columns. Extract EVERY antibiotic row.
+   Do NOT skip any antibiotic even if resistance is 0%.
+
+5. **N_Tested denominator**: May differ per antibiotic. Do not assume all
+   antibiotics were tested on the same number of isolates.
+
+6. **MIC data**: If MIC50/MIC90/range is reported, extract alongside disk diffusion.
+   Format MIC ranges as reported (e.g., "<0.03 - 4").

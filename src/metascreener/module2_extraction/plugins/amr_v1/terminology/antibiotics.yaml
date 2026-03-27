@@ -1,0 +1,26 @@
+entries:
+  - canonical: "Benzylpenicillin"
+    aliases: ["Pen G", "Penicillin G", "PCN", "penicillin"]
+    metadata:
+      drug_class: "Penicillins"
+      aware_category: "Access"
+  - canonical: "Amoxicillin + clavulanic acid"
+    aliases: ["Amox/Clav", "Augmentin", "Co-amoxiclav"]
+    metadata:
+      drug_class: "Beta-lactam/BLI"
+      aware_category: "Access"
+  - canonical: "Ampicillin"
+    aliases: ["AMP"]
+    metadata:
+      drug_class: "Penicillins"
+      aware_category: "Access"
+  - canonical: "Ceftriaxone"
+    aliases: ["CRO", "Rocephin"]
+    metadata:
+      drug_class: "Cephalosporins (3rd gen)"
+      aware_category: "Watch"
+  - canonical: "Meropenem"
+    aliases: ["MEM", "Merrem"]
+    metadata:
+      drug_class: "Carbapenems"
+      aware_category: "Watch"

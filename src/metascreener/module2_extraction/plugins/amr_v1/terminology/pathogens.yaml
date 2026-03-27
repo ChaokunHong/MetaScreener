@@ -1,0 +1,17 @@
+entries:
+  - canonical: "Escherichia coli"
+    aliases: ["E. coli", "E.coli", "ECOLI"]
+    metadata:
+      pathogen_group: "Enterobacterales"
+  - canonical: "Klebsiella pneumoniae"
+    aliases: ["K. pneumoniae", "K.pneumoniae", "KPNE"]
+    metadata:
+      pathogen_group: "Enterobacterales"
+  - canonical: "Staphylococcus aureus"
+    aliases: ["S. aureus", "S.aureus", "SAUR"]
+    metadata:
+      pathogen_group: "Gram-positive cocci"
+  - canonical: "Streptococcus pneumoniae"
+    aliases: ["S. pneumoniae", "S.pneumoniae", "SPNE"]
+    metadata:
+      pathogen_group: "Gram-positive cocci"
