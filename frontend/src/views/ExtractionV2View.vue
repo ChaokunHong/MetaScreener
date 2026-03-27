@@ -614,22 +614,39 @@ void schemaSheets
 
 /* Upload zone — frosted glass */
 .upload-zone {
-  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  position: relative;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
   border-radius: 16px;
   padding: 2.5rem 2rem;
   text-align: center;
   margin: 1rem 0;
   cursor: pointer;
   background: linear-gradient(135deg,
-    rgba(255, 255, 255, 0.45) 0%,
-    rgba(240, 247, 255, 0.35) 50%,
-    rgba(230, 240, 255, 0.25) 100%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(235, 245, 255, 0.4) 40%,
+    rgba(220, 238, 255, 0.3) 100%);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
   box-shadow:
-    0 4px 24px rgba(74, 144, 217, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    0 4px 24px rgba(74, 144, 217, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.2);
   transition: all 0.35s ease;
+  overflow: hidden;
+}
+/* Subtle shimmer highlight along top edge */
+.upload-zone::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(255, 255, 255, 0.9),
+    transparent);
 }
 .upload-zone:hover {
   border-color: rgba(74, 144, 217, 0.5);
