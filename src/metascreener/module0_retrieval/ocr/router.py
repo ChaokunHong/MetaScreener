@@ -58,11 +58,20 @@ class OCRRouter:
     backend that is currently available. PyMuPDF is always available as the
     final fallback.
 
+    Priority order by page type:
+
+    * **Table pages**: MinerU > Marker > VLM > API > PyMuPDF
+    * **Equation pages**: MinerU > VLM > API > Marker > PyMuPDF
+    * **Scan pages** (image-only): VLM > API > Tesseract > PyMuPDF
+    * **Clean text pages**: PyMuPDF (fastest, always available)
+
     Args:
         pymupdf: Required PyMuPDF backend (always available fallback).
         tesseract: Optional Tesseract backend for scanned pages.
         vlm: Optional VLM backend for tables and equations.
         api: Optional API backend for tables and equations.
+        marker: Optional Marker backend for academic table/structure extraction.
+        mineru: Optional MinerU backend for scientific document OCR.
     """
 
     def __init__(
@@ -71,11 +80,15 @@ class OCRRouter:
         tesseract: OCRBackend | None = None,
         vlm: OCRBackend | None = None,
         api: OCRBackend | None = None,
+        marker: OCRBackend | None = None,
+        mineru: OCRBackend | None = None,
     ) -> None:
         self._pymupdf = pymupdf
         self._tesseract = tesseract
         self._vlm = vlm
         self._api = api
+        self._marker = marker
+        self._mineru = mineru
 
     def analyze_page(self, page: object) -> PageInfo:
         """Analyse a PyMuPDF page object and return its characteristics.
@@ -148,10 +161,10 @@ class OCRRouter:
 
         Selection logic (in priority order):
 
-        1. Equations → VLM or API (best equation understanding); else PyMuPDF.
-        2. Scan (no text) → VLM, API, or Tesseract; else PyMuPDF.
-        3. Tables without equations → VLM or API; else PyMuPDF.
-        4. Clean text-only page → PyMuPDF (fast, always available).
+        1. **Equations**: MinerU > VLM > API > Marker > PyMuPDF
+        2. **Scan** (no text layer): VLM > API > Tesseract > PyMuPDF
+        3. **Tables** (without equations): MinerU > Marker > VLM > API > PyMuPDF
+        4. **Clean text-only page**: PyMuPDF (fast, always available)
 
         Args:
             page_info: Characteristics of the page from ``analyze_page``.
@@ -160,7 +173,14 @@ class OCRRouter:
             The selected ``OCRBackend`` instance.
         """
         if page_info.has_equations:
-            backend = self._vlm or self._api or self._pymupdf
+            # MinerU > VLM > API > Marker > PyMuPDF
+            backend = (
+                self._mineru
+                or self._vlm
+                or self._api
+                or self._marker
+                or self._pymupdf
+            )
             logger.debug(
                 "router_select",
                 page_num=page_info.page_num,
@@ -170,7 +190,10 @@ class OCRRouter:
             return backend
 
         if page_info.is_scan:
-            backend = self._vlm or self._api or self._tesseract or self._pymupdf
+            # Scan pages: VLM > API > Tesseract > PyMuPDF (unchanged)
+            backend = (
+                self._vlm or self._api or self._tesseract or self._pymupdf
+            )
             logger.debug(
                 "router_select",
                 page_num=page_info.page_num,
@@ -180,7 +203,14 @@ class OCRRouter:
             return backend
 
         if page_info.has_tables:
-            backend = self._vlm or self._api or self._pymupdf
+            # MinerU > Marker > VLM > API > PyMuPDF
+            backend = (
+                self._mineru
+                or self._marker
+                or self._vlm
+                or self._api
+                or self._pymupdf
+            )
             logger.debug(
                 "router_select",
                 page_num=page_info.page_num,
@@ -237,6 +267,12 @@ class OCRRouter:
             if selected.name in ("vlm", "api", "tesseract"):
                 page_image = _render_page(page)
                 text = await selected.convert_page(page_image, page_info.page_num)
+            elif selected.name in ("marker", "mineru"):
+                # Full-PDF backends: delegate entire PDF and extract this page's text.
+                # We call convert_pdf once per backend and cache the result to avoid
+                # repeated conversion of the same file.
+                result = await selected.convert_pdf(pdf_path)
+                text = result.markdown
             else:
                 # PyMuPDF: extract text directly from the page object
                 try:
