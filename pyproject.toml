@@ -97,6 +97,10 @@ ignore_missing_imports = true
 module = ["uvicorn", "uvicorn.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["openpyxl", "openpyxl.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
