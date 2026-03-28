@@ -238,7 +238,7 @@ async def export_results(session_id: str, format: str = "excel") -> dict:
 
     Args:
         session_id: The session whose results to export.
-        format: Export format — ``"excel"`` or ``"csv"``.
+        format: Export format — ``"excel"``, ``"csv"``, ``"revman"``, ``"r_meta"``, or ``"json"``.
 
     Returns:
         Dict with ``path`` and ``format`` keys.
@@ -268,6 +268,26 @@ async def export_results(session_id: str, format: str = "excel") -> dict:
         output = session_dir / "export.csv"
         export_to_csv(results, field_names, output)
         return {"path": str(output), "format": "csv"}
+    elif format == "revman":
+        from metascreener.module2_extraction.export.revman import export_to_revman
+
+        output = session_dir / "export_revman.xml"
+        field_tags = {r["field_name"]: r.get("strategy", "") for r in results}
+        export_to_revman(results, field_tags, output)
+        return {"path": str(output), "format": "revman"}
+    elif format == "r_meta":
+        from metascreener.module2_extraction.export.r_meta import export_to_r_meta
+
+        output = session_dir / "export_r_meta.csv"
+        field_tags = {r["field_name"]: r.get("strategy", "") for r in results}
+        export_to_r_meta(results, field_tags, output)
+        return {"path": str(output), "format": "r_meta"}
+    elif format == "json":
+        import json as json_mod
+
+        output = session_dir / "export.json"
+        output.write_text(json_mod.dumps(results, indent=2, ensure_ascii=False))
+        return {"path": str(output), "format": "json"}
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported format: {format}")
 

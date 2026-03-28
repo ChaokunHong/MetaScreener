@@ -254,6 +254,72 @@ class TestExport:
         )
         assert resp.status_code == 400
 
+    def test_export_revman_returns_path_and_format(self, client):
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        client.put(
+            f"/api/extraction/v3/sessions/{sid}/results/pdf001/cells/N",
+            json={"new_value": "10", "reason": ""},
+        )
+        resp = client.post(
+            f"/api/extraction/v3/sessions/{sid}/export", params={"format": "revman"}
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["format"] == "revman"
+        assert data["path"].endswith("export_revman.xml")
+
+    def test_export_revman_creates_xml_file(self, client, tmp_path):
+        from pathlib import Path
+
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        client.put(
+            f"/api/extraction/v3/sessions/{sid}/results/pdf001/cells/N",
+            json={"new_value": "10", "reason": ""},
+        )
+        resp = client.post(
+            f"/api/extraction/v3/sessions/{sid}/export", params={"format": "revman"}
+        )
+        assert resp.status_code == 200
+        output_path = Path(resp.json()["path"])
+        assert output_path.exists()
+        content = output_path.read_text()
+        assert "COCHRANE_REVIEW" in content
+
+    def test_export_json_returns_path_and_format(self, client):
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        client.put(
+            f"/api/extraction/v3/sessions/{sid}/results/pdf001/cells/N",
+            json={"new_value": "10", "reason": ""},
+        )
+        resp = client.post(
+            f"/api/extraction/v3/sessions/{sid}/export", params={"format": "json"}
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["format"] == "json"
+        assert data["path"].endswith("export.json")
+
+    def test_export_json_creates_valid_json_file(self, client):
+        import json
+        from pathlib import Path
+
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        client.put(
+            f"/api/extraction/v3/sessions/{sid}/results/pdf001/cells/N",
+            json={"new_value": "42", "reason": ""},
+        )
+        resp = client.post(
+            f"/api/extraction/v3/sessions/{sid}/export", params={"format": "json"}
+        )
+        assert resp.status_code == 200
+        output_path = Path(resp.json()["path"])
+        assert output_path.exists()
+        exported = json.loads(output_path.read_text())
+        assert isinstance(exported, list)
+        assert len(exported) >= 1
+        assert exported[0]["field_name"] == "N"
+        assert exported[0]["value"] == "42"
+
 
 # ---------------------------------------------------------------------------
 # Cancel endpoint

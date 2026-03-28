@@ -192,6 +192,21 @@
           <i v-else class="fas fa-file-csv"></i>
           Export CSV
         </button>
+        <button class="btn btn-secondary" :disabled="exporting" @click="exportResults('revman')">
+          <i v-if="exporting && exportFormat === 'revman'" class="fas fa-spinner fa-spin"></i>
+          <i v-else class="fas fa-file-code"></i>
+          Export RevMan XML
+        </button>
+        <button class="btn btn-secondary" :disabled="exporting" @click="exportResults('r_meta')">
+          <i v-if="exporting && exportFormat === 'r_meta'" class="fas fa-spinner fa-spin"></i>
+          <i v-else class="fas fa-chart-bar"></i>
+          Export R meta
+        </button>
+        <button class="btn btn-secondary" :disabled="exporting" @click="exportResults('json')">
+          <i v-if="exporting && exportFormat === 'json'" class="fas fa-spinner fa-spin"></i>
+          <i v-else class="fas fa-file-code"></i>
+          Export JSON
+        </button>
       </div>
 
       <div v-if="exportPath" class="alert alert-success">
