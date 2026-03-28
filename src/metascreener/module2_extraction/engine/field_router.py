@@ -15,6 +15,12 @@ import structlog
 from metascreener.core.enums import FieldRole
 from metascreener.core.models_extraction import FieldSchema
 from metascreener.doc_engine.models import Figure, StructuredDocument, Table
+from metascreener.module2_extraction.engine.routing_helpers import (
+    COMPUTABLE_ABBREV as _COMPUTABLE_ABBREV,
+    COMPUTABLE_MAP as _COMPUTABLE_MAP,
+    FIGURE_KEYWORDS as _FIGURE_KEYWORDS,
+    SECTION_KEYWORD_MAP as _SECTION_KEYWORD_MAP,
+)
 from metascreener.module2_extraction.models import (
     ExtractionPhase,
     ExtractionPlan,
@@ -25,44 +31,6 @@ from metascreener.module2_extraction.models import (
 )
 
 log = structlog.get_logger(__name__)
-
-# ------------------------------------------------------------------
-# Computable field keyword → formula mapping
-# ------------------------------------------------------------------
-
-# Multi-word keywords use substring containment; single-word abbreviations
-# use whole-word matching (surrounded by word boundaries or string edges).
-_COMPUTABLE_MAP: dict[str, str] = {
-    "odds ratio": "odds_ratio",
-    "risk ratio": "risk_ratio",
-    "relative risk": "risk_ratio",
-    "mean difference": "mean_difference",
-    "number needed to treat": "nnt",
-}
-
-# Short abbreviations require exact whole-word match to avoid false positives
-# (e.g. "or" inside "forest", "rr" inside "error").
-_COMPUTABLE_ABBREV: dict[str, str] = {
-    "or": "odds_ratio",
-    "rr": "risk_ratio",
-    "md": "mean_difference",
-    "nnt": "nnt",
-}
-
-# Keywords that hint a field is associated with a figure
-_FIGURE_KEYWORDS = {"forest plot", "figure", "chart"}
-
-# Keywords that map field names to section headings
-_SECTION_KEYWORD_MAP: dict[str, str] = {
-    "outcome": "Results",
-    "result": "Results",
-    "effect": "Results",
-    "method": "Methods",
-    "design": "Methods",
-    "randomiz": "Methods",
-    "randomis": "Methods",
-    "statistic": "Methods",
-}
 
 
 class FieldRouter:

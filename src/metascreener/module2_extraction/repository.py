@@ -3,6 +3,11 @@
 Uses standard :mod:`sqlite3` with :func:`asyncio.to_thread` to avoid
 blocking the event loop. Write operations are serialised through a single
 :class:`asyncio.Lock` so concurrent coroutines never corrupt the database.
+
+The DDL string is defined in
+:mod:`metascreener.module2_extraction.repository_schema` to keep each
+module under the 400-line limit.  Cell and edit persistence methods live in
+:mod:`metascreener.module2_extraction.repository_cells`.
 """
 from __future__ import annotations
 
@@ -13,53 +18,13 @@ from pathlib import Path
 
 import structlog
 
+from metascreener.module2_extraction.repository_cells import CellsAndEditsMixin
+from metascreener.module2_extraction.repository_schema import SCHEMA_SQL as _SCHEMA_SQL
+
 log = structlog.get_logger(__name__)
 
-_SCHEMA_SQL = """
-CREATE TABLE IF NOT EXISTS sessions (
-    id TEXT PRIMARY KEY,
-    status TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    schema_json TEXT,
-    plugin_id TEXT,
-    config_json TEXT
-);
-CREATE TABLE IF NOT EXISTS session_pdfs (
-    session_id TEXT REFERENCES sessions(id),
-    pdf_id TEXT,
-    filename TEXT,
-    pdf_hash TEXT,
-    status TEXT,
-    PRIMARY KEY (session_id, pdf_id)
-);
-CREATE TABLE IF NOT EXISTS extraction_cells (
-    session_id TEXT,
-    pdf_id TEXT,
-    sheet_name TEXT,
-    row_index INTEGER,
-    field_name TEXT,
-    value TEXT,
-    confidence TEXT,
-    evidence_json TEXT,
-    strategy TEXT,
-    validations_json TEXT,
-    PRIMARY KEY (session_id, pdf_id, sheet_name, row_index, field_name)
-);
-CREATE TABLE IF NOT EXISTS edit_records (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT,
-    pdf_id TEXT,
-    field_name TEXT,
-    old_value TEXT,
-    new_value TEXT,
-    edited_by TEXT,
-    edited_at TEXT,
-    reason TEXT
-);
-"""
 
-
-class ExtractionRepository:
+class ExtractionRepository(CellsAndEditsMixin):
     """SQLite-backed persistence for extraction sessions and results."""
 
     def __init__(self, db_path: Path) -> None:
@@ -347,174 +312,5 @@ class ExtractionRepository:
         async with self._write_lock:
             await asyncio.to_thread(_write)
 
-    # ------------------------------------------------------------------
-    # Results (cells)
-    # ------------------------------------------------------------------
-
-    async def save_cell(
-        self,
-        session_id: str,
-        pdf_id: str,
-        sheet_name: str,
-        row_index: int,
-        field_name: str,
-        value: str,
-        confidence: str,
-        evidence_json: str,
-        strategy: str,
-        validations_json: str = "{}",
-    ) -> None:
-        """Persist a single extracted cell value.
-
-        Uses ``INSERT OR REPLACE`` so re-running extraction for the same
-        (session, pdf, sheet, row, field) tuple updates the existing row.
-
-        Args:
-            session_id: Parent session identifier.
-            pdf_id: Source PDF identifier.
-            sheet_name: Destination sheet name.
-            row_index: Row number within the sheet.
-            field_name: Field / column name.
-            value: Extracted text value.
-            confidence: Confidence score as a string.
-            evidence_json: JSON-serialised list of evidence snippets.
-            strategy: Extraction strategy identifier (e.g. ``"llm_text"``).
-            validations_json: JSON-serialised validation result dict (default ``"{}"``).
-        """
-        await self._ensure_init()
-
-        def _write() -> None:
-            with sqlite3.connect(str(self._db_path)) as conn:
-                conn.execute(
-                    "INSERT OR REPLACE INTO extraction_cells "
-                    "(session_id, pdf_id, sheet_name, row_index, field_name, "
-                    " value, confidence, evidence_json, strategy, validations_json) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (
-                        session_id,
-                        pdf_id,
-                        sheet_name,
-                        row_index,
-                        field_name,
-                        value,
-                        confidence,
-                        evidence_json,
-                        strategy,
-                        validations_json,
-                    ),
-                )
-
-        async with self._write_lock:
-            await asyncio.to_thread(_write)
-
-    async def get_cells(
-        self, session_id: str, pdf_id: str | None = None
-    ) -> list[dict]:
-        """Retrieve extraction cells, optionally filtered by PDF.
-
-        Args:
-            session_id: Parent session identifier.
-            pdf_id: If given, only cells for this PDF are returned.
-
-        Returns:
-            List of cell record dicts.
-        """
-        await self._ensure_init()
-
-        def _read() -> list[dict]:
-            with sqlite3.connect(str(self._db_path)) as conn:
-                conn.row_factory = sqlite3.Row
-                if pdf_id is not None:
-                    rows = conn.execute(
-                        "SELECT session_id, pdf_id, sheet_name, row_index, "
-                        "field_name, value, confidence, evidence_json, strategy, "
-                        "validations_json "
-                        "FROM extraction_cells "
-                        "WHERE session_id = ? AND pdf_id = ?",
-                        (session_id, pdf_id),
-                    ).fetchall()
-                else:
-                    rows = conn.execute(
-                        "SELECT session_id, pdf_id, sheet_name, row_index, "
-                        "field_name, value, confidence, evidence_json, strategy, "
-                        "validations_json "
-                        "FROM extraction_cells WHERE session_id = ?",
-                        (session_id,),
-                    ).fetchall()
-            return [dict(r) for r in rows]
-
-        return await asyncio.to_thread(_read)
-
-    # ------------------------------------------------------------------
-    # Edits
-    # ------------------------------------------------------------------
-
-    async def save_edit(
-        self,
-        session_id: str,
-        pdf_id: str,
-        field_name: str,
-        old_value: str,
-        new_value: str,
-        edited_by: str,
-        reason: str,
-    ) -> None:
-        """Record a human edit to an extracted cell.
-
-        Args:
-            session_id: Parent session identifier.
-            pdf_id: Source PDF identifier.
-            field_name: The field that was edited.
-            old_value: Previous extracted value.
-            new_value: Corrected value supplied by the editor.
-            edited_by: User or system that performed the edit.
-            reason: Human-readable justification for the change.
-        """
-        await self._ensure_init()
-        edited_at = datetime.now(timezone.utc).isoformat()
-
-        def _write() -> None:
-            with sqlite3.connect(str(self._db_path)) as conn:
-                conn.execute(
-                    "INSERT INTO edit_records "
-                    "(session_id, pdf_id, field_name, old_value, new_value, "
-                    " edited_by, edited_at, reason) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    (
-                        session_id,
-                        pdf_id,
-                        field_name,
-                        old_value,
-                        new_value,
-                        edited_by,
-                        edited_at,
-                        reason,
-                    ),
-                )
-
-        async with self._write_lock:
-            await asyncio.to_thread(_write)
-
-    async def get_edits(self, session_id: str) -> list[dict]:
-        """Retrieve all edit records for a session.
-
-        Args:
-            session_id: The target session.
-
-        Returns:
-            List of edit record dicts ordered by insertion order.
-        """
-        await self._ensure_init()
-
-        def _read() -> list[dict]:
-            with sqlite3.connect(str(self._db_path)) as conn:
-                conn.row_factory = sqlite3.Row
-                rows = conn.execute(
-                    "SELECT id, session_id, pdf_id, field_name, old_value, "
-                    "new_value, edited_by, edited_at, reason "
-                    "FROM edit_records WHERE session_id = ? ORDER BY id",
-                    (session_id,),
-                ).fetchall()
-            return [dict(r) for r in rows]
-
-        return await asyncio.to_thread(_read)
+    # Results (save_cell, get_cells) and Edits (save_edit, get_edits)
+    # are provided by CellsAndEditsMixin (repository_cells.py).

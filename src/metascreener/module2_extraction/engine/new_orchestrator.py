@@ -6,11 +6,14 @@ Integrates all Module 2 components:
 
 This module co-exists with the legacy orchestrator.py during the transition
 period and will replace it in the cleanup phase.
+
+Output models (ExtractedField, DocumentExtractionResult) are defined in
+:mod:`metascreener.module2_extraction.engine.orchestrator_models` and
+re-exported here for backward compatibility.
 """
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
 from typing import Any
 
 import structlog
@@ -24,6 +27,14 @@ from metascreener.module2_extraction.engine.computation import ComputationEngine
 from metascreener.module2_extraction.engine.field_router import FieldRouter
 from metascreener.module2_extraction.engine.figure_reader import FigureReader
 from metascreener.module2_extraction.engine.llm_extractor import LLMExtractor
+from metascreener.module2_extraction.engine.orchestrator_models import (  # noqa: F401
+    DocumentExtractionResult,
+    ExtractedField,
+)
+from metascreener.module2_extraction.engine.llm_execution import (
+    execute_computed,
+    execute_llm_text,
+)
 from metascreener.module2_extraction.engine.table_reader import TableReader
 from metascreener.module2_extraction.models import (
     ExtractionStrategy,
@@ -37,51 +48,6 @@ from metascreener.module2_extraction.validation.rule_validator import EnhancedRu
 from metascreener.module2_extraction.validation.source_coherence import SourceCoherenceValidator
 
 log = structlog.get_logger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Output models
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class ExtractedField:
-    """Final result for a single extracted field.
-
-    Args:
-        field_name: Schema field name.
-        value: Extracted value (None if extraction failed).
-        confidence: Aggregated confidence level.
-        evidence: Source location where the value was found.
-        strategy: Extraction strategy that produced this value.
-        validation_passed: True if V1 + V2 checks all passed without errors.
-        warnings: Non-fatal validation messages.
-    """
-
-    field_name: str
-    value: Any
-    confidence: Confidence
-    evidence: SourceLocation
-    strategy: ExtractionStrategy
-    validation_passed: bool
-    warnings: list[str] = field(default_factory=list)
-
-
-@dataclass
-class DocumentExtractionResult:
-    """Complete extraction result for one PDF.
-
-    Args:
-        doc_id: Unique document identifier from StructuredDocument.
-        pdf_filename: Original PDF filename (stem only, from source_path.name).
-        fields: Mapping from field name to ExtractedField.
-        errors: List of error strings collected during extraction.
-    """
-
-    doc_id: str
-    pdf_filename: str
-    fields: dict[str, ExtractedField]
-    errors: list[str]
 
 
 # ---------------------------------------------------------------------------
@@ -372,6 +338,8 @@ class NewOrchestrator:
     ) -> RawExtractionResult:
         """Compute a derived field from previously extracted numeric values.
 
+        Delegates to :func:`~metascreener.module2_extraction.engine.llm_execution.execute_computed`.
+
         Args:
             plan: FieldRoutingPlan with a computation_formula source hint.
             extracted: Dict of already-extracted raw results.
@@ -379,33 +347,7 @@ class NewOrchestrator:
         Returns:
             RawExtractionResult with the computed value or an error.
         """
-        formula = plan.source_hint.computation_formula
-        if formula is None:
-            return RawExtractionResult(
-                value=None,
-                evidence=SourceLocation(type="text", page=0),
-                strategy_used=ExtractionStrategy.COMPUTED,
-                confidence_prior=0.0,
-                error="No computation formula specified",
-            )
-
-        # Gather numeric dependencies from previously extracted values
-        kwargs: dict[str, float] = {}
-        for fname, raw in extracted.items():
-            if raw.value is not None:
-                try:
-                    kwargs[fname.lower().replace(" ", "_")] = float(raw.value)
-                except (ValueError, TypeError):
-                    pass
-
-        value = self._computation.compute(formula, **kwargs)
-        return RawExtractionResult(
-            value=value,
-            evidence=SourceLocation(type="text", page=0),
-            strategy_used=ExtractionStrategy.COMPUTED,
-            confidence_prior=0.90 if value is not None else 0.0,
-            error=None if value is not None else "Computation returned None",
-        )
+        return execute_computed(plan, extracted, computation_engine=self._computation)
 
     async def _execute_llm_text(
         self,
@@ -418,12 +360,7 @@ class NewOrchestrator:
     ) -> tuple[RawExtractionResult, AgreementResult | None]:
         """Run dual-model LLM extraction with optional arbitration.
 
-        Confidence assignment:
-        - Both models agree → 0.90 (HIGH)
-        - Disagree + arbitration succeeds → 0.70
-        - Disagree + no arbitration → 0.50
-        - Only one model succeeded → 0.60
-        - Both failed → 0.0
+        Delegates to :func:`~metascreener.module2_extraction.engine.llm_execution.execute_llm_text`.
 
         Args:
             plan: FieldRoutingPlan with an optional section_name hint.
@@ -434,96 +371,15 @@ class NewOrchestrator:
             arbitration_backend: Optional third backend for arbitration.
 
         Returns:
-            A tuple of (RawExtractionResult, AgreementResult | None).  The
-            AgreementResult captures whether models agreed and any arbitration
-            that took place (V3 signal for the aggregator).
+            A tuple of (RawExtractionResult, AgreementResult | None).
         """
-        # Determine which sections to scope context to
-        section_names: list[str] = []
-        if plan.source_hint.section_name:
-            section_names = [plan.source_hint.section_name]
-        if not section_names:
-            section_names = [s.heading for s in doc.sections]
-
-        results = await self._llm_extractor.extract_field_group(
-            [field], doc, section_names, backend_a, backend_b
+        return await execute_llm_text(
+            plan,
+            field,
+            doc,
+            backend_a,
+            backend_b,
+            arbitration_backend,
+            llm_extractor=self._llm_extractor,
+            arbitrator=self._arbitrator,
         )
-
-        pair = results.get(field.name)
-        if pair is None:
-            raw = RawExtractionResult(
-                value=None,
-                evidence=SourceLocation(type="text", page=0),
-                strategy_used=ExtractionStrategy.LLM_TEXT,
-                confidence_prior=0.0,
-                error="No result returned from LLM extractor",
-            )
-            return raw, None
-
-        result_a, result_b = pair
-
-        # Both succeeded — check agreement
-        if result_a.value is not None and result_b.value is not None:
-            val_a = str(result_a.value).strip().lower()
-            val_b = str(result_b.value).strip().lower()
-
-            if val_a == val_b:
-                # Agreement — high confidence
-                result_a.confidence_prior = 0.90
-                evidence_locs = [result_a.evidence] if result_a.evidence else []
-                agreement = AgreementResult(
-                    agreed=True,
-                    final_value=result_a.value,
-                    confidence=Confidence.HIGH,
-                    evidence=evidence_locs,
-                    arbitration=None,
-                )
-                return result_a, agreement
-
-            # Disagreement — try arbitration
-            if arbitration_backend is not None:
-                evidence_a = result_a.evidence.sentence if result_a.evidence else None
-                evidence_b = result_b.evidence.sentence if result_b.evidence else None
-                arb = await self._arbitrator.arbitrate(
-                    field.name,
-                    result_a.value,
-                    evidence_a,
-                    result_b.value,
-                    evidence_b,
-                    doc.raw_markdown[:3000],
-                    arbitration_backend,
-                )
-                chosen = result_a if arb.chosen == "A" else result_b
-                chosen.confidence_prior = 0.70
-                evidence_locs = [chosen.evidence] if chosen.evidence else []
-                agreement = AgreementResult(
-                    agreed=False,
-                    final_value=chosen.value,
-                    confidence=Confidence.MEDIUM,
-                    evidence=evidence_locs,
-                    arbitration=arb,
-                )
-                return chosen, agreement
-
-            # No arbitration backend — use model A at reduced confidence
-            result_a.confidence_prior = 0.50
-            evidence_locs = [result_a.evidence] if result_a.evidence else []
-            agreement = AgreementResult(
-                agreed=False,
-                final_value=result_a.value,
-                confidence=Confidence.LOW,
-                evidence=evidence_locs,
-                arbitration=None,
-            )
-            return result_a, agreement
-
-        # One model succeeded — no agreement object (single-model result)
-        if result_a.value is not None:
-            result_a.confidence_prior = 0.60
-            return result_a, None
-        if result_b.value is not None:
-            result_b.confidence_prior = 0.60
-            return result_b, None
-
-        # Both failed — return model A's (failed) result, no agreement
-        return result_a, None
