@@ -186,7 +186,7 @@
                     <span v-else @dblclick.stop="startEdit(cell)">{{ cell.value }}</span>
                   </td>
                   <td>
-                    <span :class="['confidence-badge', `confidence-${cell.confidence}`]">
+                    <span :class="['confidence-badge', `confidence-${cell.confidence?.toLowerCase()}`]">
                       {{ cell.confidence }}
                     </span>
                   </td>
@@ -510,24 +510,76 @@ async function runExtraction() {
   progress.value = 0
 
   try {
-    progress.value = 0.1
+    // Start extraction
+    const resp = await fetch(`${API_BASE}/sessions/${sessionId.value}/run`, { method: 'POST' })
+    if (!resp.ok) throw new Error(await resp.text())
 
-    const runResp = await fetch(`${API_BASE}/sessions/${sessionId.value}/run`, { method: 'POST' })
-    if (!runResp.ok) throw new Error(`Extraction failed: ${runResp.statusText}`)
+    // Connect to SSE for real progress
+    const eventSource = new EventSource(`${API_BASE}/sessions/${sessionId.value}/events`)
 
-    progress.value = 0.8
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        progress.value = data.progress || 0
+      } catch {}
+    }
 
-    const resultsResp = await fetch(`${API_BASE}/sessions/${sessionId.value}/results`)
-    if (!resultsResp.ok) throw new Error(`Failed to fetch results: ${resultsResp.statusText}`)
-    results.value = await resultsResp.json()
+    eventSource.addEventListener('batch_done', async () => {
+      eventSource.close()
+      progress.value = 1.0
 
-    progress.value = 1.0
-    extractionDone.value = true
+      // Fetch final results
+      const resultsResp = await fetch(`${API_BASE}/sessions/${sessionId.value}/results`)
+      results.value = await resultsResp.json()
+      extractionDone.value = true
+      isRunning.value = false
+    })
+
+    eventSource.addEventListener('pdf_done', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        progress.value = data.progress || progress.value
+      } catch {}
+    })
+
+    eventSource.addEventListener('idle', () => {
+      // No extraction running, poll for status
+      eventSource.close()
+      pollForCompletion()
+    })
+
+    eventSource.onerror = () => {
+      eventSource.close()
+      // Fallback: poll for completion
+      pollForCompletion()
+    }
+
   } catch (e: any) {
     runError.value = e.message
-  } finally {
     isRunning.value = false
   }
+}
+
+async function pollForCompletion() {
+  // Poll session status every 2 seconds until completed
+  const maxAttempts = 150  // 5 minutes
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    try {
+      const resp = await fetch(`${API_BASE}/sessions/${sessionId.value}`)
+      const session = await resp.json()
+      if (session.status === 'completed' || session.status === 'failed') {
+        const resultsResp = await fetch(`${API_BASE}/sessions/${sessionId.value}/results`)
+        results.value = await resultsResp.json()
+        extractionDone.value = true
+        isRunning.value = false
+        progress.value = 1.0
+        return
+      }
+    } catch {}
+  }
+  runError.value = 'Extraction timed out'
+  isRunning.value = false
 }
 
 /* ── export ── */
