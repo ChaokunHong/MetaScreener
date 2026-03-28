@@ -1,7 +1,8 @@
 """Metadata extractor: heuristic extraction of bibliographic metadata from markdown.
 
-Extracts title and DOI from raw markdown text using simple regex heuristics.
-No AI or external calls are made; this is a fast, deterministic pre-processor.
+Extracts title, DOI, year, and authors from raw markdown text using simple regex
+heuristics.  No AI or external calls are made; this is a fast, deterministic
+pre-processor.
 """
 from __future__ import annotations
 
@@ -21,6 +22,12 @@ _DOI_RE = re.compile(
     r"(?:doi[:\s]*|https?://doi\.org/)?(10\.\d{4,}/\S+)",
     re.IGNORECASE,
 )
+
+# Year patterns — modern (2000-2029) and mid-century (1950-1999)
+_YEAR_PATTERNS = [
+    re.compile(r"\b(20[0-2]\d)\b"),  # 2000-2029
+    re.compile(r"\b(19[5-9]\d)\b"),  # 1950-1999
+]
 
 
 def _extract_title(markdown: str) -> str:
@@ -60,33 +67,90 @@ def _extract_doi(markdown: str) -> str | None:
     return None
 
 
+def _extract_year(markdown: str) -> int | None:
+    """Extract publication year from text.
+
+    Scans the first 2000 characters for 4-digit years matching common
+    publication year ranges (1950-2029).
+
+    Args:
+        markdown: Raw markdown document text.
+
+    Returns:
+        Publication year as an integer, or None if not found.
+    """
+    sample = markdown[:2000]
+    for pattern in _YEAR_PATTERNS:
+        matches = pattern.findall(sample)
+        if matches:
+            return int(matches[0])
+    return None
+
+
+def _extract_authors(markdown: str) -> list[str]:
+    """Extract author names from the first few lines of the document.
+
+    Uses a simple heuristic: looks for a comma-separated line near the top
+    that resembles a list of author names (multiple capitalised tokens).
+    Lines containing DOIs or URLs are skipped.
+
+    Args:
+        markdown: Raw markdown document text.
+
+    Returns:
+        List of author name strings (at most 20), or an empty list if none
+        could be detected.
+    """
+    lines = markdown.split("\n")
+    for line in lines[:10]:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        # Skip DOI lines, URLs, and very short tokens
+        if "doi" in stripped.lower() or "http" in stripped.lower():
+            continue
+        # Candidate: contains commas, long enough, looks like names
+        if "," in stripped and len(stripped) > 10:
+            parts = [p.strip() for p in stripped.split(",")]
+            # Require that the first three parts each contain at least one
+            # uppercase letter (name-like)
+            if all(any(c.isupper() for c in p) for p in parts[:3]):
+                return parts[:20]  # Cap at 20 authors
+    return []
+
+
 def extract_metadata(markdown: str) -> DocumentMetadata:
     """Extract bibliographic metadata from raw markdown text.
 
-    Uses heuristic rules to identify the document title and DOI.
-    Authors, journal, year, and study_type are left unpopulated (None / [])
-    as they require more sophisticated parsing beyond this module's scope.
+    Uses heuristic rules to identify the document title, DOI, publication
+    year, and author list.  Journal and study_type are left unpopulated as
+    they require more sophisticated parsing beyond this module's scope.
 
     Args:
         markdown: Full markdown text of the document.
 
     Returns:
-        DocumentMetadata with title and doi filled where detectable.
+        DocumentMetadata with title, doi, year, and authors filled where
+        detectable.
     """
     title = _extract_title(markdown)
     doi = _extract_doi(markdown)
+    year = _extract_year(markdown)
+    authors = _extract_authors(markdown)
 
     logger.debug(
         "metadata_extracted",
         title=title[:80] if title else "",
         doi=doi,
+        year=year,
+        authors_count=len(authors),
     )
 
     return DocumentMetadata(
         title=title,
-        authors=[],
+        authors=authors,
         journal=None,
         doi=doi,
-        year=None,
+        year=year,
         study_type=None,
     )

@@ -356,3 +356,109 @@ def test_model_id_is_none(reader: FigureReader) -> None:
     hint = SourceHint(figure_id="figure_1")
     result = reader.extract_from_preextracted(doc, hint, "or")
     assert result.model_id is None
+
+
+# ---------------------------------------------------------------------------
+# VLM extraction pathway
+# ---------------------------------------------------------------------------
+
+
+class _MockVLMBackend:
+    """Minimal async VLM backend stub for testing."""
+
+    def __init__(self, response: str, model_id: str = "mock-vlm") -> None:
+        self._response = response
+        self.model_id = model_id
+
+    async def complete(self, prompt: str, *, seed: int = 42) -> str:  # noqa: ARG002
+        return self._response
+
+
+@pytest.mark.asyncio
+async def test_extract_with_vlm_success(
+    reader: FigureReader, tmp_path: "pathlib.Path"
+) -> None:
+    """VLM is called when no pre-extracted data; value returned from response."""
+    import json
+    import pathlib
+
+    image_file = tmp_path / "figure_1.png"
+    image_file.write_bytes(b"fake-image-bytes")
+
+    doc = (
+        MockDocumentBuilder()
+        .with_metadata("T", [])
+        .add_figure("figure_1", FigureType.FOREST_PLOT, "Forest plot showing OR")
+        .build()
+    )
+    # Inject image path directly on the Figure object
+    doc.figures[0].image_path = image_file
+
+    vlm = _MockVLMBackend(json.dumps({"value": 0.65, "evidence": "pooled OR from axis"}))
+    hint = SourceHint(figure_id="figure_1")
+    result = await reader.extract_with_vlm(doc, hint, "overall_or", vlm)
+
+    assert result.value == 0.65
+    assert result.error is None
+    assert result.model_id == "mock-vlm"
+    assert result.confidence_prior == 0.80
+
+
+@pytest.mark.asyncio
+async def test_extract_with_vlm_preextracted_takes_priority(
+    reader: FigureReader, tmp_path: "pathlib.Path"
+) -> None:
+    """If pre-extracted data is available, VLM is never called."""
+    import pathlib
+
+    image_file = tmp_path / "figure_1.png"
+    image_file.write_bytes(b"fake-image-bytes")
+
+    doc = (
+        MockDocumentBuilder()
+        .with_metadata("T", [])
+        .add_figure(
+            "figure_1",
+            FigureType.FOREST_PLOT,
+            "Forest plot",
+            extracted_data={"overall_or": 0.99},
+        )
+        .build()
+    )
+    doc.figures[0].image_path = image_file
+
+    call_count = 0
+
+    class _CountingVLM:
+        model_id = "counting-vlm"
+
+        async def complete(self, prompt: str, *, seed: int = 42) -> str:
+            nonlocal call_count
+            call_count += 1
+            return '{"value": 0.01, "evidence": "should not be called"}'
+
+    hint = SourceHint(figure_id="figure_1")
+    result = await reader.extract_with_vlm(doc, hint, "overall_or", _CountingVLM())
+
+    assert result.value == 0.99
+    assert call_count == 0  # VLM was not invoked
+
+
+@pytest.mark.asyncio
+async def test_extract_with_vlm_no_image(reader: FigureReader) -> None:
+    """Returns error when figure has no image_path."""
+    doc = (
+        MockDocumentBuilder()
+        .with_metadata("T", [])
+        .add_figure("figure_1", FigureType.FOREST_PLOT, "Forest plot")
+        .build()
+    )
+    # image_path is None by default from MockDocumentBuilder
+
+    vlm = _MockVLMBackend('{"value": 0.5, "evidence": "irrelevant"}')
+    hint = SourceHint(figure_id="figure_1")
+    result = await reader.extract_with_vlm(doc, hint, "overall_or", vlm)
+
+    assert result.value is None
+    assert result.error is not None
+    assert "No image available" in result.error
