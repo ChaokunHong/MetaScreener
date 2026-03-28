@@ -300,6 +300,30 @@ class ExtractionRepository:
 
         return await asyncio.to_thread(_read)
 
+    async def delete_pdf(self, session_id: str, pdf_id: str) -> None:
+        """Remove a PDF record and its extraction cells from the database.
+
+        Args:
+            session_id: Parent session identifier.
+            pdf_id: The PDF to remove.
+        """
+        await self._ensure_init()
+
+        def _write() -> None:
+            with sqlite3.connect(str(self._db_path)) as conn:
+                conn.execute(
+                    "DELETE FROM extraction_cells WHERE session_id = ? AND pdf_id = ?",
+                    (session_id, pdf_id),
+                )
+                conn.execute(
+                    "DELETE FROM session_pdfs WHERE session_id = ? AND pdf_id = ?",
+                    (session_id, pdf_id),
+                )
+
+        async with self._write_lock:
+            await asyncio.to_thread(_write)
+        log.debug("pdf_deleted", session_id=session_id, pdf_id=pdf_id)
+
     async def update_pdf_status(
         self, session_id: str, pdf_id: str, status: str
     ) -> None:

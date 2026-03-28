@@ -383,3 +383,209 @@ class TestRunExtraction:
         sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
         resp = client.post(f"/api/extraction/v3/sessions/{sid}/run")
         assert resp.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# Schema get/put endpoints
+# ---------------------------------------------------------------------------
+
+
+class TestSchemaEndpoints:
+    def test_get_schema_no_schema_returns_404(self, client):
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        resp = client.get(f"/api/extraction/v3/sessions/{sid}/schema")
+        assert resp.status_code == 404
+
+    def test_get_schema_after_upload(self, client):
+        import io
+
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        content = _make_minimal_excel()
+        client.post(
+            f"/api/extraction/v3/sessions/{sid}/template",
+            files={
+                "file": (
+                    "template.xlsx",
+                    io.BytesIO(content),
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            },
+        )
+        resp = client.get(f"/api/extraction/v3/sessions/{sid}/schema")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, dict)
+
+    def test_put_schema_updates_value(self, client):
+        import json as json_mod
+
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        new_schema = json_mod.dumps({"schema_id": "custom-schema", "sheets": []})
+        resp = client.put(
+            f"/api/extraction/v3/sessions/{sid}/schema",
+            json={"content": new_schema},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "updated"
+
+        # Retrieve to verify
+        get_resp = client.get(f"/api/extraction/v3/sessions/{sid}/schema")
+        assert get_resp.status_code == 200
+        assert get_resp.json()["schema_id"] == "custom-schema"
+
+    def test_put_schema_invalid_json_returns_400(self, client):
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        resp = client.put(
+            f"/api/extraction/v3/sessions/{sid}/schema",
+            json={"content": "not-valid-json{{{"},
+        )
+        assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# PDF deletion
+# ---------------------------------------------------------------------------
+
+
+class TestDeletePDF:
+    _FAKE_PDF = b"%PDF-1.4 fake pdf content for testing"
+
+    def test_delete_pdf_returns_deleted(self, client):
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        pdf_resp = client.post(
+            f"/api/extraction/v3/sessions/{sid}/pdfs",
+            files={"file": ("paper.pdf", io.BytesIO(self._FAKE_PDF), "application/pdf")},
+        )
+        pdf_id = pdf_resp.json()["pdf_id"]
+        resp = client.delete(f"/api/extraction/v3/sessions/{sid}/pdfs/{pdf_id}")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "deleted"
+
+    def test_delete_pdf_no_longer_listed(self, client):
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        pdf_resp = client.post(
+            f"/api/extraction/v3/sessions/{sid}/pdfs",
+            files={"file": ("paper.pdf", io.BytesIO(self._FAKE_PDF), "application/pdf")},
+        )
+        pdf_id = pdf_resp.json()["pdf_id"]
+        client.delete(f"/api/extraction/v3/sessions/{sid}/pdfs/{pdf_id}")
+        pdfs = client.get(f"/api/extraction/v3/sessions/{sid}/pdfs").json()
+        assert all(p["pdf_id"] != pdf_id for p in pdfs)
+
+
+# ---------------------------------------------------------------------------
+# Cross-paper validation
+# ---------------------------------------------------------------------------
+
+
+class TestCrossPaperValidation:
+    def test_cross_paper_nonexistent_session_returns_404(self, client):
+        resp = client.post(
+            "/api/extraction/v3/sessions/nonexistent/validate/cross-paper"
+        )
+        assert resp.status_code == 404
+
+    def test_cross_paper_empty_results_returns_no_alerts(self, client):
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        resp = client.post(
+            f"/api/extraction/v3/sessions/{sid}/validate/cross-paper"
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "alerts" in data
+        assert data["alerts"] == []
+
+    def test_cross_paper_insufficient_papers_no_alerts(self, client):
+        """Fewer than 5 papers should produce no outlier alerts."""
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        for i in range(4):
+            client.put(
+                f"/api/extraction/v3/sessions/{sid}/results/pdf{i:03d}/cells/N",
+                json={"new_value": str(i * 10), "reason": ""},
+            )
+        resp = client.post(
+            f"/api/extraction/v3/sessions/{sid}/validate/cross-paper"
+        )
+        assert resp.status_code == 200
+        assert resp.json()["alerts"] == []
+
+
+# ---------------------------------------------------------------------------
+# Download endpoint
+# ---------------------------------------------------------------------------
+
+
+class TestDownload:
+    def test_download_no_export_returns_404(self, client):
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        resp = client.get(f"/api/extraction/v3/sessions/{sid}/download")
+        assert resp.status_code == 404
+
+    def test_download_after_export_returns_file(self, client):
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        client.put(
+            f"/api/extraction/v3/sessions/{sid}/results/pdf001/cells/N",
+            json={"new_value": "10", "reason": ""},
+        )
+        export_resp = client.post(
+            f"/api/extraction/v3/sessions/{sid}/export", params={"format": "json"}
+        )
+        assert export_resp.status_code == 200
+
+        resp = client.get(f"/api/extraction/v3/sessions/{sid}/download")
+        assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Alerts endpoint
+# ---------------------------------------------------------------------------
+
+
+class TestAlerts:
+    def test_alerts_nonexistent_session_returns_404(self, client):
+        resp = client.get("/api/extraction/v3/sessions/nonexistent/alerts")
+        assert resp.status_code == 404
+
+    def test_alerts_empty_session_returns_no_alerts(self, client):
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        resp = client.get(f"/api/extraction/v3/sessions/{sid}/alerts")
+        assert resp.status_code == 200
+        assert resp.json()["alerts"] == []
+
+
+# ---------------------------------------------------------------------------
+# Plugins endpoint
+# ---------------------------------------------------------------------------
+
+
+class TestPlugins:
+    def test_plugins_returns_list(self, client):
+        resp = client.get("/api/extraction/v3/plugins")
+        assert resp.status_code == 200
+        assert isinstance(resp.json(), list)
+
+
+# ---------------------------------------------------------------------------
+# Evidence endpoint
+# ---------------------------------------------------------------------------
+
+
+class TestEvidence:
+    def test_evidence_nonexistent_field_returns_404(self, client):
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        resp = client.get(
+            f"/api/extraction/v3/sessions/{sid}/results/pdf001/evidence/nonexistent_field"
+        )
+        assert resp.status_code == 404
+
+    def test_evidence_after_edit_returns_dict(self, client):
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        client.put(
+            f"/api/extraction/v3/sessions/{sid}/results/pdf001/cells/N",
+            json={"new_value": "42", "reason": ""},
+        )
+        resp = client.get(
+            f"/api/extraction/v3/sessions/{sid}/results/pdf001/evidence/N"
+        )
+        assert resp.status_code == 200
+        assert isinstance(resp.json(), dict)
