@@ -7,6 +7,7 @@ Falls back to heuristic classification when LLM is unavailable.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -21,6 +22,47 @@ if TYPE_CHECKING:
 log = structlog.get_logger()
 
 _VALID_ROLES = {r.value for r in FieldRole}
+
+# ---------------------------------------------------------------------------
+# Semantic tag inference
+# ---------------------------------------------------------------------------
+
+_SEMANTIC_TAG_PATTERNS: dict[str, str] = {
+    "n_total": r"(?i)(total\s*(n|sample|patients?|participants?)|n\s*total|sample[\s_]*size)",
+    "n_arm": r"(?i)(n\s*=|group\s*size|arm\s*size|per\s*arm)",
+    "events_arm": r"(?i)(events?|incidents?|cases?)",
+    "mean": r"(?i)(mean(?!\s*diff))",
+    "sd": r"(?i)\b(sd|standard\s*deviation)\b",
+    "se": r"(?i)\b(se|standard\s*error)\b",
+    "median": r"(?i)\b(median)\b",
+    "effect_estimate": r"(?i)(odds\s*ratio|risk\s*ratio|hazard\s*ratio|mean\s*diff|\bor\b|\brr\b|\bhr\b|\bmd\b|\bsmd\b)",
+    "ci_lower": r"(?i)(ci\s*lower|lower\s*ci|lower\s*bound|95%?\s*ci\s*low)",
+    "ci_upper": r"(?i)(ci\s*upper|upper\s*ci|upper\s*bound|95%?\s*ci\s*up)",
+    "p_value": r"(?i)(p\s*[-_]?\s*value|p\s*=|significance)",
+    "age": r"(?i)\bage\b",
+    "percentage": r"(?i)(%|percent|proportion)",
+    "study_id": r"(?i)(study\s*id|author|first\s*author)",
+    "intervention": r"(?i)(intervention|treatment|experimental|drug)",
+    "comparator": r"(?i)(control|comparator|placebo|comparision)",
+    "outcome": r"(?i)(outcome|endpoint|primary|secondary)",
+    "follow_up": r"(?i)(follow[\s-]*up|duration|period|months?|weeks?|years?)",
+}
+
+
+def infer_semantic_tag(field_name: str) -> str | None:
+    """Infer a semantic tag from a field name using regex patterns.
+
+    Args:
+        field_name: The name of the field to classify.
+
+    Returns:
+        A semantic tag string (e.g. ``"n_total"``, ``"effect_estimate"``) or
+        ``None`` if no pattern matches.
+    """
+    for tag, pattern in _SEMANTIC_TAG_PATTERNS.items():
+        if re.search(pattern, field_name):
+            return tag
+    return None
 
 _ENHANCE_PROMPT = """\
 You are analyzing an Excel template for systematic review data extraction.
@@ -60,6 +102,7 @@ class FieldEnhancement:
     role: FieldRole
     description: str
     required: bool
+    semantic_tag: str | None = None
 
 
 @dataclass
@@ -144,6 +187,7 @@ def _heuristic_enhancement(sheet: RawSheetInfo) -> SheetEnhancement:
             role=role,
             description=f.name.replace("_", " "),
             required=_heuristic_required(f.name) if role == FieldRole.EXTRACT else False,
+            semantic_tag=infer_semantic_tag(f.name),
         )
     cardinality = _heuristic_cardinality(sheet)
     return SheetEnhancement(fields=fields, cardinality=cardinality)

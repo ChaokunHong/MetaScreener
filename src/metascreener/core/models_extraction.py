@@ -42,6 +42,12 @@ class FieldSchema(BaseModel):
     validation: FieldValidation | None = None
     mapping_source: str | None = None
 
+    # Semantic enrichment fields (all optional, backward-compatible)
+    semantic_tag: str | None = None        # FieldSemanticTag value (stored as str)
+    preferred_strategy: str | None = None   # ExtractionStrategy value override
+    arm_label: str | None = None           # "intervention" / "control"
+    group_hint: str | None = None          # "baseline" / "outcome" / "design"
+
 
 class SheetSchema(BaseModel):
     """Schema for one sheet within the extraction template."""
