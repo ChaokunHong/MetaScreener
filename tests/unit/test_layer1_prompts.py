@@ -92,7 +92,7 @@ class TestPICOPrompt:
         assert "INTERVENTION" in section
         assert "COMPARISON" in section
         assert "OUTCOME" in section
-        assert "STUDY DESIGN" in section
+        assert "STUDY_TYPE" in section
 
     def test_full_prompt_structure(
         self,
