@@ -31,16 +31,16 @@ from metascreener.doc_engine.models_table import (  # noqa: F401
 class FigureType(StrEnum):
     """Classification of figure types found in scholarly PDFs."""
 
-    FOREST_PLOT = "FOREST_PLOT"
-    BAR_CHART = "BAR_CHART"
-    LINE_CHART = "LINE_CHART"
-    FLOW_DIAGRAM = "FLOW_DIAGRAM"
-    KAPLAN_MEIER = "KAPLAN_MEIER"
-    SCATTER_PLOT = "SCATTER_PLOT"
-    BOX_PLOT = "BOX_PLOT"
-    HEATMAP = "HEATMAP"
-    OTHER = "OTHER"
-    UNKNOWN = "UNKNOWN"
+    FOREST_PLOT = "forest_plot"
+    BAR_CHART = "bar_chart"
+    LINE_CHART = "line_chart"
+    FLOW_DIAGRAM = "flow_diagram"
+    KAPLAN_MEIER = "kaplan_meier"
+    SCATTER_PLOT = "scatter_plot"
+    BOX_PLOT = "box_plot"
+    HEATMAP = "heatmap"
+    OTHER = "other"
+    UNKNOWN = "unknown"
 
 
 # ---------------------------------------------------------------------------

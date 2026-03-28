@@ -141,8 +141,8 @@ class TestFigure:
         assert f.image_path == p
 
     def test_figure_type_enum_values(self) -> None:
-        assert FigureType.UNKNOWN == "UNKNOWN"
-        assert FigureType.OTHER == "OTHER"
+        assert FigureType.UNKNOWN == "unknown"
+        assert FigureType.OTHER == "other"
         all_types = list(FigureType)
         assert len(all_types) == 10
 
