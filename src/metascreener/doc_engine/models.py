@@ -23,6 +23,26 @@ from metascreener.doc_engine.models_table import (  # noqa: F401
     _table_to_markdown,
 )
 
+__all__ = [
+    # Re-exported from geometry
+    "BoundingBox",
+    # Re-exported from models_table
+    "RowGroup",
+    "Table",
+    "TableCell",
+    "_table_to_markdown",
+    # Enumerations
+    "FigureType",
+    # Dataclasses
+    "DocumentMetadata",
+    "Reference",
+    "SubFigure",
+    "Figure",
+    "Section",
+    "OCRReport",
+    "StructuredDocument",
+]
+
 # ---------------------------------------------------------------------------
 # Enumerations
 # ---------------------------------------------------------------------------

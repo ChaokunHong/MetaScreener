@@ -148,9 +148,14 @@ class LLMExtractor:
         """
         parts: list[str] = []
 
-        for section in doc.sections:
-            if section.heading in section_names:
-                parts.append(f"## {section.heading}\n{section.content}")
+        def _collect(sections: list) -> None:  # type: ignore[type-arg]
+            for section in sections:
+                if section.heading in section_names:
+                    parts.append(f"## {section.heading}\n{section.content}")
+                if section.children:
+                    _collect(section.children)
+
+        _collect(doc.sections)
 
         if table_ids:
             for tid in table_ids:

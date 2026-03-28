@@ -44,7 +44,7 @@ def _parse_row_cells(line: str, *, is_header: bool) -> list[TableCell]:
     # Strip outer pipes and split on inner pipes
     inner = line.strip().strip("|")
     parts = inner.split("|")
-    return [TableCell(value=part, is_header=is_header) for part in parts]
+    return [TableCell(value=part.strip(), is_header=is_header) for part in parts]
 
 
 def extract_tables_from_markdown(markdown: str) -> list[Table]:

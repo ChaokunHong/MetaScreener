@@ -290,7 +290,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 
 const API_BASE = '/api/extraction/v3'
 
@@ -327,6 +327,16 @@ interface PdfEntry {
   filename: string
 }
 const pdfs = ref<PdfEntry[]>([])
+
+/* ── active EventSource (closed on unmount) ── */
+const activeEventSource = ref<EventSource | null>(null)
+
+onUnmounted(() => {
+  if (activeEventSource.value) {
+    activeEventSource.value.close()
+    activeEventSource.value = null
+  }
+})
 
 /* ── extraction run ── */
 const isRunning = ref(false)
@@ -516,6 +526,7 @@ async function runExtraction() {
 
     // Connect to SSE for real progress
     const eventSource = new EventSource(`${API_BASE}/sessions/${sessionId.value}/events`)
+    activeEventSource.value = eventSource
 
     eventSource.onmessage = (event) => {
       try {
@@ -526,6 +537,7 @@ async function runExtraction() {
 
     eventSource.addEventListener('batch_done', async () => {
       eventSource.close()
+      activeEventSource.value = null
       progress.value = 1.0
 
       // Fetch final results
@@ -545,11 +557,13 @@ async function runExtraction() {
     eventSource.addEventListener('idle', () => {
       // No extraction running, poll for status
       eventSource.close()
+      activeEventSource.value = null
       pollForCompletion()
     })
 
     eventSource.onerror = () => {
       eventSource.close()
+      activeEventSource.value = null
       // Fallback: poll for completion
       pollForCompletion()
     }

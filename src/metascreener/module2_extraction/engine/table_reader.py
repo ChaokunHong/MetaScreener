@@ -107,7 +107,13 @@ class TableReader:
             )
 
         # --- Read cell value ---
-        cell = table.cells[abs_row][col_idx]
+        row = table.cells[abs_row]
+        if col_idx >= len(row):
+            return _make_error_result(
+                f"Column index {col_idx} out of range for row {row_index} "
+                f"(row has {len(row)} cells)"
+            )
+        cell = row[col_idx]
         value = cell.value
 
         location = SourceLocation(

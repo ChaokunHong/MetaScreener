@@ -112,7 +112,7 @@ def _table_to_markdown(table: Table) -> str:
         cells = _pad_row(row, num_cols)
         lines.append("| " + " | ".join(cells) + " |")
         if idx == table.header_rows - 1:
-            lines.append("|" + "|".join(["---"] * num_cols) + "|")
+            lines.append("| " + " | ".join(["---"] * num_cols) + " |")
 
     if table.footnotes:
         lines.append("")

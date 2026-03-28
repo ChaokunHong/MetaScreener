@@ -38,11 +38,12 @@ from metascreener.module2_extraction.engine.llm_execution import (
 from metascreener.module2_extraction.engine.table_reader import TableReader
 from metascreener.module2_extraction.models import (
     ExtractionStrategy,
+    FieldRoutingPlan,
     RawExtractionResult,
     SourceLocation,
 )
 from metascreener.module2_extraction.validation.aggregator import FinalConfidenceAggregator
-from metascreener.module2_extraction.validation.models import AgreementResult
+from metascreener.module2_extraction.validation.models import AgreementResult, CoherenceViolation
 from metascreener.module2_extraction.validation.numerical_coherence import NumericalCoherenceEngine
 from metascreener.module2_extraction.validation.rule_validator import EnhancedRuleValidator
 from metascreener.module2_extraction.validation.source_coherence import SourceCoherenceValidator
@@ -202,7 +203,7 @@ class NewOrchestrator:
         coherence_violations = self._coherence_engine.validate(extracted_values, field_tags)
 
         # Build a per-field mapping of coherence violations for quick lookup
-        field_coherence: dict[str, list] = {f.name: [] for f in all_fields}
+        field_coherence: dict[str, list[CoherenceViolation]] = {f.name: [] for f in all_fields}
         for violation in coherence_violations:
             for vfield in violation.fields_involved:
                 if vfield in field_coherence:
@@ -276,7 +277,7 @@ class NewOrchestrator:
 
     async def _execute_strategy(
         self,
-        plan: Any,
+        plan: FieldRoutingPlan,
         field: FieldSchema,
         doc: StructuredDocument,
         backend_a: Any,
@@ -333,7 +334,7 @@ class NewOrchestrator:
 
     def _execute_computed(
         self,
-        plan: Any,
+        plan: FieldRoutingPlan,
         extracted: dict[str, RawExtractionResult],
     ) -> RawExtractionResult:
         """Compute a derived field from previously extracted numeric values.
@@ -351,7 +352,7 @@ class NewOrchestrator:
 
     async def _execute_llm_text(
         self,
-        plan: Any,
+        plan: FieldRoutingPlan,
         field: FieldSchema,
         doc: StructuredDocument,
         backend_a: Any,
