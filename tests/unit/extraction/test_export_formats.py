@@ -25,16 +25,16 @@ from metascreener.module2_extraction.export.revman import export_to_revman
 FIELD_NAMES = ["Study ID", "Events E", "N E", "Events C", "N C"]
 
 DICH_RESULTS = [
-    {"pdf_id": "pdf_001", "field_name": "Study ID",  "value": "Smith 2020", "confidence": "high", "evidence_json": ""},
-    {"pdf_id": "pdf_001", "field_name": "Events E",  "value": "30",         "confidence": "high", "evidence_json": ""},
-    {"pdf_id": "pdf_001", "field_name": "N E",        "value": "60",         "confidence": "high", "evidence_json": ""},
-    {"pdf_id": "pdf_001", "field_name": "Events C",  "value": "20",         "confidence": "high", "evidence_json": ""},
-    {"pdf_id": "pdf_001", "field_name": "N C",        "value": "60",         "confidence": "high", "evidence_json": ""},
-    {"pdf_id": "pdf_002", "field_name": "Study ID",  "value": "Jones 2021", "confidence": "high", "evidence_json": ""},
-    {"pdf_id": "pdf_002", "field_name": "Events E",  "value": "15",         "confidence": "high", "evidence_json": ""},
-    {"pdf_id": "pdf_002", "field_name": "N E",        "value": "40",         "confidence": "high", "evidence_json": ""},
-    {"pdf_id": "pdf_002", "field_name": "Events C",  "value": "25",         "confidence": "high", "evidence_json": ""},
-    {"pdf_id": "pdf_002", "field_name": "N C",        "value": "40",         "confidence": "high", "evidence_json": ""},
+    {"pdf_id": "pdf_001", "field_name": "Study ID",  "value": "Smith 2020", "confidence": "HIGH", "evidence_json": ""},
+    {"pdf_id": "pdf_001", "field_name": "Events E",  "value": "30",         "confidence": "HIGH", "evidence_json": ""},
+    {"pdf_id": "pdf_001", "field_name": "N E",        "value": "60",         "confidence": "HIGH", "evidence_json": ""},
+    {"pdf_id": "pdf_001", "field_name": "Events C",  "value": "20",         "confidence": "HIGH", "evidence_json": ""},
+    {"pdf_id": "pdf_001", "field_name": "N C",        "value": "60",         "confidence": "HIGH", "evidence_json": ""},
+    {"pdf_id": "pdf_002", "field_name": "Study ID",  "value": "Jones 2021", "confidence": "HIGH", "evidence_json": ""},
+    {"pdf_id": "pdf_002", "field_name": "Events E",  "value": "15",         "confidence": "HIGH", "evidence_json": ""},
+    {"pdf_id": "pdf_002", "field_name": "N E",        "value": "40",         "confidence": "HIGH", "evidence_json": ""},
+    {"pdf_id": "pdf_002", "field_name": "Events C",  "value": "25",         "confidence": "HIGH", "evidence_json": ""},
+    {"pdf_id": "pdf_002", "field_name": "N C",        "value": "40",         "confidence": "HIGH", "evidence_json": ""},
 ]
 
 DICH_FIELD_TAGS = {
@@ -46,13 +46,13 @@ DICH_FIELD_TAGS = {
 }
 
 CONT_RESULTS = [
-    {"pdf_id": "pdf_001", "field_name": "Study ID", "value": "Li 2019",    "confidence": "high", "evidence_json": ""},
-    {"pdf_id": "pdf_001", "field_name": "Mean E",   "value": "5.2",         "confidence": "high", "evidence_json": ""},
-    {"pdf_id": "pdf_001", "field_name": "SD E",     "value": "1.1",         "confidence": "high", "evidence_json": ""},
-    {"pdf_id": "pdf_001", "field_name": "N E",      "value": "50",          "confidence": "high", "evidence_json": ""},
-    {"pdf_id": "pdf_001", "field_name": "Mean C",   "value": "4.8",         "confidence": "high", "evidence_json": ""},
-    {"pdf_id": "pdf_001", "field_name": "SD C",     "value": "1.3",         "confidence": "high", "evidence_json": ""},
-    {"pdf_id": "pdf_001", "field_name": "N C",      "value": "50",          "confidence": "high", "evidence_json": ""},
+    {"pdf_id": "pdf_001", "field_name": "Study ID", "value": "Li 2019",    "confidence": "HIGH", "evidence_json": ""},
+    {"pdf_id": "pdf_001", "field_name": "Mean E",   "value": "5.2",         "confidence": "HIGH", "evidence_json": ""},
+    {"pdf_id": "pdf_001", "field_name": "SD E",     "value": "1.1",         "confidence": "HIGH", "evidence_json": ""},
+    {"pdf_id": "pdf_001", "field_name": "N E",      "value": "50",          "confidence": "HIGH", "evidence_json": ""},
+    {"pdf_id": "pdf_001", "field_name": "Mean C",   "value": "4.8",         "confidence": "HIGH", "evidence_json": ""},
+    {"pdf_id": "pdf_001", "field_name": "SD C",     "value": "1.3",         "confidence": "HIGH", "evidence_json": ""},
+    {"pdf_id": "pdf_001", "field_name": "N C",      "value": "50",          "confidence": "HIGH", "evidence_json": ""},
 ]
 
 CONT_FIELD_TAGS = {

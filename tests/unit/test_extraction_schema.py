@@ -33,10 +33,10 @@ class TestExtractionEnums:
         assert FieldRole.QC_FLAG == "qc_flag"
 
     def test_confidence_values(self) -> None:
-        assert Confidence.HIGH == "high"
-        assert Confidence.MEDIUM == "medium"
-        assert Confidence.LOW == "low"
-        assert Confidence.SINGLE == "single"
+        assert Confidence.HIGH == "HIGH"
+        assert Confidence.MEDIUM == "MEDIUM"
+        assert Confidence.LOW == "LOW"
+        assert Confidence.SINGLE == "SINGLE"
 
     def test_extraction_field_type_unchanged(self) -> None:
         """Existing ExtractionFieldType enum must not break."""

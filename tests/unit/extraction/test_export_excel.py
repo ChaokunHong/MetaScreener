@@ -23,28 +23,28 @@ def _make_results() -> list[dict]:
             "pdf_id": "pdf_001",
             "field_name": "Sample Size",
             "value": "120",
-            "confidence": "high",
+            "confidence": "HIGH",
             "evidence_json": '{"page": 3, "text": "120 patients"}',
         },
         {
             "pdf_id": "pdf_001",
             "field_name": "Intervention",
             "value": "Drug A",
-            "confidence": "verified",
+            "confidence": "VERIFIED",
             "evidence_json": '{"page": 1, "text": "Drug A was given"}',
         },
         {
             "pdf_id": "pdf_002",
             "field_name": "Sample Size",
             "value": "45",
-            "confidence": "medium",
+            "confidence": "MEDIUM",
             "evidence_json": '{"page": 2, "text": "45 subjects"}',
         },
         {
             "pdf_id": "pdf_002",
             "field_name": "Intervention",
             "value": "Placebo",
-            "confidence": "low",
+            "confidence": "LOW",
             "evidence_json": "",
         },
     ]
@@ -112,10 +112,10 @@ def test_export_confidence_colors(tmp_path: Path) -> None:
                 rgb = color[-6:] if len(color) == 8 else color
                 fill_by_value[str(cell.value)] = rgb.lower()
 
-    assert fill_by_value.get("120") == CONFIDENCE_COLORS["high"].lower()
-    assert fill_by_value.get("Drug A") == CONFIDENCE_COLORS["verified"].lower()
-    assert fill_by_value.get("45") == CONFIDENCE_COLORS["medium"].lower()
-    assert fill_by_value.get("Placebo") == CONFIDENCE_COLORS["low"].lower()
+    assert fill_by_value.get("120") == CONFIDENCE_COLORS["HIGH"].lower()
+    assert fill_by_value.get("Drug A") == CONFIDENCE_COLORS["VERIFIED"].lower()
+    assert fill_by_value.get("45") == CONFIDENCE_COLORS["MEDIUM"].lower()
+    assert fill_by_value.get("Placebo") == CONFIDENCE_COLORS["LOW"].lower()
 
 
 def test_export_with_evidence(tmp_path: Path) -> None:
@@ -184,7 +184,7 @@ def test_export_missing_field_value(tmp_path: Path) -> None:
     """PDFs missing some fields should export empty string for those cells."""
     results = [
         {"pdf_id": "pdf_X", "field_name": "Sample Size", "value": "88",
-         "confidence": "high", "evidence_json": ""},
+         "confidence": "HIGH", "evidence_json": ""},
         # No Intervention field for pdf_X
     ]
     output = tmp_path / "missing.xlsx"

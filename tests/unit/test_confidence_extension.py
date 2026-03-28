@@ -7,11 +7,11 @@ from metascreener.core.enums import Confidence, FieldSemanticTag
 
 
 def test_confidence_has_verified() -> None:
-    assert Confidence.VERIFIED.value == "verified"
+    assert Confidence.VERIFIED.value == "VERIFIED"
 
 
 def test_confidence_has_failed() -> None:
-    assert Confidence.FAILED.value == "failed"
+    assert Confidence.FAILED.value == "FAILED"
 
 
 def test_confidence_ordering() -> None:
@@ -73,9 +73,9 @@ def test_field_semantic_tag_all_members() -> None:
     assert expected == actual
 
 
-def test_confidence_existing_values_unchanged() -> None:
-    """Existing Confidence values must not change to avoid breaking callers."""
-    assert Confidence.HIGH.value == "high"
-    assert Confidence.MEDIUM.value == "medium"
-    assert Confidence.LOW.value == "low"
-    assert Confidence.SINGLE.value == "single"
+def test_confidence_existing_values_uppercase() -> None:
+    """Confidence values must be uppercase for backward compatibility with DB storage."""
+    assert Confidence.HIGH.value == "HIGH"
+    assert Confidence.MEDIUM.value == "MEDIUM"
+    assert Confidence.LOW.value == "LOW"
+    assert Confidence.SINGLE.value == "SINGLE"

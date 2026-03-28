@@ -120,12 +120,12 @@ class FieldRole(StrEnum):
 class Confidence(StrEnum):
     """Confidence level for an extracted cell value."""
 
-    VERIFIED = "verified"   # table direct read + all validations pass
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
-    SINGLE = "single"
-    FAILED = "failed"       # extraction failed
+    VERIFIED = "VERIFIED"   # table direct read + all validations pass
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+    SINGLE = "SINGLE"
+    FAILED = "FAILED"       # extraction failed
 
     def downgrade(self) -> "Confidence":
         """Return confidence one level lower (floors at FAILED)."""

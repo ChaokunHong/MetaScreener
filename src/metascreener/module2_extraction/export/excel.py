@@ -19,12 +19,12 @@ log = structlog.get_logger()
 
 # RGB hex strings (no alpha prefix) — one per Confidence enum value.
 CONFIDENCE_COLORS: dict[str, str] = {
-    "verified": "15803d",  # deep green
-    "high":     "22c55e",  # green
-    "medium":   "eab308",  # yellow
-    "low":      "f97316",  # orange
-    "single":   "a3a3a3",  # gray
-    "failed":   "ef4444",  # red
+    "VERIFIED": "15803d",  # deep green
+    "HIGH":     "22c55e",  # green
+    "MEDIUM":   "eab308",  # yellow
+    "LOW":      "f97316",  # orange
+    "SINGLE":   "a3a3a3",  # gray
+    "FAILED":   "ef4444",  # red
 }
 
 
