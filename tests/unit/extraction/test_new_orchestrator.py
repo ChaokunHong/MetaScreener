@@ -335,3 +335,189 @@ async def test_llm_agreement_raises_confidence(doc) -> None:
 
     # Both backends return the same response → should agree → not FAILED
     assert result.fields["Study Design"].confidence != Confidence.FAILED
+
+
+# ---------------------------------------------------------------------------
+# Test: I6 — V3 AgreementResult passed to aggregator
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_llm_agreement_result_passed_to_aggregator(doc) -> None:
+    """When both models agree, the AgreementResult with HIGH confidence should
+    be passed to the aggregator, resulting in a HIGH (or VERIFIED) confidence —
+    not SINGLE (which the aggregator uses when v3_agreement is None).
+    """
+    from metascreener.core.enums import Confidence
+    from unittest.mock import MagicMock, patch
+
+    mock_resp = {
+        "fields": {
+            "Study Design": {
+                "value": "RCT",
+                "evidence": "We conducted a double-blind RCT with 120 patients.",
+            }
+        }
+    }
+
+    orch = NewOrchestrator()
+    schema = make_schema(["Study Design"])
+    backend = MockBackend(mock_resp)
+
+    captured_v3: list = []
+    original_compute = orch._aggregator.compute
+
+    def capturing_compute(strategy, v1_source, v2_rules, v3_agreement, v4_coherence):
+        captured_v3.append(v3_agreement)
+        return original_compute(
+            strategy=strategy,
+            v1_source=v1_source,
+            v2_rules=v2_rules,
+            v3_agreement=v3_agreement,
+            v4_coherence=v4_coherence,
+        )
+
+    orch._aggregator.compute = capturing_compute
+    result = await orch.extract(schema, doc, backend, backend)
+
+    # Aggregator must have been called with a non-None AgreementResult for
+    # the LLM_TEXT field when both models agreed
+    assert len(captured_v3) > 0
+    assert any(v3 is not None for v3 in captured_v3), (
+        "Expected AgreementResult to be passed to aggregator, but got None for all fields"
+    )
+
+    # The agreement had agreed=True → confidence should be HIGH-based (not SINGLE)
+    from metascreener.module2_extraction.validation.models import AgreementResult
+    llm_v3 = [v3 for v3 in captured_v3 if v3 is not None]
+    assert len(llm_v3) == 1
+    assert isinstance(llm_v3[0], AgreementResult)
+    assert llm_v3[0].agreed is True
+    assert llm_v3[0].confidence == Confidence.HIGH
+
+
+# ---------------------------------------------------------------------------
+# Test: I7 — V4 NumericalCoherenceEngine invoked after extraction
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def coherence_doc():
+    """Document with numerical values suitable for coherence checking.
+
+    Arms: Intervention N=60, Control N=60 → sum=120 = Total N (coherent).
+    """
+    return (
+        MockDocumentBuilder()
+        .with_metadata("Coherence Trial", ["Author"])
+        .add_section(
+            "Results",
+            "The trial enrolled 60 patients per arm (total N=120).",
+        )
+        .add_table(
+            "table_1",
+            "Baseline",
+            headers=["intervention_n", "control_n", "total_n"],
+            rows=[["60", "60", "120"]],
+        )
+        .build()
+    )
+
+
+@pytest.mark.asyncio
+async def test_numerical_coherence_runs_after_extraction(coherence_doc) -> None:
+    """V4 NumericalCoherenceEngine.validate() should be called after extraction
+    completes; violations should propagate as warnings and may affect confidence.
+    """
+    from unittest.mock import patch
+    from metascreener.module2_extraction.validation.numerical_coherence import (
+        NumericalCoherenceEngine,
+    )
+
+    orch = NewOrchestrator()
+    schema = make_schema(["intervention_n", "control_n", "total_n"])
+    backend = MockBackend({"fields": {}})
+
+    validate_called_with: list[dict] = []
+    original_validate = orch._coherence_engine.validate
+
+    def capturing_validate(extracted, field_tags):
+        validate_called_with.append({"extracted": extracted, "field_tags": field_tags})
+        return original_validate(extracted, field_tags)
+
+    orch._coherence_engine.validate = capturing_validate
+    result = await orch.extract(schema, coherence_doc, backend, backend)
+
+    # V4 engine must have been invoked exactly once
+    assert len(validate_called_with) == 1, (
+        f"Expected NumericalCoherenceEngine.validate() to be called once, "
+        f"got {len(validate_called_with)}"
+    )
+
+    # The extracted values passed to V4 should include the table-extracted numbers
+    passed_extracted = validate_called_with[0]["extracted"]
+    assert isinstance(passed_extracted, dict)
+    # At least some numeric values should be present (table reader extracted them)
+    assert len(passed_extracted) >= 1
+
+
+@pytest.mark.asyncio
+async def test_numerical_coherence_violation_adds_warning(doc) -> None:
+    """When V4 produces a warning-level coherence violation, the affected field
+    should carry that warning message in its warnings list.
+    """
+    from metascreener.module2_extraction.validation.models import CoherenceViolation
+
+    # Inject a fake violation that affects "Age"
+    fake_violation = CoherenceViolation(
+        rule_name="test_rule",
+        fields_involved=["Age"],
+        expected_relationship="Age <= 200",
+        actual_values={"Age": 999.0},
+        discrepancy="Age 999.0 is unrealistically large",
+        severity="warning",
+        suggested_action="Re-check Age field.",
+    )
+
+    orch = NewOrchestrator()
+    schema = make_schema(["Age"])
+    backend = MockBackend({"fields": {}})
+
+    # Patch the coherence engine to return our fake violation
+    orch._coherence_engine.validate = lambda extracted, field_tags: [fake_violation]
+    result = await orch.extract(schema, doc, backend, backend)
+
+    age_field = result.fields.get("Age")
+    assert age_field is not None
+    assert any("Numerical" in w for w in age_field.warnings), (
+        f"Expected 'Numerical: ...' warning but got: {age_field.warnings}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_numerical_coherence_error_violation_marks_validation_failed(doc) -> None:
+    """When V4 produces an error-level coherence violation, validation_passed
+    should be False for the affected field.
+    """
+    from metascreener.module2_extraction.validation.models import CoherenceViolation
+
+    fake_violation = CoherenceViolation(
+        rule_name="events_within_n",
+        fields_involved=["Age"],
+        expected_relationship="events <= n_arm",
+        actual_values={"Age": 999.0},
+        discrepancy="events 999 > n_arm 60",
+        severity="error",
+        suggested_action="Re-check events field.",
+    )
+
+    orch = NewOrchestrator()
+    schema = make_schema(["Age"])
+    backend = MockBackend({"fields": {}})
+
+    orch._coherence_engine.validate = lambda extracted, field_tags: [fake_violation]
+    result = await orch.extract(schema, doc, backend, backend)
+
+    age_field = result.fields.get("Age")
+    assert age_field is not None
+    assert age_field.validation_passed is False

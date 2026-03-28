@@ -15,9 +15,10 @@ from typing import Any
 
 import structlog
 
-from metascreener.core.enums import Confidence
+from metascreener.core.enums import Confidence, FieldSemanticTag
 from metascreener.core.models_extraction import ExtractionSchema, FieldSchema
 from metascreener.doc_engine.models import StructuredDocument
+from metascreener.module2_extraction.compiler.ai_enhancer import infer_semantic_tag
 from metascreener.module2_extraction.engine.arbitrator import Arbitrator
 from metascreener.module2_extraction.engine.computation import ComputationEngine
 from metascreener.module2_extraction.engine.field_router import FieldRouter
@@ -30,6 +31,8 @@ from metascreener.module2_extraction.models import (
     SourceLocation,
 )
 from metascreener.module2_extraction.validation.aggregator import FinalConfidenceAggregator
+from metascreener.module2_extraction.validation.models import AgreementResult
+from metascreener.module2_extraction.validation.numerical_coherence import NumericalCoherenceEngine
 from metascreener.module2_extraction.validation.rule_validator import EnhancedRuleValidator
 from metascreener.module2_extraction.validation.source_coherence import SourceCoherenceValidator
 
@@ -110,6 +113,7 @@ class NewOrchestrator:
         self._source_validator = SourceCoherenceValidator()
         self._rule_validator = EnhancedRuleValidator()
         self._aggregator = FinalConfidenceAggregator()
+        self._coherence_engine = NumericalCoherenceEngine()
 
     async def extract(
         self,
@@ -165,6 +169,7 @@ class NewOrchestrator:
 
         # Step 2: Execute phases in dependency order
         extracted: dict[str, RawExtractionResult] = {}
+        agreements: dict[str, AgreementResult | None] = {}
         errors: list[str] = []
 
         for phase in exec_plan.phases:
@@ -180,7 +185,7 @@ class NewOrchestrator:
                     )
 
                     try:
-                        result = await self._execute_strategy(
+                        result, agreement = await self._execute_strategy(
                             plan=plan,
                             field=full_field,
                             doc=doc,
@@ -190,6 +195,7 @@ class NewOrchestrator:
                             arbitration_backend=arbitration_backend,
                         )
                         extracted[field_schema.name] = result
+                        agreements[field_schema.name] = agreement
                     except Exception as exc:
                         log.error(
                             "extraction_failed",
@@ -204,8 +210,39 @@ class NewOrchestrator:
                             confidence_prior=0.0,
                             error=str(exc),
                         )
+                        agreements[field_schema.name] = None
 
-        # Step 3: Validate and aggregate confidence
+        # Step 3: Run V4 numerical coherence on all extracted values
+        field_tags: dict[str, FieldSemanticTag] = {}
+        for f in all_fields:
+            if hasattr(f, "semantic_tag") and f.semantic_tag:
+                try:
+                    field_tags[f.name] = FieldSemanticTag(f.semantic_tag)
+                except ValueError:
+                    pass
+            else:
+                raw_tag = infer_semantic_tag(f.name)
+                if raw_tag:
+                    try:
+                        field_tags[f.name] = FieldSemanticTag(raw_tag)
+                    except ValueError:
+                        pass
+
+        extracted_values = {
+            name: raw.value
+            for name, raw in extracted.items()
+            if raw.value is not None
+        }
+        coherence_violations = self._coherence_engine.validate(extracted_values, field_tags)
+
+        # Build a per-field mapping of coherence violations for quick lookup
+        field_coherence: dict[str, list] = {f.name: [] for f in all_fields}
+        for violation in coherence_violations:
+            for vfield in violation.fields_involved:
+                if vfield in field_coherence:
+                    field_coherence[vfield].append(violation)
+
+        # Step 4: Validate and aggregate confidence
         final_fields: dict[str, ExtractedField] = {}
         for f in all_fields:
             raw = extracted.get(f.name)
@@ -218,24 +255,36 @@ class NewOrchestrator:
             # V2: Rule validation
             v2 = self._rule_validator.validate_field(f, raw.value)
 
-            # Aggregate final confidence (V3 agreement handled inside _execute_strategy
-            # by adjusting confidence_prior; pass None for v3_agreement here)
+            # V3: Agreement result (constructed during LLM_TEXT extraction)
+            v3 = agreements.get(f.name)
+
+            # V4: Coherence violations for this field
+            v4 = field_coherence.get(f.name, [])
+
+            # Aggregate final confidence across all four validation layers
             confidence = self._aggregator.compute(
                 strategy=raw.strategy_used,
                 v1_source=v1,
                 v2_rules=v2,
-                v3_agreement=None,
-                v4_coherence=[],
+                v3_agreement=v3,
+                v4_coherence=v4,
             )
 
-            # Collect warnings from V1 + V2
+            # Collect warnings from V1, V2, and V4
             warnings: list[str] = []
             if not v1.passed and v1.message:
                 warnings.append(v1.message)
             warnings.extend(r.message for r in v2 if r.severity == "warning")
+            warnings.extend(
+                f"Numerical: {viol.discrepancy}"
+                for viol in v4
+                if viol.severity == "warning"
+            )
 
             validation_passed = v1.passed and not any(
                 r.severity == "error" for r in v2
+            ) and not any(
+                viol.severity == "error" for viol in v4
             )
 
             final_fields[f.name] = ExtractedField(
@@ -268,7 +317,7 @@ class NewOrchestrator:
         backend_b: Any,
         extracted: dict[str, RawExtractionResult],
         arbitration_backend: Any | None,
-    ) -> RawExtractionResult:
+    ) -> tuple[RawExtractionResult, AgreementResult | None]:
         """Dispatch to the appropriate extraction method based on strategy.
 
         Args:
@@ -281,18 +330,23 @@ class NewOrchestrator:
             arbitration_backend: Optional arbitration LLM backend.
 
         Returns:
-            RawExtractionResult for this field.
+            A tuple of (RawExtractionResult, AgreementResult | None).  The
+            AgreementResult is non-None only for LLM_TEXT strategy where dual
+            models were run and their agreement was assessed (V3).
         """
         if plan.strategy == ExtractionStrategy.DIRECT_TABLE:
-            return self._table_reader.extract(doc, plan.source_hint)
+            return self._table_reader.extract(doc, plan.source_hint), None
 
         if plan.strategy == ExtractionStrategy.VLM_FIGURE:
-            return self._figure_reader.extract_from_preextracted(
-                doc, plan.source_hint, field.name
+            return (
+                self._figure_reader.extract_from_preextracted(
+                    doc, plan.source_hint, field.name
+                ),
+                None,
             )
 
         if plan.strategy == ExtractionStrategy.COMPUTED:
-            return self._execute_computed(plan, extracted)
+            return self._execute_computed(plan, extracted), None
 
         if plan.strategy == ExtractionStrategy.LLM_TEXT:
             return await self._execute_llm_text(
@@ -300,12 +354,15 @@ class NewOrchestrator:
             )
 
         # Unknown strategy — return graceful failure
-        return RawExtractionResult(
-            value=None,
-            evidence=SourceLocation(type="text", page=0),
-            strategy_used=plan.strategy,
-            confidence_prior=0.0,
-            error=f"Unknown strategy: {plan.strategy}",
+        return (
+            RawExtractionResult(
+                value=None,
+                evidence=SourceLocation(type="text", page=0),
+                strategy_used=plan.strategy,
+                confidence_prior=0.0,
+                error=f"Unknown strategy: {plan.strategy}",
+            ),
+            None,
         )
 
     def _execute_computed(
@@ -358,7 +415,7 @@ class NewOrchestrator:
         backend_a: Any,
         backend_b: Any,
         arbitration_backend: Any | None,
-    ) -> RawExtractionResult:
+    ) -> tuple[RawExtractionResult, AgreementResult | None]:
         """Run dual-model LLM extraction with optional arbitration.
 
         Confidence assignment:
@@ -377,7 +434,9 @@ class NewOrchestrator:
             arbitration_backend: Optional third backend for arbitration.
 
         Returns:
-            RawExtractionResult from the chosen model (or failure).
+            A tuple of (RawExtractionResult, AgreementResult | None).  The
+            AgreementResult captures whether models agreed and any arbitration
+            that took place (V3 signal for the aggregator).
         """
         # Determine which sections to scope context to
         section_names: list[str] = []
@@ -392,13 +451,14 @@ class NewOrchestrator:
 
         pair = results.get(field.name)
         if pair is None:
-            return RawExtractionResult(
+            raw = RawExtractionResult(
                 value=None,
                 evidence=SourceLocation(type="text", page=0),
                 strategy_used=ExtractionStrategy.LLM_TEXT,
                 confidence_prior=0.0,
                 error="No result returned from LLM extractor",
             )
+            return raw, None
 
         result_a, result_b = pair
 
@@ -410,7 +470,15 @@ class NewOrchestrator:
             if val_a == val_b:
                 # Agreement — high confidence
                 result_a.confidence_prior = 0.90
-                return result_a
+                evidence_locs = [result_a.evidence] if result_a.evidence else []
+                agreement = AgreementResult(
+                    agreed=True,
+                    final_value=result_a.value,
+                    confidence=Confidence.HIGH,
+                    evidence=evidence_locs,
+                    arbitration=None,
+                )
+                return result_a, agreement
 
             # Disagreement — try arbitration
             if arbitration_backend is not None:
@@ -427,19 +495,35 @@ class NewOrchestrator:
                 )
                 chosen = result_a if arb.chosen == "A" else result_b
                 chosen.confidence_prior = 0.70
-                return chosen
+                evidence_locs = [chosen.evidence] if chosen.evidence else []
+                agreement = AgreementResult(
+                    agreed=False,
+                    final_value=chosen.value,
+                    confidence=Confidence.MEDIUM,
+                    evidence=evidence_locs,
+                    arbitration=arb,
+                )
+                return chosen, agreement
 
             # No arbitration backend — use model A at reduced confidence
             result_a.confidence_prior = 0.50
-            return result_a
+            evidence_locs = [result_a.evidence] if result_a.evidence else []
+            agreement = AgreementResult(
+                agreed=False,
+                final_value=result_a.value,
+                confidence=Confidence.LOW,
+                evidence=evidence_locs,
+                arbitration=None,
+            )
+            return result_a, agreement
 
-        # One model succeeded
+        # One model succeeded — no agreement object (single-model result)
         if result_a.value is not None:
             result_a.confidence_prior = 0.60
-            return result_a
+            return result_a, None
         if result_b.value is not None:
             result_b.confidence_prior = 0.60
-            return result_b
+            return result_b, None
 
-        # Both failed — return model A's (failed) result
-        return result_a
+        # Both failed — return model A's (failed) result, no agreement
+        return result_a, None
