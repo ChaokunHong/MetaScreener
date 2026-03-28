@@ -242,6 +242,148 @@ class ExtractionService:
             edited_by=edited_by,
         )
 
+    # === Run extraction ===
+
+    async def run_extraction(
+        self,
+        session_id: str,
+        progress_callback=None,
+    ) -> dict:
+        """Run extraction on all PDFs in the session.
+
+        Steps:
+        1. Load schema from DB.
+        2. For each PDF: parse with DocumentParser → extract with NewOrchestrator.
+        3. Save results to DB.
+        4. Return a summary dict.
+
+        Args:
+            session_id: The session to run extraction on.
+            progress_callback: Optional async callable(session_id, progress_dict).
+
+        Returns:
+            Summary dict with keys ``total_pdfs``, ``completed``, ``failed``,
+            ``fields_extracted``.
+
+        Raises:
+            ValueError: If the session, schema, or PDFs are missing.
+        """
+        session = await self._repo.get_session(session_id)
+        if session is None:
+            raise ValueError(f"Session {session_id} not found")
+
+        schema_json = await self._repo.get_schema(session_id)
+        if schema_json is None:
+            raise ValueError("No schema uploaded for this session")
+
+        from metascreener.core.models_extraction import ExtractionSchema
+
+        schema = ExtractionSchema.model_validate_json(schema_json)
+
+        pdfs = await self._repo.get_pdfs(session_id)
+        if not pdfs:
+            raise ValueError("No PDFs uploaded")
+
+        await self._repo.update_session_status(session_id, "running")
+
+        from metascreener.module2_extraction.engine.new_orchestrator import NewOrchestrator
+
+        orchestrator = NewOrchestrator()
+        backend_a, backend_b = self._get_llm_backends()
+
+        results_summary: dict = {
+            "total_pdfs": len(pdfs),
+            "completed": 0,
+            "failed": 0,
+            "fields_extracted": 0,
+        }
+
+        for pdf_info in pdfs:
+            pdf_path = self._data_dir / session_id / "pdfs" / pdf_info["filename"]
+            if not pdf_path.exists():
+                log.warning("pdf_file_missing", session_id=session_id, filename=pdf_info["filename"])
+                results_summary["failed"] += 1
+                continue
+
+            try:
+                await self._repo.update_pdf_status(session_id, pdf_info["pdf_id"], "parsing")
+
+                from metascreener.doc_engine.parser import DocumentParser
+                from metascreener.module0_retrieval.ocr.pymupdf_backend import PyMuPDFBackend
+                from metascreener.module0_retrieval.ocr.router import OCRRouter
+
+                ocr_router = OCRRouter(pymupdf=PyMuPDFBackend())
+                doc_parser = DocumentParser(ocr_router=ocr_router)
+                doc = await doc_parser.parse(pdf_path)
+
+                await self._repo.update_pdf_status(session_id, pdf_info["pdf_id"], "extracting")
+                result = await orchestrator.extract(schema, doc, backend_a, backend_b)
+
+                import json
+
+                for field_name, field_result in result.fields.items():
+                    evidence_json = "{}"
+                    if field_result.evidence is not None:
+                        evidence_json = json.dumps({
+                            "type": field_result.evidence.type,
+                            "page": field_result.evidence.page,
+                            "sentence": field_result.evidence.sentence,
+                            "table_id": field_result.evidence.table_id,
+                        })
+
+                    validations_json = json.dumps({
+                        "passed": field_result.validation_passed,
+                        "warnings": field_result.warnings,
+                    })
+
+                    await self._repo.save_cell(
+                        session_id=session_id,
+                        pdf_id=pdf_info["pdf_id"],
+                        sheet_name="Studies",
+                        row_index=0,
+                        field_name=field_name,
+                        value=str(field_result.value) if field_result.value is not None else "",
+                        confidence=field_result.confidence.value,
+                        evidence_json=evidence_json,
+                        strategy=field_result.strategy.value,
+                        validations_json=validations_json,
+                    )
+                    results_summary["fields_extracted"] += 1
+
+                await self._repo.update_pdf_status(session_id, pdf_info["pdf_id"], "done")
+                results_summary["completed"] += 1
+
+            except Exception:
+                log.exception(
+                    "extraction_failed",
+                    session_id=session_id,
+                    pdf=pdf_info["filename"],
+                )
+                await self._repo.update_pdf_status(session_id, pdf_info["pdf_id"], "failed")
+                results_summary["failed"] += 1
+
+        await self._repo.update_session_status(session_id, "completed")
+        log.info("extraction_completed", session_id=session_id, **results_summary)
+        return results_summary
+
+    def _get_llm_backends(self):
+        """Return configured LLM backends, or placeholder stubs if none are configured.
+
+        Returns:
+            Tuple of (backend_a, backend_b).
+        """
+
+        class _PlaceholderBackend:
+            """Minimal stub that returns empty extraction JSON."""
+
+            model_id = "placeholder"
+
+            async def complete(self, prompt: str, *, seed: int = 42) -> str:  # noqa: D401
+                """Return empty extraction result."""
+                return '{"fields": {}}'
+
+        return _PlaceholderBackend(), _PlaceholderBackend()
+
     # === Status helpers ===
 
     def is_running(self, session_id: str) -> bool:

@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS extraction_cells (
     confidence TEXT,
     evidence_json TEXT,
     strategy TEXT,
+    validations_json TEXT,
     PRIMARY KEY (session_id, pdf_id, sheet_name, row_index, field_name)
 );
 CREATE TABLE IF NOT EXISTS edit_records (
@@ -337,6 +338,7 @@ class ExtractionRepository:
         confidence: str,
         evidence_json: str,
         strategy: str,
+        validations_json: str = "{}",
     ) -> None:
         """Persist a single extracted cell value.
 
@@ -353,6 +355,7 @@ class ExtractionRepository:
             confidence: Confidence score as a string.
             evidence_json: JSON-serialised list of evidence snippets.
             strategy: Extraction strategy identifier (e.g. ``"llm_text"``).
+            validations_json: JSON-serialised validation result dict (default ``"{}"``).
         """
         await self._ensure_init()
 
@@ -361,8 +364,8 @@ class ExtractionRepository:
                 conn.execute(
                     "INSERT OR REPLACE INTO extraction_cells "
                     "(session_id, pdf_id, sheet_name, row_index, field_name, "
-                    " value, confidence, evidence_json, strategy) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    " value, confidence, evidence_json, strategy, validations_json) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         session_id,
                         pdf_id,
@@ -373,6 +376,7 @@ class ExtractionRepository:
                         confidence,
                         evidence_json,
                         strategy,
+                        validations_json,
                     ),
                 )
 
@@ -399,7 +403,8 @@ class ExtractionRepository:
                 if pdf_id is not None:
                     rows = conn.execute(
                         "SELECT session_id, pdf_id, sheet_name, row_index, "
-                        "field_name, value, confidence, evidence_json, strategy "
+                        "field_name, value, confidence, evidence_json, strategy, "
+                        "validations_json "
                         "FROM extraction_cells "
                         "WHERE session_id = ? AND pdf_id = ?",
                         (session_id, pdf_id),
@@ -407,7 +412,8 @@ class ExtractionRepository:
                 else:
                     rows = conn.execute(
                         "SELECT session_id, pdf_id, sheet_name, row_index, "
-                        "field_name, value, confidence, evidence_json, strategy "
+                        "field_name, value, confidence, evidence_json, strategy, "
+                        "validations_json "
                         "FROM extraction_cells WHERE session_id = ?",
                         (session_id,),
                     ).fetchall()

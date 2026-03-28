@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import structlog
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -270,6 +270,42 @@ async def export_results(session_id: str, format: str = "excel") -> dict:
         return {"path": str(output), "format": "csv"}
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported format: {format}")
+
+
+# --- Run extraction ---
+
+
+@router.post("/sessions/{session_id}/run")
+async def run_extraction(
+    session_id: str, background_tasks: BackgroundTasks
+) -> dict:
+    """Start extraction on all PDFs in the session.
+
+    The extraction job runs asynchronously as a background task.
+    Poll ``GET /sessions/{session_id}`` to check status.
+
+    Args:
+        session_id: The session to run extraction on.
+        background_tasks: FastAPI background task manager.
+
+    Returns:
+        Dict ``{"status": "started", "session_id": session_id}``.
+
+    Raises:
+        HTTPException: 404 if the session does not exist.
+        HTTPException: 409 if an extraction is already running for this session.
+    """
+    service = _get_service()
+    session = await service.get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    if service.is_running(session_id):
+        raise HTTPException(
+            status_code=409, detail="Extraction already running for this session"
+        )
+
+    background_tasks.add_task(service.run_extraction, session_id)
+    return {"status": "started", "session_id": session_id}
 
 
 # --- Cancel ---

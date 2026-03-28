@@ -279,3 +279,41 @@ class TestEvents:
         # stream=True to avoid blocking on SSE; just check status
         with client.stream("GET", f"/api/extraction/v3/sessions/{sid}/events") as resp:
             assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# /run endpoint (C1)
+# ---------------------------------------------------------------------------
+
+
+class TestRunExtraction:
+    def test_run_nonexistent_session_returns_404(self, client):
+        resp = client.post("/api/extraction/v3/sessions/nonexistent/run")
+        assert resp.status_code == 404
+
+    def test_run_extraction_returns_started(self, client, monkeypatch):
+        """POST /run on a valid session returns status 'started'."""
+        import metascreener.api.routes.extraction_service as svc_mod
+
+        # Patch run_extraction to a no-op so background task completes trivially
+        async def _fake_run(session_id, progress_callback=None):
+            return {"total_pdfs": 0, "completed": 0, "failed": 0, "fields_extracted": 0}
+
+        monkeypatch.setattr(svc_mod.ExtractionService, "run_extraction", _fake_run)
+
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        resp = client.post(f"/api/extraction/v3/sessions/{sid}/run")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "started"
+        assert data["session_id"] == sid
+
+    def test_run_while_already_running_returns_409(self, client, monkeypatch):
+        """POST /run while is_running=True returns HTTP 409."""
+        import metascreener.api.routes.extraction_service as svc_mod
+
+        monkeypatch.setattr(svc_mod.ExtractionService, "is_running", lambda self, sid: True)
+
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        resp = client.post(f"/api/extraction/v3/sessions/{sid}/run")
+        assert resp.status_code == 409

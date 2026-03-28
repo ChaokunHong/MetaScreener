@@ -237,6 +237,115 @@ class TestEditCell:
         assert matching[0]["value"] == "Updated Title"
 
 
+class TestRepositoryValidationsJson:
+    """C3: validations_json column round-trip tests via ExtractionRepository."""
+
+    def test_save_cell_with_validations_json_and_get_cells_returns_it(
+        self, service
+    ) -> None:
+        """save_cell with validations_json is returned by get_cells."""
+        import asyncio
+        import json
+
+        session_id = asyncio.run(service.create_session())
+        pdf_id = asyncio.run(
+            service.upload_pdf(session_id, b"%PDF-1.4 content", "paper.pdf")
+        )
+
+        validations = {"passed": True, "warnings": []}
+        validations_json = json.dumps(validations)
+
+        asyncio.run(
+            service._repo.save_cell(
+                session_id=session_id,
+                pdf_id=pdf_id,
+                sheet_name="Studies",
+                row_index=0,
+                field_name="N",
+                value="42",
+                confidence="high",
+                evidence_json="{}",
+                strategy="llm_text",
+                validations_json=validations_json,
+            )
+        )
+
+        cells = asyncio.run(service._repo.get_cells(session_id, pdf_id))
+        assert len(cells) == 1
+        returned = cells[0]
+        assert "validations_json" in returned
+        assert json.loads(returned["validations_json"]) == validations
+
+    def test_save_cell_without_validations_json_defaults_to_empty_dict(
+        self, service
+    ) -> None:
+        """save_cell without validations_json stores '{}' by default."""
+        import asyncio
+        import json
+
+        session_id = asyncio.run(service.create_session())
+        pdf_id = asyncio.run(
+            service.upload_pdf(session_id, b"%PDF-1.4 content", "paper2.pdf")
+        )
+
+        asyncio.run(
+            service._repo.save_cell(
+                session_id=session_id,
+                pdf_id=pdf_id,
+                sheet_name="Studies",
+                row_index=0,
+                field_name="Year",
+                value="2024",
+                confidence="medium",
+                evidence_json="{}",
+                strategy="llm_text",
+                # validations_json omitted — should default to "{}"
+            )
+        )
+
+        cells = asyncio.run(service._repo.get_cells(session_id, pdf_id))
+        assert len(cells) == 1
+        val = cells[0].get("validations_json")
+        assert val is not None
+        # Default is "{}" which is valid JSON
+        parsed = json.loads(val)
+        assert isinstance(parsed, dict)
+
+    def test_save_cell_with_failed_validation_round_trips(self, service) -> None:
+        """validations_json with warnings survives a round-trip."""
+        import asyncio
+        import json
+
+        session_id = asyncio.run(service.create_session())
+        pdf_id = asyncio.run(
+            service.upload_pdf(session_id, b"%PDF-1.4 content", "paper3.pdf")
+        )
+
+        validations = {"passed": False, "warnings": ["value out of range"]}
+
+        asyncio.run(
+            service._repo.save_cell(
+                session_id=session_id,
+                pdf_id=pdf_id,
+                sheet_name="Studies",
+                row_index=0,
+                field_name="Age",
+                value="-5",
+                confidence="low",
+                evidence_json="{}",
+                strategy="llm_text",
+                validations_json=json.dumps(validations),
+            )
+        )
+
+        cells = asyncio.run(service._repo.get_cells(session_id))
+        matching = [c for c in cells if c["field_name"] == "Age"]
+        assert len(matching) == 1
+        parsed = json.loads(matching[0]["validations_json"])
+        assert parsed["passed"] is False
+        assert "value out of range" in parsed["warnings"]
+
+
 class TestIsRunning:
     def test_is_running_false_when_no_task(self, service) -> None:
         """is_running returns False when no extraction task is active."""
