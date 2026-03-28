@@ -125,45 +125,109 @@
           <i v-else class="fas fa-play"></i>
           {{ isRunning ? 'Extracting…' : 'Start Extraction' }}
         </button>
-        <button v-if="extractionDone" class="btn btn-success" @click="currentStep = 3">
+        <button v-if="extractionDone" class="btn btn-success" @click="currentStep = 3; fetchAlerts()">
           <i class="fas fa-arrow-right"></i> Review Results
         </button>
       </div>
     </div>
 
     <!-- Step 4: Results Review -->
-    <div v-if="currentStep === 3" class="glass-card">
-      <div class="section-title"><i class="fas fa-table"></i> Results Review</div>
+    <div v-if="currentStep === 3" class="step-content">
+      <h2 style="margin-bottom: 1rem;">Results Review</h2>
 
-      <div v-if="results.length > 0" class="results-table-container">
-        <table class="results-table">
-          <thead>
-            <tr>
-              <th>PDF</th>
-              <th>Field</th>
-              <th>Value</th>
-              <th>Confidence</th>
-              <th>Strategy</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(cell, i) in results" :key="i">
-              <td class="text-muted" style="font-size: 0.8rem;">{{ cell.pdf_id?.slice(0, 8) }}</td>
-              <td><strong>{{ cell.field_name }}</strong></td>
-              <td>{{ cell.value }}</td>
-              <td>
-                <span :class="['confidence-badge', `confidence-${cell.confidence}`]">
-                  {{ cell.confidence }}
-                </span>
-              </td>
-              <td class="text-muted" style="font-size: 0.8rem;">{{ cell.strategy }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="review-layout">
+        <!-- Left: PDF Viewer placeholder -->
+        <div class="review-panel pdf-panel">
+          <h3>PDF Viewer</h3>
+          <div class="pdf-placeholder">
+            <i class="fas fa-file-pdf" style="font-size: 2rem; margin-bottom: 0.75rem; color: #9ca3af;"></i>
+            <p>PDF viewer will be integrated with pdf.js</p>
+            <p v-if="selectedEvidence">
+              <strong>Evidence (Page {{ selectedEvidence.page }}):</strong><br>
+              {{ selectedEvidence.sentence || selectedEvidence.table_id || 'No evidence available' }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Center: Results Table -->
+        <div class="review-panel results-panel">
+          <h3>Extraction Results</h3>
+          <div v-if="results.length > 0" style="overflow-x: auto;">
+            <table class="results-table">
+              <thead>
+                <tr>
+                  <th>PDF</th>
+                  <th>Field</th>
+                  <th>Value</th>
+                  <th>Confidence</th>
+                  <th>Strategy</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(cell, i) in results"
+                  :key="i"
+                  @click="selectCell(cell)"
+                  :class="{ 'selected-row': selectedCell === cell }"
+                  style="cursor: pointer;"
+                >
+                  <td class="text-muted" style="font-size: 0.8rem;">{{ cell.pdf_id?.slice(0, 8) }}</td>
+                  <td><strong>{{ cell.field_name }}</strong></td>
+                  <td>
+                    <span v-if="editingCell === cell">
+                      <input
+                        v-model="editValue"
+                        @keyup.enter="saveEdit(cell)"
+                        @keyup.escape="cancelEdit"
+                        class="edit-input"
+                        @click.stop
+                      />
+                    </span>
+                    <span v-else @dblclick.stop="startEdit(cell)">{{ cell.value }}</span>
+                  </td>
+                  <td>
+                    <span :class="['confidence-badge', `confidence-${cell.confidence}`]">
+                      {{ cell.confidence }}
+                    </span>
+                  </td>
+                  <td class="text-muted" style="font-size: 0.8rem;">{{ cell.strategy }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else class="alert alert-info">
+            <i class="fas fa-info-circle"></i> No results available yet.
+          </div>
+        </div>
+
+        <!-- Right: Alerts Panel -->
+        <div class="review-panel alerts-panel">
+          <h3>Alerts &amp; Warnings</h3>
+          <div v-if="alerts.length === 0" class="no-alerts">
+            <i class="fas fa-check-circle" style="color: #16a34a;"></i> No alerts
+          </div>
+          <div v-for="(alert, i) in alerts" :key="i" class="alert-item">
+            <span class="alert-severity" :class="alert.severity">{{ alert.severity }}</span>
+            {{ alert.message || alert.field_name }}
+          </div>
+        </div>
       </div>
 
-      <div v-else class="alert alert-info">
-        <i class="fas fa-info-circle"></i> No results available yet.
+      <!-- Bottom: Manual Correction / Cell Details -->
+      <div v-if="selectedCell" class="correction-panel">
+        <h3>Cell Details</h3>
+        <div class="detail-grid">
+          <div><strong>Field:</strong> {{ selectedCell.field_name }}</div>
+          <div><strong>Value:</strong> {{ selectedCell.value }}</div>
+          <div><strong>Confidence:</strong> {{ selectedCell.confidence }}</div>
+          <div><strong>Strategy:</strong> {{ selectedCell.strategy }}</div>
+          <div v-if="selectedCell.evidence_json">
+            <strong>Evidence:</strong> {{ parseEvidence(selectedCell.evidence_json) }}
+          </div>
+        </div>
+        <button @click="startEdit(selectedCell)" class="btn btn-secondary" style="margin-top: 0.5rem;">
+          <i class="fas fa-edit"></i> Edit Value
+        </button>
       </div>
 
       <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
@@ -277,8 +341,75 @@ interface ResultCell {
   value: unknown
   confidence: string
   strategy: string
+  evidence_json?: string
 }
 const results = ref<ResultCell[]>([])
+
+/* ── review state ── */
+const selectedCell = ref<ResultCell | null>(null)
+const selectedEvidence = ref<any>(null)
+const editingCell = ref<ResultCell | null>(null)
+const editValue = ref('')
+const alerts = ref<any[]>([])
+
+function selectCell(cell: ResultCell) {
+  selectedCell.value = cell
+  try {
+    selectedEvidence.value = JSON.parse(cell.evidence_json || '{}')
+  } catch {
+    selectedEvidence.value = null
+  }
+}
+
+function startEdit(cell: ResultCell) {
+  editingCell.value = cell
+  editValue.value = String(cell.value ?? '')
+}
+
+function cancelEdit() {
+  editingCell.value = null
+}
+
+async function saveEdit(cell: ResultCell) {
+  try {
+    const resp = await fetch(
+      `${API_BASE}/sessions/${sessionId.value}/results/${cell.pdf_id}/cells/${cell.field_name}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_value: editValue.value, reason: 'Manual correction' }),
+      }
+    )
+    if (!resp.ok) throw new Error(`Save failed: ${resp.statusText}`)
+    cell.value = editValue.value
+    editingCell.value = null
+  } catch (e: any) {
+    error.value = e.message
+  }
+}
+
+function parseEvidence(json: string) {
+  try {
+    const ev = JSON.parse(json)
+    return ev.sentence || ev.table_id || JSON.stringify(ev)
+  } catch {
+    return json
+  }
+}
+
+async function fetchAlerts() {
+  try {
+    const resp = await fetch(`${API_BASE}/sessions/${sessionId.value}/alerts`)
+    if (!resp.ok) {
+      alerts.value = []
+      return
+    }
+    const data = await resp.json()
+    alerts.value = data.alerts || []
+  } catch {
+    alerts.value = []
+  }
+}
 
 /* ── export ── */
 const exporting = ref(false)
@@ -515,5 +646,151 @@ async function exportResults(format: string) {
 
 .btn-success:hover {
   background: #166534;
+}
+
+/* ── step content wrapper (Step 4) ── */
+.step-content {
+  padding: 0;
+}
+
+/* ── 3-column review layout ── */
+.review-layout {
+  display: grid;
+  grid-template-columns: 250px 1fr 250px;
+  gap: 1rem;
+  min-height: 500px;
+  margin-bottom: 1rem;
+}
+
+.review-panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-y: auto;
+  max-height: 600px;
+}
+
+.review-panel h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.5rem;
+}
+
+.pdf-panel {
+  background: #f9fafb;
+}
+
+.results-panel {
+  background: white;
+}
+
+.alerts-panel {
+  background: #fffbeb;
+}
+
+.pdf-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: #6b7280;
+  padding: 2rem 1rem;
+  font-size: 0.875rem;
+  gap: 0.5rem;
+}
+
+/* ── row selection ── */
+.selected-row td {
+  background: #eff6ff !important;
+}
+
+.results-table tr:hover td {
+  background: #f9fafb;
+}
+
+/* ── inline edit input ── */
+.edit-input {
+  width: 100%;
+  padding: 0.25rem 0.375rem;
+  border: 1px solid #1d4ed8;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+/* ── alerts panel ── */
+.no-alerts {
+  font-size: 0.875rem;
+  color: #6b7280;
+  padding: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.alert-item {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.alert-item:last-child {
+  border-bottom: none;
+}
+
+.alert-severity {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.alert-severity.error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.alert-severity.warning {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.alert-severity.info {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+/* ── correction / detail panel ── */
+.correction-panel {
+  margin-top: 0.5rem;
+  padding: 1rem;
+  border: 1px solid #bbf7d0;
+  border-radius: 0.5rem;
+  background: #f0fdf4;
+  margin-bottom: 1rem;
+}
+
+.correction-panel h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem 1rem;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
 }
 </style>
