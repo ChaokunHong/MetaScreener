@@ -120,10 +120,23 @@ class FieldRole(StrEnum):
 class Confidence(StrEnum):
     """Confidence level for an extracted cell value."""
 
-    HIGH = "HIGH"
-    MEDIUM = "MEDIUM"
-    LOW = "LOW"
-    SINGLE = "SINGLE"
+    VERIFIED = "verified"   # table direct read + all validations pass
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+    SINGLE = "single"
+    FAILED = "failed"       # extraction failed
+
+    def downgrade(self) -> "Confidence":
+        """Return confidence one level lower (floors at FAILED)."""
+        order = list(Confidence)
+        idx = order.index(self)
+        return order[min(idx + 1, len(order) - 1)]
+
+    @property
+    def needs_review(self) -> bool:
+        """Whether this confidence level requires human review."""
+        return self in (Confidence.LOW, Confidence.FAILED)
 
 
 class ScreeningStage(StrEnum):
@@ -180,3 +193,29 @@ class ConflictPattern(StrEnum):
     INTERVENTION_CONFLICT = "intervention_conflict"
     OUTCOME_CONFLICT = "outcome_conflict"
     MULTI_ELEMENT_CONFLICT = "multi_element_conflict"
+
+
+class FieldSemanticTag(StrEnum):
+    """Semantic classification of extraction fields for numerical validation."""
+
+    SAMPLE_SIZE_TOTAL = "n_total"
+    SAMPLE_SIZE_ARM = "n_arm"
+    EVENTS_ARM = "events_arm"
+    MEAN = "mean"
+    SD = "sd"
+    SE = "se"
+    MEDIAN = "median"
+    IQR_LOWER = "iqr_lower"
+    IQR_UPPER = "iqr_upper"
+    PROPORTION = "proportion"
+    EFFECT_ESTIMATE = "effect_estimate"
+    CI_LOWER = "ci_lower"
+    CI_UPPER = "ci_upper"
+    P_VALUE = "p_value"
+    AGE = "age"
+    PERCENTAGE = "percentage"
+    STUDY_ID = "study_id"
+    INTERVENTION = "intervention"
+    COMPARATOR = "comparator"
+    OUTCOME = "outcome"
+    FOLLOW_UP = "follow_up"
