@@ -30,8 +30,8 @@ def _get_service() -> ExtractionService:
     """
     global _service
     if _service is None:
-        # routes/ → api/ → metascreener/ → src/ → project_root
-        project_root = Path(__file__).resolve().parent.parent.parent.parent
+        # routes/ → api/ → metascreener/ → src/ → MetaScreener (project root)
+        project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
         data_dir = project_root / "data" / "extraction"
         db_path = data_dir / "extraction.db"
         _service = ExtractionService(db_path=db_path, data_dir=data_dir)
