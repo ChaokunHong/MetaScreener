@@ -248,6 +248,17 @@ element_weights:
     evaluation: 0.8
     research_type: 0.6
 
+# ─── OCR Backends ───────────────────────────────────────────
+ocr:
+  # VLM model for rich document OCR (tables, equations, scanned pages).
+  # Uses litellm → OpenRouter. Format: "openrouter/<provider>/<model>"
+  vlm_model: "openrouter/qwen/qwen2.5-vl-72b-instruct"
+  vlm_fallback: "openrouter/qwen/qwen2.5-vl-7b-instruct"
+  # Enable/disable optional backends (graceful fallback when not installed)
+  enable_tesseract: true
+  enable_marker: true
+  enable_mineru: true
+
 # ─── Calibration ────────────────────────────────────────────────
 calibration:
   camd_alpha: 0.5              # CAMD minority penalty sensitivity [0.0-1.0]

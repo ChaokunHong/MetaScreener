@@ -222,3 +222,120 @@ class TestGetLlmBackendsFallback:
 
         assert backend_a.model_id == "placeholder"
         assert backend_b.model_id == "placeholder"
+
+
+# ---------------------------------------------------------------------------
+# Tests: _create_ocr_router()
+# ---------------------------------------------------------------------------
+
+
+class TestCreateOcrRouter:
+    """Verify _create_ocr_router() wires up all available OCR backends."""
+
+    def test_vlm_backend_created_when_api_key_present(self, tmp_path) -> None:
+        """When an OpenRouter API key is available, VLMBackend is instantiated."""
+        service = _make_service(tmp_path)
+
+        with patch(
+            "metascreener.api.routes.screening_helpers._get_openrouter_api_key",
+            return_value="sk-or-test-key",
+        ):
+            router = service._create_ocr_router()
+
+        # VLM backend should be registered
+        assert router._vlm is not None
+        assert router._vlm.name == "vlm"
+
+    def test_vlm_backend_none_when_no_api_key(self, tmp_path) -> None:
+        """Without an API key, VLMBackend is None; other backends still work."""
+        service = _make_service(tmp_path)
+
+        with patch(
+            "metascreener.api.routes.screening_helpers._get_openrouter_api_key",
+            return_value="",
+        ):
+            router = service._create_ocr_router()
+
+        assert router._vlm is None
+        # PyMuPDF must always be present
+        assert router._pymupdf is not None
+        assert router._pymupdf.name == "pymupdf"
+        # Tesseract is enabled by default
+        assert router._tesseract is not None
+        assert router._tesseract.name == "tesseract"
+
+    def test_marker_backend_graceful_when_package_missing(self, tmp_path) -> None:
+        """When MarkerBackend() raises ImportError, marker is None (no crash)."""
+        service = _make_service(tmp_path)
+
+        with (
+            patch(
+                "metascreener.api.routes.screening_helpers._get_openrouter_api_key",
+                return_value="",
+            ),
+            patch(
+                "metascreener.api.routes.extraction_runner.ExtractionRunnerMixin"
+                "._create_ocr_router.__wrapped__"
+                if False
+                else "metascreener.module0_retrieval.ocr.marker_backend.MarkerBackend",
+                side_effect=ImportError("marker-pdf not installed"),
+            ),
+        ):
+            router = service._create_ocr_router()
+
+        # marker is None — not installed
+        assert router._marker is None
+        # But PyMuPDF is still there
+        assert router._pymupdf is not None
+
+    def test_mineru_backend_graceful_when_package_missing(self, tmp_path) -> None:
+        """When MinerUBackend() raises ImportError, mineru is None (no crash)."""
+        service = _make_service(tmp_path)
+
+        with (
+            patch(
+                "metascreener.api.routes.screening_helpers._get_openrouter_api_key",
+                return_value="",
+            ),
+            patch(
+                "metascreener.module0_retrieval.ocr.mineru_backend.MinerUBackend",
+                side_effect=ImportError("magic-pdf not installed"),
+            ),
+        ):
+            router = service._create_ocr_router()
+
+        assert router._mineru is None
+        assert router._pymupdf is not None
+
+    def test_pymupdf_always_present(self, tmp_path) -> None:
+        """PyMuPDF backend is always registered regardless of other backend availability."""
+        service = _make_service(tmp_path)
+
+        with patch(
+            "metascreener.api.routes.screening_helpers._get_openrouter_api_key",
+            return_value="",
+        ):
+            router = service._create_ocr_router()
+
+        assert router._pymupdf is not None
+        assert router._pymupdf.name == "pymupdf"
+
+    def test_vlm_uses_model_from_config(self, tmp_path) -> None:
+        """VLMBackend model_name is read from configs/models.yaml ocr.vlm_model."""
+        service = _make_service(tmp_path)
+
+        fake_cfg = {"ocr": {"vlm_model": "openrouter/qwen/qwen2.5-vl-7b-instruct"}}
+        with (
+            patch(
+                "metascreener.api.routes.screening_helpers._get_openrouter_api_key",
+                return_value="sk-or-test-key",
+            ),
+            patch(
+                "metascreener.api.deps.get_config",
+                return_value=fake_cfg,
+            ),
+        ):
+            router = service._create_ocr_router()
+
+        assert router._vlm is not None
+        assert router._vlm._model_name == "openrouter/qwen/qwen2.5-vl-7b-instruct"

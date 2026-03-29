@@ -168,10 +168,8 @@ class ExtractionRunnerMixin:
                 )
 
                 from metascreener.doc_engine.parser import DocumentParser
-                from metascreener.module0_retrieval.ocr.pymupdf_backend import PyMuPDFBackend
-                from metascreener.module0_retrieval.ocr.router import OCRRouter
 
-                ocr_router = OCRRouter(pymupdf=PyMuPDFBackend())
+                ocr_router = self._create_ocr_router()  # type: ignore[attr-defined]
                 doc_parser = DocumentParser(ocr_router=ocr_router)
                 doc = await doc_parser.parse(pdf_path)
 
@@ -353,6 +351,101 @@ class ExtractionRunnerMixin:
             except Exception:
                 log.warning("plugin_manifest_unreadable", path=str(manifest))
         return plugins
+
+    def _create_ocr_router(self):
+        """Create OCR router with all available backends.
+
+        Reads OCR configuration from ``configs/models.yaml``.  Backends that
+        require optional dependencies (marker, mineru) are created with
+        try/except — if the package isn't installed they gracefully degrade to
+        ``None``.  VLM backend is only created when an OpenRouter API key is
+        available, because it delegates to a remote model via litellm.
+
+        Returns:
+            A fully-configured :class:`~metascreener.module0_retrieval.ocr.router.OCRRouter`
+            instance with all available backends registered.
+        """
+        from metascreener.module0_retrieval.ocr.marker_backend import MarkerBackend  # noqa: PLC0415
+        from metascreener.module0_retrieval.ocr.mineru_backend import MinerUBackend  # noqa: PLC0415
+        from metascreener.module0_retrieval.ocr.pymupdf_backend import PyMuPDFBackend  # noqa: PLC0415
+        from metascreener.module0_retrieval.ocr.router import OCRRouter  # noqa: PLC0415
+        from metascreener.module0_retrieval.ocr.tesseract_backend import TesseractBackend  # noqa: PLC0415
+        from metascreener.module0_retrieval.ocr.vlm_backend import VLMBackend  # noqa: PLC0415
+
+        # Load OCR config (optional section in models.yaml)
+        vlm_model = "openrouter/qwen/qwen2.5-vl-72b-instruct"
+        enable_tesseract = True
+        enable_marker = True
+        enable_mineru = True
+        try:
+            from metascreener.api.deps import get_config  # noqa: PLC0415
+
+            cfg = get_config()
+            ocr_cfg = cfg.get("ocr", {}) if cfg else {}
+            vlm_model = ocr_cfg.get("vlm_model", vlm_model)
+            enable_tesseract = ocr_cfg.get("enable_tesseract", enable_tesseract)
+            enable_marker = ocr_cfg.get("enable_marker", enable_marker)
+            enable_mineru = ocr_cfg.get("enable_mineru", enable_mineru)
+        except Exception:
+            pass  # Config read failure → use defaults
+
+        # PyMuPDF is always available as the required fallback
+        pymupdf = PyMuPDFBackend()
+
+        # Tesseract — depends on system installation; gracefully no-ops when absent
+        tesseract = TesseractBackend() if enable_tesseract else None
+
+        # VLM — requires OpenRouter API key; uses litellm with openrouter/ prefix
+        vlm = None
+        try:
+            from metascreener.api.routes.screening_helpers import (  # noqa: PLC0415
+                _get_openrouter_api_key,
+            )
+
+            api_key = _get_openrouter_api_key()
+            if api_key:
+                import os  # noqa: PLC0415
+
+                os.environ.setdefault("OPENROUTER_API_KEY", api_key)
+                vlm = VLMBackend(model_name=vlm_model)
+                log.info("ocr_vlm_backend_enabled", model=vlm_model)
+            else:
+                log.info("ocr_vlm_backend_disabled_no_api_key")
+        except Exception:
+            log.warning("ocr_vlm_backend_init_failed")
+
+        # Marker — optional dependency (marker-pdf); silently disabled if absent
+        marker = None
+        if enable_marker:
+            try:
+                marker = MarkerBackend()
+                log.info("ocr_marker_backend_enabled")
+            except Exception:
+                log.info("ocr_marker_backend_unavailable")
+
+        # MinerU — optional dependency (magic-pdf); silently disabled if absent
+        mineru = None
+        if enable_mineru:
+            try:
+                mineru = MinerUBackend()
+                log.info("ocr_mineru_backend_enabled")
+            except Exception:
+                log.info("ocr_mineru_backend_unavailable")
+
+        log.info(
+            "ocr_router_created",
+            tesseract=tesseract is not None,
+            vlm=vlm is not None,
+            marker=marker is not None,
+            mineru=mineru is not None,
+        )
+        return OCRRouter(
+            pymupdf=pymupdf,
+            tesseract=tesseract,
+            vlm=vlm,
+            marker=marker,
+            mineru=mineru,
+        )
 
     def _get_llm_backends(self):
         """Return configured LLM backends for dual-model extraction.
