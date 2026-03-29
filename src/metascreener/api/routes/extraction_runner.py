@@ -134,6 +134,7 @@ class ExtractionRunnerMixin:
 
         orchestrator = NewOrchestrator()
         backend_a, backend_b = self._get_llm_backends()  # type: ignore[attr-defined]
+        arbitration_backend = getattr(self, "_arbitration_backend", None)
 
         results_summary: dict = {
             "total_pdfs": len(pdfs),
@@ -181,7 +182,7 @@ class ExtractionRunnerMixin:
                     {"pdf": pdf_info["filename"]},
                 )
                 await repo.update_pdf_status(session_id, pdf_info["pdf_id"], "extracting")
-                result = await orchestrator.extract(schema, doc, backend_a, backend_b)
+                result = await orchestrator.extract(schema, doc, backend_a, backend_b, arbitration_backend)
 
                 import json
 
@@ -354,11 +355,24 @@ class ExtractionRunnerMixin:
         return plugins
 
     def _get_llm_backends(self):
-        """Return configured LLM backends, or placeholder stubs if none are configured.
+        """Return configured LLM backends for dual-model extraction.
+
+        Loads enabled models from ``configs/models.yaml`` and the
+        ``OPENROUTER_API_KEY`` environment variable (or the persisted UI
+        settings file).  Falls back to placeholder stubs only when no API
+        key is available or no models are configured.
 
         Returns:
-            Tuple of (backend_a, backend_b).
+            Tuple of (backend_a, backend_b[, arbitration_backend]).
+            Always returns exactly two items; a third
+            ``arbitration_backend`` is set on ``self`` when a third model
+            is available so that callers can pass it to
+            :meth:`~metascreener.module2_extraction.engine.new_orchestrator.NewOrchestrator.extract`.
         """
+        from metascreener.api.routes.screening_helpers import (  # noqa: PLC0415
+            _get_openrouter_api_key,
+        )
+        from metascreener.llm.factory import create_backends, sort_backends_by_tier  # noqa: PLC0415
 
         class _PlaceholderBackend:
             """Minimal stub that returns empty extraction JSON."""
@@ -369,4 +383,40 @@ class ExtractionRunnerMixin:
                 """Return empty extraction result."""
                 return '{"fields": {}}'
 
-        return _PlaceholderBackend(), _PlaceholderBackend()
+        api_key = _get_openrouter_api_key()
+        if not api_key:
+            log.warning("extraction_no_api_key_using_placeholder")
+            return _PlaceholderBackend(), _PlaceholderBackend()
+
+        try:
+            from metascreener.api.deps import get_config  # noqa: PLC0415
+
+            cfg = get_config()
+            backends = create_backends(cfg=cfg, api_key=api_key)
+            if not backends:
+                log.warning("extraction_no_backends_using_placeholder")
+                return _PlaceholderBackend(), _PlaceholderBackend()
+
+            # Sort so tier-1 (strongest) models come first.
+            backends = sort_backends_by_tier(backends, cfg)
+
+            backend_a = backends[0]
+            backend_b = backends[1] if len(backends) >= 2 else backends[0]
+
+            # Expose a third backend for arbitration when available.
+            if len(backends) >= 3:
+                self._arbitration_backend = backends[2]  # type: ignore[attr-defined]
+            else:
+                self._arbitration_backend = None  # type: ignore[attr-defined]
+
+            log.info(
+                "extraction_backends_loaded",
+                backend_a=backend_a.model_id,
+                backend_b=backend_b.model_id,
+                arbitration=getattr(self._arbitration_backend, "model_id", None),  # type: ignore[attr-defined]
+            )
+            return backend_a, backend_b
+
+        except Exception:
+            log.exception("extraction_backend_load_failed_using_placeholder")
+            return _PlaceholderBackend(), _PlaceholderBackend()

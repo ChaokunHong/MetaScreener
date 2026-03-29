@@ -5,6 +5,7 @@ across fields within a single study record.
 """
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from metascreener.core.enums import FieldSemanticTag
@@ -19,6 +20,10 @@ class NumericalCoherenceEngine:
     2. CI contains estimate: ci_lower <= effect_estimate <= ci_upper.
     3. p-value / CI consistency: p < 0.05 ↔ CI excludes null value.
     4. Events within N: events_arm <= n_arm for matching field pairs.
+    5. Percentage sum: PERCENTAGE-tagged fields sum to ~100% (within 5pp).
+    6. SD / SE relationship: SE ≈ SD / sqrt(N) (within 10% relative).
+    7. Cross-table consistency: same-tagged fields across sections share
+       consistent N (within 5% relative tolerance).
     """
 
     _SAMPLE_SIZE_TOLERANCE: float = 0.05  # 5% relative tolerance
@@ -44,6 +49,9 @@ class NumericalCoherenceEngine:
         violations += self._check_ci_contains_estimate(extracted, field_tags)
         violations += self._check_pvalue_ci_consistency(extracted, field_tags)
         violations += self._check_events_within_n(extracted, field_tags)
+        violations += self._check_percentage_sum(extracted, field_tags)
+        violations += self._check_sd_se_relationship(extracted, field_tags)
+        violations += self._check_cross_table_consistency(extracted, field_tags)
         return violations
 
     # ------------------------------------------------------------------
@@ -267,6 +275,174 @@ class NumericalCoherenceEngine:
                     )
                 )
         return violations
+
+    def _check_percentage_sum(
+        self,
+        extracted: dict[str, Any],
+        field_tags: dict[str, FieldSemanticTag],
+    ) -> list[CoherenceViolation]:
+        """Check that PERCENTAGE-tagged fields sum to approximately 100%.
+
+        Skips the check when fewer than two percentage fields exist (a
+        single percentage field may legitimately be a sub-group fraction
+        rather than an exhaustive partition).
+
+        Tolerance: 5 percentage points (absolute).
+        """
+        pct_fields = _fields_with_tag(field_tags, FieldSemanticTag.PERCENTAGE)
+        if len(pct_fields) < 2:
+            return []
+
+        pct_values: dict[str, float] = {}
+        for name in pct_fields:
+            val = _to_float(extracted.get(name))
+            if val is not None:
+                pct_values[name] = val
+
+        if len(pct_values) < 2:
+            return []
+
+        total = sum(pct_values.values())
+        if abs(total - 100.0) > 5.0:
+            return [
+                CoherenceViolation(
+                    rule_name="percentage_sum",
+                    fields_involved=list(pct_values.keys()),
+                    expected_relationship=(
+                        f"sum({', '.join(pct_values.keys())}) ≈ 100% "
+                        "(within 5 percentage points)"
+                    ),
+                    actual_values=pct_values,
+                    discrepancy=(
+                        f"sum of percentages = {total:.1f}%, "
+                        f"deviation from 100% = {abs(total - 100.0):.1f}pp"
+                    ),
+                    severity="warning",
+                    suggested_action=(
+                        "Re-check percentage fields; verify they form an "
+                        "exhaustive partition or only a subset was extracted."
+                    ),
+                )
+            ]
+        return []
+
+    def _check_sd_se_relationship(
+        self,
+        extracted: dict[str, Any],
+        field_tags: dict[str, FieldSemanticTag],
+    ) -> list[CoherenceViolation]:
+        """Check SE ≈ SD / sqrt(N) for each matching SD/SE/N arm triple.
+
+        Matching is positional: first SD ↔ first SE ↔ first N_arm, etc.
+        Tolerance: 10% relative to the expected SE.
+
+        Skips any triple where one or more values are missing or N < 1.
+        """
+        sd_fields = _fields_with_tag(field_tags, FieldSemanticTag.SD)
+        se_fields = _fields_with_tag(field_tags, FieldSemanticTag.SE)
+        n_fields = _fields_with_tag(field_tags, FieldSemanticTag.SAMPLE_SIZE_ARM)
+
+        if not sd_fields or not se_fields or not n_fields:
+            return []
+
+        violations: list[CoherenceViolation] = []
+        for sd_name, se_name, n_name in zip(sd_fields, se_fields, n_fields):
+            sd_val = _to_float(extracted.get(sd_name))
+            se_val = _to_float(extracted.get(se_name))
+            n_val = _to_float(extracted.get(n_name))
+
+            if sd_val is None or se_val is None or n_val is None or n_val < 1:
+                continue
+
+            expected_se = sd_val / math.sqrt(n_val)
+            if expected_se == 0:
+                continue
+
+            relative_error = abs(se_val - expected_se) / expected_se
+            if relative_error > 0.10:
+                violations.append(
+                    CoherenceViolation(
+                        rule_name="sd_se_relationship",
+                        fields_involved=[sd_name, se_name, n_name],
+                        expected_relationship=(
+                            f"{se_name} ≈ {sd_name} / sqrt({n_name}) "
+                            "(within 10% relative)"
+                        ),
+                        actual_values={
+                            sd_name: sd_val,
+                            se_name: se_val,
+                            n_name: n_val,
+                        },
+                        discrepancy=(
+                            f"SE = {se_val:.4f}, expected SE = {expected_se:.4f} "
+                            f"(SD={sd_val:.4f} / sqrt({n_val:.0f})), "
+                            f"relative error = {relative_error * 100:.1f}%"
+                        ),
+                        severity="warning",
+                        suggested_action=(
+                            "Re-verify SD, SE, and sample size; "
+                            "they may have been extracted from different arms."
+                        ),
+                    )
+                )
+        return violations
+
+    def _check_cross_table_consistency(
+        self,
+        extracted: dict[str, Any],
+        field_tags: dict[str, FieldSemanticTag],
+    ) -> list[CoherenceViolation]:
+        """Check that same-tagged N fields across different name groups agree.
+
+        When multiple SAMPLE_SIZE_TOTAL fields are present (e.g., extracted
+        from different PDF sections/tables), their values should be within
+        5% of each other.  Inconsistent N values indicate extraction from
+        different studies or a misread.
+
+        Tolerance: 5% relative to the maximum value.
+        """
+        total_fields = _fields_with_tag(field_tags, FieldSemanticTag.SAMPLE_SIZE_TOTAL)
+        if len(total_fields) < 2:
+            return []
+
+        total_values: dict[str, float] = {}
+        for name in total_fields:
+            val = _to_float(extracted.get(name))
+            if val is not None:
+                total_values[name] = val
+
+        if len(total_values) < 2:
+            return []
+
+        max_val = max(total_values.values())
+        min_val = min(total_values.values())
+
+        if max_val == 0:
+            return []
+
+        relative_spread = (max_val - min_val) / max_val
+        if relative_spread > 0.05:
+            return [
+                CoherenceViolation(
+                    rule_name="cross_table_n_consistency",
+                    fields_involved=list(total_values.keys()),
+                    expected_relationship=(
+                        "All SAMPLE_SIZE_TOTAL fields should agree within 5%"
+                    ),
+                    actual_values=total_values,
+                    discrepancy=(
+                        f"N values range from {min_val:.0f} to {max_val:.0f}, "
+                        f"spread = {relative_spread * 100:.1f}%"
+                    ),
+                    severity="warning",
+                    suggested_action=(
+                        "Re-check total sample size extraction; "
+                        "values may have been read from different tables or "
+                        "intermediate/sub-group totals."
+                    ),
+                )
+            ]
+        return []
 
 
 # ---------------------------------------------------------------------------

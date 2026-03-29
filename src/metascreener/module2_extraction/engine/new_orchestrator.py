@@ -305,12 +305,15 @@ class NewOrchestrator:
             return self._table_reader.extract(doc, plan.source_hint), None
 
         if plan.strategy == ExtractionStrategy.VLM_FIGURE:
-            return (
-                self._figure_reader.extract_from_preextracted(
-                    doc, plan.source_hint, field.name
-                ),
-                None,
+            result = self._figure_reader.extract_from_preextracted(
+                doc, plan.source_hint, field.name
             )
+            if result.value is None and backend_a is not None:
+                # Fall back to VLM extraction using the LLM backend
+                result = await self._figure_reader.extract_with_vlm(
+                    doc, plan.source_hint, field.name, backend_a
+                )
+            return result, None
 
         if plan.strategy == ExtractionStrategy.COMPUTED:
             return self._execute_computed(plan, extracted), None

@@ -521,3 +521,114 @@ async def test_numerical_coherence_error_violation_marks_validation_failed(doc) 
     age_field = result.fields.get("Age")
     assert age_field is not None
     assert age_field.validation_passed is False
+
+
+# ---------------------------------------------------------------------------
+# Test: VLM fallback in orchestrator
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_vlm_fallback_calls_extract_with_vlm_when_preextracted_empty() -> None:
+    """When pre-extracted figure data is unavailable, VLM backend is called.
+
+    Builds a document with a figure that has NO pre-extracted data.
+    Expects extract_with_vlm to be called on the FigureReader.
+    """
+    import json
+
+    from metascreener.core.enums import FieldRole
+    from metascreener.core.models_extraction import ExtractionSchema, FieldSchema, SheetSchema
+    from metascreener.doc_engine.models import FigureType
+    from metascreener.module2_extraction.engine.new_orchestrator import NewOrchestrator
+    from metascreener.module2_extraction.models import ExtractionStrategy, RawExtractionResult, SourceLocation
+    from tests.helpers.doc_builder import MockDocumentBuilder
+
+    # Build a document with a figure that has no extracted_data
+    figure_doc = (
+        MockDocumentBuilder()
+        .with_metadata("VLM Test", ["Author"])
+        .add_figure("fig_1", FigureType.FOREST_PLOT, "Forest plot of OR", extracted_data=None)
+        .build()
+    )
+
+    # Schema with a figure-targeted field — force the field router to pick VLM_FIGURE
+    # by patching the router's route() to return a VLM_FIGURE plan for our field.
+    from metascreener.module2_extraction.models import FieldRoutingPlan, SourceHint
+
+    orch = NewOrchestrator()
+
+    vlm_called: list[str] = []
+
+    async def mock_extract_with_vlm(doc, hint, field_name, vlm_backend):
+        vlm_called.append(field_name)
+        return RawExtractionResult(
+            value=0.75,
+            evidence=SourceLocation(type="figure", page=1),
+            strategy_used=ExtractionStrategy.VLM_FIGURE,
+            confidence_prior=0.8,
+        )
+
+    orch._figure_reader.extract_with_vlm = mock_extract_with_vlm
+
+    # Build a schema with a single VLM-targeted field
+    fields = [
+        FieldSchema(
+            column="A",
+            name="overall_or",
+            description="Overall odds ratio",
+            field_type="number",
+            role=FieldRole.EXTRACT,
+            required=False,
+            dropdown_options=None,
+            validation=None,
+            mapping_source=None,
+        )
+    ]
+    sheet = SheetSchema(
+        sheet_name="Studies",
+        role="data",
+        cardinality="one_per_study",
+        fields=fields,
+        extraction_order=1,
+    )
+    schema = ExtractionSchema(
+        schema_id="test-vlm",
+        schema_version="1.0",
+        sheets=[sheet],
+        relationships=[],
+        mappings={},
+        domain_plugin=None,
+    )
+
+    # Patch the router so the field is assigned VLM_FIGURE strategy
+    original_route = orch._router.route
+
+    def patched_route(schema_fields, doc):
+        plans = original_route(schema_fields, doc)
+        patched = []
+        for plan in plans:
+            if plan.field_name == "overall_or":
+                patched.append(
+                    FieldRoutingPlan(
+                        field_name=plan.field_name,
+                        strategy=ExtractionStrategy.VLM_FIGURE,
+                        source_hint=SourceHint(figure_id="fig_1"),
+                        confidence_prior=0.8,
+                    )
+                )
+            else:
+                patched.append(plan)
+        return patched
+
+    orch._router.route = patched_route
+
+    backend = MockBackend({"fields": {}})
+    result = await orch.extract(schema, figure_doc, backend, backend)
+
+    # VLM fallback should have been invoked
+    assert "overall_or" in vlm_called, (
+        "Expected extract_with_vlm to be called for 'overall_or' "
+        "when pre-extracted data was absent"
+    )
+    assert result.fields["overall_or"].value == 0.75

@@ -294,3 +294,211 @@ class TestPartialFields:
         violations = engine.validate(extracted, tags)
         ci_violations = [v for v in violations if v.rule_name == "ci_contains_estimate"]
         assert ci_violations == []
+
+
+# ---------------------------------------------------------------------------
+# V4 check 5: Percentage sum
+# ---------------------------------------------------------------------------
+
+
+class TestPercentageSumCheck:
+    def test_percentages_sum_to_100_no_violation(self) -> None:
+        extracted = {"pct_male": 60.0, "pct_female": 40.0}
+        tags = _tags(
+            pct_male=FieldSemanticTag.PERCENTAGE,
+            pct_female=FieldSemanticTag.PERCENTAGE,
+        )
+        engine = NumericalCoherenceEngine()
+        violations = engine.validate(extracted, tags)
+        pct_violations = [v for v in violations if v.rule_name == "percentage_sum"]
+        assert pct_violations == []
+
+    def test_percentages_within_5pp_no_violation(self) -> None:
+        # 58 + 40 = 98 → 2pp deviation < 5pp
+        extracted = {"pct_male": 58.0, "pct_female": 40.0}
+        tags = _tags(
+            pct_male=FieldSemanticTag.PERCENTAGE,
+            pct_female=FieldSemanticTag.PERCENTAGE,
+        )
+        engine = NumericalCoherenceEngine()
+        violations = engine.validate(extracted, tags)
+        pct_violations = [v for v in violations if v.rule_name == "percentage_sum"]
+        assert pct_violations == []
+
+    def test_percentages_far_from_100_triggers_violation(self) -> None:
+        # 60 + 20 = 80 → 20pp deviation > 5pp
+        extracted = {"pct_a": 60.0, "pct_b": 20.0}
+        tags = _tags(
+            pct_a=FieldSemanticTag.PERCENTAGE,
+            pct_b=FieldSemanticTag.PERCENTAGE,
+        )
+        engine = NumericalCoherenceEngine()
+        violations = engine.validate(extracted, tags)
+        pct_violations = [v for v in violations if v.rule_name == "percentage_sum"]
+        assert len(pct_violations) == 1
+        assert pct_violations[0].severity == "warning"
+        assert "80" in pct_violations[0].discrepancy or "20" in pct_violations[0].discrepancy
+
+    def test_single_percentage_field_skips_check(self) -> None:
+        """Single percentage field cannot form a partition; check is skipped."""
+        extracted = {"pct_male": 45.0}
+        tags = _tags(pct_male=FieldSemanticTag.PERCENTAGE)
+        engine = NumericalCoherenceEngine()
+        violations = engine.validate(extracted, tags)
+        pct_violations = [v for v in violations if v.rule_name == "percentage_sum"]
+        assert pct_violations == []
+
+    def test_missing_percentage_values_skips_check(self) -> None:
+        """If percentage values are None, check should be skipped."""
+        extracted: dict = {"pct_a": None, "pct_b": None}
+        tags = _tags(
+            pct_a=FieldSemanticTag.PERCENTAGE,
+            pct_b=FieldSemanticTag.PERCENTAGE,
+        )
+        engine = NumericalCoherenceEngine()
+        violations = engine.validate(extracted, tags)
+        pct_violations = [v for v in violations if v.rule_name == "percentage_sum"]
+        assert pct_violations == []
+
+
+# ---------------------------------------------------------------------------
+# V4 check 6: SD / SE relationship
+# ---------------------------------------------------------------------------
+
+
+class TestSdSeCheck:
+    def test_se_consistent_with_sd_and_n(self) -> None:
+        import math
+
+        # SE = 10 / sqrt(100) = 1.0
+        extracted = {"sd": 10.0, "se": 1.0, "n_arm": 100}
+        tags = _tags(
+            sd=FieldSemanticTag.SD,
+            se=FieldSemanticTag.SE,
+            n_arm=FieldSemanticTag.SAMPLE_SIZE_ARM,
+        )
+        engine = NumericalCoherenceEngine()
+        violations = engine.validate(extracted, tags)
+        sd_violations = [v for v in violations if v.rule_name == "sd_se_relationship"]
+        assert sd_violations == []
+
+    def test_se_within_10pct_tolerance(self) -> None:
+        import math
+
+        # Expected SE = 10 / sqrt(100) = 1.0; actual SE = 1.09 → 9% relative error < 10%
+        extracted = {"sd": 10.0, "se": 1.09, "n_arm": 100}
+        tags = _tags(
+            sd=FieldSemanticTag.SD,
+            se=FieldSemanticTag.SE,
+            n_arm=FieldSemanticTag.SAMPLE_SIZE_ARM,
+        )
+        engine = NumericalCoherenceEngine()
+        violations = engine.validate(extracted, tags)
+        sd_violations = [v for v in violations if v.rule_name == "sd_se_relationship"]
+        assert sd_violations == []
+
+    def test_se_inconsistent_triggers_violation(self) -> None:
+        import math
+
+        # Expected SE = 10 / sqrt(100) = 1.0; actual SE = 3.0 → 200% relative error
+        extracted = {"sd": 10.0, "se": 3.0, "n_arm": 100}
+        tags = _tags(
+            sd=FieldSemanticTag.SD,
+            se=FieldSemanticTag.SE,
+            n_arm=FieldSemanticTag.SAMPLE_SIZE_ARM,
+        )
+        engine = NumericalCoherenceEngine()
+        violations = engine.validate(extracted, tags)
+        sd_violations = [v for v in violations if v.rule_name == "sd_se_relationship"]
+        assert len(sd_violations) == 1
+        assert sd_violations[0].severity == "warning"
+        assert "3.0" in sd_violations[0].discrepancy or "3.0000" in sd_violations[0].discrepancy
+
+    def test_missing_n_skips_check(self) -> None:
+        """Without SAMPLE_SIZE_ARM, the check must be skipped."""
+        extracted = {"sd": 10.0, "se": 2.0}
+        tags = _tags(
+            sd=FieldSemanticTag.SD,
+            se=FieldSemanticTag.SE,
+        )
+        engine = NumericalCoherenceEngine()
+        violations = engine.validate(extracted, tags)
+        sd_violations = [v for v in violations if v.rule_name == "sd_se_relationship"]
+        assert sd_violations == []
+
+    def test_zero_n_skips_check(self) -> None:
+        """N=0 would cause division by zero; check must be skipped."""
+        extracted = {"sd": 10.0, "se": 2.0, "n_arm": 0}
+        tags = _tags(
+            sd=FieldSemanticTag.SD,
+            se=FieldSemanticTag.SE,
+            n_arm=FieldSemanticTag.SAMPLE_SIZE_ARM,
+        )
+        engine = NumericalCoherenceEngine()
+        violations = engine.validate(extracted, tags)
+        sd_violations = [v for v in violations if v.rule_name == "sd_se_relationship"]
+        assert sd_violations == []
+
+
+# ---------------------------------------------------------------------------
+# V4 check 7: Cross-table N consistency
+# ---------------------------------------------------------------------------
+
+
+class TestCrossTableConsistencyCheck:
+    def test_two_identical_totals_no_violation(self) -> None:
+        extracted = {"n_total_methods": 120, "n_total_results": 120}
+        tags = _tags(
+            n_total_methods=FieldSemanticTag.SAMPLE_SIZE_TOTAL,
+            n_total_results=FieldSemanticTag.SAMPLE_SIZE_TOTAL,
+        )
+        engine = NumericalCoherenceEngine()
+        violations = engine.validate(extracted, tags)
+        ct_violations = [v for v in violations if v.rule_name == "cross_table_n_consistency"]
+        assert ct_violations == []
+
+    def test_two_close_totals_within_tolerance(self) -> None:
+        # 120 vs 123 → spread = 3/123 = 2.4% < 5%
+        extracted = {"n_total_methods": 120, "n_total_results": 123}
+        tags = _tags(
+            n_total_methods=FieldSemanticTag.SAMPLE_SIZE_TOTAL,
+            n_total_results=FieldSemanticTag.SAMPLE_SIZE_TOTAL,
+        )
+        engine = NumericalCoherenceEngine()
+        violations = engine.validate(extracted, tags)
+        ct_violations = [v for v in violations if v.rule_name == "cross_table_n_consistency"]
+        assert ct_violations == []
+
+    def test_two_discordant_totals_triggers_violation(self) -> None:
+        # 120 vs 200 → spread = 80/200 = 40% >> 5%
+        extracted = {"n_total_methods": 120, "n_total_results": 200}
+        tags = _tags(
+            n_total_methods=FieldSemanticTag.SAMPLE_SIZE_TOTAL,
+            n_total_results=FieldSemanticTag.SAMPLE_SIZE_TOTAL,
+        )
+        engine = NumericalCoherenceEngine()
+        violations = engine.validate(extracted, tags)
+        ct_violations = [v for v in violations if v.rule_name == "cross_table_n_consistency"]
+        assert len(ct_violations) == 1
+        assert ct_violations[0].severity == "warning"
+
+    def test_single_total_field_skips_check(self) -> None:
+        """Single SAMPLE_SIZE_TOTAL cannot have inconsistency; check is skipped."""
+        extracted = {"n_total": 120}
+        tags = _tags(n_total=FieldSemanticTag.SAMPLE_SIZE_TOTAL)
+        engine = NumericalCoherenceEngine()
+        violations = engine.validate(extracted, tags)
+        ct_violations = [v for v in violations if v.rule_name == "cross_table_n_consistency"]
+        assert ct_violations == []
+
+    def test_missing_total_values_skips_check(self) -> None:
+        """If both values are None, check must be skipped gracefully."""
+        extracted: dict = {"n_total_1": None, "n_total_2": None}
+        tags = _tags(
+            n_total_1=FieldSemanticTag.SAMPLE_SIZE_TOTAL,
+            n_total_2=FieldSemanticTag.SAMPLE_SIZE_TOTAL,
+        )
+        engine = NumericalCoherenceEngine()
+        violations = engine.validate(extracted, tags)
+        ct_violations = [v for v in violations if v.rule_name == "cross_table_n_consistency"]
+        assert ct_violations == []
