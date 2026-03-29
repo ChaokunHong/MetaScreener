@@ -41,6 +41,7 @@ from metascreener.module2_extraction.engine.llm_execution import (
 )
 from metascreener.module2_extraction.engine.table_reader import TableReader
 from metascreener.module2_extraction.models import (
+    ExtractionPlan,
     ExtractionStrategy,
     FieldRoutingPlan,
     RawExtractionResult,
@@ -128,7 +129,7 @@ class NewOrchestrator:
                     all_fields.append(f)
                     field_to_sheet[f.name] = sheet.sheet_name
 
-        if not all_fields:
+        if not all_fields and not many_per_sheets:
             return DocumentExtractionResult(
                 doc_id=doc.doc_id,
                 pdf_filename=doc.source_path.name,
@@ -136,9 +137,9 @@ class NewOrchestrator:
                 errors=[],
             )
 
-        # Step 1: Route all fields
-        plans = self._router.route(all_fields, doc)
-        exec_plan = self._router.build_extraction_plan(plans)
+        # Step 1: Route all ONE_PER_STUDY fields (skip if none)
+        plans = self._router.route(all_fields, doc) if all_fields else []
+        exec_plan = self._router.build_extraction_plan(plans) if plans else ExtractionPlan(phases=[])
         plan_map = {p.field_name: p for p in plans}
 
         log.info(
