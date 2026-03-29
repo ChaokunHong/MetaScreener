@@ -136,38 +136,41 @@
 
     <!-- Step 4: Review -->
     <div v-if="currentStep === 3" class="step-content fade-in">
-      <h2 style="margin-bottom: 1rem;">Results Review</h2>
       <div v-if="loadingResults" class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Loading results...</div>
-      <div class="review-layout" :style="reviewGridStyle">
-        <!-- Left: PDF Viewer (collapsible) -->
-        <div v-if="showPdfPanel" class="review-panel pdf-panel">
-          <div class="panel-header">
-            <h3>PDF Viewer</h3>
-            <button class="btn-icon" @click="showPdfPanel = false" title="Hide PDF panel">
-              <i class="fas fa-chevron-left"></i>
-            </button>
+
+      <!-- Main results table — full width glass card -->
+      <div class="glass-card" style="margin-bottom: 1rem;">
+        <div class="section-title"><i class="fas fa-table"></i> Extraction Results</div>
+        <ExtractionPivotTable v-if="results.length > 0" :results="results" :selected-cell="selectedCell" @select-cell="selectCell" @save-edit="handleSaveEdit" />
+        <div v-else class="empty-state"><i class="fas fa-table"></i><p>No results available yet.</p></div>
+      </div>
+
+      <!-- Secondary panels — side by side below results -->
+      <div class="review-secondary">
+        <!-- Cell Details (shown when a cell is selected) -->
+        <div v-if="selectedCell" class="glass-card review-detail-card">
+          <div class="section-title"><i class="fas fa-info-circle"></i> Cell Details</div>
+          <div class="detail-grid">
+            <div><strong>Field:</strong> {{ selectedCell.field_name }}</div>
+            <div><strong>Value:</strong> {{ selectedCell.value }}</div>
+            <div><strong>Confidence:</strong>
+              <span :class="['confidence-badge', `confidence-${selectedCell.confidence?.toLowerCase()}`]">{{ selectedCell.confidence }}</span>
+            </div>
+            <div><strong>Strategy:</strong> {{ selectedCell.strategy }}</div>
           </div>
-          <PdfViewer :session-id="sessionId" :pdf-id="selectedPdfId" :evidence="selectedEvidence" />
-        </div>
-        <div v-else class="collapsed-panel" @click="showPdfPanel = true" title="Show PDF panel">
-          <i class="fas fa-file-pdf"></i>
+          <div v-if="selectedCell.evidence_json" style="margin-top: 0.5rem;">
+            <strong>Evidence:</strong>
+            <div class="evidence-box">{{ parseEvidence(selectedCell.evidence_json) }}</div>
+          </div>
+          <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+            <button @click="startEdit(selectedCell)" class="btn btn-secondary"><i class="fas fa-edit"></i> Edit Value</button>
+            <button v-if="selectedPdfId" @click="showPdfDrawer = true" class="btn btn-secondary"><i class="fas fa-file-pdf"></i> View PDF</button>
+          </div>
         </div>
 
-        <!-- Centre: Extraction Results (always visible) -->
-        <div class="review-panel results-panel">
-          <h3>Extraction Results</h3>
-          <ExtractionPivotTable v-if="results.length > 0" :results="results" :selected-cell="selectedCell" @select-cell="selectCell" @save-edit="handleSaveEdit" />
-          <div v-else class="empty-state"><i class="fas fa-table"></i><p>No results available yet.</p></div>
-        </div>
-
-        <!-- Right: Alerts (collapsible) -->
-        <div v-if="showAlertsPanel" class="review-panel alerts-panel">
-          <div class="panel-header">
-            <h3>Alerts &amp; Warnings</h3>
-            <button class="btn-icon" @click="showAlertsPanel = false" title="Hide alerts panel">
-              <i class="fas fa-chevron-right"></i>
-            </button>
-          </div>
+        <!-- Alerts panel -->
+        <div class="glass-card review-alerts-card">
+          <div class="section-title"><i class="fas fa-bell"></i> Alerts & Warnings</div>
           <div v-if="loadingAlerts" class="text-muted" style="font-size: 0.85rem;"><i class="fas fa-spinner fa-spin"></i> Loading alerts...</div>
           <div v-else-if="alerts.length === 0" class="no-alerts"><i class="fas fa-check-circle" style="color: #16a34a;"></i> No alerts</div>
           <div v-for="(alert, i) in alerts" :key="i" class="alert-item">
@@ -176,21 +179,19 @@
               <div class="text-muted" style="font-size:0.75rem;">{{ alert.suggested_action }}</div></span>
           </div>
         </div>
-        <div v-else class="collapsed-panel" @click="showAlertsPanel = true" title="Show alerts panel">
-          <i class="fas fa-bell"></i>
+      </div>
+
+      <!-- PDF Viewer — slide-out drawer -->
+      <div v-if="showPdfDrawer" class="pdf-drawer-overlay" @click.self="showPdfDrawer = false">
+        <div class="pdf-drawer">
+          <div class="pdf-drawer-header">
+            <h3><i class="fas fa-file-pdf"></i> PDF Viewer</h3>
+            <button class="btn-icon" @click="showPdfDrawer = false"><i class="fas fa-times"></i></button>
+          </div>
+          <PdfViewer :session-id="sessionId" :pdf-id="selectedPdfId" :evidence="selectedEvidence" />
         </div>
       </div>
-      <div v-if="selectedCell" class="correction-panel fade-in">
-        <h3>Cell Details</h3>
-        <div class="detail-grid">
-          <div><strong>Field:</strong> {{ selectedCell.field_name }}</div>
-          <div><strong>Value:</strong> {{ selectedCell.value }}</div>
-          <div><strong>Confidence:</strong> {{ selectedCell.confidence }}</div>
-          <div><strong>Strategy:</strong> {{ selectedCell.strategy }}</div>
-          <div v-if="selectedCell.evidence_json"><strong>Evidence:</strong> {{ parseEvidence(selectedCell.evidence_json) }}</div>
-        </div>
-        <button @click="startEdit(selectedCell)" class="btn btn-secondary" style="margin-top: 0.5rem;"><i class="fas fa-edit"></i> Edit Value</button>
-      </div>
+
       <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
         <button class="btn btn-secondary" @click="currentStep = 2"><i class="fas fa-arrow-left"></i> Back</button>
         <button class="btn btn-primary" @click="currentStep = 4"><i class="fas fa-arrow-right"></i> Next: Export</button>
@@ -264,6 +265,9 @@ const draggingPdf = ref(false)
 const uploadingPdf = ref(false)
 
 /* -- review layout -- */
+const showPdfDrawer = ref(false)
+
+/* legacy refs kept for backward compat — no longer drive grid layout */
 const showPdfPanel = ref(true)
 const showAlertsPanel = ref(true)
 
@@ -396,26 +400,74 @@ async function handlePdfUpload(event: Event) { const i = event.target as HTMLInp
 .btn-success { background: #15803d; color: white; border: none; padding: 0.45rem 1.25rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.4rem; }
 .btn-success:hover { background: #166534; }
 .step-content { padding: 0; }
-.review-layout { display: grid; grid-template-columns: 280px 1fr 220px; gap: 1rem; min-height: 500px; margin-bottom: 1rem; }
-@media (max-width: 900px) { .review-layout { grid-template-columns: 1fr; } }
-.review-panel { border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1rem; overflow-y: auto; max-height: 600px; }
-.review-panel h3 { margin: 0 0 0.75rem; font-size: 0.95rem; font-weight: 600; color: #374151; }
-.panel-header { display: flex; justify-content: space-between; align-items: center; margin: 0 0 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e5e7eb; }
-.panel-header h3 { margin: 0; font-size: 0.95rem; font-weight: 600; color: #374151; }
+
+/* -- secondary panels below results -- */
+.review-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 768px) { .review-secondary { grid-template-columns: 1fr; } }
+.review-detail-card { min-height: 120px; }
+.review-alerts-card { min-height: 120px; }
+
+.evidence-box {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  color: #374151;
+  margin-top: 0.25rem;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+/* -- PDF drawer overlay -- */
+.pdf-drawer-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+.pdf-drawer {
+  width: 480px;
+  max-width: 90vw;
+  background: white;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  animation: slideIn 0.2s ease-out;
+}
+@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.pdf-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+.pdf-drawer-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .btn-icon { background: none; border: none; cursor: pointer; color: #9ca3af; padding: 0.2rem 0.35rem; border-radius: 0.25rem; font-size: 0.8rem; line-height: 1; transition: color 0.15s, background 0.15s; flex-shrink: 0; }
 .btn-icon:hover { color: #1d4ed8; background: #eff6ff; }
-.collapsed-panel { width: 36px; display: flex; align-items: center; justify-content: center; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.5rem; cursor: pointer; color: #9ca3af; font-size: 1rem; transition: background 0.15s, color 0.15s; }
-.collapsed-panel:hover { background: #eff6ff; color: #1d4ed8; }
-.pdf-panel { background: #f9fafb; }
-.results-panel { background: white; }
-.alerts-panel { background: #fffbeb; }
 .selected-row td { background: #eff6ff !important; }
 .no-alerts { font-size: 0.875rem; color: #6b7280; padding: 0.5rem 0; display: flex; align-items: center; gap: 0.4rem; }
 .alert-item { padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb; font-size: 0.875rem; display: flex; align-items: flex-start; gap: 0.4rem; }
 .alert-item:last-child { border-bottom: none; }
 .alert-severity { font-weight: 600; text-transform: uppercase; font-size: 0.7rem; padding: 0.125rem 0.375rem; border-radius: 0.25rem; white-space: nowrap; flex-shrink: 0; }
 .alert-severity.warning { background: #fffbeb; color: #92400e; }
-.correction-panel { margin-top: 0.5rem; padding: 1rem; border: 1px solid #bbf7d0; border-radius: 0.5rem; background: #f0fdf4; margin-bottom: 1rem; }
-.correction-panel h3 { margin: 0 0 0.75rem; font-size: 0.95rem; font-weight: 600; color: #374151; }
 .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 1rem; font-size: 0.875rem; margin-bottom: 0.5rem; }
 </style>
