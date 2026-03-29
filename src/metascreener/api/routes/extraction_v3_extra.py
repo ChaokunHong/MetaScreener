@@ -83,6 +83,34 @@ async def update_schema(session_id: str, body: SchemaUpdateRequest) -> dict:
     return {"status": "updated"}
 
 
+# --- PDF file serving ---
+
+
+@router.get("/sessions/{session_id}/pdfs/{pdf_id}/file")
+async def get_pdf_file(session_id: str, pdf_id: str) -> FileResponse:
+    """Serve the uploaded PDF file for in-browser viewing.
+
+    Args:
+        session_id: Parent session identifier.
+        pdf_id: The PDF to serve.
+
+    Returns:
+        The PDF file with ``application/pdf`` media type.
+
+    Raises:
+        HTTPException: 404 if the PDF record or file is not found.
+    """
+    service = _get_service()
+    pdfs = await service.get_pdfs(session_id)
+    pdf_info = next((p for p in pdfs if p.get("pdf_id") == pdf_id), None)
+    if not pdf_info:
+        raise HTTPException(status_code=404, detail="PDF not found")
+    pdf_path = service._data_dir / session_id / "pdfs" / pdf_info["filename"]
+    if not pdf_path.exists():
+        raise HTTPException(status_code=404, detail="PDF file not found on disk")
+    return FileResponse(str(pdf_path), media_type="application/pdf")
+
+
 # --- PDF removal ---
 
 

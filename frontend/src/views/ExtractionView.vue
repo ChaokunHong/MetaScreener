@@ -1,7 +1,20 @@
 <template>
   <div class="extraction-view">
-    <h1 class="page-title" style="margin-bottom: 0.25rem;">Data Extraction</h1>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+      <h1 class="page-title" style="margin-bottom: 0;">Data Extraction</h1>
+      <button class="btn btn-secondary btn-sm" @click="showSessions = !showSessions">
+        <i class="fas fa-history"></i> Sessions
+      </button>
+    </div>
     <p class="text-muted" style="margin-bottom: 1.5rem;">Upload template -> upload PDFs -> run extraction -> review results -> export</p>
+
+    <!-- Session Manager -->
+    <SessionManager
+      v-if="showSessions"
+      ref="sessionManagerRef"
+      @resume="resumeSession"
+      @new-session="startNewSession"
+    />
 
     <!-- Step Indicator -->
     <div class="steps" style="margin-bottom: 2rem;">
@@ -147,17 +160,14 @@
       <h2 style="margin-bottom: 1rem;">Results Review</h2>
 
       <div class="review-layout">
-        <!-- Left: PDF Viewer placeholder -->
+        <!-- Left: PDF Viewer -->
         <div class="review-panel pdf-panel">
           <h3>PDF Viewer</h3>
-          <div class="pdf-placeholder">
-            <i class="fas fa-file-pdf" style="font-size: 2rem; margin-bottom: 0.75rem; color: #9ca3af;"></i>
-            <p>PDF viewer will be integrated with pdf.js</p>
-            <p v-if="selectedEvidence">
-              <strong>Evidence (Page {{ selectedEvidence.page }}):</strong><br>
-              {{ selectedEvidence.sentence || selectedEvidence.table_id || 'No evidence available' }}
-            </p>
-          </div>
+          <PdfViewer
+            :session-id="sessionId"
+            :pdf-id="selectedPdfId"
+            :evidence="selectedEvidence"
+          />
         </div>
 
         <!-- Center: Results Table (Pivot or Flat) -->
@@ -270,10 +280,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import SchemaPreview from './extraction/SchemaPreview.vue'
 import ExtractionDashboard from './extraction/ExtractionDashboard.vue'
 import ExtractionPivotTable from './extraction/ExtractionPivotTable.vue'
+import SessionManager from './extraction/SessionManager.vue'
+import PdfViewer from './extraction/PdfViewer.vue'
 import type { SchemaSheet, SchemaField } from './extraction/SchemaPreview.vue'
 
 const API_BASE = '/api/extraction/v3'
@@ -281,6 +293,10 @@ const API_BASE = '/api/extraction/v3'
 /* -- step state -- */
 const steps = ['Template', 'PDFs', 'Extract', 'Review', 'Export']
 const currentStep = ref(0)
+
+/* -- session manager -- */
+const showSessions = ref(true)
+const sessionManagerRef = ref<InstanceType<typeof SessionManager> | null>(null)
 
 /* -- session -- */
 const sessionId = ref('')
@@ -343,6 +359,10 @@ const results = ref<ResultCell[]>([])
 /* -- review state -- */
 const selectedCell = ref<ResultCell | null>(null)
 const selectedEvidence = ref<any>(null)
+const selectedPdfId = computed(() => {
+  if (selectedCell.value) return selectedCell.value.pdf_id
+  return null
+})
 const editingCell = ref<ResultCell | null>(null)
 const editValue = ref('')
 const alerts = ref<any[]>([])
@@ -399,6 +419,75 @@ async function fetchAlerts() {
   } catch {
     alerts.value = []
   }
+}
+
+/* -- session management -- */
+async function resumeSession(sid: string): Promise<void> {
+  sessionId.value = sid
+  error.value = ''
+  showSessions.value = false
+
+  // Load schema
+  try {
+    const schemaResp = await fetch(`${API_BASE}/sessions/${sid}/schema`)
+    if (schemaResp.ok) {
+      const fullSchema = await schemaResp.json()
+      schemaDetails.value = parseSchemaDetails(fullSchema)
+      schemaInfo.value = {
+        session_id: sid,
+        sheets: (fullSchema.sheets || []).map((s: any) => ({
+          name: s.name ?? s.sheet_name ?? 'Sheet',
+          fields: (s.fields ?? s.columns ?? []).length,
+        })),
+      }
+    }
+  } catch { /* non-fatal */ }
+
+  // Load PDFs
+  try {
+    const pdfsResp = await fetch(`${API_BASE}/sessions/${sid}/pdfs`)
+    if (pdfsResp.ok) {
+      pdfs.value = await pdfsResp.json()
+    }
+  } catch { /* non-fatal */ }
+
+  // Load results
+  try {
+    const resultsResp = await fetch(`${API_BASE}/sessions/${sid}/results`)
+    if (resultsResp.ok) {
+      const data = await resultsResp.json()
+      if (data.length > 0) {
+        results.value = data
+        extractionDone.value = true
+        currentStep.value = 3
+      } else if (pdfs.value.length > 0) {
+        currentStep.value = 2
+      } else if (schemaInfo.value) {
+        currentStep.value = 1
+      } else {
+        currentStep.value = 0
+      }
+    }
+  } catch {
+    currentStep.value = 0
+  }
+}
+
+function startNewSession(): void {
+  sessionId.value = ''
+  templateFile.value = null
+  schemaInfo.value = null
+  schemaDetails.value = []
+  pdfs.value = []
+  results.value = []
+  extractionDone.value = false
+  selectedCell.value = null
+  selectedEvidence.value = null
+  currentStep.value = 0
+  showSessions.value = false
+  error.value = ''
+  runError.value = ''
+  progress.value = 0
 }
 
 /* -- export -- */
