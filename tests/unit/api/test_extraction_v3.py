@@ -335,6 +335,71 @@ class TestCancel:
 
 
 # ---------------------------------------------------------------------------
+# Pause / Resume endpoints
+# ---------------------------------------------------------------------------
+
+
+class TestPauseResume:
+    def test_pause_no_running_extraction_returns_400(self, client):
+        """POST /pause when nothing is running returns HTTP 400."""
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        resp = client.post(f"/api/extraction/v3/sessions/{sid}/pause")
+        assert resp.status_code == 400
+
+    def test_resume_no_paused_extraction_returns_400(self, client):
+        """POST /resume when nothing is paused returns HTTP 400."""
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+        resp = client.post(f"/api/extraction/v3/sessions/{sid}/resume")
+        assert resp.status_code == 400
+
+    def test_pause_while_running_returns_paused(self, client, monkeypatch):
+        """POST /pause while is_running=True returns status 'paused'."""
+        import metascreener.api.routes.extraction_service as svc_mod
+
+        # Simulate a running task
+        monkeypatch.setattr(svc_mod.ExtractionService, "is_running", lambda self, sid: True)
+        # Override task_manager lookup to avoid AttributeError
+        from unittest.mock import MagicMock
+        import asyncio
+
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+
+        # Patch pause_extraction on the service directly to return True
+        async def _fake_pause(session_id: str) -> bool:
+            return True
+
+        import metascreener.api.routes.extraction_v3 as v3_mod
+        monkeypatch.setattr(v3_mod._service, "pause_extraction", _fake_pause)
+
+        resp = client.post(f"/api/extraction/v3/sessions/{sid}/pause")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "paused"
+
+    def test_resume_while_paused_returns_resumed(self, client, monkeypatch):
+        """POST /resume on a paused session returns status 'resumed'."""
+        import metascreener.api.routes.extraction_v3 as v3_mod
+
+        sid = client.post("/api/extraction/v3/sessions").json()["session_id"]
+
+        async def _fake_resume(session_id: str) -> bool:
+            return True
+
+        monkeypatch.setattr(v3_mod._service, "resume_extraction", _fake_resume)
+
+        resp = client.post(f"/api/extraction/v3/sessions/{sid}/resume")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "resumed"
+
+    def test_is_paused_false_initially(self, client):
+        """is_paused() returns False when no pause event exists."""
+        import metascreener.api.routes.extraction_v3 as v3_mod
+
+        client.post("/api/extraction/v3/sessions")
+        service = v3_mod._service
+        assert service.is_paused("nonexistent-session") is False
+
+
+# ---------------------------------------------------------------------------
 # SSE events placeholder
 # ---------------------------------------------------------------------------
 

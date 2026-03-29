@@ -94,23 +94,42 @@
     <div v-if="currentStep === 2" class="glass-card fade-in">
       <div class="section-title"><i class="fas fa-play-circle"></i> Run Extraction</div>
       <p class="text-muted" style="margin-bottom: 1rem;"><strong>{{ pdfs.length }}</strong> PDF{{ pdfs.length !== 1 ? 's' : '' }} ready.</p>
-      <div v-if="isRunning" style="margin-bottom: 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-          <span class="text-muted">Extracting data from PDFs...</span>
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span class="text-muted">{{ Math.round(progress * 100) }}%</span>
-            <button class="btn btn-danger" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;" @click="cancelExtraction"><i class="fas fa-times"></i> Cancel</button>
-          </div>
+      <div v-if="isRunning || extractionDone" style="margin-bottom: 1rem;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+          <span class="text-muted">
+            {{ isPaused ? 'Paused' : extractionDone ? 'Extraction complete' : 'Extracting data from PDFs\u2026' }}
+          </span>
+          <span class="text-muted">
+            {{ completedPdfs }} / {{ pdfs.length }} PDFs &mdash; {{ Math.round(progress * 100) }}%
+          </span>
         </div>
         <div class="progress"><div class="progress-bar" :style="{ width: progress * 100 + '%' }"></div></div>
+        <div v-if="logLines.length > 0" ref="logEl" class="progress-log">
+          <div v-for="(line, i) in logLines" :key="i">{{ line }}</div>
+        </div>
       </div>
       <div v-if="runError" class="alert alert-danger">{{ runError }}</div>
       <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-        <button class="btn btn-secondary" :disabled="isRunning" @click="currentStep = 1"><i class="fas fa-arrow-left"></i> Back</button>
-        <button class="btn btn-primary" :disabled="isRunning" @click="runExtraction">
-          <i :class="isRunning ? 'fas fa-spinner fa-spin' : 'fas fa-play'"></i> {{ isRunning ? 'Extracting...' : 'Start Extraction' }}
+        <button class="btn btn-secondary" :disabled="isRunning" @click="currentStep = 1">
+          <i class="fas fa-arrow-left"></i> Back
         </button>
-        <button v-if="extractionDone" class="btn btn-success" @click="currentStep = 3; fetchAlerts()"><i class="fas fa-arrow-right"></i> Review Results</button>
+        <button class="btn btn-primary" :disabled="isRunning" @click="runExtraction">
+          <i v-if="isRunning" class="fas fa-spinner fa-spin"></i>
+          <i v-else class="fas fa-play"></i>
+          {{ isRunning ? 'Extracting\u2026' : 'Start Extraction' }}
+        </button>
+        <button v-if="isRunning && !isPaused" class="btn btn-warning" @click="pauseExtraction">
+          <i class="fas fa-pause"></i> Pause
+        </button>
+        <button v-if="isPaused" class="btn btn-primary" @click="resumeExtraction">
+          <i class="fas fa-play"></i> Resume
+        </button>
+        <button v-if="isRunning" class="btn btn-danger" @click="cancelExtraction">
+          <i class="fas fa-times"></i> Cancel
+        </button>
+        <button v-if="extractionDone" class="btn btn-success" @click="currentStep = 3; fetchAlerts()">
+          <i class="fas fa-arrow-right"></i> Review Results
+        </button>
       </div>
       <ExtractionDashboard v-if="extractionDone" :results="results" />
     </div>
@@ -185,9 +204,10 @@ import type { ResultCell } from '../composables/useExtraction'
 const API_BASE = '/api/extraction/v3'
 const ext = useExtraction()
 const {
-  sessionId, isRunning, progress, extractionDone, runError,
-  results, loadingResults, pdfs, error, exporting, exportFormat,
-  exportPath, runExtraction, cancelExtraction, exportResults, deletePdf,
+  sessionId, isRunning, isPaused, progress, completedPdfs, extractionDone, runError,
+  results, loadingResults, pdfs, error, logLines, logEl, exporting, exportFormat,
+  exportPath, runExtraction, cancelExtraction, pauseExtraction, resumeExtraction,
+  exportResults, deletePdf,
 } = ext
 
 const steps = ['Template', 'PDFs', 'Extract', 'Review', 'Export']
@@ -336,6 +356,8 @@ async function handlePdfUpload(event: Event) { const i = event.target as HTMLInp
 .empty-state p { margin: 0; }
 .btn-danger { background: #dc2626; color: white; border: none; padding: 0.45rem 1.25rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.4rem; }
 .btn-danger:hover { background: #b91c1c; }
+.btn-warning { background: #f59e0b; color: white; border: none; padding: 0.45rem 1.25rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.4rem; }
+.btn-warning:hover { background: #d97706; }
 .btn-success { background: #15803d; color: white; border: none; padding: 0.45rem 1.25rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.4rem; }
 .btn-success:hover { background: #166534; }
 .step-content { padding: 0; }

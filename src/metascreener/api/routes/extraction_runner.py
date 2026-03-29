@@ -21,6 +21,62 @@ class ExtractionRunnerMixin:
     ``self._progress`` to be provided by the host class.
     """
 
+    # Pause events keyed by session_id.  Each asyncio.Event is *set* when
+    # the extraction is allowed to proceed and *cleared* when paused.
+    _paused: dict[str, asyncio.Event] = {}
+
+    # === Pause / Resume ===
+
+    async def pause_extraction(self, session_id: str) -> bool:
+        """Pause a running extraction.
+
+        Args:
+            session_id: The session to pause.
+
+        Returns:
+            ``True`` if the session was successfully paused; ``False`` if no
+            extraction is running for this session.
+        """
+        if not self._task_manager.is_running(session_id):  # type: ignore[attr-defined]
+            return False
+        event = self._paused.get(session_id)
+        if event is None:
+            event = asyncio.Event()
+            event.set()  # initially unpaused
+            self._paused[session_id] = event
+        event.clear()  # pause
+        await self.emit_progress(session_id, "paused", 0, {"message": "Extraction paused"})
+        return True
+
+    async def resume_extraction(self, session_id: str) -> bool:
+        """Resume a paused extraction.
+
+        Args:
+            session_id: The session to resume.
+
+        Returns:
+            ``True`` if the session was successfully resumed; ``False`` if no
+            pause event exists for this session.
+        """
+        event = self._paused.get(session_id)
+        if event is None:
+            return False
+        event.set()  # resume
+        await self.emit_progress(session_id, "resumed", 0, {"message": "Extraction resumed"})
+        return True
+
+    def is_paused(self, session_id: str) -> bool:
+        """Return whether the extraction for *session_id* is currently paused.
+
+        Args:
+            session_id: The session to check.
+
+        Returns:
+            ``True`` when a pause event exists and is cleared; ``False`` otherwise.
+        """
+        event = self._paused.get(session_id)
+        return event is not None and not event.is_set()
+
     # === SSE progress ===
 
     async def emit_progress(
@@ -201,6 +257,11 @@ class ExtractionRunnerMixin:
 
         n_pdfs = len(pdfs)
         for i, pdf_info in enumerate(pdfs):
+            # ── Pause check ── block here until resumed (or never if not paused)
+            pause_event = self._paused.get(session_id)
+            if pause_event is not None:
+                await pause_event.wait()
+
             pdf_path = data_dir / session_id / "pdfs" / pdf_info["filename"]
             base_progress = i / n_pdfs
             if not pdf_path.exists():
@@ -298,6 +359,8 @@ class ExtractionRunnerMixin:
 
         await repo.update_session_status(session_id, "completed")
         log.info("extraction_completed", session_id=session_id, **results_summary)
+        # Clean up any lingering pause event for this session
+        self._paused.pop(session_id, None)
         await self.emit_progress(session_id, "batch_done", 1.0, results_summary)
         return results_summary
 

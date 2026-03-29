@@ -353,6 +353,46 @@ async def cancel_extraction(session_id: str) -> dict:
     return {"cancelled": cancelled}
 
 
+@router.post("/sessions/{session_id}/pause")
+async def pause_extraction(session_id: str) -> dict:
+    """Pause a running extraction without cancelling it.
+
+    Args:
+        session_id: The session to pause.
+
+    Returns:
+        Dict ``{"status": "paused"}``.
+
+    Raises:
+        HTTPException: 400 if no extraction is currently running.
+    """
+    service = _get_service()
+    paused = await service.pause_extraction(session_id)
+    if not paused:
+        raise HTTPException(status_code=400, detail="No running extraction to pause")
+    return {"status": "paused"}
+
+
+@router.post("/sessions/{session_id}/resume")
+async def resume_extraction(session_id: str) -> dict:
+    """Resume a previously paused extraction.
+
+    Args:
+        session_id: The session to resume.
+
+    Returns:
+        Dict ``{"status": "resumed"}``.
+
+    Raises:
+        HTTPException: 400 if no paused extraction exists for this session.
+    """
+    service = _get_service()
+    resumed = await service.resume_extraction(session_id)
+    if not resumed:
+        raise HTTPException(status_code=400, detail="No paused extraction to resume")
+    return {"status": "resumed"}
+
+
 # --- SSE Progress ---
 
 

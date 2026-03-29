@@ -1,7 +1,7 @@
 /**
- * Composable: extraction session lifecycle (run, poll, cancel, export).
+ * Composable: extraction session lifecycle (run, poll, cancel, pause/resume, export).
  */
-import { ref, onUnmounted } from 'vue'
+import { ref, nextTick, onUnmounted } from 'vue'
 
 const API_BASE = '/api/extraction/v3'
 
@@ -32,7 +32,9 @@ export interface SchemaInfo {
 export function useExtraction() {
   const sessionId = ref('')
   const isRunning = ref(false)
+  const isPaused = ref(false)
   const progress = ref(0)
+  const completedPdfs = ref(0)
   const extractionDone = ref(false)
   const runError = ref('')
   const results = ref<ResultCell[]>([])
@@ -40,6 +42,10 @@ export function useExtraction() {
   const pdfs = ref<PdfEntry[]>([])
   const error = ref('')
   const activeEventSource = ref<EventSource | null>(null)
+
+  /* -- log window -- */
+  const logLines = ref<string[]>([])
+  const logEl = ref<HTMLElement | null>(null)
 
   /* -- export -- */
   const exporting = ref(false)
@@ -53,12 +59,26 @@ export function useExtraction() {
     }
   })
 
+  function _ts(): string {
+    return `[${new Date().toLocaleTimeString()}]`
+  }
+
+  function _pushLog(line: string): void {
+    logLines.value.push(line)
+    nextTick(() => {
+      if (logEl.value) logEl.value.scrollTop = logEl.value.scrollHeight
+    })
+  }
+
   async function runExtraction(): Promise<void> {
     isRunning.value = true
+    isPaused.value = false
     extractionDone.value = false
     runError.value = ''
     error.value = ''
     progress.value = 0
+    completedPdfs.value = 0
+    logLines.value = []
 
     try {
       const resp = await fetch(`${API_BASE}/sessions/${sessionId.value}/run`, { method: 'POST' })
@@ -70,32 +90,76 @@ export function useExtraction() {
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
-          progress.value = data.progress || 0
+          if (data.progress != null) progress.value = data.progress
         } catch { /* ignore */ }
       }
 
-      eventSource.addEventListener('batch_done', async () => {
-        eventSource.close()
-        activeEventSource.value = null
-        progress.value = 1.0
-        const resultsResp = await fetch(`${API_BASE}/sessions/${sessionId.value}/results`)
-        results.value = await resultsResp.json()
-        extractionDone.value = true
-        isRunning.value = false
+      eventSource.addEventListener('pdf_start', (event) => {
+        try {
+          const data = JSON.parse((event as MessageEvent).data)
+          const name = data.details?.pdf || 'PDF'
+          _pushLog(`${_ts()} Starting: ${name}`)
+        } catch { /* ignore */ }
+      })
+
+      eventSource.addEventListener('doc_parsed', (event) => {
+        try {
+          const data = JSON.parse((event as MessageEvent).data)
+          const name = data.details?.pdf || 'document'
+          _pushLog(`${_ts()} Parsed: ${name}`)
+        } catch { /* ignore */ }
       })
 
       eventSource.addEventListener('pdf_done', (event) => {
         try {
-          const data = JSON.parse(event.data)
-          progress.value = data.progress || progress.value
+          const data = JSON.parse((event as MessageEvent).data)
+          const name = data.details?.pdf || 'PDF'
+          if (data.progress != null) progress.value = data.progress
+          completedPdfs.value++
+          _pushLog(`${_ts()} \u2713 Completed: ${name}`)
+        } catch { /* ignore */ }
+      })
+
+      eventSource.addEventListener('pdf_error', (event) => {
+        try {
+          const data = JSON.parse((event as MessageEvent).data)
+          const name = data.details?.pdf || 'PDF'
+          const reason = data.details?.error || data.details?.reason || 'unknown'
+          if (data.progress != null) progress.value = data.progress
+          completedPdfs.value++
+          _pushLog(`${_ts()} \u2717 Error: ${name} \u2014 ${reason}`)
         } catch { /* ignore */ }
       })
 
       eventSource.addEventListener('warning', (event) => {
         try {
-          const data = JSON.parse(event.data)
-          runError.value = data.details?.message || 'Warning from server'
+          const data = JSON.parse((event as MessageEvent).data)
+          const msg = data.details?.message || 'Warning'
+          runError.value = msg
+          _pushLog(`${_ts()} \u26a0 ${msg}`)
         } catch { /* ignore */ }
+      })
+
+      eventSource.addEventListener('paused', () => {
+        isPaused.value = true
+        _pushLog(`${_ts()} \u23f8 Paused`)
+      })
+
+      eventSource.addEventListener('resumed', () => {
+        isPaused.value = false
+        _pushLog(`${_ts()} \u25b6 Resumed`)
+      })
+
+      eventSource.addEventListener('batch_done', async () => {
+        eventSource.close()
+        activeEventSource.value = null
+        progress.value = 1.0
+        isPaused.value = false
+        const resultsResp = await fetch(`${API_BASE}/sessions/${sessionId.value}/results`)
+        results.value = await resultsResp.json()
+        extractionDone.value = true
+        isRunning.value = false
+        _pushLog(`${_ts()} \u2713 Extraction complete`)
       })
 
       eventSource.addEventListener('idle', () => {
@@ -122,11 +186,32 @@ export function useExtraction() {
       error.value = e.message
     } finally {
       isRunning.value = false
+      isPaused.value = false
       progress.value = 0
       if (activeEventSource.value) {
         activeEventSource.value.close()
         activeEventSource.value = null
       }
+    }
+  }
+
+  async function pauseExtraction(): Promise<void> {
+    try {
+      const resp = await fetch(`${API_BASE}/sessions/${sessionId.value}/pause`, { method: 'POST' })
+      if (!resp.ok) throw new Error(await resp.text())
+      isPaused.value = true
+    } catch (e: any) {
+      error.value = e.message
+    }
+  }
+
+  async function resumeExtraction(): Promise<void> {
+    try {
+      const resp = await fetch(`${API_BASE}/sessions/${sessionId.value}/resume`, { method: 'POST' })
+      if (!resp.ok) throw new Error(await resp.text())
+      isPaused.value = false
+    } catch (e: any) {
+      error.value = e.message
     }
   }
 
@@ -142,6 +227,7 @@ export function useExtraction() {
           results.value = await resultsResp.json()
           extractionDone.value = true
           isRunning.value = false
+          isPaused.value = false
           progress.value = 1.0
           return
         }
@@ -149,6 +235,7 @@ export function useExtraction() {
     }
     runError.value = 'Extraction timed out'
     isRunning.value = false
+    isPaused.value = false
   }
 
   async function exportResults(format: string): Promise<void> {
@@ -227,18 +314,24 @@ export function useExtraction() {
   return {
     sessionId,
     isRunning,
+    isPaused,
     progress,
+    completedPdfs,
     extractionDone,
     runError,
     results,
     loadingResults,
     pdfs,
     error,
+    logLines,
+    logEl,
     exporting,
     exportFormat,
     exportPath,
     runExtraction,
     cancelExtraction,
+    pauseExtraction,
+    resumeExtraction,
     exportResults,
     deletePdf,
     uploadPdfs,
