@@ -1,7 +1,7 @@
 <template>
   <div class="extraction-view">
     <h1 class="page-title" style="margin-bottom: 0.25rem;">Data Extraction</h1>
-    <p class="text-muted" style="margin-bottom: 1.5rem;">Upload template → upload PDFs → run extraction → review results → export</p>
+    <p class="text-muted" style="margin-bottom: 1.5rem;">Upload template -> upload PDFs -> run extraction -> review results -> export</p>
 
     <!-- Step Indicator -->
     <div class="steps" style="margin-bottom: 2rem;">
@@ -38,12 +38,12 @@
       </div>
 
       <div v-if="uploading" class="alert alert-info">
-        <i class="fas fa-spinner fa-spin"></i> Creating session and uploading template…
+        <i class="fas fa-spinner fa-spin"></i> Creating session and uploading template...
       </div>
 
       <div v-if="schemaInfo" class="alert alert-success" style="margin-bottom: 1rem;">
         <i class="fas fa-check-circle"></i>
-        Schema compiled — session <strong>{{ schemaInfo.session_id?.slice(0, 8) }}</strong>
+        Schema compiled -- session <strong>{{ schemaInfo.session_id?.slice(0, 8) }}</strong>
         <div style="margin-top: 0.5rem;">
           <span v-for="sheet in schemaInfo.sheets" :key="sheet.name" class="badge-sheet">
             {{ sheet.name }}: {{ sheet.fields }} field{{ sheet.fields !== 1 ? 's' : '' }}
@@ -51,7 +51,10 @@
         </div>
       </div>
 
-      <button v-if="schemaInfo" class="btn btn-primary" @click="currentStep = 1">
+      <!-- Schema Preview -->
+      <SchemaPreview v-if="schemaDetails.length > 0" :sheets="schemaDetails" />
+
+      <button v-if="schemaInfo" class="btn btn-primary" style="margin-top: 0.75rem;" @click="currentStep = 1">
         <i class="fas fa-arrow-right"></i> Next: Upload PDFs
       </button>
     </div>
@@ -76,7 +79,7 @@
       </div>
 
       <div v-if="uploadingPdf" class="alert alert-info">
-        <i class="fas fa-spinner fa-spin"></i> Uploading PDFs… ({{ pdfs.length }} done)
+        <i class="fas fa-spinner fa-spin"></i> Uploading PDFs... ({{ pdfs.length }} done)
       </div>
 
       <div v-if="pdfs.length > 0" class="pdf-list" style="margin-bottom: 1rem;">
@@ -106,7 +109,7 @@
 
       <div v-if="isRunning" style="margin-bottom: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-          <span class="text-muted">Extracting data from PDFs…</span>
+          <span class="text-muted">Extracting data from PDFs...</span>
           <div style="display: flex; align-items: center; gap: 0.5rem;">
             <span class="text-muted">{{ Math.round(progress * 100) }}%</span>
             <button class="btn btn-danger" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;" @click="cancelExtraction">
@@ -128,12 +131,15 @@
         <button class="btn btn-primary" :disabled="isRunning" @click="runExtraction">
           <i v-if="isRunning" class="fas fa-spinner fa-spin"></i>
           <i v-else class="fas fa-play"></i>
-          {{ isRunning ? 'Extracting…' : 'Start Extraction' }}
+          {{ isRunning ? 'Extracting...' : 'Start Extraction' }}
         </button>
         <button v-if="extractionDone" class="btn btn-success" @click="currentStep = 3; fetchAlerts()">
           <i class="fas fa-arrow-right"></i> Review Results
         </button>
       </div>
+
+      <!-- Statistics Dashboard (shown after extraction completes) -->
+      <ExtractionDashboard v-if="extractionDone" :results="results" />
     </div>
 
     <!-- Step 4: Results Review -->
@@ -154,52 +160,16 @@
           </div>
         </div>
 
-        <!-- Center: Results Table -->
+        <!-- Center: Results Table (Pivot or Flat) -->
         <div class="review-panel results-panel">
           <h3>Extraction Results</h3>
-          <div v-if="results.length > 0" style="overflow-x: auto;">
-            <table class="results-table">
-              <thead>
-                <tr>
-                  <th>PDF</th>
-                  <th>Field</th>
-                  <th>Value</th>
-                  <th>Confidence</th>
-                  <th>Strategy</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(cell, i) in results"
-                  :key="i"
-                  @click="selectCell(cell)"
-                  :class="{ 'selected-row': selectedCell === cell }"
-                  style="cursor: pointer;"
-                >
-                  <td class="text-muted" style="font-size: 0.8rem;">{{ cell.pdf_id?.slice(0, 8) }}</td>
-                  <td><strong>{{ cell.field_name }}</strong></td>
-                  <td>
-                    <span v-if="editingCell === cell">
-                      <input
-                        v-model="editValue"
-                        @keyup.enter="saveEdit(cell)"
-                        @keyup.escape="cancelEdit"
-                        class="edit-input"
-                        @click.stop
-                      />
-                    </span>
-                    <span v-else @dblclick.stop="startEdit(cell)">{{ cell.value }}</span>
-                  </td>
-                  <td>
-                    <span :class="['confidence-badge', `confidence-${cell.confidence?.toLowerCase()}`]">
-                      {{ cell.confidence }}
-                    </span>
-                  </td>
-                  <td class="text-muted" style="font-size: 0.8rem;">{{ cell.strategy }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <ExtractionPivotTable
+            v-if="results.length > 0"
+            :results="results"
+            :selected-cell="selectedCell"
+            @select-cell="selectCell"
+            @save-edit="handleSaveEdit"
+          />
           <div v-else class="alert alert-info">
             <i class="fas fa-info-circle"></i> No results available yet.
           </div>
@@ -216,7 +186,7 @@
             <span>
               <strong>{{ alert.field_name }}</strong>
               <span class="text-muted" style="font-size:0.8rem;"> ({{ alert.pdf_id?.slice(0, 8) }})</span>:
-              value={{ alert.value }} — {{ alert.possible_cause }}
+              value={{ alert.value }} -- {{ alert.possible_cause }}
               <div class="text-muted" style="font-size:0.75rem;">{{ alert.suggested_action }}</div>
             </span>
           </div>
@@ -301,17 +271,21 @@
 
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue'
+import SchemaPreview from './extraction/SchemaPreview.vue'
+import ExtractionDashboard from './extraction/ExtractionDashboard.vue'
+import ExtractionPivotTable from './extraction/ExtractionPivotTable.vue'
+import type { SchemaSheet, SchemaField } from './extraction/SchemaPreview.vue'
 
 const API_BASE = '/api/extraction/v3'
 
-/* ── step state ── */
+/* -- step state -- */
 const steps = ['Template', 'PDFs', 'Extract', 'Review', 'Export']
 const currentStep = ref(0)
 
-/* ── session ── */
+/* -- session -- */
 const sessionId = ref('')
 
-/* ── template upload ── */
+/* -- template upload -- */
 const templateInput = ref<HTMLInputElement | null>(null)
 const templateFile = ref<File | null>(null)
 const draggingTemplate = ref(false)
@@ -326,8 +300,9 @@ interface SchemaInfo {
   sheets: SchemaSheetInfo[]
 }
 const schemaInfo = ref<SchemaInfo | null>(null)
+const schemaDetails = ref<SchemaSheet[]>([])
 
-/* ── pdf upload ── */
+/* -- pdf upload -- */
 const pdfInput = ref<HTMLInputElement | null>(null)
 const draggingPdf = ref(false)
 const uploadingPdf = ref(false)
@@ -338,7 +313,7 @@ interface PdfEntry {
 }
 const pdfs = ref<PdfEntry[]>([])
 
-/* ── active EventSource (closed on unmount) ── */
+/* -- active EventSource (closed on unmount) -- */
 const activeEventSource = ref<EventSource | null>(null)
 
 onUnmounted(() => {
@@ -348,13 +323,13 @@ onUnmounted(() => {
   }
 })
 
-/* ── extraction run ── */
+/* -- extraction run -- */
 const isRunning = ref(false)
 const progress = ref(0)
 const extractionDone = ref(false)
 const runError = ref('')
 
-/* ── results ── */
+/* -- results -- */
 interface ResultCell {
   pdf_id: string
   field_name: string
@@ -365,7 +340,7 @@ interface ResultCell {
 }
 const results = ref<ResultCell[]>([])
 
-/* ── review state ── */
+/* -- review state -- */
 const selectedCell = ref<ResultCell | null>(null)
 const selectedEvidence = ref<any>(null)
 const editingCell = ref<ResultCell | null>(null)
@@ -386,29 +361,24 @@ function startEdit(cell: ResultCell) {
   editValue.value = String(cell.value ?? '')
 }
 
-function cancelEdit() {
-  editingCell.value = null
-}
-
-async function saveEdit(cell: ResultCell) {
+async function handleSaveEdit(cell: ResultCell, newValue: string) {
   try {
     const resp = await fetch(
       `${API_BASE}/sessions/${sessionId.value}/results/${cell.pdf_id}/cells/${cell.field_name}`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ new_value: editValue.value, reason: 'Manual correction' }),
+        body: JSON.stringify({ new_value: newValue, reason: 'Manual correction' }),
       }
     )
     if (!resp.ok) throw new Error(`Save failed: ${resp.statusText}`)
-    cell.value = editValue.value
-    editingCell.value = null
+    cell.value = newValue
   } catch (e: any) {
     error.value = e.message
   }
 }
 
-function parseEvidence(json: string) {
+function parseEvidence(json: string): string {
   try {
     const ev = JSON.parse(json)
     return ev.sentence || ev.table_id || JSON.stringify(ev)
@@ -431,15 +401,15 @@ async function fetchAlerts() {
   }
 }
 
-/* ── export ── */
+/* -- export -- */
 const exporting = ref(false)
 const exportFormat = ref('')
 const exportPath = ref('')
 
-/* ── shared error ── */
+/* -- shared error -- */
 const error = ref('')
 
-/* ── template handlers ── */
+/* -- template handlers -- */
 function onTemplateDrop(e: DragEvent) {
   draggingTemplate.value = false
   const file = e.dataTransfer?.files[0]
@@ -450,6 +420,21 @@ async function handleTemplateUpload(event: Event) {
   const input = event.target as HTMLInputElement
   if (!input.files?.length) return
   await uploadTemplate(input.files[0])
+}
+
+function parseSchemaDetails(raw: any): SchemaSheet[] {
+  if (!raw || !raw.sheets) return []
+  return (raw.sheets as any[]).map((s: any) => ({
+    name: s.name ?? s.sheet_name ?? 'Sheet',
+    expanded: false,
+    fields: (s.fields ?? s.columns ?? []).map((f: any): SchemaField => ({
+      name: f.name ?? f.field_name ?? '',
+      field_type: f.field_type ?? f.type ?? 'text',
+      role: f.role ?? 'data',
+      required: f.required ?? false,
+      semantic_tag: f.semantic_tag ?? f.tag ?? undefined,
+    })),
+  }))
 }
 
 async function uploadTemplate(file: File) {
@@ -480,6 +465,17 @@ async function uploadTemplate(file: File) {
         ? raw.sheets.map((s: any) => ({ name: s.name ?? s.sheet_name, fields: s.fields ?? s.field_count ?? 0 }))
         : [],
     }
+
+    // Fetch full schema details for preview
+    try {
+      const schemaResp = await fetch(`${API_BASE}/sessions/${sessionId.value}/schema`)
+      if (schemaResp.ok) {
+        const fullSchema = await schemaResp.json()
+        schemaDetails.value = parseSchemaDetails(fullSchema)
+      }
+    } catch {
+      // Non-fatal: schema preview is optional
+    }
   } catch (e: any) {
     error.value = e.message
   } finally {
@@ -487,7 +483,7 @@ async function uploadTemplate(file: File) {
   }
 }
 
-/* ── pdf handlers ── */
+/* -- pdf handlers -- */
 function onPdfDrop(e: DragEvent) {
   draggingPdf.value = false
   const files = e.dataTransfer?.files
@@ -521,7 +517,7 @@ async function uploadPdfs(files: File[]) {
   uploadingPdf.value = false
 }
 
-/* ── extraction ── */
+/* -- extraction -- */
 async function runExtraction() {
   isRunning.value = true
   extractionDone.value = false
@@ -542,7 +538,7 @@ async function runExtraction() {
       try {
         const data = JSON.parse(event.data)
         progress.value = data.progress || 0
-      } catch {}
+      } catch { /* ignore parse errors */ }
     }
 
     eventSource.addEventListener('batch_done', async () => {
@@ -561,14 +557,14 @@ async function runExtraction() {
       try {
         const data = JSON.parse(event.data)
         progress.value = data.progress || progress.value
-      } catch {}
+      } catch { /* ignore parse errors */ }
     })
 
     eventSource.addEventListener('warning', (event) => {
       try {
         const data = JSON.parse(event.data)
         runError.value = data.details?.message || 'Warning from server'
-      } catch {}
+      } catch { /* ignore parse errors */ }
     })
 
     eventSource.addEventListener('idle', () => {
@@ -622,13 +618,13 @@ async function pollForCompletion() {
         progress.value = 1.0
         return
       }
-    } catch {}
+    } catch { /* ignore polling errors */ }
   }
   runError.value = 'Extraction timed out'
   isRunning.value = false
 }
 
-/* ── export ── */
+/* -- export -- */
 async function exportResults(format: string) {
   exporting.value = true
   exportFormat.value = format
@@ -676,7 +672,7 @@ async function exportResults(format: string) {
   margin: 0 auto;
 }
 
-/* ── badge for sheet names ── */
+/* -- badge for sheet names -- */
 .badge-sheet {
   display: inline-block;
   background: #e0f2fe;
@@ -688,7 +684,7 @@ async function exportResults(format: string) {
   margin-top: 0.25rem;
 }
 
-/* ── pdf list ── */
+/* -- pdf list -- */
 .pdf-list {
   background: #f9fafb;
   border: 1px solid #e5e7eb;
@@ -701,53 +697,7 @@ async function exportResults(format: string) {
   font-size: 0.875rem;
 }
 
-/* ── results table ── */
-.results-table-container {
-  overflow-x: auto;
-  margin-bottom: 1rem;
-}
-
-.results-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-}
-
-.results-table th,
-.results-table td {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #e5e7eb;
-  text-align: left;
-  vertical-align: top;
-}
-
-.results-table th {
-  background: #f9fafb;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.results-table tr:hover td {
-  background: #f9fafb;
-}
-
-/* ── confidence badges ── */
-.confidence-badge {
-  padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.confidence-verified  { background: #15803d; color: white; }
-.confidence-high      { background: #22c55e; color: white; }
-.confidence-medium    { background: #eab308; color: white; }
-.confidence-low       { background: #f97316; color: white; }
-.confidence-single    { background: #a3a3a3; color: white; }
-.confidence-failed    { background: #ef4444; color: white; }
-
-/* ── danger button ── */
+/* -- danger button -- */
 .btn-danger {
   background: #dc2626;
   color: white;
@@ -765,7 +715,7 @@ async function exportResults(format: string) {
   background: #b91c1c;
 }
 
-/* ── success button ── */
+/* -- success button -- */
 .btn-success {
   background: #15803d;
   color: white;
@@ -783,12 +733,12 @@ async function exportResults(format: string) {
   background: #166534;
 }
 
-/* ── step content wrapper (Step 4) ── */
+/* -- step content wrapper (Step 4) -- */
 .step-content {
   padding: 0;
 }
 
-/* ── 3-column review layout ── */
+/* -- 3-column review layout -- */
 .review-layout {
   display: grid;
   grid-template-columns: 250px 1fr 250px;
@@ -837,26 +787,12 @@ async function exportResults(format: string) {
   gap: 0.5rem;
 }
 
-/* ── row selection ── */
+/* -- row selection -- */
 .selected-row td {
   background: #eff6ff !important;
 }
 
-.results-table tr:hover td {
-  background: #f9fafb;
-}
-
-/* ── inline edit input ── */
-.edit-input {
-  width: 100%;
-  padding: 0.25rem 0.375rem;
-  border: 1px solid #1d4ed8;
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
-  outline: none;
-}
-
-/* ── alerts panel ── */
+/* -- alerts panel -- */
 .no-alerts {
   font-size: 0.875rem;
   color: #6b7280;
@@ -904,7 +840,7 @@ async function exportResults(format: string) {
   color: #1d4ed8;
 }
 
-/* ── correction / detail panel ── */
+/* -- correction / detail panel -- */
 .correction-panel {
   margin-top: 0.5rem;
   padding: 1rem;
