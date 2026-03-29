@@ -30,6 +30,7 @@ from metascreener.module2_extraction.engine.llm_extractor import LLMExtractor
 from metascreener.module2_extraction.engine.orchestrator_models import (  # noqa: F401
     DocumentExtractionResult,
     ExtractedField,
+    SheetExtractionResult,
 )
 from metascreener.module2_extraction.engine.llm_execution import (
     _CONFIDENCE_AGREE,
@@ -107,18 +108,23 @@ class NewOrchestrator:
         Returns:
             DocumentExtractionResult with per-field results and any errors.
         """
-        # Collect all EXTRACT fields across all sheets
+        errors: list[str] = []
+
+        # Collect all EXTRACT fields across all sheets (flat list for routing/coherence)
         all_fields: list[FieldSchema] = []
+        # Also track which sheet each field belongs to
+        field_to_sheet: dict[str, str] = {}
         for sheet in schema.sheets:
             for f in sheet.fields:
                 if f.role.value == "extract":
                     all_fields.append(f)
+                    field_to_sheet[f.name] = sheet.sheet_name
 
         if not all_fields:
             return DocumentExtractionResult(
                 doc_id=doc.doc_id,
                 pdf_filename=doc.source_path.name,
-                fields={},
+                sheets={},
                 errors=[],
             )
 
@@ -140,7 +146,6 @@ class NewOrchestrator:
         # Step 2: Execute phases in dependency order
         extracted: dict[str, RawExtractionResult] = {}
         agreements: dict[str, AgreementResult | None] = {}
-        errors: list[str] = []
 
         for phase in exec_plan.phases:
             for group in phase.field_groups:
@@ -371,8 +376,9 @@ class NewOrchestrator:
                 if vfield in field_coherence:
                     field_coherence[vfield].append(violation)
 
-        # Step 4: Validate and aggregate confidence
-        final_fields: dict[str, ExtractedField] = {}
+        # Step 4: Validate, aggregate confidence, and organise results by sheet
+        # Build a lookup of validated fields first
+        validated_fields: dict[str, ExtractedField] = {}
         for f in all_fields:
             raw = extracted.get(f.name)
             if raw is None:
@@ -416,7 +422,7 @@ class NewOrchestrator:
                 viol.severity == "error" for viol in v4
             )
 
-            final_fields[f.name] = ExtractedField(
+            validated_fields[f.name] = ExtractedField(
                 field_name=f.name,
                 value=raw.value,
                 confidence=confidence,
@@ -426,10 +432,24 @@ class NewOrchestrator:
                 warnings=warnings,
             )
 
+        # Group validated fields by their originating sheet
+        sheet_results: dict[str, SheetExtractionResult] = {}
+        for sheet in schema.sheets:
+            sheet_fields = {
+                f_name: ef
+                for f_name, ef in validated_fields.items()
+                if field_to_sheet.get(f_name) == sheet.sheet_name
+            }
+            if sheet_fields:
+                sheet_results[sheet.sheet_name] = SheetExtractionResult(
+                    sheet_name=sheet.sheet_name,
+                    fields=sheet_fields,
+                )
+
         return DocumentExtractionResult(
             doc_id=doc.doc_id,
             pdf_filename=doc.source_path.name,
-            fields=final_fields,
+            sheets=sheet_results,
             errors=errors,
         )
 

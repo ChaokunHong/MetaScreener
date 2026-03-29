@@ -304,34 +304,35 @@ class ExtractionRunnerMixin:
 
                 import json
 
-                for field_name, field_result in result.fields.items():
-                    evidence_json = "{}"
-                    if field_result.evidence is not None:
-                        evidence_json = json.dumps({
-                            "type": field_result.evidence.type,
-                            "page": field_result.evidence.page,
-                            "sentence": field_result.evidence.sentence,
-                            "table_id": field_result.evidence.table_id,
+                for sheet_name, sheet_result in result.sheets.items():
+                    for field_name, field_result in sheet_result.fields.items():
+                        evidence_json = "{}"
+                        if field_result.evidence is not None:
+                            evidence_json = json.dumps({
+                                "type": field_result.evidence.type,
+                                "page": field_result.evidence.page,
+                                "sentence": field_result.evidence.sentence,
+                                "table_id": field_result.evidence.table_id,
+                            })
+
+                        validations_json = json.dumps({
+                            "passed": field_result.validation_passed,
+                            "warnings": field_result.warnings,
                         })
 
-                    validations_json = json.dumps({
-                        "passed": field_result.validation_passed,
-                        "warnings": field_result.warnings,
-                    })
-
-                    await repo.save_cell(
-                        session_id=session_id,
-                        pdf_id=pdf_info["pdf_id"],
-                        sheet_name="Studies",
-                        row_index=0,
-                        field_name=field_name,
-                        value=str(field_result.value) if field_result.value is not None else "",
-                        confidence=field_result.confidence.value,
-                        evidence_json=evidence_json,
-                        strategy=field_result.strategy.value,
-                        validations_json=validations_json,
-                    )
-                    results_summary["fields_extracted"] += 1
+                        await repo.save_cell(
+                            session_id=session_id,
+                            pdf_id=pdf_info["pdf_id"],
+                            sheet_name=sheet_name,
+                            row_index=0,
+                            field_name=field_name,
+                            value=str(field_result.value) if field_result.value is not None else "",
+                            confidence=field_result.confidence.value,
+                            evidence_json=evidence_json,
+                            strategy=field_result.strategy.value,
+                            validations_json=validations_json,
+                        )
+                        results_summary["fields_extracted"] += 1
 
                 await repo.update_pdf_status(session_id, pdf_info["pdf_id"], "done")
                 results_summary["completed"] += 1

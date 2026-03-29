@@ -8,6 +8,16 @@
       <button @click="bulk.clearSelection()" class="btn btn-sm btn-secondary"><i class="fas fa-times"></i> Clear</button>
     </div>
 
+    <!-- Sheet tabs -->
+    <div class="sheet-tabs" v-if="sheetNames.length > 1">
+      <button v-for="sheet in sheetNames" :key="sheet"
+              :class="['sheet-tab', { active: activeSheet === sheet }]"
+              @click="activeSheet = sheet">
+        {{ sheet }}
+        <span class="sheet-count">({{ sheetFieldCount(sheet) }})</span>
+      </button>
+    </div>
+
     <!-- Controls bar -->
     <div class="pivot-controls">
       <div class="view-toggle">
@@ -97,11 +107,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useBulkOperations, confidenceTooltip as confTooltip, confidenceColors } from '../../composables/useBulkOperations'
 
 export interface ResultCell {
   pdf_id: string
+  sheet_name: string
   field_name: string
   value: unknown
   confidence: string
@@ -119,15 +130,37 @@ const editingCell = ref<ResultCell | null>(null)
 const editValue = ref('')
 const focusRow = ref(0)
 const focusCol = ref(0)
+const activeSheet = ref('')
 
 const bulk = useBulkOperations()
 
 const selectedKey = computed(() => props.selectedCell ? `${props.selectedCell.pdf_id}::${props.selectedCell.field_name}` : '')
 
+const sheetNames = computed(() => {
+  const names = new Set(props.results.map((r) => r.sheet_name || 'Studies'))
+  return [...names]
+})
+
+// Initialize activeSheet when results arrive; reset only when sheet list changes
+watch(sheetNames, (newNames) => {
+  if (newNames.length > 0 && !newNames.includes(activeSheet.value)) {
+    activeSheet.value = newNames[0]
+  }
+}, { immediate: true })
+
+function sheetFieldCount(sheet: string): number {
+  return new Set(props.results.filter((r) => (r.sheet_name || 'Studies') === sheet).map((r) => r.field_name)).size
+}
+
 const filteredResults = computed(() => {
-  if (!confidenceFilter.value) return props.results
-  if (confidenceFilter.value === 'LOW_FAILED') return props.results.filter((r) => ['LOW', 'FAILED'].includes(r.confidence?.toUpperCase()))
-  return props.results.filter((r) => r.confidence?.toUpperCase() === confidenceFilter.value)
+  let filtered = props.results
+  // Filter by active sheet when multiple sheets exist
+  if (sheetNames.value.length > 1 && activeSheet.value) {
+    filtered = filtered.filter((r) => (r.sheet_name || 'Studies') === activeSheet.value)
+  }
+  if (!confidenceFilter.value) return filtered
+  if (confidenceFilter.value === 'LOW_FAILED') return filtered.filter((r) => ['LOW', 'FAILED'].includes(r.confidence?.toUpperCase()))
+  return filtered.filter((r) => r.confidence?.toUpperCase() === confidenceFilter.value)
 })
 
 const pivotData = computed(() => {
@@ -208,6 +241,11 @@ function toggleFocused(): void {
 <style scoped>
 .pivot-wrapper { outline: none; }
 .pivot-wrapper:focus { outline: 2px solid #93c5fd; outline-offset: 2px; border-radius: 0.375rem; }
+.sheet-tabs { display: flex; gap: 0.25rem; margin-bottom: 0.75rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0; flex-wrap: wrap; }
+.sheet-tab { padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.875rem; color: #6b7280; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; border-radius: 0.25rem 0.25rem 0 0; }
+.sheet-tab.active { color: #1d4ed8; border-bottom-color: #1d4ed8; font-weight: 600; }
+.sheet-tab:hover:not(.active) { color: #374151; background: #f9fafb; }
+.sheet-count { font-size: 0.75rem; color: #9ca3af; margin-left: 0.25rem; }
 .bulk-toolbar { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 0.375rem; margin-bottom: 0.5rem; animation: fadeIn 0.2s ease-out; }
 .btn-warning { background: #f59e0b; color: white; border: none; padding: 0.25rem 0.6rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 0.3rem; }
 .btn-warning:hover { background: #d97706; }

@@ -37,17 +37,43 @@ class ExtractedField:
 
 
 @dataclass
+class SheetExtractionResult:
+    """Extraction results for a single sheet.
+
+    Args:
+        sheet_name: Name of the sheet as defined in the ExtractionSchema.
+        fields: Mapping from field name to ExtractedField for this sheet.
+    """
+
+    sheet_name: str
+    fields: dict[str, ExtractedField]
+
+
+@dataclass
 class DocumentExtractionResult:
-    """Complete extraction result for one PDF.
+    """Complete extraction result for one PDF, organized by sheet.
 
     Args:
         doc_id: Unique document identifier from StructuredDocument.
         pdf_filename: Original PDF filename (stem only, from source_path.name).
-        fields: Mapping from field name to ExtractedField.
+        sheets: Mapping from sheet name to SheetExtractionResult.
         errors: List of error strings collected during extraction.
     """
 
     doc_id: str
     pdf_filename: str
-    fields: dict[str, ExtractedField]
+    sheets: dict[str, SheetExtractionResult]
     errors: list[str]
+
+    @property
+    def fields(self) -> dict[str, ExtractedField]:
+        """Flat view of all extracted fields across all sheets.
+
+        Provides backward compatibility for callers that do not need sheet
+        context.  When two sheets define a field with the same name the last
+        sheet's value wins (sheets are iterated in insertion order).
+        """
+        flat: dict[str, ExtractedField] = {}
+        for sheet_result in self.sheets.values():
+            flat.update(sheet_result.fields)
+        return flat
