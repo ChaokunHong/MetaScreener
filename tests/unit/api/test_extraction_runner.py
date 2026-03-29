@@ -339,3 +339,123 @@ class TestCreateOcrRouter:
 
         assert router._vlm is not None
         assert router._vlm._model_name == "openrouter/qwen/qwen2.5-vl-7b-instruct"
+
+
+# ---------------------------------------------------------------------------
+# Tests: subscribe_progress() SSE race condition
+# ---------------------------------------------------------------------------
+
+
+class TestSubscribeProgressSse:
+    """Verify subscribe_progress() handles race conditions correctly."""
+
+    def _make_service_with_stubs(self, tmp_path: Path):
+        """Create an ExtractionService with a stubbed _repo.get_session."""
+        from metascreener.api.routes.extraction_service import ExtractionService
+
+        db_path = tmp_path / "extraction.db"
+        data_dir = tmp_path / "data"
+        service = ExtractionService(db_path=db_path, data_dir=data_dir)
+        return service
+
+    @pytest.mark.asyncio
+    async def test_sse_detects_completed_session(self, tmp_path: Path) -> None:
+        """subscribe_progress yields batch_done immediately when session is already completed.
+
+        This tests the race condition where extraction finishes before the SSE
+        client subscribes — the status is detected from the DB on first check.
+        """
+        service = self._make_service_with_stubs(tmp_path)
+
+        # Stub the repo to report a completed session
+        async def _fake_get_session(session_id: str):
+            return {"session_id": session_id, "status": "completed"}
+
+        service._repo.get_session = _fake_get_session  # type: ignore[assignment]
+
+        events = []
+        async for event in service.subscribe_progress("test-session-123"):
+            events.append(event)
+
+        assert len(events) == 1
+        assert events[0]["event_type"] == "batch_done"
+        assert events[0]["details"]["status"] == "completed"
+        assert events[0]["progress"] == 1.0
+
+    @pytest.mark.asyncio
+    async def test_sse_detects_failed_session(self, tmp_path: Path) -> None:
+        """subscribe_progress yields batch_done with status=failed when session failed."""
+        service = self._make_service_with_stubs(tmp_path)
+
+        async def _fake_get_session(session_id: str):
+            return {"session_id": session_id, "status": "failed"}
+
+        service._repo.get_session = _fake_get_session  # type: ignore[assignment]
+
+        events = []
+        async for event in service.subscribe_progress("test-session-456"):
+            events.append(event)
+
+        assert len(events) == 1
+        assert events[0]["event_type"] == "batch_done"
+        assert events[0]["details"]["status"] == "failed"
+
+    @pytest.mark.asyncio
+    async def test_sse_idle_when_not_running_and_not_complete(self, tmp_path: Path) -> None:
+        """subscribe_progress yields idle when session exists but is not running or complete."""
+        service = self._make_service_with_stubs(tmp_path)
+
+        async def _fake_get_session(session_id: str):
+            return {"session_id": session_id, "status": "pending"}
+
+        service._repo.get_session = _fake_get_session  # type: ignore[assignment]
+
+        events = []
+        async for event in service.subscribe_progress("test-session-789"):
+            events.append(event)
+
+        # is_running is False (nothing queued), status is not completed/failed → idle
+        assert len(events) == 1
+        assert events[0]["event_type"] == "idle"
+
+    @pytest.mark.asyncio
+    async def test_sse_yields_events_when_running(self, tmp_path: Path) -> None:
+        """subscribe_progress correctly streams events when extraction is running."""
+        from unittest.mock import patch
+
+        service = self._make_service_with_stubs(tmp_path)
+
+        # Session is NOT yet complete
+        async def _fake_get_session(session_id: str):
+            return {"session_id": session_id, "status": "running"}
+
+        service._repo.get_session = _fake_get_session  # type: ignore[assignment]
+
+        import asyncio as _asyncio
+
+        session_id = "live-session-001"
+
+        # Mock is_running to return True so subscribe_progress enters the event loop
+        with patch.object(service, "is_running", return_value=True):
+            # subscribe_progress will create its own queue and store it in _progress;
+            # we inject events asynchronously after the generator starts.
+
+            async def _inject_events():
+                # Wait briefly for subscribe_progress to register its queue
+                await _asyncio.sleep(0.01)
+                q = service._progress.get(session_id)
+                if q is not None:
+                    await q.put({"event_type": "pdf_done", "progress": 0.5, "details": {}})
+                    await q.put({"event_type": "batch_done", "progress": 1.0, "details": {"status": "completed"}})
+
+            events = []
+            inject_task = _asyncio.create_task(_inject_events())
+            async for event in service.subscribe_progress(session_id):
+                events.append(event)
+            await inject_task
+
+        event_types = [e["event_type"] for e in events]
+        assert "pdf_done" in event_types
+        assert "batch_done" in event_types
+        # batch_done should be last
+        assert events[-1]["event_type"] == "batch_done"

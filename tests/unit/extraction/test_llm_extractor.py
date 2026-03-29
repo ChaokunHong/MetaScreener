@@ -8,7 +8,7 @@ import pytest
 from metascreener.core.enums import FieldRole
 from metascreener.core.models_extraction import FieldSchema
 from metascreener.doc_engine.models import StructuredDocument
-from metascreener.module2_extraction.engine.llm_extractor import LLMExtractor
+from metascreener.module2_extraction.engine.llm_extractor import LLMExtractor, _extract_json_string
 from metascreener.module2_extraction.models import ExtractionStrategy
 from tests.helpers.doc_builder import MockDocumentBuilder
 
@@ -463,3 +463,122 @@ async def test_confidence_prior_on_successful_result(extractor: LLMExtractor, do
 
     assert results["Study Design"][0].confidence_prior == 0.75
     assert results["Study Design"][1].confidence_prior == 0.75
+
+
+# ---------------------------------------------------------------------------
+# _extract_json_string: robust JSON extraction from raw LLM output
+# ---------------------------------------------------------------------------
+
+
+class TestExtractJsonString:
+    """Tests for the _extract_json_string helper."""
+
+    def test_plain_json_returned_as_is(self) -> None:
+        """A plain JSON object string should pass through unchanged."""
+        raw = '{"fields": {"Study Design": {"value": "RCT"}}}'
+        result = _extract_json_string(raw)
+        assert result == raw
+
+    def test_parse_markdown_wrapped_json(self) -> None:
+        """JSON wrapped in ```json ... ``` fences should be extracted correctly."""
+        raw = '```json\n{"fields": {"Study Design": {"value": "RCT", "evidence": "..."}}}\n```'
+        result = _extract_json_string(raw)
+        parsed = json.loads(result)
+        assert parsed["fields"]["Study Design"]["value"] == "RCT"
+
+    def test_parse_markdown_wrapped_json_no_lang_tag(self) -> None:
+        """JSON wrapped in plain ``` ... ``` fences (no 'json' tag) should be extracted."""
+        raw = '```\n{"fields": {"Sample Size": {"value": 120}}}\n```'
+        result = _extract_json_string(raw)
+        parsed = json.loads(result)
+        assert parsed["fields"]["Sample Size"]["value"] == 120
+
+    def test_parse_thinking_prefix(self) -> None:
+        """JSON preceded by thinking/explanation text should be found via brace scanning."""
+        raw = (
+            "I'll extract the requested fields from the provided text.\n\n"
+            '{"fields": {"Study Design": {"value": "cohort", "evidence": "cohort study"}}}'
+        )
+        result = _extract_json_string(raw)
+        parsed = json.loads(result)
+        assert parsed["fields"]["Study Design"]["value"] == "cohort"
+
+    def test_parse_thinking_prefix_multiline(self) -> None:
+        """Multi-line thinking prefix before JSON object should be handled."""
+        raw = (
+            "Let me analyze the text carefully.\n"
+            "The study appears to be observational.\n"
+            "Here is the extraction:\n"
+            '{"fields": {"Design": {"value": "observational", "evidence": "..."}}}'
+        )
+        result = _extract_json_string(raw)
+        parsed = json.loads(result)
+        assert parsed["fields"]["Design"]["value"] == "observational"
+
+    def test_garbage_returns_original(self) -> None:
+        """When no JSON object can be found, the original text is returned (caller handles error)."""
+        raw = "this is just plain text with no JSON"
+        result = _extract_json_string(raw)
+        # Should not raise; caller will get JSONDecodeError when it calls json.loads
+        assert isinstance(result, str)
+
+    def test_empty_string_returns_empty(self) -> None:
+        """Empty input should return empty string."""
+        assert _extract_json_string("") == ""
+
+    def test_whitespace_only_returns_empty(self) -> None:
+        """Whitespace-only input should be stripped to empty string."""
+        assert _extract_json_string("   \n  ") == ""
+
+
+# ---------------------------------------------------------------------------
+# _parse_response: integration with markdown-wrapped and prefixed JSON
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_parse_markdown_wrapped_json_end_to_end(
+    extractor: LLMExtractor, doc: StructuredDocument
+) -> None:
+    """A markdown-fenced response from a model like qwen3 should parse correctly."""
+
+    class MarkdownBackend:
+        model_id = "qwen3-test"
+
+        async def complete(self, prompt: str, *, seed: int = 42) -> str:
+            return (
+                "```json\n"
+                '{"fields": {"Study Design": {"value": "RCT", "evidence": "randomized trial"}}}'
+                "\n```"
+            )
+
+    fields = [make_field("Study Design")]
+    backend = MarkdownBackend()
+    results = await extractor.extract_field_group(
+        fields, doc, ["Methods"], backend, backend
+    )
+    assert results["Study Design"][0].value == "RCT"
+    assert results["Study Design"][0].evidence.sentence == "randomized trial"
+
+
+@pytest.mark.asyncio
+async def test_parse_thinking_prefix_end_to_end(
+    extractor: LLMExtractor, doc: StructuredDocument
+) -> None:
+    """A response with prose before the JSON block should parse the JSON correctly."""
+
+    class ThinkingBackend:
+        model_id = "thinking-model-test"
+
+        async def complete(self, prompt: str, *, seed: int = 42) -> str:
+            return (
+                "I'll extract the fields from the text.\n\n"
+                '{"fields": {"Study Design": {"value": "RCT", "evidence": "randomized trial"}}}'
+            )
+
+    fields = [make_field("Study Design")]
+    backend = ThinkingBackend()
+    results = await extractor.extract_field_group(
+        fields, doc, ["Methods"], backend, backend
+    )
+    assert results["Study Design"][0].value == "RCT"

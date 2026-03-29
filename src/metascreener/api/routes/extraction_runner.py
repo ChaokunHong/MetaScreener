@@ -52,33 +52,74 @@ class ExtractionRunnerMixin:
         """Yield progress events as they occur for a given session.
 
         Registers an asyncio Queue for *session_id*, then yields events until
-        a ``"batch_done"`` event is received or the idle timeout expires.
+        a ``"batch_done"`` event is received or the overall idle timeout
+        expires.
 
-        If the session is not currently running (no active extraction), an
-        initial ``"idle"`` event is emitted immediately and the stream closes.
+        Race-condition handling: if the extraction finishes *before* the SSE
+        client subscribes, the ``batch_done`` event is never enqueued. To
+        handle this the inner loop uses a shorter poll interval (30 s) and
+        checks the session status in the DB on every timeout.  When the DB
+        reports ``"completed"`` or ``"failed"`` a synthetic ``batch_done``
+        event is yielded and the stream closes gracefully.
+
+        If no extraction is running **and** the session is not already
+        complete, an initial ``"idle"`` event is emitted immediately and the
+        stream closes.
 
         Args:
             session_id: The session whose progress events to stream.
-            idle_timeout: Seconds to wait for the next event before timing out.
+            idle_timeout: Maximum total seconds to wait (hard cap).
 
         Yields:
             Progress event dicts with ``event_type``, ``progress``, and
             ``details`` keys.
         """
-        # If no extraction is running, emit a status event and close.
-        if not self.is_running(session_id):  # type: ignore[attr-defined]
-            yield {"event_type": "idle", "progress": 0.0, "details": {}}
-            return
+        _POLL_INTERVAL = 30.0  # seconds between DB status checks
 
+        # Register the queue *before* checking is_running so we don't miss
+        # events emitted between the check and the subscription.
         queue: asyncio.Queue = asyncio.Queue()
         self._progress[session_id] = queue  # type: ignore[attr-defined]
+
         try:
-            while True:
-                event = await asyncio.wait_for(queue.get(), timeout=idle_timeout)
-                yield event
-                if event.get("event_type") == "batch_done":
-                    break
-        except asyncio.TimeoutError:
+            # If extraction has already finished before we subscribed, detect
+            # it immediately via a DB status check.
+            session = await self._repo.get_session(session_id)  # type: ignore[attr-defined]
+            if session and session.get("status") in ("completed", "failed"):
+                yield {
+                    "event_type": "batch_done",
+                    "progress": 1.0,
+                    "details": {"status": session["status"]},
+                }
+                return
+
+            # If nothing is running yet and session is not complete, emit idle.
+            if not self.is_running(session_id):  # type: ignore[attr-defined]
+                yield {"event_type": "idle", "progress": 0.0, "details": {}}
+                return
+
+            elapsed = 0.0
+            while elapsed < idle_timeout:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=_POLL_INTERVAL)
+                    yield event
+                    if event.get("event_type") == "batch_done":
+                        return
+                except asyncio.TimeoutError:
+                    elapsed += _POLL_INTERVAL
+                    # Yield a heartbeat to keep the HTTP connection alive.
+                    yield {"event_type": "heartbeat", "progress": 0.0, "details": {}}
+                    # Check whether the extraction completed while we were waiting
+                    # (handles the race where batch_done was emitted before subscribe).
+                    session = await self._repo.get_session(session_id)  # type: ignore[attr-defined]
+                    if session and session.get("status") in ("completed", "failed"):
+                        yield {
+                            "event_type": "batch_done",
+                            "progress": 1.0,
+                            "details": {"status": session["status"]},
+                        }
+                        return
+
             yield {"event_type": "timeout", "progress": 0, "details": {}}
         finally:
             self._progress.pop(session_id, None)  # type: ignore[attr-defined]

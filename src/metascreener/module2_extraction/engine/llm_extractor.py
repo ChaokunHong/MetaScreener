@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from typing import Any, Protocol
 
 import structlog
@@ -237,6 +238,8 @@ class LLMExtractor:
         """Parse an LLM JSON response into per-field :class:`RawExtractionResult`.
 
         Handles both ``{"fields": {...}}`` and flat ``{...}`` JSON formats.
+        Also handles responses wrapped in markdown code fences (e.g. ```json ... ```)
+        or preceded by thinking text (the JSON object is extracted via heuristics).
         On any parse failure (invalid JSON, unexpected structure) an empty
         dict is returned so the caller can substitute ``_empty_result``.
 
@@ -248,12 +251,17 @@ class LLMExtractor:
         Returns:
             Mapping of field_name → :class:`RawExtractionResult`.
         """
+        json_str = _extract_json_string(response)
         try:
-            data = json.loads(response)
+            data = json.loads(json_str)
             # Support {"fields": {...}} wrapper or a direct flat dict
             field_data: dict[str, Any] = data.get("fields", data) if isinstance(data, dict) else {}
         except (json.JSONDecodeError, AttributeError):
-            logger.warning("llm_extractor.parse_failed", model_id=model_id)
+            logger.warning(
+                "llm_extractor.parse_failed",
+                model_id=model_id,
+                response_preview=response[:200],
+            )
             return {}
 
         results: dict[str, RawExtractionResult] = {}
@@ -314,3 +322,47 @@ class LLMExtractor:
             model_id=model_id,
             error=f"Field '{field_name}' not found in response",
         )
+
+
+# ---------------------------------------------------------------------------
+# Module-level helpers
+# ---------------------------------------------------------------------------
+
+
+def _extract_json_string(text: str) -> str:
+    """Extract a JSON object string from a raw LLM response.
+
+    Handles three common formats returned by chat models:
+
+    1. Plain JSON — returned as-is.
+    2. Markdown code fences — ``\\`\\`\\`json ... \\`\\`\\``` or ``\\`\\`\\` ... \\`\\`\\```.
+    3. Thinking prefix — arbitrary prose followed by a ``{...}`` block.
+
+    Args:
+        text: Raw response string from the LLM.
+
+    Returns:
+        The extracted JSON string (may still be invalid JSON; caller must
+        call :func:`json.loads` and handle :exc:`json.JSONDecodeError`).
+    """
+    stripped = text.strip()
+
+    # Fast path: already a JSON object
+    if stripped.startswith("{"):
+        return stripped
+
+    # Strip markdown code fences: ```json ... ``` or ``` ... ```
+    fence_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?\s*```", stripped, re.DOTALL)
+    if fence_match:
+        candidate = fence_match.group(1).strip()
+        if candidate.startswith("{"):
+            return candidate
+
+    # Fallback: find first '{' and matching last '}'
+    start = stripped.find("{")
+    end = stripped.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return stripped[start : end + 1]
+
+    # Nothing found — return original so json.loads raises a clear error
+    return stripped
