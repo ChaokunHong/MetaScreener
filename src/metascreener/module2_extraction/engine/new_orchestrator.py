@@ -18,7 +18,7 @@ from typing import Any
 
 import structlog
 
-from metascreener.core.enums import Confidence, FieldSemanticTag
+from metascreener.core.enums import Confidence, FieldSemanticTag, SheetRole
 from metascreener.core.models_extraction import ExtractionSchema, FieldSchema
 from metascreener.doc_engine.models import StructuredDocument
 from metascreener.module2_extraction.compiler.ai_enhancer import infer_semantic_tag
@@ -110,11 +110,14 @@ class NewOrchestrator:
         """
         errors: list[str] = []
 
+        # Only process DATA sheets — skip mapping/reference/documentation
+        data_sheets = [s for s in schema.sheets if s.role == SheetRole.DATA]
+
         # Collect all EXTRACT fields across all sheets (flat list for routing/coherence)
         all_fields: list[FieldSchema] = []
         # Also track which sheet each field belongs to
         field_to_sheet: dict[str, str] = {}
-        for sheet in schema.sheets:
+        for sheet in data_sheets:
             for f in sheet.fields:
                 if f.role.value == "extract":
                     all_fields.append(f)
@@ -432,9 +435,9 @@ class NewOrchestrator:
                 warnings=warnings,
             )
 
-        # Group validated fields by their originating sheet
+        # Group validated fields by their originating sheet (DATA sheets only)
         sheet_results: dict[str, SheetExtractionResult] = {}
-        for sheet in schema.sheets:
+        for sheet in data_sheets:
             sheet_fields = {
                 f_name: ef
                 for f_name, ef in validated_fields.items()

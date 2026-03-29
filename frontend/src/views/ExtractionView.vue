@@ -138,15 +138,36 @@
     <div v-if="currentStep === 3" class="step-content fade-in">
       <h2 style="margin-bottom: 1rem;">Results Review</h2>
       <div v-if="loadingResults" class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Loading results...</div>
-      <div class="review-layout">
-        <div class="review-panel pdf-panel"><h3>PDF Viewer</h3>
+      <div class="review-layout" :style="reviewGridStyle">
+        <!-- Left: PDF Viewer (collapsible) -->
+        <div v-if="showPdfPanel" class="review-panel pdf-panel">
+          <div class="panel-header">
+            <h3>PDF Viewer</h3>
+            <button class="btn-icon" @click="showPdfPanel = false" title="Hide PDF panel">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+          </div>
           <PdfViewer :session-id="sessionId" :pdf-id="selectedPdfId" :evidence="selectedEvidence" />
         </div>
-        <div class="review-panel results-panel"><h3>Extraction Results</h3>
+        <div v-else class="collapsed-panel" @click="showPdfPanel = true" title="Show PDF panel">
+          <i class="fas fa-file-pdf"></i>
+        </div>
+
+        <!-- Centre: Extraction Results (always visible) -->
+        <div class="review-panel results-panel">
+          <h3>Extraction Results</h3>
           <ExtractionPivotTable v-if="results.length > 0" :results="results" :selected-cell="selectedCell" @select-cell="selectCell" @save-edit="handleSaveEdit" />
           <div v-else class="empty-state"><i class="fas fa-table"></i><p>No results available yet.</p></div>
         </div>
-        <div class="review-panel alerts-panel"><h3>Alerts &amp; Warnings</h3>
+
+        <!-- Right: Alerts (collapsible) -->
+        <div v-if="showAlertsPanel" class="review-panel alerts-panel">
+          <div class="panel-header">
+            <h3>Alerts &amp; Warnings</h3>
+            <button class="btn-icon" @click="showAlertsPanel = false" title="Hide alerts panel">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
           <div v-if="loadingAlerts" class="text-muted" style="font-size: 0.85rem;"><i class="fas fa-spinner fa-spin"></i> Loading alerts...</div>
           <div v-else-if="alerts.length === 0" class="no-alerts"><i class="fas fa-check-circle" style="color: #16a34a;"></i> No alerts</div>
           <div v-for="(alert, i) in alerts" :key="i" class="alert-item">
@@ -154,6 +175,9 @@
             <span><strong>{{ alert.field_name }}</strong> <span class="text-muted" style="font-size:0.8rem;">({{ alert.pdf_id?.slice(0, 8) }})</span>: value={{ alert.value }} -- {{ alert.possible_cause }}
               <div class="text-muted" style="font-size:0.75rem;">{{ alert.suggested_action }}</div></span>
           </div>
+        </div>
+        <div v-else class="collapsed-panel" @click="showAlertsPanel = true" title="Show alerts panel">
+          <i class="fas fa-bell"></i>
         </div>
       </div>
       <div v-if="selectedCell" class="correction-panel fade-in">
@@ -191,7 +215,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, type CSSProperties } from 'vue'
 import SchemaPreview from './extraction/SchemaPreview.vue'
 import ExtractionDashboard from './extraction/ExtractionDashboard.vue'
 import ExtractionPivotTable from './extraction/ExtractionPivotTable.vue'
@@ -238,6 +262,17 @@ const schemaDetails = ref<SchemaSheet[]>([])
 const pdfInput = ref<HTMLInputElement | null>(null)
 const draggingPdf = ref(false)
 const uploadingPdf = ref(false)
+
+/* -- review layout -- */
+const showPdfPanel = ref(true)
+const showAlertsPanel = ref(true)
+
+const reviewGridStyle = computed((): CSSProperties => {
+  if (showPdfPanel.value && showAlertsPanel.value) return { gridTemplateColumns: '280px 1fr 220px' }
+  if (showPdfPanel.value && !showAlertsPanel.value) return { gridTemplateColumns: '280px 1fr 36px' }
+  if (!showPdfPanel.value && showAlertsPanel.value) return { gridTemplateColumns: '36px 1fr 220px' }
+  return { gridTemplateColumns: '36px 1fr 36px' }
+})
 
 /* -- review state -- */
 const selectedCell = ref<ResultCell | null>(null)
@@ -361,10 +396,16 @@ async function handlePdfUpload(event: Event) { const i = event.target as HTMLInp
 .btn-success { background: #15803d; color: white; border: none; padding: 0.45rem 1.25rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.4rem; }
 .btn-success:hover { background: #166534; }
 .step-content { padding: 0; }
-.review-layout { display: grid; grid-template-columns: 250px 1fr 250px; gap: 1rem; min-height: 500px; margin-bottom: 1rem; }
+.review-layout { display: grid; grid-template-columns: 280px 1fr 220px; gap: 1rem; min-height: 500px; margin-bottom: 1rem; }
 @media (max-width: 900px) { .review-layout { grid-template-columns: 1fr; } }
 .review-panel { border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1rem; overflow-y: auto; max-height: 600px; }
-.review-panel h3 { margin: 0 0 0.75rem; font-size: 0.95rem; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem; }
+.review-panel h3 { margin: 0 0 0.75rem; font-size: 0.95rem; font-weight: 600; color: #374151; }
+.panel-header { display: flex; justify-content: space-between; align-items: center; margin: 0 0 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e5e7eb; }
+.panel-header h3 { margin: 0; font-size: 0.95rem; font-weight: 600; color: #374151; }
+.btn-icon { background: none; border: none; cursor: pointer; color: #9ca3af; padding: 0.2rem 0.35rem; border-radius: 0.25rem; font-size: 0.8rem; line-height: 1; transition: color 0.15s, background 0.15s; flex-shrink: 0; }
+.btn-icon:hover { color: #1d4ed8; background: #eff6ff; }
+.collapsed-panel { width: 36px; display: flex; align-items: center; justify-content: center; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.5rem; cursor: pointer; color: #9ca3af; font-size: 1rem; transition: background 0.15s, color 0.15s; }
+.collapsed-panel:hover { background: #eff6ff; color: #1d4ed8; }
 .pdf-panel { background: #f9fafb; }
 .results-panel { background: white; }
 .alerts-panel { background: #fffbeb; }
