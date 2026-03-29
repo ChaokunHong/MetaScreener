@@ -46,28 +46,31 @@
       <table class="pivot-table">
         <thead>
           <tr>
-            <th class="checkbox-col"><input type="checkbox" @change="bulk.toggleSelectAll(pivotData.pdfIds, pivotData.fieldNames, allSelected)" :checked="allSelected" title="Select all" /></th>
+            <th class="checkbox-col"><input type="checkbox" @change="bulk.toggleSelectAll(pivotData.rowIds, pivotData.fieldNames, allSelected)" :checked="allSelected" title="Select all" /></th>
             <th class="sticky-col">PDF</th>
             <th v-for="field in pivotData.fieldNames" :key="field">{{ field }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(pdfId, rowIdx) in pivotData.pdfIds" :key="pdfId">
-            <td class="checkbox-col"><input type="checkbox" :checked="bulk.isRowSelected(pdfId, pivotData.fieldNames)" @change="bulk.toggleRow(pdfId, pivotData.fieldNames)" @click.stop /></td>
-            <td class="sticky-col pdf-name-cell" :title="pdfId">{{ pdfId.slice(0, 10) }}</td>
-            <td v-for="(field, colIdx) in pivotData.fieldNames" :key="`${pdfId}::${field}`"
-              :class="cellClass(pdfId, field, rowIdx, colIdx)"
-              :style="cellBg(pivotData.cellMap.get(`${pdfId}::${field}`))"
-              @click="onCellClick(pivotData.cellMap.get(`${pdfId}::${field}`), rowIdx, colIdx)">
-              <span v-if="pivotData.cellMap.has(`${pdfId}::${field}`)" class="cell-content">
-                {{ displayValue(pivotData.cellMap.get(`${pdfId}::${field}`)!.value) }}
-                <i v-if="bulk.reviewedCells.value.has(`${pdfId}::${field}`)" class="fas fa-check cell-reviewed" title="Accepted"></i>
-                <i v-if="bulk.flaggedCells.value.has(`${pdfId}::${field}`)" class="fas fa-flag cell-flagged" title="Flagged"></i>
+          <tr v-for="(rowId, rowIdx) in pivotData.rowIds" :key="rowId"
+              :class="{ 'pdf-group-first': isPdfGroupFirst(rowId, rowIdx) }">
+            <td class="checkbox-col"><input type="checkbox" :checked="bulk.isRowSelected(rowId, pivotData.fieldNames)" @change="bulk.toggleRow(rowId, pivotData.fieldNames)" @click.stop /></td>
+            <td class="sticky-col pdf-name-cell" :title="rowId">
+              {{ displayRowLabel(rowId, rowIdx) }}
+            </td>
+            <td v-for="(field, colIdx) in pivotData.fieldNames" :key="`${rowId}::${field}`"
+              :class="cellClass(rowId, field, rowIdx, colIdx)"
+              :style="cellBg(pivotData.cellMap.get(`${rowId}::${field}`))"
+              @click="onCellClick(pivotData.cellMap.get(`${rowId}::${field}`), rowIdx, colIdx)">
+              <span v-if="pivotData.cellMap.has(`${rowId}::${field}`)" class="cell-content">
+                {{ displayValue(pivotData.cellMap.get(`${rowId}::${field}`)!.value) }}
+                <i v-if="bulk.reviewedCells.value.has(`${rowId}::${field}`)" class="fas fa-check cell-reviewed" title="Accepted"></i>
+                <i v-if="bulk.flaggedCells.value.has(`${rowId}::${field}`)" class="fas fa-flag cell-flagged" title="Flagged"></i>
               </span>
               <span v-else class="text-muted">--</span>
-              <span v-if="pivotData.cellMap.has(`${pdfId}::${field}`)"
-                :class="['conf-dot', `dot-${pivotData.cellMap.get(`${pdfId}::${field}`)!.confidence?.toLowerCase()}`]"
-                :title="confTooltip(pivotData.cellMap.get(`${pdfId}::${field}`)!.confidence)"></span>
+              <span v-if="pivotData.cellMap.has(`${rowId}::${field}`)"
+                :class="['conf-dot', `dot-${pivotData.cellMap.get(`${rowId}::${field}`)!.confidence?.toLowerCase()}`]"
+                :title="confTooltip(pivotData.cellMap.get(`${rowId}::${field}`)!.confidence)"></span>
             </td>
           </tr>
         </tbody>
@@ -80,18 +83,19 @@
         <thead>
           <tr>
             <th class="checkbox-col"><input type="checkbox" @change="bulk.toggleSelectAllFlat(filteredResults, allFlatSelected)" :checked="allFlatSelected" title="Select all" /></th>
-            <th>PDF</th><th>Field</th><th>Value</th><th>Confidence</th><th>Strategy</th>
+            <th>PDF</th><th>Row</th><th>Field</th><th>Value</th><th>Confidence</th><th>Strategy</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(cell, i) in filteredResults" :key="i" @click="onCellClick(cell, i, 0)"
-            :class="{ 'selected-row': selectedKey === `${cell.pdf_id}::${cell.field_name}` }" style="cursor: pointer;">
-            <td class="checkbox-col" @click.stop><input type="checkbox" :checked="bulk.selectedCells.value.has(`${cell.pdf_id}::${cell.field_name}`)" @change="bulk.toggleCell(`${cell.pdf_id}::${cell.field_name}`)" /></td>
+            :class="{ 'selected-row': selectedKey === flatCellKey(cell) }" style="cursor: pointer;">
+            <td class="checkbox-col" @click.stop><input type="checkbox" :checked="bulk.selectedCells.value.has(flatCellKey(cell))" @change="bulk.toggleCell(flatCellKey(cell))" /></td>
             <td class="text-muted" style="font-size: 0.8rem;">{{ cell.pdf_id?.slice(0, 8) }}</td>
+            <td class="text-muted" style="font-size: 0.75rem;">{{ cell.row_index ?? 0 }}</td>
             <td>
               <strong>{{ cell.field_name }}</strong>
-              <i v-if="bulk.reviewedCells.value.has(`${cell.pdf_id}::${cell.field_name}`)" class="fas fa-check cell-reviewed" title="Accepted"></i>
-              <i v-if="bulk.flaggedCells.value.has(`${cell.pdf_id}::${cell.field_name}`)" class="fas fa-flag cell-flagged" title="Flagged"></i>
+              <i v-if="bulk.reviewedCells.value.has(flatCellKey(cell))" class="fas fa-check cell-reviewed" title="Accepted"></i>
+              <i v-if="bulk.flaggedCells.value.has(flatCellKey(cell))" class="fas fa-flag cell-flagged" title="Flagged"></i>
             </td>
             <td>
               <span v-if="editingCell === cell"><input v-model="editValue" @keyup.enter="$emit('save-edit', cell, editValue)" @keyup.escape="editingCell = null" class="edit-input" @click.stop /></span>
@@ -113,6 +117,7 @@ import { useBulkOperations, confidenceTooltip as confTooltip, confidenceColors }
 export interface ResultCell {
   pdf_id: string
   sheet_name: string
+  row_index: number
   field_name: string
   value: unknown
   confidence: string
@@ -120,10 +125,16 @@ export interface ResultCell {
   evidence_json?: string
 }
 
+export interface SheetInfo {
+  name: string
+  cardinality: string  // "one_per_study" or "many_per_study"
+}
+
 const props = defineProps<{
   results: ResultCell[]
   selectedCell: ResultCell | null
   sheetOrder?: string[]
+  sheetInfo?: SheetInfo[]
 }>()
 const emit = defineEmits<{ (e: 'select-cell', cell: ResultCell): void; (e: 'save-edit', cell: ResultCell, newValue: string): void }>()
 
@@ -138,7 +149,12 @@ const activeSheet = ref('')
 
 const bulk = useBulkOperations()
 
-const selectedKey = computed(() => props.selectedCell ? `${props.selectedCell.pdf_id}::${props.selectedCell.field_name}` : '')
+// Build the flat-view cell key: for many_per_study use row_index to avoid collisions
+function flatCellKey(cell: ResultCell): string {
+  return `${cell.pdf_id}::${cell.row_index ?? 0}::${cell.field_name}`
+}
+
+const selectedKey = computed(() => props.selectedCell ? flatCellKey(props.selectedCell) : '')
 
 const sheetNames = computed(() => {
   const presentNames = new Set(props.results.map((r) => r.sheet_name || 'Studies'))
@@ -162,6 +178,12 @@ function sheetFieldCount(sheet: string): number {
   return new Set(props.results.filter((r) => (r.sheet_name || 'Studies') === sheet).map((r) => r.field_name)).size
 }
 
+const activeSheetCardinality = computed(() => {
+  if (!props.sheetInfo) return 'one_per_study'
+  const info = props.sheetInfo.find(s => s.name === activeSheet.value)
+  return info?.cardinality || 'one_per_study'
+})
+
 const filteredResults = computed(() => {
   let filtered = props.results
   // Filter by active sheet when multiple sheets exist
@@ -176,14 +198,36 @@ const filteredResults = computed(() => {
 const pivotData = computed(() => {
   const src = filteredResults.value
   const fieldNames = [...new Set(src.map((r) => r.field_name))]
-  const pdfIds = [...new Set(src.map((r) => r.pdf_id))]
+
+  // For many_per_study: row key = "pdf_id::row_index"
+  // For one_per_study: row key = "pdf_id"
+  const isMany = activeSheetCardinality.value === 'many_per_study'
+
+  const rowKey = (r: ResultCell) => isMany
+    ? `${r.pdf_id}::${r.row_index ?? 0}`
+    : r.pdf_id
+
+  const rowIds = [...new Set(src.map(rowKey))]
+
+  // Sort: group by pdf_id, then by row_index within each PDF
+  rowIds.sort((a, b) => {
+    const [pdfA, idxA] = a.split('::')
+    const [pdfB, idxB] = b.split('::')
+    if (pdfA !== pdfB) return pdfA.localeCompare(pdfB)
+    return (parseInt(idxA || '0')) - (parseInt(idxB || '0'))
+  })
+
   const cellMap = new Map<string, ResultCell>()
-  for (const r of src) cellMap.set(`${r.pdf_id}::${r.field_name}`, r)
-  return { fieldNames, pdfIds, cellMap }
+  for (const r of src) {
+    const rk = rowKey(r)
+    cellMap.set(`${rk}::${r.field_name}`, r)
+  }
+
+  return { fieldNames, rowIds, cellMap, isMany }
 })
 
-const allSelected = computed(() => pivotData.value.pdfIds.length > 0 && pivotData.value.pdfIds.every((p) => bulk.isRowSelected(p, pivotData.value.fieldNames)))
-const allFlatSelected = computed(() => filteredResults.value.length > 0 && filteredResults.value.every((c) => bulk.selectedCells.value.has(`${c.pdf_id}::${c.field_name}`)))
+const allSelected = computed(() => pivotData.value.rowIds.length > 0 && pivotData.value.rowIds.every((p) => bulk.isRowSelected(p, pivotData.value.fieldNames)))
+const allFlatSelected = computed(() => filteredResults.value.length > 0 && filteredResults.value.every((c) => bulk.selectedCells.value.has(flatCellKey(c))))
 
 function cellBg(cell?: ResultCell): Record<string, string> {
   if (!cell) return {}
@@ -191,8 +235,8 @@ function cellBg(cell?: ResultCell): Record<string, string> {
   return bg ? { background: bg } : {}
 }
 
-function cellClass(pdfId: string, field: string, rowIdx: number, colIdx: number): string[] {
-  const key = `${pdfId}::${field}`
+function cellClass(rowId: string, field: string, rowIdx: number, colIdx: number): string[] {
+  const key = `${rowId}::${field}`
   const cls = ['pivot-cell']
   if (selectedKey.value === key) cls.push('pivot-selected')
   if (bulk.selectedCells.value.has(key)) cls.push('pivot-checked')
@@ -204,6 +248,28 @@ function displayValue(val: unknown): string {
   if (val === null || val === undefined) return '--'
   const s = String(val)
   return s.length > 40 ? s.slice(0, 37) + '...' : s
+}
+
+function displayRowLabel(rowId: string, rowIdx: number): string {
+  if (!pivotData.value.isMany) {
+    return rowId.slice(0, 10)
+  }
+  // For many_per_study: show "pdf_id #N", indent subsequent rows of same PDF
+  const [pdfId, rowIndex] = rowId.split('::')
+  const isFirst = rowIdx === 0 || pivotData.value.rowIds[rowIdx - 1].split('::')[0] !== pdfId
+  const rowNum = parseInt(rowIndex || '0') + 1
+  if (isFirst) {
+    return `${pdfId.slice(0, 8)} #${rowNum}`
+  }
+  return `  #${rowNum}`
+}
+
+function isPdfGroupFirst(rowId: string, rowIdx: number): boolean {
+  if (!pivotData.value.isMany) return false
+  if (rowIdx === 0) return false
+  const prevPdf = pivotData.value.rowIds[rowIdx - 1].split('::')[0]
+  const curPdf = rowId.split('::')[0]
+  return prevPdf !== curPdf
 }
 
 function onCellClick(cell?: ResultCell, rowIdx?: number, colIdx?: number): void {
@@ -223,7 +289,7 @@ defineExpose({ startEdit })
 
 function handleKeydown(e: KeyboardEvent): void {
   if (editingCell.value) return
-  const rows = viewMode.value === 'pivot' ? pivotData.value.pdfIds.length : filteredResults.value.length
+  const rows = viewMode.value === 'pivot' ? pivotData.value.rowIds.length : filteredResults.value.length
   const cols = viewMode.value === 'pivot' ? pivotData.value.fieldNames.length : 1
   switch (e.key) {
     case 'ArrowUp': e.preventDefault(); focusRow.value = Math.max(0, focusRow.value - 1); selectFocused(); break
@@ -238,8 +304,9 @@ function handleKeydown(e: KeyboardEvent): void {
 
 function selectFocused(): void {
   if (viewMode.value === 'pivot') {
-    const p = pivotData.value.pdfIds[focusRow.value], f = pivotData.value.fieldNames[focusCol.value]
-    if (p && f) { const c = pivotData.value.cellMap.get(`${p}::${f}`); if (c) emit('select-cell', c) }
+    const rowId = pivotData.value.rowIds[focusRow.value]
+    const f = pivotData.value.fieldNames[focusCol.value]
+    if (rowId && f) { const c = pivotData.value.cellMap.get(`${rowId}::${f}`); if (c) emit('select-cell', c) }
   } else {
     const c = filteredResults.value[focusRow.value]; if (c) emit('select-cell', c)
   }
@@ -247,10 +314,11 @@ function selectFocused(): void {
 
 function toggleFocused(): void {
   if (viewMode.value === 'pivot') {
-    const p = pivotData.value.pdfIds[focusRow.value], f = pivotData.value.fieldNames[focusCol.value]
-    if (p && f) bulk.toggleCell(`${p}::${f}`)
+    const rowId = pivotData.value.rowIds[focusRow.value]
+    const f = pivotData.value.fieldNames[focusCol.value]
+    if (rowId && f) bulk.toggleCell(`${rowId}::${f}`)
   } else {
-    const c = filteredResults.value[focusRow.value]; if (c) bulk.toggleCell(`${c.pdf_id}::${c.field_name}`)
+    const c = filteredResults.value[focusRow.value]; if (c) bulk.toggleCell(flatCellKey(c))
   }
 }
 </script>
@@ -304,5 +372,7 @@ function toggleFocused(): void {
 .confidence-medium { background: #eab308; color: white; } .confidence-low { background: #f97316; color: white; }
 .confidence-single { background: #a3a3a3; color: white; } .confidence-failed { background: #ef4444; color: white; }
 .edit-input { width: 100%; padding: 0.25rem 0.375rem; border: 1px solid #1d4ed8; border-radius: 0.25rem; font-size: 0.875rem; outline: none; }
+/* Visual grouping: top border when PDF group changes in many_per_study */
+.pivot-table tr.pdf-group-first td { border-top: 2px solid #1d4ed8; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 </style>

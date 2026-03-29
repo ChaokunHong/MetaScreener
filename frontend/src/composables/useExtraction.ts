@@ -7,6 +7,8 @@ const API_BASE = '/api/extraction/v3'
 
 export interface ResultCell {
   pdf_id: string
+  sheet_name: string
+  row_index: number
   field_name: string
   value: unknown
   confidence: string

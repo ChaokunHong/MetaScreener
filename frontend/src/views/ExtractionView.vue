@@ -141,7 +141,7 @@
       <!-- Main results table — full width glass card -->
       <div class="glass-card" style="margin-bottom: 1rem;">
         <div class="section-title"><i class="fas fa-table"></i> Extraction Results</div>
-        <ExtractionPivotTable ref="pivotTableRef" v-if="results.length > 0" :results="results" :selected-cell="selectedCell" :sheet-order="sheetOrder" @select-cell="selectCell" @save-edit="handleSaveEdit" />
+        <ExtractionPivotTable ref="pivotTableRef" v-if="results.length > 0" :results="results" :selected-cell="selectedCell" :sheet-order="sheetOrder" :sheet-info="sheetInfo" @select-cell="selectCell" @save-edit="handleSaveEdit" />
         <div v-else class="empty-state"><i class="fas fa-table"></i><p>No results available yet.</p></div>
       </div>
 
@@ -220,6 +220,7 @@ import { ref, computed, type CSSProperties } from 'vue'
 import SchemaPreview from './extraction/SchemaPreview.vue'
 import ExtractionDashboard from './extraction/ExtractionDashboard.vue'
 import ExtractionPivotTable from './extraction/ExtractionPivotTable.vue'
+import type { SheetInfo } from './extraction/ExtractionPivotTable.vue'
 import SessionManager from './extraction/SessionManager.vue'
 import PdfViewer from './extraction/PdfViewer.vue'
 import { useExtraction } from '../composables/useExtraction'
@@ -274,6 +275,14 @@ const sheetOrder = computed<string[]>(() =>
     .slice()
     .sort((a, b) => (a.extraction_order ?? 0) - (b.extraction_order ?? 0))
     .map((s) => s.name)
+)
+
+// Cardinality info per sheet — passed to pivot table for many_per_study handling
+const sheetInfo = computed<SheetInfo[]>(() =>
+  schemaDetails.value.map((s) => ({
+    name: s.name,
+    cardinality: s.cardinality || 'one_per_study',
+  }))
 )
 
 /* -- review layout -- */
