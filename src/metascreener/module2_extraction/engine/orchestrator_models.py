@@ -42,11 +42,16 @@ class SheetExtractionResult:
 
     Args:
         sheet_name: Name of the sheet as defined in the ExtractionSchema.
-        fields: Mapping from field name to ExtractedField for this sheet.
+        cardinality: Sheet cardinality — ``"one_per_study"`` or ``"many_per_study"``.
+        fields: Single-row field results for ``one_per_study`` sheets.
+        rows: Multi-row results for ``many_per_study`` sheets.  Each element
+            is a dict mapping field_name → ExtractedField for one extracted row.
     """
 
     sheet_name: str
-    fields: dict[str, ExtractedField]
+    cardinality: str = "one_per_study"
+    fields: dict[str, ExtractedField] = field(default_factory=dict)
+    rows: list[dict[str, ExtractedField]] | None = None
 
 
 @dataclass

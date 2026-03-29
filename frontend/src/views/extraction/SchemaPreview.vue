@@ -51,6 +51,9 @@ export interface SchemaSheet {
   name: string
   fields: SchemaField[]
   expanded: boolean
+  role?: string
+  cardinality?: string
+  extraction_order?: number
 }
 
 const props = defineProps<{

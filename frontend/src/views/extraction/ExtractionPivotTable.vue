@@ -120,7 +120,11 @@ export interface ResultCell {
   evidence_json?: string
 }
 
-const props = defineProps<{ results: ResultCell[]; selectedCell: ResultCell | null }>()
+const props = defineProps<{
+  results: ResultCell[]
+  selectedCell: ResultCell | null
+  sheetOrder?: string[]
+}>()
 const emit = defineEmits<{ (e: 'select-cell', cell: ResultCell): void; (e: 'save-edit', cell: ResultCell, newValue: string): void }>()
 
 const tableWrapper = ref<HTMLElement | null>(null)
@@ -137,8 +141,14 @@ const bulk = useBulkOperations()
 const selectedKey = computed(() => props.selectedCell ? `${props.selectedCell.pdf_id}::${props.selectedCell.field_name}` : '')
 
 const sheetNames = computed(() => {
-  const names = new Set(props.results.map((r) => r.sheet_name || 'Studies'))
-  return [...names]
+  const presentNames = new Set(props.results.map((r) => r.sheet_name || 'Studies'))
+  if (props.sheetOrder && props.sheetOrder.length > 0) {
+    // Ordered by schema extraction_order; append any unknown sheets at the end
+    const ordered = props.sheetOrder.filter((s) => presentNames.has(s))
+    const extras = [...presentNames].filter((s) => !props.sheetOrder!.includes(s))
+    return [...ordered, ...extras]
+  }
+  return [...presentNames]
 })
 
 // Initialize activeSheet when results arrive; reset only when sheet list changes
@@ -202,7 +212,14 @@ function onCellClick(cell?: ResultCell, rowIdx?: number, colIdx?: number): void 
   if (colIdx !== undefined) focusCol.value = colIdx
 }
 
-function startEdit(cell: ResultCell): void { editingCell.value = cell; editValue.value = String(cell.value ?? '') }
+function startEdit(cell: ResultCell): void {
+  editingCell.value = cell
+  editValue.value = String(cell.value ?? '')
+  // Switch to flat view so the inline edit input is visible
+  viewMode.value = 'flat'
+}
+
+defineExpose({ startEdit })
 
 function handleKeydown(e: KeyboardEvent): void {
   if (editingCell.value) return

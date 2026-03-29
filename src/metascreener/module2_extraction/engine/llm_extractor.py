@@ -69,6 +69,7 @@ class LLMExtractor:
         backend_a: LLMBackend,
         backend_b: LLMBackend,
         table_context: list[str] | None = None,
+        cardinality: str = "one_per_study",
     ) -> dict[str, tuple[RawExtractionResult, RawExtractionResult]]:
         """Extract a group of related fields using dual models.
 
@@ -82,6 +83,10 @@ class LLMExtractor:
 
         Returns:
             Mapping of field_name → (result_from_a, result_from_b).
+
+            For ``many_per_study`` sheets use
+            :meth:`extract_field_group_many` instead, which returns a list of
+            row dicts rather than a single pair.
         """
         model_id_a: str = getattr(backend_a, "model_id", "model_a")
         model_id_b: str = getattr(backend_b, "model_id", "model_b")
@@ -89,8 +94,8 @@ class LLMExtractor:
         context = self._build_context(doc, section_names, table_context)
         field_names = [f.name for f in fields]
 
-        prompt_a = self._build_prompt(field_names, context, style="fields_first")
-        prompt_b = self._build_prompt(field_names, context, style="text_first")
+        prompt_a = self._build_prompt(field_names, context, style="fields_first", cardinality=cardinality)
+        prompt_b = self._build_prompt(field_names, context, style="text_first", cardinality=cardinality)
 
         logger.debug(
             "llm_extractor.extract_start",
@@ -121,6 +126,86 @@ class LLMExtractor:
             )
             for f in fields
         }
+
+    async def extract_field_group_many(
+        self,
+        fields: list[FieldSchema],
+        doc: StructuredDocument,
+        section_names: list[str],
+        backend_a: LLMBackend,
+        backend_b: LLMBackend,
+        table_context: list[str] | None = None,
+    ) -> list[dict[str, tuple[RawExtractionResult, RawExtractionResult]]]:
+        """Extract MULTIPLE rows from a many_per_study sheet.
+
+        Returns a list of row dicts, where each row maps field_name to a
+        (result_a, result_b) pair — the same inner structure as
+        :meth:`extract_field_group`, but repeated for every extracted row.
+
+        Args:
+            fields: Fields to extract (columns of the sheet).
+            doc: Parsed document.
+            section_names: Which sections to use as context.
+            backend_a: First LLM backend.
+            backend_b: Second LLM backend.
+            table_context: Optional table IDs to include.
+
+        Returns:
+            List of row dicts.  Each entry is
+            ``{field_name: (result_a, result_b)}``.
+            Returns an empty list when no rows could be extracted.
+        """
+        model_id_a: str = getattr(backend_a, "model_id", "model_a")
+        model_id_b: str = getattr(backend_b, "model_id", "model_b")
+
+        context = self._build_context(doc, section_names, table_context)
+        field_names = [f.name for f in fields]
+
+        prompt_a = self._build_prompt(field_names, context, style="fields_first", cardinality="many_per_study")
+        prompt_b = self._build_prompt(field_names, context, style="text_first", cardinality="many_per_study")
+
+        logger.debug(
+            "llm_extractor.extract_many_start",
+            n_fields=len(fields),
+            n_sections=len(section_names),
+            model_a=model_id_a,
+            model_b=model_id_b,
+        )
+
+        response_a, response_b = await asyncio.gather(
+            backend_a.complete(prompt_a, seed=42),
+            backend_b.complete(prompt_b, seed=42),
+        )
+
+        rows_a = self._parse_response_many(response_a, fields, model_id=model_id_a)
+        rows_b = self._parse_response_many(response_b, fields, model_id=model_id_b)
+
+        logger.debug(
+            "llm_extractor.extract_many_done",
+            rows_a=len(rows_a),
+            rows_b=len(rows_b),
+        )
+
+        # Merge rows from both models by row index.
+        # Use the longer list as the reference; fill missing entries with empty results.
+        n_rows = max(len(rows_a), len(rows_b))
+        if n_rows == 0:
+            return []
+
+        merged: list[dict[str, tuple[RawExtractionResult, RawExtractionResult]]] = []
+        for row_idx in range(n_rows):
+            row_a = rows_a[row_idx] if row_idx < len(rows_a) else {}
+            row_b = rows_b[row_idx] if row_idx < len(rows_b) else {}
+            merged_row: dict[str, tuple[RawExtractionResult, RawExtractionResult]] = {
+                f.name: (
+                    row_a.get(f.name, self._empty_result(f.name, model_id=model_id_a)),
+                    row_b.get(f.name, self._empty_result(f.name, model_id=model_id_b)),
+                )
+                for f in fields
+            }
+            merged.append(merged_row)
+
+        return merged
 
     # ------------------------------------------------------------------
     # Context building
@@ -181,6 +266,7 @@ class LLMExtractor:
         field_names: list[str],
         context: str,
         style: str,
+        cardinality: str = "one_per_study",
     ) -> str:
         """Build an extraction prompt in the requested style.
 
@@ -191,38 +277,63 @@ class LLMExtractor:
         - ``"text_first"`` — presents the source text *before* the fields
           list (Beta / model_b style).
 
-        Both styles request the same JSON output format.
+        Two cardinalities are supported:
+
+        - ``"one_per_study"`` — extract one set of values (default).
+        - ``"many_per_study"`` — extract ALL rows as a JSON array.
 
         Args:
             field_names: Names of the fields to extract.
             context: Scoped source text to extract from.
             style: ``"fields_first"`` or ``"text_first"``.
+            cardinality: ``"one_per_study"`` or ``"many_per_study"``.
 
         Returns:
             Prompt string ready to pass to an LLM backend.
         """
         fields_block = "\n".join(f"- {name}" for name in field_names)
-        output_format = (
-            '{"fields": {"<field_name>": {"value": ..., "evidence": "exact sentence"}}}'
-        )
 
-        if style == "fields_first":
-            return (
-                "Extract the following fields from the text below.\n"
-                f"Fields to extract:\n{fields_block}\n\n"
-                f"Text:\n{context}\n\n"
+        if cardinality == "many_per_study":
+            # Build a representative empty-row example for the array format
+            example_row = "{" + ", ".join(f'"{n}": "..."' for n in field_names) + "}"
+            output_format = '{"rows": [' + example_row + ", ...]}"
+            instruction = (
+                "Extract ALL rows of the following fields from the text. "
+                "Each unique combination (e.g. each antibiotic-pathogen pair, "
+                "each time-point, each arm) must be a separate row in the array.\n"
+            )
+            json_instruction = (
+                "Return a JSON object with a 'rows' key containing an array of objects. "
+                "Each object has exactly the field names listed above as keys. "
+                "Include an 'evidence' key in each row with the exact sentence. "
+                f"Format: {output_format}\n"
+                "If a field value is unknown for a row, set it to null."
+            )
+        else:
+            output_format = (
+                '{"fields": {"<field_name>": {"value": ..., "evidence": "exact sentence"}}}'
+            )
+            instruction = "Extract the following fields from the text below.\n"
+            json_instruction = (
                 "Return JSON with each field's value and the exact evidence sentence.\n"
                 f"Format: {output_format}\n"
                 "If a field cannot be found, set value to null."
             )
+
+        if style == "fields_first":
+            return (
+                f"{instruction}"
+                f"Fields to extract:\n{fields_block}\n\n"
+                f"Text:\n{context}\n\n"
+                f"{json_instruction}"
+            )
         else:  # text_first
             return (
                 f"Read the following text carefully:\n{context}\n\n"
+                f"{instruction}"
                 "Now extract these fields:\n"
                 f"{fields_block}\n\n"
-                "Return JSON with each field's value and the exact evidence sentence.\n"
-                f"Format: {output_format}\n"
-                "If a field cannot be found, set value to null."
+                f"{json_instruction}"
             )
 
     # ------------------------------------------------------------------
@@ -294,6 +405,77 @@ class LLMExtractor:
             )
 
         return results
+
+    def _parse_response_many(
+        self,
+        response: str,
+        fields: list[FieldSchema],
+        model_id: str,
+    ) -> list[dict[str, RawExtractionResult]]:
+        """Parse a many_per_study LLM JSON response into a list of row dicts.
+
+        Expects the response to contain ``{"rows": [{...}, ...]}``.  Each
+        element is a flat dict mapping field names to values, optionally with
+        an ``"evidence"`` key.  Falls back to an empty list on any parse error.
+
+        Args:
+            response: Raw string returned by the LLM backend.
+            fields: Field schemas for lookup.
+            model_id: Identifier of the model that produced this response.
+
+        Returns:
+            List of row dicts.  Each dict maps field_name →
+            :class:`RawExtractionResult`.
+        """
+        json_str = _extract_json_string(response)
+        try:
+            data = json.loads(json_str)
+        except (json.JSONDecodeError, AttributeError):
+            logger.warning(
+                "llm_extractor.parse_many_failed",
+                model_id=model_id,
+                response_preview=response[:200],
+            )
+            return []
+
+        if not isinstance(data, dict):
+            return []
+
+        raw_rows = data.get("rows")
+        if not isinstance(raw_rows, list):
+            # Some models may skip the wrapper and return a bare array — handle
+            # by wrapping or returning empty
+            return []
+
+        field_set = {f.name for f in fields}
+        parsed_rows: list[dict[str, RawExtractionResult]] = []
+
+        for raw_row in raw_rows:
+            if not isinstance(raw_row, dict):
+                continue
+            evidence_sentence: str | None = raw_row.get("evidence") if isinstance(raw_row.get("evidence"), str) else None
+            row: dict[str, RawExtractionResult] = {}
+            for f in fields:
+                entry = raw_row.get(f.name)
+                if entry is None:
+                    row[f.name] = self._empty_result(f.name, model_id=model_id)
+                    continue
+                if isinstance(entry, dict):
+                    value = entry.get("value")
+                    ev = entry.get("evidence") or evidence_sentence
+                else:
+                    value = entry
+                    ev = evidence_sentence
+                row[f.name] = RawExtractionResult(
+                    value=value,
+                    evidence=SourceLocation(type="text", page=1, sentence=ev),
+                    strategy_used=ExtractionStrategy.LLM_TEXT,
+                    confidence_prior=0.75,
+                    model_id=model_id,
+                )
+            parsed_rows.append(row)
+
+        return parsed_rows
 
     # ------------------------------------------------------------------
     # Empty result factory

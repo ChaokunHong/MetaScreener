@@ -113,11 +113,16 @@ class NewOrchestrator:
         # Only process DATA sheets — skip mapping/reference/documentation
         data_sheets = [s for s in schema.sheets if s.role == SheetRole.DATA]
 
-        # Collect all EXTRACT fields across all sheets (flat list for routing/coherence)
+        # Separate sheets by cardinality so many_per_study get their own pass
+        from metascreener.core.enums import SheetCardinality  # noqa: PLC0415
+        one_per_sheets = [s for s in data_sheets if s.cardinality != SheetCardinality.MANY_PER_STUDY]
+        many_per_sheets = [s for s in data_sheets if s.cardinality == SheetCardinality.MANY_PER_STUDY]
+
+        # Collect all EXTRACT fields across ONE_PER_STUDY sheets (flat list for routing/coherence)
         all_fields: list[FieldSchema] = []
         # Also track which sheet each field belongs to
         field_to_sheet: dict[str, str] = {}
-        for sheet in data_sheets:
+        for sheet in one_per_sheets:
             for f in sheet.fields:
                 if f.role.value == "extract":
                     all_fields.append(f)
@@ -435,9 +440,9 @@ class NewOrchestrator:
                 warnings=warnings,
             )
 
-        # Group validated fields by their originating sheet (DATA sheets only)
+        # Group validated fields by their originating sheet (one_per_study sheets only)
         sheet_results: dict[str, SheetExtractionResult] = {}
-        for sheet in data_sheets:
+        for sheet in one_per_sheets:
             sheet_fields = {
                 f_name: ef
                 for f_name, ef in validated_fields.items()
@@ -446,8 +451,93 @@ class NewOrchestrator:
             if sheet_fields:
                 sheet_results[sheet.sheet_name] = SheetExtractionResult(
                     sheet_name=sheet.sheet_name,
+                    cardinality="one_per_study",
                     fields=sheet_fields,
                 )
+
+        # --- Step 5: many_per_study sheets — dedicated multi-row LLM pass ---
+        for sheet in many_per_sheets:
+            extract_fields = sheet.extract_fields
+            if not extract_fields:
+                continue
+
+            section_names_many: list[str] = [s.heading for s in doc.sections]
+
+            log.info(
+                "many_per_study_extraction_start",
+                sheet=sheet.sheet_name,
+                n_fields=len(extract_fields),
+            )
+
+            try:
+                raw_rows = await self._llm_extractor.extract_field_group_many(
+                    extract_fields, doc, section_names_many, backend_a, backend_b
+                )
+
+                sheet_rows: list[dict[str, ExtractedField]] = []
+                for row_pairs in raw_rows:
+                    row_validated: dict[str, ExtractedField] = {}
+                    for f in extract_fields:
+                        pair = row_pairs.get(f.name)
+                        if pair is None:
+                            continue
+                        result_a, result_b = pair
+
+                        # Pick the best raw result
+                        if result_a.value is not None and result_b.value is not None:
+                            val_a = str(result_a.value).strip().lower()
+                            val_b = str(result_b.value).strip().lower()
+                            raw = result_a if val_a == val_b else result_a
+                        elif result_a.value is not None:
+                            raw = result_a
+                        elif result_b.value is not None:
+                            raw = result_b
+                        else:
+                            raw = result_a  # both null
+
+                        # Minimal validation for multi-row fields
+                        v1 = self._source_validator.validate(raw, doc)
+                        v2 = self._rule_validator.validate_field(f, raw.value)
+                        confidence = self._aggregator.compute(
+                            strategy=raw.strategy_used,
+                            v1_source=v1,
+                            v2_rules=v2,
+                            v3_agreement=None,
+                            v4_coherence=[],
+                        )
+                        warnings_row: list[str] = []
+                        if not v1.passed and v1.message:
+                            warnings_row.append(v1.message)
+                        warnings_row.extend(r.message for r in v2 if r.severity == "warning")
+                        validation_passed = v1.passed and not any(r.severity == "error" for r in v2)
+                        row_validated[f.name] = ExtractedField(
+                            field_name=f.name,
+                            value=raw.value,
+                            confidence=confidence,
+                            evidence=raw.evidence,
+                            strategy=raw.strategy_used,
+                            validation_passed=validation_passed,
+                            warnings=warnings_row,
+                        )
+                    if row_validated:
+                        sheet_rows.append(row_validated)
+
+                if sheet_rows:
+                    sheet_results[sheet.sheet_name] = SheetExtractionResult(
+                        sheet_name=sheet.sheet_name,
+                        cardinality="many_per_study",
+                        fields={},
+                        rows=sheet_rows,
+                    )
+                    log.info(
+                        "many_per_study_extraction_done",
+                        sheet=sheet.sheet_name,
+                        n_rows=len(sheet_rows),
+                    )
+
+            except Exception as exc:
+                log.error("many_per_study_extraction_failed", sheet=sheet.sheet_name, error=str(exc))
+                errors.append(f"Sheet {sheet.sheet_name}: {exc}")
 
         return DocumentExtractionResult(
             doc_id=doc.doc_id,

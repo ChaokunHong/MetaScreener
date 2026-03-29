@@ -141,7 +141,7 @@
       <!-- Main results table — full width glass card -->
       <div class="glass-card" style="margin-bottom: 1rem;">
         <div class="section-title"><i class="fas fa-table"></i> Extraction Results</div>
-        <ExtractionPivotTable v-if="results.length > 0" :results="results" :selected-cell="selectedCell" @select-cell="selectCell" @save-edit="handleSaveEdit" />
+        <ExtractionPivotTable ref="pivotTableRef" v-if="results.length > 0" :results="results" :selected-cell="selectedCell" :sheet-order="sheetOrder" @select-cell="selectCell" @save-edit="handleSaveEdit" />
         <div v-else class="empty-state"><i class="fas fa-table"></i><p>No results available yet.</p></div>
       </div>
 
@@ -226,6 +226,9 @@ import { useExtraction } from '../composables/useExtraction'
 import type { SchemaSheet, SchemaField } from './extraction/SchemaPreview.vue'
 import type { ResultCell } from '../composables/useExtraction'
 
+// Ref to the pivot table component — used to call startEdit on it from the parent
+const pivotTableRef = ref<InstanceType<typeof ExtractionPivotTable> | null>(null)
+
 const API_BASE = '/api/extraction/v3'
 const ext = useExtraction()
 const {
@@ -264,6 +267,15 @@ const pdfInput = ref<HTMLInputElement | null>(null)
 const draggingPdf = ref(false)
 const uploadingPdf = ref(false)
 
+// Sheet tab order derived from schema extraction_order (Issue 3)
+const sheetOrder = computed<string[]>(() =>
+  schemaDetails.value
+    .filter((s) => s.role === 'data' || !s.role)
+    .slice()
+    .sort((a, b) => (a.extraction_order ?? 0) - (b.extraction_order ?? 0))
+    .map((s) => s.name)
+)
+
 /* -- review layout -- */
 const showPdfDrawer = ref(false)
 
@@ -291,7 +303,16 @@ function selectCell(cell: ResultCell) {
   selectedCell.value = cell
   try { selectedEvidence.value = JSON.parse(cell.evidence_json || '{}') } catch { selectedEvidence.value = null }
 }
-function startEdit(cell: ResultCell) { editingCell.value = cell; editValue.value = String(cell.value ?? '') }
+function startEdit(cell: ResultCell) {
+  // Delegate into the child pivot table so its inline edit UI activates
+  if (pivotTableRef.value) {
+    pivotTableRef.value.startEdit(cell)
+  } else {
+    // Fallback: set local state (flat view edit)
+    editingCell.value = cell
+    editValue.value = String(cell.value ?? '')
+  }
+}
 
 async function handleSaveEdit(cell: ResultCell, newValue: string) {
   try {
@@ -321,7 +342,11 @@ async function fetchAlerts() {
 function parseSchemaDetails(raw: any): SchemaSheet[] {
   if (!raw?.sheets) return []
   return (raw.sheets as any[]).map((s: any) => ({
-    name: s.name ?? s.sheet_name ?? 'Sheet', expanded: false,
+    name: s.name ?? s.sheet_name ?? 'Sheet',
+    expanded: false,
+    role: s.role ?? 'data',
+    cardinality: s.cardinality ?? 'one_per_study',
+    extraction_order: s.extraction_order ?? 0,
     fields: (s.fields ?? s.columns ?? []).map((f: any): SchemaField => ({
       name: f.name ?? f.field_name ?? '', field_type: f.field_type ?? f.type ?? 'text',
       role: f.role ?? 'data', required: f.required ?? false, semantic_tag: f.semantic_tag ?? f.tag ?? undefined,
