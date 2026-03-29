@@ -84,6 +84,37 @@ class DocumentParser:
         ocr_result = await self._ocr_router.convert_pdf(pdf_path)
         markdown: str = ocr_result.markdown
 
+        # Strip YAML frontmatter (e.g. "---\nbackend: ...\n---\n")
+        stripped = markdown.strip()
+        if stripped.startswith("---"):
+            end = stripped.find("---", 3)
+            if end != -1:
+                after_frontmatter = stripped[end + 3:].strip()
+                if after_frontmatter:
+                    markdown = after_frontmatter
+                # else: frontmatter was the only content — keep original
+
+        # Quality check: if OCR produced almost no content, try PyMuPDF fallback
+        _MIN_CONTENT_CHARS = 100
+        content_chars = len(markdown.strip())
+        if content_chars < _MIN_CONTENT_CHARS:
+            logger.warning(
+                "ocr_output_too_short",
+                chars=content_chars,
+                backend=str(ocr_result.backend_usage),
+                pdf=str(pdf_path),
+            )
+            # Fallback to PyMuPDF which always works for digitally-born PDFs
+            try:
+                from metascreener.io.pdf_parser import extract_text_from_pdf
+                fallback_text = extract_text_from_pdf(pdf_path)
+                if len(fallback_text.strip()) > content_chars:
+                    logger.info("ocr_pymupdf_fallback_used", chars=len(fallback_text))
+                    markdown = fallback_text
+                    ocr_result.backend_usage["pymupdf_fallback"] = 1
+            except Exception:
+                logger.warning("ocr_pymupdf_fallback_failed")
+
         # Step 2 — section tree
         sections = parse_sections(markdown)
 
