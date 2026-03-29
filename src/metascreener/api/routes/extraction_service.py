@@ -310,6 +310,20 @@ class ExtractionService(ExtractionRunnerMixin):
                     return {}
         return None
 
+    # === Task management ===
+
+    async def start_extraction(self, session_id: str) -> None:
+        """Start extraction via ExtractionTaskManager (supports cancellation/duplicate detection).
+
+        Wraps :meth:`run_extraction` inside the task manager so that
+        :meth:`is_running` and :meth:`cancel` work correctly.  Callers should
+        wrap this in :func:`asyncio.create_task` for fire-and-forget behaviour.
+
+        Args:
+            session_id: The session to run extraction on.
+        """
+        await self._task_manager.start(session_id, self.run_extraction(session_id))
+
     # === Status helpers ===
 
     def is_running(self, session_id: str) -> bool:

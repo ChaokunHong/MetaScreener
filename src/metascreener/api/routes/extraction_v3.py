@@ -1,11 +1,12 @@
 """Extraction API v3 — core session, template, PDF, results, and run endpoints."""
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
 import structlog
-from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -21,12 +22,17 @@ _service: ExtractionService | None = None
 def _get_service() -> ExtractionService:
     """Return the ExtractionService singleton, creating it on first call.
 
+    Uses an absolute path derived from the project root so the service works
+    regardless of the current working directory.
+
     Returns:
         The shared ExtractionService instance.
     """
     global _service
     if _service is None:
-        data_dir = Path("data/extraction")
+        # routes/ → api/ → metascreener/ → src/ → project_root
+        project_root = Path(__file__).resolve().parent.parent.parent.parent
+        data_dir = project_root / "data" / "extraction"
         db_path = data_dir / "extraction.db"
         _service = ExtractionService(db_path=db_path, data_dir=data_dir)
     return _service
@@ -297,17 +303,15 @@ async def export_results(session_id: str, format: str = "excel") -> dict:
 
 
 @router.post("/sessions/{session_id}/run")
-async def run_extraction(
-    session_id: str, background_tasks: BackgroundTasks
-) -> dict:
+async def run_extraction(session_id: str) -> dict:
     """Start extraction on all PDFs in the session.
 
-    The extraction job runs asynchronously as a background task.
+    The extraction job runs asynchronously via the ExtractionTaskManager so
+    that ``is_running()`` and ``cancel()`` work correctly.
     Poll ``GET /sessions/{session_id}`` to check status.
 
     Args:
         session_id: The session to run extraction on.
-        background_tasks: FastAPI background task manager.
 
     Returns:
         Dict ``{"status": "started", "session_id": session_id}``.
@@ -325,7 +329,9 @@ async def run_extraction(
             status_code=409, detail="Extraction already running for this session"
         )
 
-    background_tasks.add_task(service.run_extraction, session_id)
+    # Fire-and-forget via asyncio.create_task so the endpoint returns immediately.
+    # The task manager registers the task, enabling is_running() / cancel() to work.
+    asyncio.create_task(service.start_extraction(session_id))
     return {"status": "started", "session_id": session_id}
 
 

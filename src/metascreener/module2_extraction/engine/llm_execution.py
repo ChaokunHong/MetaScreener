@@ -18,6 +18,18 @@ from metascreener.module2_extraction.models import (
 )
 from metascreener.module2_extraction.validation.models import AgreementResult
 
+# ---------------------------------------------------------------------------
+# Confidence priors for LLM extraction outcomes
+# ---------------------------------------------------------------------------
+#: Both models agree — strong signal.
+_CONFIDENCE_AGREE: float = 0.90
+#: Models disagree but arbitration resolved the conflict.
+_CONFIDENCE_ARBITRATED: float = 0.70
+#: Models disagree and no arbitration backend is configured.
+_CONFIDENCE_DISAGREE: float = 0.50
+#: Only one model succeeded — single-model result.
+_CONFIDENCE_SINGLE: float = 0.60
+
 
 async def execute_llm_text(
     plan: Any,
@@ -85,7 +97,7 @@ async def execute_llm_text(
 
         if val_a == val_b:
             # Agreement — high confidence
-            result_a.confidence_prior = 0.90
+            result_a.confidence_prior = _CONFIDENCE_AGREE
             evidence_locs = [result_a.evidence] if result_a.evidence else []
             agreement = AgreementResult(
                 agreed=True,
@@ -110,7 +122,7 @@ async def execute_llm_text(
                 arbitration_backend,
             )
             chosen = result_a if arb.chosen == "A" else result_b
-            chosen.confidence_prior = 0.70
+            chosen.confidence_prior = _CONFIDENCE_ARBITRATED
             evidence_locs = [chosen.evidence] if chosen.evidence else []
             agreement = AgreementResult(
                 agreed=False,
@@ -122,7 +134,7 @@ async def execute_llm_text(
             return chosen, agreement
 
         # No arbitration backend — use model A at reduced confidence
-        result_a.confidence_prior = 0.50
+        result_a.confidence_prior = _CONFIDENCE_DISAGREE
         evidence_locs = [result_a.evidence] if result_a.evidence else []
         agreement = AgreementResult(
             agreed=False,
@@ -135,10 +147,10 @@ async def execute_llm_text(
 
     # One model succeeded — no agreement object (single-model result)
     if result_a.value is not None:
-        result_a.confidence_prior = 0.60
+        result_a.confidence_prior = _CONFIDENCE_SINGLE
         return result_a, None
     if result_b.value is not None:
-        result_b.confidence_prior = 0.60
+        result_b.confidence_prior = _CONFIDENCE_SINGLE
         return result_b, None
 
     # Both failed — return model A's (failed) result, no agreement

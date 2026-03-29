@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -19,7 +19,13 @@ from metascreener.doc_engine.reference_parser import parse_references
 from metascreener.doc_engine.section_parser import parse_sections
 from metascreener.doc_engine.table_extractor import extract_tables_from_markdown
 
+if TYPE_CHECKING:
+    from metascreener.doc_engine.cache import DocumentCache
+
 logger = structlog.get_logger(__name__)
+
+# Stable identifier for "default" OCR configuration used as the cache key.
+_DEFAULT_OCR_CONFIG_HASH = "default"
 
 
 class DocumentParser:
@@ -31,10 +37,18 @@ class DocumentParser:
             where ``OCRResult`` has attributes:
             ``.markdown``, ``.total_pages``, ``.backend_usage``,
             ``.conversion_time_s``.
+        cache: Optional :class:`~metascreener.doc_engine.cache.DocumentCache`
+            instance.  When provided, ``parse()`` returns the cached document
+            on a cache hit and stores the parsed result on a miss.
     """
 
-    def __init__(self, ocr_router: Any) -> None:  # noqa: ANN401
+    def __init__(
+        self,
+        ocr_router: Any,  # noqa: ANN401
+        cache: DocumentCache | None = None,
+    ) -> None:
         self._ocr_router = ocr_router
+        self._cache = cache
 
     async def parse(self, pdf_path: Path) -> StructuredDocument:
         """Parse a PDF and return a fully-populated StructuredDocument.
@@ -56,6 +70,15 @@ class DocumentParser:
             A fully populated StructuredDocument.
         """
         logger.info("document_parse_start", pdf=str(pdf_path))
+
+        # Cache look-up — skip full OCR/parse if already cached
+        pdf_hash: str | None = None
+        if self._cache is not None:
+            pdf_hash = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
+            cached = await self._cache.get(pdf_hash, _DEFAULT_OCR_CONFIG_HASH)
+            if cached is not None:
+                logger.info("document_cache_hit", pdf=str(pdf_path), pdf_hash=pdf_hash[:12])
+                return cached
 
         # Step 1 — OCR / Markdown conversion
         ocr_result = await self._ocr_router.convert_pdf(pdf_path)
@@ -119,4 +142,13 @@ class DocumentParser:
             figures=len(figures),
             references=len(references),
         )
+
+        # Store in cache for subsequent requests
+        if self._cache is not None and pdf_hash is not None:
+            try:
+                await self._cache.put(pdf_hash, _DEFAULT_OCR_CONFIG_HASH, doc)
+                logger.debug("document_cache_stored", pdf=str(pdf_path), pdf_hash=pdf_hash[:12])
+            except Exception:
+                logger.warning("document_cache_put_failed", pdf=str(pdf_path))
+
         return doc

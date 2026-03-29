@@ -105,9 +105,14 @@
       </p>
 
       <div v-if="isRunning" style="margin-bottom: 1rem;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
           <span class="text-muted">Extracting data from PDFs…</span>
-          <span class="text-muted">{{ Math.round(progress * 100) }}%</span>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span class="text-muted">{{ Math.round(progress * 100) }}%</span>
+            <button class="btn btn-danger" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;" @click="cancelExtraction">
+              <i class="fas fa-times"></i> Cancel
+            </button>
+          </div>
         </div>
         <div class="progress">
           <div class="progress-bar" :style="{ width: progress * 100 + '%' }"></div>
@@ -207,8 +212,13 @@
             <i class="fas fa-check-circle" style="color: #16a34a;"></i> No alerts
           </div>
           <div v-for="(alert, i) in alerts" :key="i" class="alert-item">
-            <span class="alert-severity" :class="alert.severity">{{ alert.severity }}</span>
-            {{ alert.message || alert.field_name }}
+            <span class="alert-severity warning">outlier</span>
+            <span>
+              <strong>{{ alert.field_name }}</strong>
+              <span class="text-muted" style="font-size:0.8rem;"> ({{ alert.pdf_id?.slice(0, 8) }})</span>:
+              value={{ alert.value }} — {{ alert.possible_cause }}
+              <div class="text-muted" style="font-size:0.75rem;">{{ alert.suggested_action }}</div>
+            </span>
           </div>
         </div>
       </div>
@@ -554,6 +564,13 @@ async function runExtraction() {
       } catch {}
     })
 
+    eventSource.addEventListener('warning', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        runError.value = data.details?.message || 'Warning from server'
+      } catch {}
+    })
+
     eventSource.addEventListener('idle', () => {
       // No extraction running, poll for status
       eventSource.close()
@@ -571,6 +588,21 @@ async function runExtraction() {
   } catch (e: any) {
     runError.value = e.message
     isRunning.value = false
+  }
+}
+
+async function cancelExtraction() {
+  try {
+    await fetch(`${API_BASE}/sessions/${sessionId.value}/cancel`, { method: 'POST' })
+  } catch (e: any) {
+    error.value = e.message
+  } finally {
+    isRunning.value = false
+    progress.value = 0
+    if (activeEventSource.value) {
+      activeEventSource.value.close()
+      activeEventSource.value = null
+    }
   }
 }
 
@@ -603,6 +635,7 @@ async function exportResults(format: string) {
   exportPath.value = ''
   error.value = ''
   try {
+    // 1. Trigger server-side export
     const resp = await fetch(
       `${API_BASE}/sessions/${sessionId.value}/export?format=${format}`,
       { method: 'POST' }
@@ -610,6 +643,24 @@ async function exportResults(format: string) {
     if (!resp.ok) throw new Error(`Export failed: ${resp.statusText}`)
     const data = await resp.json()
     exportPath.value = data.path
+
+    // 2. Download the file to the user's browser
+    const downloadResp = await fetch(`${API_BASE}/sessions/${sessionId.value}/download`)
+    if (downloadResp.ok) {
+      const blob = await downloadResp.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const ext = format === 'excel' ? 'xlsx' : format === 'revman' ? 'xml' : format === 'r_meta' ? 'csv' : format
+      a.download = `extraction_export.${ext}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } else {
+      // Non-fatal: server path is still shown even if browser download fails
+      console.warn('download_endpoint_failed', downloadResp.status)
+    }
   } catch (e: any) {
     error.value = e.message
   } finally {
@@ -695,6 +746,24 @@ async function exportResults(format: string) {
 .confidence-low       { background: #f97316; color: white; }
 .confidence-single    { background: #a3a3a3; color: white; }
 .confidence-failed    { background: #ef4444; color: white; }
+
+/* ── danger button ── */
+.btn-danger {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 0.45rem 1.25rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+}
 
 /* ── success button ── */
 .btn-success {

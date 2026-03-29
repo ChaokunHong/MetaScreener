@@ -136,6 +136,21 @@ class ExtractionRunnerMixin:
         backend_a, backend_b = self._get_llm_backends()  # type: ignore[attr-defined]
         arbitration_backend = getattr(self, "_arbitration_backend", None)
 
+        # Warn via SSE when falling back to placeholder backends (no API key / no models)
+        if getattr(backend_a, "model_id", None) == "placeholder":
+            log.warning("extraction_using_placeholder_backends", session_id=session_id)
+            await self.emit_progress(
+                session_id,
+                "warning",
+                0.0,
+                {
+                    "message": (
+                        "No LLM models configured. Only table-based extraction will work. "
+                        "Set OPENROUTER_API_KEY for full LLM extraction."
+                    )
+                },
+            )
+
         results_summary: dict = {
             "total_pdfs": len(pdfs),
             "completed": 0,
@@ -167,10 +182,13 @@ class ExtractionRunnerMixin:
                     {"pdf": pdf_info["filename"], "index": i, "total": n_pdfs},
                 )
 
-                from metascreener.doc_engine.parser import DocumentParser
+                from metascreener.doc_engine.cache import DocumentCache  # noqa: PLC0415
+                from metascreener.doc_engine.parser import DocumentParser  # noqa: PLC0415
 
                 ocr_router = self._create_ocr_router()  # type: ignore[attr-defined]
-                doc_parser = DocumentParser(ocr_router=ocr_router)
+                doc_cache = DocumentCache(data_dir / "doc_cache.db")
+                await doc_cache.initialize()
+                doc_parser = DocumentParser(ocr_router=ocr_router, cache=doc_cache)
                 doc = await doc_parser.parse(pdf_path)
 
                 await self.emit_progress(
