@@ -32,8 +32,11 @@ from metascreener.module2_extraction.engine.orchestrator_models import (  # noqa
     ExtractedField,
 )
 from metascreener.module2_extraction.engine.llm_execution import (
+    _CONFIDENCE_AGREE,
+    _CONFIDENCE_ARBITRATED,
+    _CONFIDENCE_DISAGREE,
+    _CONFIDENCE_SINGLE,
     execute_computed,
-    execute_llm_text,
 )
 from metascreener.module2_extraction.engine.table_reader import TableReader
 from metascreener.module2_extraction.models import (
@@ -141,43 +144,202 @@ class NewOrchestrator:
 
         for phase in exec_plan.phases:
             for group in phase.field_groups:
+                # Separate fields by strategy for efficient batching
+                table_fields: list[tuple[FieldSchema, FieldRoutingPlan]] = []
+                llm_fields: list[tuple[FieldSchema, FieldRoutingPlan]] = []
+                vlm_fields: list[tuple[FieldSchema, FieldRoutingPlan]] = []
+                computed_fields: list[tuple[FieldSchema, FieldRoutingPlan]] = []
+
                 for field_schema in group.fields:
                     plan = plan_map.get(field_schema.name)
                     if plan is None:
                         continue
-
-                    # Find the full FieldSchema (group only has stub schemas)
                     full_field = next(
                         (f for f in all_fields if f.name == field_schema.name), field_schema
                     )
+                    if plan.strategy == ExtractionStrategy.DIRECT_TABLE:
+                        table_fields.append((full_field, plan))
+                    elif plan.strategy == ExtractionStrategy.LLM_TEXT:
+                        llm_fields.append((full_field, plan))
+                    elif plan.strategy == ExtractionStrategy.VLM_FIGURE:
+                        vlm_fields.append((full_field, plan))
+                    elif plan.strategy == ExtractionStrategy.COMPUTED:
+                        computed_fields.append((full_field, plan))
 
+                # --- DIRECT_TABLE: fast, no LLM needed ---
+                for full_field, plan in table_fields:
                     try:
-                        result, agreement = await self._execute_strategy(
-                            plan=plan,
-                            field=full_field,
-                            doc=doc,
-                            backend_a=backend_a,
-                            backend_b=backend_b,
-                            extracted=extracted,
-                            arbitration_backend=arbitration_backend,
-                        )
-                        extracted[field_schema.name] = result
-                        agreements[field_schema.name] = agreement
+                        result = self._table_reader.extract(doc, plan.source_hint)
+                        extracted[full_field.name] = result
+                        agreements[full_field.name] = None
                     except Exception as exc:
-                        log.error(
-                            "extraction_failed",
-                            field=field_schema.name,
-                            error=str(exc),
-                        )
-                        errors.append(f"{field_schema.name}: {exc}")
-                        extracted[field_schema.name] = RawExtractionResult(
+                        log.error("extraction_failed", field=full_field.name, error=str(exc))
+                        errors.append(f"{full_field.name}: {exc}")
+                        extracted[full_field.name] = RawExtractionResult(
                             value=None,
                             evidence=SourceLocation(type="text", page=0),
                             strategy_used=plan.strategy,
                             confidence_prior=0.0,
                             error=str(exc),
                         )
-                        agreements[field_schema.name] = None
+                        agreements[full_field.name] = None
+
+                # --- LLM_TEXT: ONE batched dual-model call for all fields ---
+                if llm_fields:
+                    fields_list = [f for f, _ in llm_fields]
+                    # Collect all relevant sections across all field plans
+                    section_names: list[str] = list(
+                        dict.fromkeys(  # preserve order, deduplicate
+                            p.source_hint.section_name
+                            for _, p in llm_fields
+                            if p.source_hint.section_name
+                        )
+                    )
+                    if not section_names:
+                        section_names = [s.heading for s in doc.sections]
+
+                    log.info(
+                        "llm_batch_call",
+                        n_fields=len(fields_list),
+                        sections=section_names,
+                    )
+
+                    try:
+                        batch_results = await self._llm_extractor.extract_field_group(
+                            fields_list, doc, section_names, backend_a, backend_b
+                        )
+
+                        for full_field, plan in llm_fields:
+                            pair = batch_results.get(full_field.name)
+                            if pair is None:
+                                extracted[full_field.name] = RawExtractionResult(
+                                    value=None,
+                                    evidence=SourceLocation(type="text", page=0),
+                                    strategy_used=ExtractionStrategy.LLM_TEXT,
+                                    confidence_prior=0.0,
+                                    error="No result returned from batch LLM call",
+                                )
+                                agreements[full_field.name] = None
+                                continue
+
+                            result_a, result_b = pair
+
+                            if result_a.value is not None and result_b.value is not None:
+                                val_a = str(result_a.value).strip().lower()
+                                val_b = str(result_b.value).strip().lower()
+
+                                if val_a == val_b:
+                                    result_a.confidence_prior = _CONFIDENCE_AGREE
+                                    extracted[full_field.name] = result_a
+                                    agreements[full_field.name] = AgreementResult(
+                                        agreed=True,
+                                        final_value=result_a.value,
+                                        confidence=Confidence.HIGH,
+                                        evidence=[result_a.evidence] if result_a.evidence else [],
+                                        arbitration=None,
+                                    )
+                                elif arbitration_backend is not None:
+                                    evidence_a = (
+                                        result_a.evidence.sentence if result_a.evidence else None
+                                    )
+                                    evidence_b = (
+                                        result_b.evidence.sentence if result_b.evidence else None
+                                    )
+                                    arb = await self._arbitrator.arbitrate(
+                                        full_field.name,
+                                        result_a.value,
+                                        evidence_a,
+                                        result_b.value,
+                                        evidence_b,
+                                        doc.raw_markdown[:3000],
+                                        arbitration_backend,
+                                    )
+                                    chosen = result_a if arb.chosen == "A" else result_b
+                                    chosen.confidence_prior = _CONFIDENCE_ARBITRATED
+                                    extracted[full_field.name] = chosen
+                                    agreements[full_field.name] = AgreementResult(
+                                        agreed=False,
+                                        final_value=chosen.value,
+                                        confidence=Confidence.MEDIUM,
+                                        evidence=[chosen.evidence] if chosen.evidence else [],
+                                        arbitration=arb,
+                                    )
+                                else:
+                                    result_a.confidence_prior = _CONFIDENCE_DISAGREE
+                                    extracted[full_field.name] = result_a
+                                    agreements[full_field.name] = AgreementResult(
+                                        agreed=False,
+                                        final_value=result_a.value,
+                                        confidence=Confidence.LOW,
+                                        evidence=[result_a.evidence] if result_a.evidence else [],
+                                        arbitration=None,
+                                    )
+                            elif result_a.value is not None:
+                                result_a.confidence_prior = _CONFIDENCE_SINGLE
+                                extracted[full_field.name] = result_a
+                                agreements[full_field.name] = None
+                            elif result_b.value is not None:
+                                result_b.confidence_prior = _CONFIDENCE_SINGLE
+                                extracted[full_field.name] = result_b
+                                agreements[full_field.name] = None
+                            else:
+                                extracted[full_field.name] = result_a
+                                agreements[full_field.name] = None
+
+                    except Exception as exc:
+                        log.error("llm_batch_failed", n_fields=len(llm_fields), error=str(exc))
+                        for full_field, plan in llm_fields:
+                            errors.append(f"{full_field.name}: {exc}")
+                            extracted[full_field.name] = RawExtractionResult(
+                                value=None,
+                                evidence=SourceLocation(type="text", page=0),
+                                strategy_used=ExtractionStrategy.LLM_TEXT,
+                                confidence_prior=0.0,
+                                error=str(exc),
+                            )
+                            agreements[full_field.name] = None
+
+                # --- VLM_FIGURE: each field needs a different image, keep individual ---
+                for full_field, plan in vlm_fields:
+                    try:
+                        result = self._figure_reader.extract_from_preextracted(
+                            doc, plan.source_hint, full_field.name
+                        )
+                        if result.value is None and backend_a is not None:
+                            result = await self._figure_reader.extract_with_vlm(
+                                doc, plan.source_hint, full_field.name, backend_a
+                            )
+                        extracted[full_field.name] = result
+                        agreements[full_field.name] = None
+                    except Exception as exc:
+                        log.error("extraction_failed", field=full_field.name, error=str(exc))
+                        errors.append(f"{full_field.name}: {exc}")
+                        extracted[full_field.name] = RawExtractionResult(
+                            value=None,
+                            evidence=SourceLocation(type="text", page=0),
+                            strategy_used=plan.strategy,
+                            confidence_prior=0.0,
+                            error=str(exc),
+                        )
+                        agreements[full_field.name] = None
+
+                # --- COMPUTED: depends on earlier results, keep individual ---
+                for full_field, plan in computed_fields:
+                    try:
+                        result = self._execute_computed(plan, extracted)
+                        extracted[full_field.name] = result
+                        agreements[full_field.name] = None
+                    except Exception as exc:
+                        log.error("extraction_failed", field=full_field.name, error=str(exc))
+                        errors.append(f"{full_field.name}: {exc}")
+                        extracted[full_field.name] = RawExtractionResult(
+                            value=None,
+                            evidence=SourceLocation(type="text", page=0),
+                            strategy_used=plan.strategy,
+                            confidence_prior=0.0,
+                            error=str(exc),
+                        )
+                        agreements[full_field.name] = None
 
         # Step 3: Run V4 numerical coherence on all extracted values
         field_tags: dict[str, FieldSemanticTag] = {}

@@ -216,7 +216,7 @@ export function useExtraction() {
   }
 
   async function pollForCompletion(): Promise<void> {
-    const maxAttempts = 150
+    const maxAttempts = 900  // 30 minutes (900 × 2s)
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise(resolve => setTimeout(resolve, 2000))
       try {

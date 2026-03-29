@@ -10,6 +10,8 @@ one of four strategies:
 """
 from __future__ import annotations
 
+from collections import defaultdict
+
 import structlog
 
 from metascreener.core.enums import FieldRole
@@ -118,42 +120,93 @@ class FieldRouter:
 
         phases: list[ExtractionPhase] = []
         for phase_id in present_phases:
-            field_schemas = self._routing_plans_to_field_schemas(buckets[phase_id])
-
-            # Collect relevant source hints for the group context
-            relevant_sections = list(
-                {
-                    rp.source_hint.section_name
-                    for rp in buckets[phase_id]
-                    if rp.source_hint.section_name
-                }
-            )
-            relevant_tables = list(
-                {
-                    rp.source_hint.table_id
-                    for rp in buckets[phase_id]
-                    if rp.source_hint.table_id
-                }
-            )
-
-            group_type = {0: "baseline", 1: "outcome", 2: "computed"}[phase_id]
-            field_group = FieldGroup(
-                fields=field_schemas,
-                relevant_sections=relevant_sections,
-                relevant_tables=relevant_tables,
-                group_type=group_type,
-            )
-
-            # Each phase depends on all earlier present phases
             depends_on = [pid for pid in present_phases if pid < phase_id]
 
-            phases.append(
-                ExtractionPhase(
-                    phase_id=phase_id,
-                    field_groups=[field_group],
-                    depends_on=depends_on,
+            if phase_id == 0:
+                # Phase 0: all table fields in one group
+                field_schemas = self._routing_plans_to_field_schemas(buckets[0])
+                relevant_tables = list(
+                    {rp.source_hint.table_id for rp in buckets[0] if rp.source_hint.table_id}
                 )
-            )
+                field_group = FieldGroup(
+                    fields=field_schemas,
+                    relevant_sections=[],
+                    relevant_tables=relevant_tables,
+                    group_type="baseline",
+                )
+                phases.append(
+                    ExtractionPhase(
+                        phase_id=phase_id,
+                        field_groups=[field_group],
+                        depends_on=depends_on,
+                    )
+                )
+
+            elif phase_id == 1:
+                # Phase 1: group LLM_TEXT fields by section for efficient batching;
+                # VLM_FIGURE fields each get their own group (different image per field).
+                llm_plans = [rp for rp in buckets[1] if rp.strategy == ExtractionStrategy.LLM_TEXT]
+                vlm_plans = [rp for rp in buckets[1] if rp.strategy == ExtractionStrategy.VLM_FIGURE]
+
+                groups: list[FieldGroup] = []
+
+                # Group LLM_TEXT fields by their target section
+                by_section: defaultdict[str, list[FieldRoutingPlan]] = defaultdict(list)
+                for rp in llm_plans:
+                    section_key = rp.source_hint.section_name or "__all__"
+                    by_section[section_key].append(rp)
+
+                for section_key, section_plans in by_section.items():
+                    field_schemas = self._routing_plans_to_field_schemas(section_plans)
+                    relevant_sections = (
+                        [section_key] if section_key != "__all__" else []
+                    )
+                    groups.append(
+                        FieldGroup(
+                            fields=field_schemas,
+                            relevant_sections=relevant_sections,
+                            relevant_tables=[],
+                            group_type="outcome",
+                        )
+                    )
+
+                # VLM fields — one group per field (different figure/image each)
+                for rp in vlm_plans:
+                    field_schemas = self._routing_plans_to_field_schemas([rp])
+                    groups.append(
+                        FieldGroup(
+                            fields=field_schemas,
+                            relevant_sections=[],
+                            relevant_tables=[],
+                            group_type="outcome",
+                        )
+                    )
+
+                if groups:
+                    phases.append(
+                        ExtractionPhase(
+                            phase_id=phase_id,
+                            field_groups=groups,
+                            depends_on=depends_on,
+                        )
+                    )
+
+            else:
+                # Phase 2: computed fields in one group
+                field_schemas = self._routing_plans_to_field_schemas(buckets[2])
+                field_group = FieldGroup(
+                    fields=field_schemas,
+                    relevant_sections=[],
+                    relevant_tables=[],
+                    group_type="computed",
+                )
+                phases.append(
+                    ExtractionPhase(
+                        phase_id=phase_id,
+                        field_groups=[field_group],
+                        depends_on=depends_on,
+                    )
+                )
 
         return ExtractionPlan(phases=phases)
 
