@@ -1,5 +1,5 @@
 <template>
-  <div v-if="results.length > 0" class="glass-card" style="margin-top: 1rem;">
+  <div v-if="results.length > 0" class="glass-card fade-in" style="margin-top: 1rem;">
     <div class="section-title"><i class="fas fa-chart-pie"></i> Extraction Summary</div>
 
     <!-- Summary stats row -->
@@ -116,6 +116,15 @@ const pdfHealthScores = computed(() => {
 </script>
 
 <style scoped>
+.fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .stats-row {
   display: flex;
   gap: 0.5rem;

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="sheets.length > 0" class="schema-preview">
+  <div v-if="sheets.length > 0" class="schema-preview fade-in">
     <div v-for="sheet in localSheets" :key="sheet.name" class="schema-sheet">
       <div class="schema-sheet-header" @click="sheet.expanded = !sheet.expanded">
         <i :class="['fas', sheet.expanded ? 'fa-chevron-down' : 'fa-chevron-right']"></i>
@@ -70,6 +70,15 @@ watch(
 </script>
 
 <style scoped>
+.fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .schema-preview {
   margin-top: 0.75rem;
 }
