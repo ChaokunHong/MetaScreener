@@ -39,10 +39,6 @@ class PilotSearcher:
         self._api_key = ncbi_api_key
         self._client = _client
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
     def build_pubmed_query(
         self,
         criteria: ReviewCriteria,
@@ -152,7 +148,6 @@ class PilotSearcher:
         client = self._client or httpx.AsyncClient(timeout=30.0)
 
         try:
-            # --- esearch ---
             esearch_params: dict[str, Any] = {
                 "db": "pubmed",
                 "term": query,
@@ -176,7 +171,6 @@ class PilotSearcher:
             articles: list[PubMedArticle] = []
 
             if pmids:
-                # --- efetch ---
                 efetch_params: dict[str, Any] = {
                     "db": "pubmed",
                     "id": ",".join(pmids),
@@ -202,10 +196,6 @@ class PilotSearcher:
         finally:
             if self._client is None:
                 await client.aclose()
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     def _parse_pubmed_xml(self, xml_text: str) -> list[PubMedArticle]:
         """Parse PubMed efetch XML and extract article metadata.

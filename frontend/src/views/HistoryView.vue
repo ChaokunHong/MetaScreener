@@ -3,15 +3,12 @@
     <h1 class="page-title" style="margin-bottom: 0.25rem;">History</h1>
     <p class="text-muted" style="margin-bottom: 1.5rem;">Browse past sessions by module.</p>
 
-    <!-- Loading -->
     <div v-if="loading" class="glass-card" style="text-align: center; padding: 3rem;">
       <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; color: var(--primary-purple);"></i>
     </div>
 
-    <!-- Module Sections -->
     <template v-else>
       <div v-for="mod in modules" :key="mod.key" class="glass-card" style="margin-bottom: 1rem;">
-        <!-- Section Header (clickable) -->
         <div class="history-section-header" @click="toggleModule(mod.key)">
           <div class="history-section-left">
             <span :class="'history-module-badge history-module-badge--' + mod.key">
@@ -23,7 +20,6 @@
           <i class="fas history-section-chevron" :class="expandedModule === mod.key ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
         </div>
 
-        <!-- Items (collapsible) -->
         <div v-show="expandedModule === mod.key" class="history-section-body">
           <div v-if="moduleItems[mod.key]?.length" style="display:flex;justify-content:flex-end;margin-bottom:0.5rem;">
             <button class="btn btn-danger btn-sm" @click="confirmClearModule(mod)">
@@ -36,7 +32,6 @@
           <div v-else class="history-item-list">
             <div v-for="item in moduleItems[mod.key]" :key="item.id" class="history-item-row">
               <div class="history-item-info">
-                <!-- Inline rename -->
                 <template v-if="renamingId === item.id">
                   <input
                     v-model="renameValue"
@@ -71,7 +66,6 @@
       </div>
     </template>
 
-    <!-- Delete confirmation modal (single item) -->
     <Teleport to="body">
       <div v-if="deleteTarget" class="modal-overlay" @click.self="deleteTarget = null">
         <div class="modal-glass">
@@ -98,7 +92,6 @@
       </div>
     </Teleport>
 
-    <!-- Clear module confirmation modal -->
     <Teleport to="body">
       <div v-if="clearModuleTarget" class="modal-overlay" @click.self="clearModuleTarget = null">
         <div class="modal-glass">
@@ -157,12 +150,10 @@ const loading = ref(true)
 const allItems = ref<HistoryItem[]>([])
 const expandedModule = ref('')
 
-// Rename
 const renamingId = ref('')
 const renameValue = ref('')
 const renameInput = ref<HTMLInputElement[] | null>(null)
 
-// Delete
 const deleteTarget = ref<HistoryItem | null>(null)
 const clearModuleTarget = ref<{ key: string; label: string } | null>(null)
 const deleting = ref(false)
@@ -255,7 +246,6 @@ async function doLoad(item: HistoryItem) {
   }
 
   if (item.module === 'screening') {
-    // Load screening results and navigate to appropriate view
     try {
       const full = await apiGet<{ data: { stage?: string; results?: unknown[] } }>(`/history/${item.module}/${item.id}`)
       const stage = full.data?.stage === 'ft' ? 'ft' : 'ta'
@@ -268,7 +258,6 @@ async function doLoad(item: HistoryItem) {
     return
   }
 
-  // For other modules
   const routes: Record<string, string> = {
     evaluation: '/evaluation',
     extraction: '/extraction',

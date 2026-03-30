@@ -52,10 +52,6 @@ class Arbitrator:
         response = await backend.complete(prompt, seed=42)
         return self._parse_response(response, value_a, value_b)
 
-    # ------------------------------------------------------------------
-    # Prompt construction
-    # ------------------------------------------------------------------
-
     def _build_prompt(
         self,
         field_name: str,
@@ -113,10 +109,6 @@ class Arbitrator:
             }}
         """).strip()
 
-    # ------------------------------------------------------------------
-    # Response parsing
-    # ------------------------------------------------------------------
-
     def _parse_response(
         self, response: str, value_a: Any, value_b: Any
     ) -> ArbitrationResult:
@@ -162,12 +154,6 @@ class Arbitrator:
                 reasoning="Parse failed, defaulting to A",
                 evidence_sentence=None,
             )
-
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
 
 def _extract_json(text: str) -> dict:
     """Extract and parse the first JSON object found in a string.

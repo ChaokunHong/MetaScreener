@@ -1,4 +1,3 @@
-<!-- frontend/src/views/ExtractionV2View.vue -->
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { apiGet, apiPost, apiPut, apiUpload } from '@/api'
@@ -76,31 +75,25 @@ const loading = ref(false)
 const activeModal = ref<string | null>(null)
 const error = ref<string | null>(null)
 
-// Step 1: Template
 const templateFile = ref<File | null>(null)
 const templateResponse = ref<TemplateResponse | null>(null)
 
-// Step 2: Schema
 const schemaSheets = ref<SchemaSheet[]>([])
 const pluginRecommendation = ref<string | null>(null)
 const selectedPlugin = ref<string | null>(null)
 const availablePlugins = ref<PluginInfo[]>([])
 
-// Step 3: PDFs
 const pdfFiles = ref<File[]>([])
 const uploadedPdfCount = ref(0)
 
-// Step 4: Progress
 const extractionRunning = ref(false)
 const progressMessages = ref<string[]>([])
 
-// Step 5: Results
 const results = ref<PdfResultData[]>([])
 const selectedPdfIndex = ref(0)
 const selectedSheet = ref<string>('')
 const selectedCell = ref<{ row: number; field: string } | null>(null)
 
-// Step 6: Export
 const exportUrl = ref<string | null>(null)
 
 /* ───── computed ───── */
@@ -143,10 +136,8 @@ async function uploadTemplate() {
     pluginRecommendation.value = resp.plugin_recommendation
     selectedPlugin.value = resp.plugin_recommendation
 
-    // Load plugins
     availablePlugins.value = await apiGet<PluginInfo[]>('/v2/extraction/plugins')
 
-    // Load schema details
     // For now we use the template response info
     currentStep.value = 2
   } catch (e: unknown) {
@@ -222,7 +213,6 @@ async function runExtraction() {
 
     progressMessages.value.push(`Completed: ${runResp.completed}/${runResp.completed + runResp.failed} PDFs`)
 
-    // Load results
     const resp = await apiGet<{ results: Record<string, PdfResultData> }>(
       `/v2/extraction/sessions/${sessionId.value}/results`
     )
@@ -287,7 +277,6 @@ void schemaSheets
 
 <template>
   <div class="extraction-v2">
-    <!-- Step indicator — horizontal stepper -->
     <div class="stepper">
       <div v-for="(label, i) in ['Template', 'Schema', 'PDFs', 'Extract', 'Review', 'Export']"
            :key="i" class="stepper-item" :class="{ active: currentStep === i + 1, done: currentStep > i + 1 }">
@@ -300,13 +289,11 @@ void schemaSheets
       </div>
     </div>
 
-    <!-- Error alert -->
     <div v-if="error" class="alert alert-error">
       <i class="fas fa-exclamation-circle"></i> {{ error }}
       <button class="btn-close" @click="error = null">&times;</button>
     </div>
 
-    <!-- Step 1: Upload Template -->
     <div v-if="currentStep === 1" class="glass-card step-card">
       <h2 class="section-title"><i class="fas fa-file-excel"></i> Upload Excel Template</h2>
       <p class="text-muted">Upload your data extraction template (.xlsx). The system will analyze its structure automatically.</p>
@@ -328,7 +315,6 @@ void schemaSheets
         </div>
       </div>
 
-      <!-- Glass progress bar -->
       <div v-if="loading" class="glass-progress">
         <div class="glass-progress-track">
           <div class="glass-progress-fill"></div>
@@ -343,7 +329,6 @@ void schemaSheets
       </button>
     </div>
 
-    <!-- Step 2: Confirm Schema -->
     <div v-if="currentStep === 2" class="glass-card step-card">
       <h2 class="section-title">
         <i class="fas fa-project-diagram"></i> Template Analysis
@@ -414,7 +399,6 @@ void schemaSheets
       </button>
     </div>
 
-    <!-- Step 3: Upload PDFs -->
     <div v-if="currentStep === 3" class="glass-card step-card">
       <h2 class="section-title"><i class="fas fa-file-pdf"></i> Upload PDF Literature</h2>
       <p class="text-muted">Upload the PDF files you want to extract data from.</p>
@@ -443,7 +427,6 @@ void schemaSheets
       </button>
     </div>
 
-    <!-- Step 4: Extraction Progress -->
     <div v-if="currentStep === 4" class="glass-card step-card">
       <h2 class="section-title"><i class="fas fa-cogs"></i> Data Extraction</h2>
       <p class="text-muted">{{ uploadedPdfCount }} PDF(s) ready. Dual-model extraction with HCN 4-layer quality control.</p>
@@ -469,14 +452,12 @@ void schemaSheets
       </div>
 
       <div v-if="extractionRunning" class="progress-area">
-        <!-- Glass progress bar -->
         <div class="glass-progress" style="margin-bottom: 1.5rem;">
           <div class="glass-progress-track">
             <div class="glass-progress-fill"></div>
           </div>
         </div>
 
-        <!-- Log window -->
         <div class="log-window" ref="logWindow">
           <div v-for="(msg, i) in progressMessages" :key="i" class="log-line">
             <span class="log-time">{{ new Date().toLocaleTimeString() }}</span>
@@ -490,9 +471,7 @@ void schemaSheets
       </div>
     </div>
 
-    <!-- Step 5: Review & Edit -->
     <div v-if="currentStep === 5" class="review-step">
-      <!-- Top bar: PDF selector + sheet tabs -->
       <div class="review-toolbar glass-card">
         <div class="review-toolbar-left">
           <select v-if="results.length > 1" v-model="selectedPdfIndex" class="form-control pdf-select">
@@ -513,9 +492,7 @@ void schemaSheets
         </div>
       </div>
 
-      <!-- Main content: table + detail panel side by side -->
       <div class="review-body">
-        <!-- Table area -->
         <div class="review-table-area" :class="{ 'has-detail': selectedCell }">
           <div v-if="currentSheetData" class="table-scroll">
             <table class="review-table">
@@ -551,7 +528,6 @@ void schemaSheets
           </div>
         </div>
 
-        <!-- Detail panel (right side) -->
         <Transition name="slide">
           <div v-if="selectedCell && currentSheetData && currentSheetData.rows[selectedCell.row]?.fields[selectedCell.field]"
                class="detail-panel glass-card">
@@ -596,7 +572,6 @@ void schemaSheets
         </Transition>
       </div>
 
-      <!-- Bottom bar -->
       <div class="review-footer glass-card">
         <div class="review-stats">
           <span v-if="currentSheetData">{{ currentSheetData.rows.length }} rows</span>
@@ -608,7 +583,6 @@ void schemaSheets
       </div>
     </div>
 
-    <!-- Step 6: Export -->
     <div v-if="currentStep === 6" class="glass-card step-card">
       <h2 class="section-title"><i class="fas fa-file-export"></i> Export Results</h2>
       <p class="text-muted">Download your extraction results as an Excel file with audit log.</p>
@@ -624,7 +598,6 @@ void schemaSheets
       </div>
     </div>
 
-    <!-- Info Modals -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="activeModal" class="modal-overlay" @click.self="activeModal = null">
@@ -634,7 +607,6 @@ void schemaSheets
               <i class="fas fa-times"></i>
             </button>
 
-            <!-- Schema Analysis -->
             <template v-if="activeModal === 'schema'">
               <div class="modal-header-row">
                 <div class="modal-icon-wrap modal-icon-cyan"><i class="fas fa-project-diagram"></i></div>
@@ -656,7 +628,6 @@ void schemaSheets
               </div>
             </template>
 
-            <!-- Sheet Detection -->
             <template v-if="activeModal === 'sheets'">
               <div class="modal-header-row">
                 <div class="modal-icon-wrap modal-icon-purple"><i class="fas fa-layer-group"></i></div>
@@ -678,7 +649,6 @@ void schemaSheets
               </div>
             </template>
 
-            <!-- Mapping Tables -->
             <template v-if="activeModal === 'mappings'">
               <div class="modal-header-row">
                 <div class="modal-icon-wrap modal-icon-purple"><i class="fas fa-exchange-alt"></i></div>
@@ -696,7 +666,6 @@ void schemaSheets
               </div>
             </template>
 
-            <!-- Plugin -->
             <template v-if="activeModal === 'plugin'">
               <div class="modal-header-row">
                 <div class="modal-icon-wrap modal-icon-cyan"><i class="fas fa-plug"></i></div>

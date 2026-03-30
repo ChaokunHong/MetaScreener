@@ -6,10 +6,6 @@ These constants are kept in a separate module so
 """
 from __future__ import annotations
 
-# ------------------------------------------------------------------
-# Computable field keyword → formula mapping
-# ------------------------------------------------------------------
-
 # Multi-word keywords use substring containment; single-word abbreviations
 # use whole-word matching (surrounded by word boundaries or string edges).
 COMPUTABLE_MAP: dict[str, str] = {

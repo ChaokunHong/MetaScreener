@@ -51,10 +51,6 @@ class EnhancedRuleValidator:
                 results += rule_fn(field, value)
         return results
 
-    # ------------------------------------------------------------------
-    # Private rule checkers
-    # ------------------------------------------------------------------
-
     def _check_required(self, field: FieldSchema, value: Any) -> list[RuleResult]:
         """Error if required field has no value."""
         if not field.required:
@@ -193,12 +189,6 @@ class EnhancedRuleValidator:
                 )
 
         return results
-
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
 
 def _infer_semantic_tag(field: FieldSchema) -> FieldSemanticTag | None:
     """Infer a FieldSemanticTag from the field name when no explicit tag exists.

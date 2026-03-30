@@ -25,7 +25,6 @@ logger = structlog.get_logger(__name__)
 # Confidence assigned when value is read from pre-extracted figure data.
 _CONFIDENCE_PRIOR = 0.80
 
-
 def _make_error_result(msg: str, panel_label: str | None = None) -> RawExtractionResult:
     """Return a failed RawExtractionResult for the VLM_FIGURE strategy."""
     return RawExtractionResult(
@@ -40,7 +39,6 @@ def _make_error_result(msg: str, panel_label: str | None = None) -> RawExtractio
         model_id=None,
         error=msg,
     )
-
 
 class FigureReader:
     """Extract values from figures using pre-extracted data.
@@ -81,14 +79,12 @@ class FigureReader:
             :class:`RawExtractionResult` with the found value, or
             ``value=None`` and a descriptive ``error`` on failure.
         """
-        # --- Validate hint ---
         if not hint.figure_id:
             return _make_error_result(
                 "SourceHint.figure_id is required for VLM_FIGURE",
                 panel_label=hint.panel_label,
             )
 
-        # --- Locate figure ---
         figure = doc.get_figure(hint.figure_id)
         if figure is None:
             logger.debug("figure_not_found", figure_id=hint.figure_id)
@@ -97,7 +93,6 @@ class FigureReader:
                 panel_label=hint.panel_label,
             )
 
-        # --- Resolve which extracted_data dict to use ---
         target_data: dict[str, object] | None = None
 
         if hint.panel_label and figure.sub_figures:
@@ -127,7 +122,6 @@ class FigureReader:
                 panel_label=hint.panel_label,
             )
 
-        # --- Key lookup: exact then case-insensitive ---
         value = target_data.get(field_name)
         if value is None:
             needle = field_name.lower()

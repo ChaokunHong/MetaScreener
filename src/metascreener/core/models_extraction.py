@@ -128,11 +128,6 @@ class CellValue(BaseModel):
     edit_history: list[EditRecord] = Field(default_factory=list)
 
 
-# ---------------------------------------------------------------------------
-# Sheet and session result models (output of extraction engine)
-# ---------------------------------------------------------------------------
-
-
 class RowResult(BaseModel):
     """Extraction result for a single row (one entry in a sheet)."""
 

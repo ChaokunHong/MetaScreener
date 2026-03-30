@@ -77,12 +77,6 @@ class SourceCoherenceValidator:
 
         return ValidationResult(passed=True)
 
-
-# ---------------------------------------------------------------------------
-# Helper functions
-# ---------------------------------------------------------------------------
-
-
 def _token_overlap_ratio(a: str, b: str) -> float:
     """Compute the Jaccard-style token overlap ratio between two strings.
 
@@ -103,7 +97,6 @@ def _token_overlap_ratio(a: str, b: str) -> float:
     union = tokens_a | tokens_b
     intersection = tokens_a & tokens_b
     return len(intersection) / len(union)
-
 
 def _locate_sentence_in_doc(sentence: str, doc: StructuredDocument) -> bool:
     """Check whether a sentence exists within the document text.
@@ -143,7 +136,6 @@ def _locate_sentence_in_doc(sentence: str, doc: StructuredDocument) -> bool:
 
     return False
 
-
 def _value_present_in_text(value: Any, text: str) -> bool:
     """Determine whether a value is present within a text string.
 
@@ -179,7 +171,6 @@ def _value_present_in_text(value: Any, text: str) -> bool:
 
     # Fallback: string representation
     return str(value).lower() in text.lower()
-
 
 def _extract_all_numbers(text: str) -> list[float]:
     """Extract all numeric values from a text string.

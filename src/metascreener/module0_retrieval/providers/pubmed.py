@@ -34,10 +34,6 @@ class PubMedProvider(SearchProvider):
         self._api_key = ncbi_api_key
         self._client = _client
 
-    # ------------------------------------------------------------------
-    # SearchProvider interface
-    # ------------------------------------------------------------------
-
     @property
     def name(self) -> str:
         """Provider name."""
@@ -81,10 +77,6 @@ class PubMedProvider(SearchProvider):
         if not ids:
             return []
         return await self._efetch(ids)
-
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
 
     async def _esearch(self, query_str: str, max_results: int) -> list[str]:
         """Call esearch and return a list of PMIDs."""
@@ -153,23 +145,29 @@ class PubMedProvider(SearchProvider):
                 records.append(record)
         return records
 
+    @staticmethod
+    def _elem_text(el: ET.Element | None) -> str:
+        """Extract full text from an element, including child tags like <i>, <b>, <sub>."""
+        if el is None:
+            return ""
+        return "".join(el.itertext()).strip()
+
     def _parse_article(self, el: ET.Element) -> RawRecord | None:
         """Extract fields from a single ``<PubmedArticle>`` element."""
         pmid_el = el.find(".//PMID")
         pmid = pmid_el.text.strip() if pmid_el is not None and pmid_el.text else None
 
-        title_el = el.find(".//ArticleTitle")
-        title = (title_el.text or "").strip() if title_el is not None else ""
+        title = self._elem_text(el.find(".//ArticleTitle"))
         if not title:
             log.warning("pubmed.missing_title", pmid=pmid)
             return None
 
-        # Abstract: concatenate all AbstractText nodes
+        # Abstract: concatenate all AbstractText nodes (itertext handles inline markup)
         abstract_parts = [
-            (node.text or "").strip()
+            self._elem_text(node)
             for node in el.findall(".//Abstract/AbstractText")
-            if node.text
         ]
+        abstract_parts = [p for p in abstract_parts if p]
         abstract = " ".join(abstract_parts) or None
 
         # Authors

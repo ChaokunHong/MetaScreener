@@ -24,7 +24,6 @@ class Tier(IntEnum):
     THREE = 3  # No consensus → HUMAN_REVIEW
 
 
-
 class StudyType(StrEnum):
     """Study design classification."""
 

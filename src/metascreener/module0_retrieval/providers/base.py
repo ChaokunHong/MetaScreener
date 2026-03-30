@@ -1,9 +1,12 @@
 """Abstract base class for bibliographic database search providers."""
 from __future__ import annotations
+
 import asyncio
 import time
 from abc import ABC, abstractmethod
+
 from pydantic import BaseModel
+
 from metascreener.module0_retrieval.models import BooleanQuery, RawRecord
 
 

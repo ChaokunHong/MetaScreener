@@ -28,10 +28,6 @@ class EuropePMCProvider(SearchProvider):
     def __init__(self, _client: Any | None = None) -> None:
         self._client = _client
 
-    # ------------------------------------------------------------------
-    # SearchProvider interface
-    # ------------------------------------------------------------------
-
     @property
     def name(self) -> str:
         """Provider name."""
@@ -73,14 +69,10 @@ class EuropePMCProvider(SearchProvider):
         id_query = " OR ".join(f"EXT_ID:{pid}" for pid in ids)
         return await self._paginate(id_query, len(ids))
 
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
-
     async def _paginate(self, query_str: str, max_results: int) -> list[RawRecord]:
         records: list[RawRecord] = []
         cursor_mark = "*"
-        client = self._client or httpx.AsyncClient()
+        client = self._client or httpx.AsyncClient(timeout=60.0)
         while len(records) < max_results:
             params: dict[str, Any] = {
                 "query": query_str,

@@ -26,9 +26,6 @@ def _get_service():
     return _core._get_service()
 
 
-# --- Schema endpoints ---
-
-
 @router.get("/sessions/{session_id}/schema")
 async def get_schema(session_id: str) -> dict:
     """Return the saved schema JSON for a session.
@@ -83,7 +80,145 @@ async def update_schema(session_id: str, body: SchemaUpdateRequest) -> dict:
     return {"status": "updated"}
 
 
-# --- PDF file serving ---
+class FieldPatch(BaseModel):
+    """Patch for a single field within a sheet."""
+
+    role: str | None = None
+    required: bool | None = None
+    description: str | None = None
+    field_type: str | None = None
+    semantic_tag: str | None = None
+    dropdown_options: list[str] | None = None
+
+
+class SheetPatch(BaseModel):
+    """Patch for a single sheet's properties and/or its fields."""
+
+    cardinality: str | None = None
+    extraction_order: int | None = None
+    fields: dict[str, FieldPatch] | None = None
+
+
+class SchemaPatchRequest(BaseModel):
+    """Request body for PATCH /schema — partial schema updates.
+
+    Keys in ``sheets`` are sheet names. Only sheets/fields present
+    in the patch are modified; everything else is preserved.
+    """
+
+    sheets: dict[str, SheetPatch]
+
+
+@router.patch("/sessions/{session_id}/schema")
+async def patch_schema(session_id: str, body: SchemaPatchRequest) -> dict:
+    """Apply granular edits to a session's schema.
+
+    Allows updating sheet cardinality, extraction_order, and individual
+    field properties (role, required, description, field_type, semantic_tag,
+    dropdown_options) without replacing the entire schema.
+
+    Args:
+        session_id: The target session.
+        body: Partial schema updates keyed by sheet name and field name.
+
+    Returns:
+        Dict with ``status`` and updated ``sheets`` summary.
+
+    Raises:
+        HTTPException: 404 if session or schema not found.
+        HTTPException: 400 if a referenced sheet or field does not exist.
+    """
+    from metascreener.core.enums import FieldRole, SheetCardinality
+    from metascreener.core.models_extraction import ExtractionSchema
+
+    service = _get_service()
+    schema_json = await service.get_schema_json(session_id)
+    if schema_json is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No schema found for session {session_id}",
+        )
+
+    schema = ExtractionSchema.model_validate_json(schema_json)
+
+    # Build lookup for efficient sheet access
+    sheet_map = {s.sheet_name: s for s in schema.sheets}
+
+    for sheet_name, sheet_patch in body.sheets.items():
+        sheet = sheet_map.get(sheet_name)
+        if sheet is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Sheet '{sheet_name}' not found in schema",
+            )
+
+        # Patch sheet-level properties
+        if sheet_patch.cardinality is not None:
+            try:
+                sheet.cardinality = SheetCardinality(sheet_patch.cardinality)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid cardinality: '{sheet_patch.cardinality}'. "
+                    f"Must be one of: {[e.value for e in SheetCardinality]}",
+                )
+
+        if sheet_patch.extraction_order is not None:
+            sheet.extraction_order = sheet_patch.extraction_order
+
+        # Patch individual fields
+        if sheet_patch.fields:
+            field_map = {f.name: f for f in sheet.fields}
+            for field_name, field_patch in sheet_patch.fields.items():
+                field = field_map.get(field_name)
+                if field is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Field '{field_name}' not found in sheet '{sheet_name}'",
+                    )
+
+                if field_patch.role is not None:
+                    try:
+                        field.role = FieldRole(field_patch.role)
+                    except ValueError:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Invalid role: '{field_patch.role}'. "
+                            f"Must be one of: {[e.value for e in FieldRole]}",
+                        )
+
+                if field_patch.required is not None:
+                    field.required = field_patch.required
+
+                if field_patch.description is not None:
+                    field.description = field_patch.description
+
+                if field_patch.field_type is not None:
+                    field.field_type = field_patch.field_type
+
+                if field_patch.semantic_tag is not None:
+                    field.semantic_tag = field_patch.semantic_tag
+
+                if field_patch.dropdown_options is not None:
+                    field.dropdown_options = field_patch.dropdown_options
+
+    # Persist the updated schema
+    updated_json = schema.model_dump_json()
+    await service.save_schema_json(session_id, updated_json)
+
+    log.info(
+        "schema_patched",
+        session_id=session_id,
+        patched_sheets=list(body.sheets.keys()),
+    )
+
+    return {
+        "status": "updated",
+        "sheets": [
+            {"name": s.sheet_name, "fields": len(s.fields), "cardinality": s.cardinality.value}
+            for s in schema.sheets
+        ],
+    }
 
 
 @router.get("/sessions/{session_id}/pdfs/{pdf_id}/file")
@@ -111,9 +246,6 @@ async def get_pdf_file(session_id: str, pdf_id: str) -> FileResponse:
     return FileResponse(str(pdf_path), media_type="application/pdf")
 
 
-# --- PDF removal ---
-
-
 @router.delete("/sessions/{session_id}/pdfs/{pdf_id}")
 async def delete_pdf(session_id: str, pdf_id: str) -> dict:
     """Remove a PDF and its extraction cells from a session.
@@ -128,9 +260,6 @@ async def delete_pdf(session_id: str, pdf_id: str) -> dict:
     service = _get_service()
     await service.remove_pdf(session_id, pdf_id)
     return {"status": "deleted"}
-
-
-# --- Evidence lookup ---
 
 
 @router.get("/sessions/{session_id}/results/{pdf_id}/evidence/{field_name}")
@@ -160,9 +289,6 @@ async def get_field_evidence(
     return evidence
 
 
-# --- Cross-paper validation ---
-
-
 @router.post("/sessions/{session_id}/validate/cross-paper")
 async def validate_cross_paper(session_id: str) -> dict:
     """Trigger cross-paper outlier detection on all extracted values.
@@ -183,9 +309,6 @@ async def validate_cross_paper(session_id: str) -> dict:
 
     alerts = await service.run_cross_paper_validation(session_id)
     return {"alerts": alerts}
-
-
-# --- Alerts ---
 
 
 @router.get("/sessions/{session_id}/alerts")
@@ -210,37 +333,50 @@ async def get_alerts(session_id: str) -> dict:
     return {"alerts": alerts}
 
 
-# --- Download ---
-
-
 @router.get("/sessions/{session_id}/download")
-async def download_export(session_id: str) -> FileResponse:
-    """Download the latest export file for a session.
+async def download_export(session_id: str, filename: str | None = None) -> FileResponse:
+    """Download an export file for a session.
+
+    When *filename* is provided, downloads that specific file. Otherwise
+    falls back to the most recently modified export file.
 
     Args:
         session_id: The session whose export to download.
+        filename: Optional specific export filename (e.g. ``"export_excel.xlsx"``).
 
     Returns:
-        The most recently modified export file as a download.
+        The export file as a download.
 
     Raises:
         HTTPException: 404 if no export file has been generated yet.
     """
+    from pathlib import Path
+
     service = _get_service()
-    export_path = await service.get_latest_export_path(session_id)
-    if export_path is None or not export_path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"No export file found for session {session_id}. Run /export first.",
-        )
+    session_dir = service._data_dir / session_id
+
+    if filename:
+        # Prevent path traversal
+        safe_name = Path(filename).name
+        export_path = session_dir / safe_name
+        if not export_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail=f"Export file '{safe_name}' not found for session {session_id}.",
+            )
+    else:
+        export_path = await service.get_latest_export_path(session_id)
+        if export_path is None or not export_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail=f"No export file found for session {session_id}. Run /export first.",
+            )
+
     return FileResponse(
         path=str(export_path),
         filename=export_path.name,
         media_type="application/octet-stream",
     )
-
-
-# --- Plugins ---
 
 
 @router.get("/plugins")

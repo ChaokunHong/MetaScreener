@@ -18,9 +18,6 @@ from metascreener.module2_extraction.models import (
 )
 from metascreener.module2_extraction.validation.models import AgreementResult
 
-# ---------------------------------------------------------------------------
-# Confidence priors for LLM extraction outcomes
-# ---------------------------------------------------------------------------
 #: Both models agree — strong signal.
 _CONFIDENCE_AGREE: float = 0.90
 #: Models disagree but arbitration resolved the conflict.
@@ -29,7 +26,6 @@ _CONFIDENCE_ARBITRATED: float = 0.70
 _CONFIDENCE_DISAGREE: float = 0.50
 #: Only one model succeeded — single-model result.
 _CONFIDENCE_SINGLE: float = 0.60
-
 
 async def execute_llm_text(
     plan: Any,
@@ -155,7 +151,6 @@ async def execute_llm_text(
 
     # Both failed — return model A's (failed) result, no agreement
     return result_a, None
-
 
 def execute_computed(
     plan: Any,

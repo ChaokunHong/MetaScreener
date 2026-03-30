@@ -165,8 +165,6 @@ class RoBAssessor:
             assessed_at=datetime.now(UTC),
         )
 
-    # --- Private helpers ---
-
     async def _assess_all_chunks(
         self,
         chunks: list[str],

@@ -24,7 +24,6 @@ _FUZZY_THRESHOLD = 0.5
 # Confidence assigned to all DIRECT_TABLE results (high: structural, no LLM).
 _CONFIDENCE_PRIOR = 0.95
 
-
 def _make_error_result(error: str) -> RawExtractionResult:
     """Return a failed RawExtractionResult with a sentinel SourceLocation."""
     return RawExtractionResult(
@@ -36,17 +35,12 @@ def _make_error_result(error: str) -> RawExtractionResult:
         error=error,
     )
 
-
 class TableReader:
     """Extract values directly from StructuredDocument tables.
 
     Zero LLM calls — reads cell values by locating a table by ID and
     matching a column header via exact, substring, or fuzzy matching.
     """
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     def extract(
         self,
@@ -66,13 +60,11 @@ class TableReader:
             RawExtractionResult with the cell value, or value=None and
             a descriptive error message on failure.
         """
-        # --- Validate hint fields ---
         if not hint.table_id:
             return _make_error_result("SourceHint.table_id is required for DIRECT_TABLE")
         if not hint.table_column:
             return _make_error_result("SourceHint.table_column is required for DIRECT_TABLE")
 
-        # --- Locate table ---
         table = doc.get_table(hint.table_id)
         if table is None:
             logger.debug("table_not_found", table_id=hint.table_id)
@@ -80,7 +72,6 @@ class TableReader:
                 f"Table '{hint.table_id}' not found in document"
             )
 
-        # --- Match column ---
         col_idx = self._match_column(table, hint.table_column)
         if col_idx is None:
             logger.debug(
@@ -92,7 +83,6 @@ class TableReader:
                 f"Column '{hint.table_column}' not found in table '{hint.table_id}'"
             )
 
-        # --- Compute absolute row index (skip header rows) ---
         abs_row = table.header_rows + row_index
         if abs_row >= len(table.cells):
             logger.debug(
@@ -106,7 +96,6 @@ class TableReader:
                 f"(data rows: {len(table.cells) - table.header_rows})"
             )
 
-        # --- Read cell value ---
         row = table.cells[abs_row]
         if col_idx >= len(row):
             return _make_error_result(
@@ -180,10 +169,6 @@ class TableReader:
             self.extract(doc=doc, hint=hint, row_index=i)
             for i in range(data_row_count)
         ]
-
-    # ------------------------------------------------------------------
-    # Column matching (internal)
-    # ------------------------------------------------------------------
 
     def _match_column(self, table: Table, column_name: str) -> int | None:
         """Match *column_name* to a column index in *table*.

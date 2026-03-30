@@ -376,3 +376,24 @@ class CriteriaTemplate(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class TextQualityResult(BaseModel):
+    """Result of text quality assessment for full-text PDF input.
+
+    Attributes:
+        printable_ratio: Fraction of printable characters in [0.0, 1.0].
+        avg_word_length: Mean word length across all tokens.
+        sentence_ratio: Fraction of segments with sentence-ending punctuation.
+        quality_score: Weighted composite score in [0.0, 1.0].
+        passes_gate: Whether the text passes the quality gate.
+        is_marginal: Whether quality is borderline (proceed with reduced confidence).
+        details: Additional diagnostic information.
+    """
+
+    printable_ratio: float = Field(ge=0.0, le=1.0)
+    avg_word_length: float = Field(ge=0.0)
+    sentence_ratio: float = Field(ge=0.0, le=1.0)
+    quality_score: float = Field(ge=0.0, le=1.0)
+    passes_gate: bool = True
+    is_marginal: bool = False
+    details: dict[str, Any] = Field(default_factory=dict)
+

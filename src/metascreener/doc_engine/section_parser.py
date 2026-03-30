@@ -122,27 +122,20 @@ def parse_sections(markdown: str, total_pages: int = 0) -> list[Section]:
 
     doc_len = len(markdown)
 
-    # Find all heading positions
     heading_matches = list(_HEADING_RE.finditer(markdown))
 
     if not heading_matches:
-        # No headings → single "Untitled" section
         logger.debug("no_headings_found", length=doc_len)
         section = _make_section("Untitled", 1, markdown)
         if total_pages > 0:
             section.page_range = (1, total_pages)
         return [section]
 
-    # Build a flat list of (level, heading, content, heading_start) tuples
-    # heading_start is the character offset of the heading line, used for
-    # page estimation.
     flat: list[tuple[int, str, str, int]] = []
     for idx, match in enumerate(heading_matches):
         level = len(match.group(1))
         heading = match.group(2).strip()
         heading_start = match.start()
-
-        # Content: text between end of this heading line and start of next
         content_start = match.end()
         if idx + 1 < len(heading_matches):
             content_end = heading_matches[idx + 1].start()
@@ -154,18 +147,14 @@ def parse_sections(markdown: str, total_pages: int = 0) -> list[Section]:
 
     logger.debug("flat_sections_parsed", count=len(flat))
 
-    # Build nested tree using a stack
-    # Stack holds Section instances representing the current ancestor chain
     roots: list[Section] = []
     stack: list[Section] = []
 
     for idx, (level, heading, content, heading_start) in enumerate(flat):
         section = _make_section(heading, level, content)
 
-        # Estimate page_range when total_pages is known
         if total_pages > 0:
             start_page = _estimate_page(heading_start, doc_len, total_pages)
-            # End of this section is the start of the next heading (or end of doc)
             if idx + 1 < len(flat):
                 end_char = flat[idx + 1][3]
             else:
@@ -173,15 +162,12 @@ def parse_sections(markdown: str, total_pages: int = 0) -> list[Section]:
             end_page = _estimate_page(end_char, doc_len, total_pages)
             section.page_range = (start_page, max(start_page, end_page))
 
-        # Pop stack until we find a parent with lower level number
         while stack and stack[-1].level >= level:
             stack.pop()
 
         if stack:
-            # Append as child of the current stack top
             stack[-1].children.append(section)
         else:
-            # No parent → this is a root section
             roots.append(section)
 
         stack.append(section)

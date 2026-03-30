@@ -7,12 +7,11 @@ first-class cancellation support.
 from __future__ import annotations
 
 import asyncio
-from typing import Coroutine, Any
+from typing import Any, Coroutine
 
 import structlog
 
 log = structlog.get_logger(__name__)
-
 
 class ExtractionTaskManager:
     """Manage running extraction tasks with cancellation support.

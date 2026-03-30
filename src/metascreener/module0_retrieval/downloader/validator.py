@@ -87,10 +87,6 @@ class PDFValidator:
         # 5. Deep inspection via PyMuPDF (optional)
         return self._deep_validate(path)
 
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
-
     def _deep_validate(self, path: Path) -> ValidationResult:
         """Attempt deep validation with PyMuPDF.
 

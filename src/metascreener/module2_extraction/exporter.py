@@ -21,7 +21,6 @@ from metascreener.core.models_extraction import (
 
 log = structlog.get_logger()
 
-
 def export_to_excel(
     *,
     schema: ExtractionSchema,
@@ -83,7 +82,6 @@ def export_to_excel(
     log.info("excel_exported", path=str(output_path), sheets=len(schema.data_sheets),
              pdfs=len(results))
     return output_path
-
 
 def _write_log_sheet(
     wb: Any,

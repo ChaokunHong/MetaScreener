@@ -26,7 +26,6 @@ from metascreener.module2_extraction.export.effect_size_mapper import EffectSize
 
 log = structlog.get_logger()
 
-
 def export_to_r_meta(
     results: list[dict[str, str]],
     field_tags: dict[str, str],
@@ -69,12 +68,6 @@ def export_to_r_meta(
     log.info("r_meta_exported", path=str(output_path), pdf_count=len(by_pdf))
     return output_path
 
-
-# ---------------------------------------------------------------------------
-# Writers
-# ---------------------------------------------------------------------------
-
-
 def _write_dichotomous(
     by_pdf: dict[str, dict[str, str]],
     mapper: EffectSizeMapper,
@@ -97,7 +90,6 @@ def _write_dichotomous(
                 "ci":  str(d.events_c),
                 "n2i": str(d.total_c),
             })
-
 
 def _write_continuous(
     by_pdf: dict[str, dict[str, str]],
@@ -124,7 +116,6 @@ def _write_continuous(
                 "n2i":  str(c.n_c),
             })
 
-
 def _write_generic(
     by_pdf: dict[str, dict[str, str]],
     field_tags: dict[str, str],
@@ -141,12 +132,6 @@ def _write_generic(
             yi = pdf_data.get(effect_fields[0], "") if effect_fields else ""
             vi = pdf_data.get(var_fields[0], "")    if var_fields else ""
             writer.writerow({"study_id": study_id, "yi": yi, "vi": vi})
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 
 def _extract_study_id(pdf_data: dict[str, str], field_tags: dict[str, str]) -> str:
     for name, tag in field_tags.items():

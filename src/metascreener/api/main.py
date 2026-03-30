@@ -45,8 +45,8 @@ def create_app() -> FastAPI:
     from metascreener.api.routes.extraction_v3_extra import router as extraction_v3_extra_router
     from metascreener.api.routes.history import router as history_router
     from metascreener.api.routes.quality import router as quality_router
-    from metascreener.api.routes.screening import router as screening_router
     from metascreener.api.routes.retrieval import router as retrieval_router
+    from metascreener.api.routes.screening import router as screening_router
     from metascreener.api.routes.settings import router as settings_router
 
     app.include_router(retrieval_router)

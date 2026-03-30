@@ -41,7 +41,6 @@ def _parse_row_cells(line: str, *, is_header: bool) -> list[TableCell]:
     Returns:
         List of TableCell instances, one per column.
     """
-    # Strip outer pipes and split on inner pipes
     inner = line.strip().strip("|")
     parts = inner.split("|")
     return [TableCell(value=part.strip(), is_header=is_header) for part in parts]
@@ -76,16 +75,13 @@ def extract_tables_from_markdown(markdown: str) -> list[Table]:
     while i < len(lines):
         line = lines[i]
 
-        # Check if this line is a pipe row
         if _PIPE_ROW_RE.match(line.strip()):
-            # Collect the full table block
             table_lines: list[str] = []
             j = i
             while j < len(lines) and _PIPE_ROW_RE.match(lines[j].strip()):
                 table_lines.append(lines[j].strip())
                 j += 1
 
-            # Look back for a caption (up to 3 lines before the table)
             caption = ""
             for k in range(i - 1, max(i - 4, -1), -1):
                 m = _CAPTION_RE.search(lines[k])
@@ -93,7 +89,6 @@ def extract_tables_from_markdown(markdown: str) -> list[Table]:
                     caption = m.group(2).strip()
                     break
 
-            # Parse the table rows: skip separator rows, first valid = header
             cells: list[list[TableCell]] = []
             header_parsed = False
 
@@ -122,7 +117,6 @@ def extract_tables_from_markdown(markdown: str) -> list[Table]:
                 tables.append(table)
                 logger.debug("table_extracted", table_id=table_id, rows=len(cells))
 
-            # Advance past the consumed table
             i = j
         else:
             i += 1

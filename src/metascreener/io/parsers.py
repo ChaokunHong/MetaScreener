@@ -10,8 +10,6 @@ from metascreener.core.models import Record
 
 logger = structlog.get_logger(__name__)
 
-# ---------- RIS field mapping (rispy dict keys) ----------
-
 RIS_FIELD_MAP: dict[str, str] = {
     "type_of_reference": "_study_type",
     "title": "title",
@@ -30,8 +28,6 @@ RIS_FIELD_MAP: dict[str, str] = {
     "language": "language",
 }
 
-# ---------- BibTeX field mapping ----------
-
 BIBTEX_FIELD_MAP: dict[str, str] = {
     "title": "title",
     "abstract": "abstract",
@@ -43,8 +39,6 @@ BIBTEX_FIELD_MAP: dict[str, str] = {
     "language": "language",
     "pmid": "pmid",
 }
-
-# ---------- CSV fuzzy column matching ----------
 
 CSV_COLUMN_ALIASES: dict[str, list[str]] = {
     "title": ["title", "ti", "article_title", "article title"],

@@ -72,6 +72,98 @@ export function useExtraction() {
     })
   }
 
+  function _attachSSEListeners(eventSource: EventSource): void {
+    activeEventSource.value = eventSource
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.progress != null) progress.value = data.progress
+      } catch { /* ignore */ }
+    }
+
+    eventSource.addEventListener('pdf_start', (event) => {
+      try {
+        const data = JSON.parse((event as MessageEvent).data)
+        _pushLog(`${_ts()} Starting: ${data.details?.pdf || 'PDF'}`)
+      } catch { /* ignore */ }
+    })
+
+    eventSource.addEventListener('doc_parsed', (event) => {
+      try {
+        const data = JSON.parse((event as MessageEvent).data)
+        const name = data.details?.pdf || 'document'
+        const pq = data.details?.parse_quality
+        if (pq) {
+          const qPct = Math.round((pq.avg_quality ?? 0) * 100)
+          const qLabel = qPct >= 80 ? '\u2705' : qPct >= 50 ? '\u26a0\ufe0f' : '\u274c'
+          _pushLog(
+            `${_ts()} Parsed: ${name} ${qLabel} quality=${qPct}% ` +
+            `pages=${pq.total_pages ?? '?'} tables=${pq.tables_found ?? 0} ` +
+            `figures=${pq.figures_found ?? 0} sections=${pq.sections_found ?? 0}`
+          )
+          if (pq.warnings?.length) {
+            for (const w of pq.warnings.slice(0, 3)) {
+              _pushLog(`${_ts()}   \u26a0 ${w}`)
+            }
+          }
+        } else {
+          _pushLog(`${_ts()} Parsed: ${name}`)
+        }
+      } catch { /* ignore */ }
+    })
+
+    eventSource.addEventListener('pdf_done', (event) => {
+      try {
+        const data = JSON.parse((event as MessageEvent).data)
+        if (data.progress != null) progress.value = data.progress
+        completedPdfs.value++
+        _pushLog(`${_ts()} \u2713 Completed: ${data.details?.pdf || 'PDF'}`)
+      } catch { /* ignore */ }
+    })
+
+    eventSource.addEventListener('pdf_error', (event) => {
+      try {
+        const data = JSON.parse((event as MessageEvent).data)
+        const reason = data.details?.error || data.details?.reason || 'unknown'
+        if (data.progress != null) progress.value = data.progress
+        completedPdfs.value++
+        _pushLog(`${_ts()} \u2717 Error: ${data.details?.pdf || 'PDF'} \u2014 ${reason}`)
+      } catch { /* ignore */ }
+    })
+
+    eventSource.addEventListener('warning', (event) => {
+      try {
+        const data = JSON.parse((event as MessageEvent).data)
+        runError.value = data.details?.message || 'Warning'
+        _pushLog(`${_ts()} \u26a0 ${runError.value}`)
+      } catch { /* ignore */ }
+    })
+
+    eventSource.addEventListener('paused', () => { isPaused.value = true; _pushLog(`${_ts()} \u23f8 Paused`) })
+    eventSource.addEventListener('resumed', () => { isPaused.value = false; _pushLog(`${_ts()} \u25b6 Resumed`) })
+
+    eventSource.addEventListener('batch_done', async () => {
+      eventSource.close()
+      activeEventSource.value = null
+      progress.value = 1.0
+      isPaused.value = false
+      const resultsResp = await fetch(`${API_BASE}/sessions/${sessionId.value}/results`)
+      results.value = await resultsResp.json()
+      extractionDone.value = true
+      isRunning.value = false
+      _pushLog(`${_ts()} \u2713 Extraction complete`)
+    })
+
+    eventSource.addEventListener('idle', () => { eventSource.close(); activeEventSource.value = null; pollForCompletion() })
+    eventSource.onerror = () => { eventSource.close(); activeEventSource.value = null; pollForCompletion() }
+  }
+
+  function reconnectSSE(eventSource: EventSource): void {
+    _pushLog(`${_ts()} Reconnected to extraction progress`)
+    _attachSSEListeners(eventSource)
+  }
+
   async function runExtraction(): Promise<void> {
     isRunning.value = true
     isPaused.value = false
@@ -87,94 +179,7 @@ export function useExtraction() {
       if (!resp.ok) throw new Error(await resp.text())
 
       const eventSource = new EventSource(`${API_BASE}/sessions/${sessionId.value}/events`)
-      activeEventSource.value = eventSource
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          if (data.progress != null) progress.value = data.progress
-        } catch { /* ignore */ }
-      }
-
-      eventSource.addEventListener('pdf_start', (event) => {
-        try {
-          const data = JSON.parse((event as MessageEvent).data)
-          const name = data.details?.pdf || 'PDF'
-          _pushLog(`${_ts()} Starting: ${name}`)
-        } catch { /* ignore */ }
-      })
-
-      eventSource.addEventListener('doc_parsed', (event) => {
-        try {
-          const data = JSON.parse((event as MessageEvent).data)
-          const name = data.details?.pdf || 'document'
-          _pushLog(`${_ts()} Parsed: ${name}`)
-        } catch { /* ignore */ }
-      })
-
-      eventSource.addEventListener('pdf_done', (event) => {
-        try {
-          const data = JSON.parse((event as MessageEvent).data)
-          const name = data.details?.pdf || 'PDF'
-          if (data.progress != null) progress.value = data.progress
-          completedPdfs.value++
-          _pushLog(`${_ts()} \u2713 Completed: ${name}`)
-        } catch { /* ignore */ }
-      })
-
-      eventSource.addEventListener('pdf_error', (event) => {
-        try {
-          const data = JSON.parse((event as MessageEvent).data)
-          const name = data.details?.pdf || 'PDF'
-          const reason = data.details?.error || data.details?.reason || 'unknown'
-          if (data.progress != null) progress.value = data.progress
-          completedPdfs.value++
-          _pushLog(`${_ts()} \u2717 Error: ${name} \u2014 ${reason}`)
-        } catch { /* ignore */ }
-      })
-
-      eventSource.addEventListener('warning', (event) => {
-        try {
-          const data = JSON.parse((event as MessageEvent).data)
-          const msg = data.details?.message || 'Warning'
-          runError.value = msg
-          _pushLog(`${_ts()} \u26a0 ${msg}`)
-        } catch { /* ignore */ }
-      })
-
-      eventSource.addEventListener('paused', () => {
-        isPaused.value = true
-        _pushLog(`${_ts()} \u23f8 Paused`)
-      })
-
-      eventSource.addEventListener('resumed', () => {
-        isPaused.value = false
-        _pushLog(`${_ts()} \u25b6 Resumed`)
-      })
-
-      eventSource.addEventListener('batch_done', async () => {
-        eventSource.close()
-        activeEventSource.value = null
-        progress.value = 1.0
-        isPaused.value = false
-        const resultsResp = await fetch(`${API_BASE}/sessions/${sessionId.value}/results`)
-        results.value = await resultsResp.json()
-        extractionDone.value = true
-        isRunning.value = false
-        _pushLog(`${_ts()} \u2713 Extraction complete`)
-      })
-
-      eventSource.addEventListener('idle', () => {
-        eventSource.close()
-        activeEventSource.value = null
-        pollForCompletion()
-      })
-
-      eventSource.onerror = () => {
-        eventSource.close()
-        activeEventSource.value = null
-        pollForCompletion()
-      }
+      _attachSSEListeners(eventSource)
     } catch (e: any) {
       runError.value = e.message
       isRunning.value = false
@@ -254,7 +259,8 @@ export function useExtraction() {
       const data = await resp.json()
       exportPath.value = data.path
 
-      const downloadResp = await fetch(`${API_BASE}/sessions/${sessionId.value}/download`)
+      const downloadUrl = data.download_url || `${API_BASE}/sessions/${sessionId.value}/download`
+      const downloadResp = await fetch(downloadUrl)
       if (downloadResp.ok) {
         const blob = await downloadResp.blob()
         const url = URL.createObjectURL(blob)
@@ -267,7 +273,7 @@ export function useExtraction() {
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
       } else {
-        console.warn('download_endpoint_failed', downloadResp.status)
+        error.value = `Export download failed (HTTP ${downloadResp.status})`
       }
     } catch (e: any) {
       error.value = e.message
@@ -287,6 +293,7 @@ export function useExtraction() {
       )
       if (!resp.ok) throw new Error('Delete failed')
       pdfs.value = pdfs.value.filter(p => p.pdf_id !== pdfId)
+      results.value = results.value.filter(r => r.pdf_id !== pdfId)
     } catch (e: any) {
       error.value = e.message
     }
@@ -334,6 +341,7 @@ export function useExtraction() {
     cancelExtraction,
     pauseExtraction,
     resumeExtraction,
+    reconnectSSE,
     exportResults,
     deletePdf,
     uploadPdfs,

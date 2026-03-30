@@ -22,7 +22,6 @@ from metascreener.module2_extraction.export.effect_size_mapper import EffectSize
 
 log = structlog.get_logger()
 
-
 def export_to_revman(
     results: list[dict[str, str]],
     field_tags: dict[str, str],
@@ -120,15 +119,8 @@ def export_to_revman(
     log.info("revman_exported", path=str(output_path), pdf_count=len(by_pdf))
     return output_path
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
 def _append_stub_study(parent: ET.Element, pdf_id: str) -> None:
     ET.SubElement(parent, "STUDY", attrib={"STUDY_ID": pdf_id, "STATUS": "incomplete"})
-
 
 def _extract_study_id(pdf_data: dict[str, str], field_tags: dict[str, str]) -> str:
     for name, tag in field_tags.items():

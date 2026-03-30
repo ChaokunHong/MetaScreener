@@ -26,18 +26,18 @@ from metascreener.module2_extraction.engine.arbitrator import Arbitrator
 from metascreener.module2_extraction.engine.computation import ComputationEngine
 from metascreener.module2_extraction.engine.field_router import FieldRouter
 from metascreener.module2_extraction.engine.figure_reader import FigureReader
-from metascreener.module2_extraction.engine.llm_extractor import LLMExtractor
-from metascreener.module2_extraction.engine.orchestrator_models import (  # noqa: F401
-    DocumentExtractionResult,
-    ExtractedField,
-    SheetExtractionResult,
-)
 from metascreener.module2_extraction.engine.llm_execution import (
     _CONFIDENCE_AGREE,
     _CONFIDENCE_ARBITRATED,
     _CONFIDENCE_DISAGREE,
     _CONFIDENCE_SINGLE,
     execute_computed,
+)
+from metascreener.module2_extraction.engine.llm_extractor import LLMExtractor
+from metascreener.module2_extraction.engine.orchestrator_models import (  # noqa: F401
+    DocumentExtractionResult,
+    ExtractedField,
+    SheetExtractionResult,
 )
 from metascreener.module2_extraction.engine.table_reader import TableReader
 from metascreener.module2_extraction.models import (
@@ -54,12 +54,6 @@ from metascreener.module2_extraction.validation.rule_validator import EnhancedRu
 from metascreener.module2_extraction.validation.source_coherence import SourceCoherenceValidator
 
 log = structlog.get_logger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Orchestrator
-# ---------------------------------------------------------------------------
-
 
 class NewOrchestrator:
     """Orchestrate field-routed, phased extraction with validation.
@@ -180,7 +174,6 @@ class NewOrchestrator:
                     elif plan.strategy == ExtractionStrategy.COMPUTED:
                         computed_fields.append((full_field, plan))
 
-                # --- DIRECT_TABLE: fast, no LLM needed ---
                 for full_field, plan in table_fields:
                     try:
                         result = self._table_reader.extract(doc, plan.source_hint)
@@ -198,7 +191,6 @@ class NewOrchestrator:
                         )
                         agreements[full_field.name] = None
 
-                # --- LLM_TEXT: ONE batched dual-model call for all fields ---
                 if llm_fields:
                     fields_list = [f for f, _ in llm_fields]
                     # Collect all relevant sections across all field plans
@@ -313,7 +305,6 @@ class NewOrchestrator:
                             )
                             agreements[full_field.name] = None
 
-                # --- VLM_FIGURE: each field needs a different image, keep individual ---
                 for full_field, plan in vlm_fields:
                     try:
                         result = self._figure_reader.extract_from_preextracted(
@@ -337,7 +328,6 @@ class NewOrchestrator:
                         )
                         agreements[full_field.name] = None
 
-                # --- COMPUTED: depends on earlier results, keep individual ---
                 for full_field, plan in computed_fields:
                     try:
                         result = self._execute_computed(plan, extracted)
@@ -456,7 +446,6 @@ class NewOrchestrator:
                     fields=sheet_fields,
                 )
 
-        # --- Step 5: many_per_study sheets — dedicated multi-row LLM pass ---
         for sheet in many_per_sheets:
             extract_fields = sheet.extract_fields
             if not extract_fields:
@@ -484,26 +473,50 @@ class NewOrchestrator:
                             continue
                         result_a, result_b = pair
 
-                        # Pick the best raw result
+                        # Dual-model agreement for many_per_study rows
+                        v3_agreement: AgreementResult | None = None
                         if result_a.value is not None and result_b.value is not None:
                             val_a = str(result_a.value).strip().lower()
                             val_b = str(result_b.value).strip().lower()
-                            raw = result_a if val_a == val_b else result_a
+                            if val_a == val_b:
+                                # Models agree — HIGH confidence
+                                result_a.confidence_prior = _CONFIDENCE_AGREE
+                                raw = result_a
+                                v3_agreement = AgreementResult(
+                                    agreed=True,
+                                    final_value=result_a.value,
+                                    confidence=Confidence.HIGH,
+                                    evidence=[result_a.evidence] if result_a.evidence else [],
+                                    arbitration=None,
+                                )
+                            else:
+                                # Models disagree — LOW confidence, take A as default
+                                result_a.confidence_prior = _CONFIDENCE_DISAGREE
+                                raw = result_a
+                                v3_agreement = AgreementResult(
+                                    agreed=False,
+                                    final_value=result_a.value,
+                                    confidence=Confidence.LOW,
+                                    evidence=[result_a.evidence] if result_a.evidence else [],
+                                    arbitration=None,
+                                )
                         elif result_a.value is not None:
+                            result_a.confidence_prior = _CONFIDENCE_SINGLE
                             raw = result_a
                         elif result_b.value is not None:
+                            result_b.confidence_prior = _CONFIDENCE_SINGLE
                             raw = result_b
                         else:
                             raw = result_a  # both null
 
-                        # Minimal validation for multi-row fields
+                        # Validation for multi-row fields (now includes V3 agreement)
                         v1 = self._source_validator.validate(raw, doc)
                         v2 = self._rule_validator.validate_field(f, raw.value)
                         confidence = self._aggregator.compute(
                             strategy=raw.strategy_used,
                             v1_source=v1,
                             v2_rules=v2,
-                            v3_agreement=None,
+                            v3_agreement=v3_agreement,
                             v4_coherence=[],
                         )
                         warnings_row: list[str] = []
@@ -546,10 +559,6 @@ class NewOrchestrator:
             sheets=sheet_results,
             errors=errors,
         )
-
-    # ------------------------------------------------------------------
-    # Strategy execution
-    # ------------------------------------------------------------------
 
     async def _execute_strategy(
         self,

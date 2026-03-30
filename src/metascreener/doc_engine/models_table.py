@@ -12,11 +12,6 @@ from dataclasses import dataclass, field
 from metascreener.doc_engine.geometry import BoundingBox
 
 
-# ---------------------------------------------------------------------------
-# Tables
-# ---------------------------------------------------------------------------
-
-
 @dataclass
 class TableCell:
     """A single cell within a structured table.
@@ -80,11 +75,6 @@ class Table:
     extraction_quality_score: float
 
 
-# ---------------------------------------------------------------------------
-# Rendering helpers
-# ---------------------------------------------------------------------------
-
-
 def _table_to_markdown(table: Table) -> str:
     """Render a Table as a GitHub-Flavoured Markdown table string.
 
@@ -99,7 +89,6 @@ def _table_to_markdown(table: Table) -> str:
     if not table.cells:
         return "\n".join(lines)
 
-    # Build column-width normalised rows
     num_cols = max(len(row) for row in table.cells)
 
     def _pad_row(row: list[TableCell], width: int) -> list[str]:

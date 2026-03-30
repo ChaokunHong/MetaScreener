@@ -13,7 +13,6 @@ import structlog
 
 log = structlog.get_logger()
 
-
 def export_to_csv(
     results: list[dict[str, str]],
     field_names: list[str],

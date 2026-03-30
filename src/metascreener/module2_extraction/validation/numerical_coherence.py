@@ -54,10 +54,6 @@ class NumericalCoherenceEngine:
         violations += self._check_cross_table_consistency(extracted, field_tags)
         return violations
 
-    # ------------------------------------------------------------------
-    # Individual checks
-    # ------------------------------------------------------------------
-
     def _check_sample_size_sum(
         self,
         extracted: dict[str, Any],
@@ -444,12 +440,6 @@ class NumericalCoherenceEngine:
             ]
         return []
 
-
-# ---------------------------------------------------------------------------
-# Helper functions
-# ---------------------------------------------------------------------------
-
-
 def _fields_with_tag(
     field_tags: dict[str, FieldSemanticTag],
     tag: FieldSemanticTag,
@@ -464,7 +454,6 @@ def _fields_with_tag(
         List of matching field names (order is insertion-order stable).
     """
     return [name for name, t in field_tags.items() if t == tag]
-
 
 def _to_float(value: Any) -> float | None:
     """Attempt to convert a value to float; return None on failure.

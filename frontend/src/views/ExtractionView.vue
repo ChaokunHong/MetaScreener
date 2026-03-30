@@ -1,6 +1,5 @@
 <template>
   <div class="extraction-view">
-    <!-- Header summary bar -->
     <div class="header-bar">
       <div>
         <h1 class="page-title" style="margin-bottom: 0;">Data Extraction</h1>
@@ -21,7 +20,6 @@
 
     <SessionManager v-if="showSessions" ref="sessionManagerRef" @resume="resumeSession" @new-session="startNewSession" />
 
-    <!-- Step Indicator -->
     <div class="steps" style="margin-bottom: 2rem;">
       <template v-for="(s, i) in steps" :key="i">
         <div class="step" :class="{ active: currentStep === i, done: currentStep > i }">
@@ -35,7 +33,6 @@
       </template>
     </div>
 
-    <!-- Step 1: Template -->
     <div v-if="currentStep === 0" class="glass-card fade-in">
       <div class="section-title"><i class="fas fa-file-excel"></i> Upload Extraction Template</div>
       <p class="text-muted" style="margin-bottom: 1rem;">Upload an Excel template defining data fields to extract.</p>
@@ -55,13 +52,23 @@
         </div>
       </div>
       <div v-if="loadingSchema" class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Loading schema preview...</div>
-      <SchemaPreview v-if="schemaDetails.length > 0" :sheets="schemaDetails" />
+      <SchemaPreview v-if="schemaDetails.length > 0" :sheets="schemaDetails" :session-id="sessionId" :editable="true" @schema-saved="onSchemaSaved" />
+
+      <div v-if="schemaInfo && plugins.length > 0" class="plugin-selector" style="margin-top: 0.75rem;">
+        <label style="font-size: 0.85rem; font-weight: 500; margin-right: 0.5rem;">
+          <i class="fas fa-puzzle-piece"></i> Domain plugin (optional):
+        </label>
+        <select v-model="selectedPlugin" class="plugin-select">
+          <option value="">None (generic extraction)</option>
+          <option v-for="p in plugins" :key="p.plugin_id" :value="p.plugin_id">{{ p.display_name }} ({{ p.version }})</option>
+        </select>
+      </div>
+
       <button v-if="schemaInfo" class="btn btn-primary" style="margin-top: 0.75rem;" @click="currentStep = 1">
         <i class="fas fa-arrow-right"></i> Next: Upload PDFs
       </button>
     </div>
 
-    <!-- Step 2: PDFs -->
     <div v-if="currentStep === 1" class="glass-card fade-in">
       <div class="section-title"><i class="fas fa-file-pdf"></i> Upload PDF Papers</div>
       <div class="upload-zone" :class="{ dragover: draggingPdf }" @click="pdfInput?.click()"
@@ -90,7 +97,6 @@
       </div>
     </div>
 
-    <!-- Step 3: Run -->
     <div v-if="currentStep === 2" class="glass-card fade-in">
       <div class="section-title"><i class="fas fa-play-circle"></i> Run Extraction</div>
       <p class="text-muted" style="margin-bottom: 1rem;"><strong>{{ pdfs.length }}</strong> PDF{{ pdfs.length !== 1 ? 's' : '' }} ready.</p>
@@ -134,20 +140,16 @@
       <ExtractionDashboard v-if="extractionDone" :results="results" />
     </div>
 
-    <!-- Step 4: Review -->
     <div v-if="currentStep === 3" class="step-content fade-in">
       <div v-if="loadingResults" class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Loading results...</div>
 
-      <!-- Main results table — full width glass card -->
       <div class="glass-card" style="margin-bottom: 1rem;">
         <div class="section-title"><i class="fas fa-table"></i> Extraction Results</div>
         <ExtractionPivotTable ref="pivotTableRef" v-if="results.length > 0" :results="results" :selected-cell="selectedCell" :sheet-order="sheetOrder" :sheet-info="sheetInfo" @select-cell="selectCell" @save-edit="handleSaveEdit" />
         <div v-else class="empty-state"><i class="fas fa-table"></i><p>No results available yet.</p></div>
       </div>
 
-      <!-- Secondary panels — side by side below results -->
       <div class="review-secondary">
-        <!-- Cell Details (shown when a cell is selected) -->
         <div v-if="selectedCell" class="glass-card review-detail-card">
           <div class="section-title"><i class="fas fa-info-circle"></i> Cell Details</div>
           <div class="detail-grid">
@@ -168,7 +170,6 @@
           </div>
         </div>
 
-        <!-- Alerts panel -->
         <div class="glass-card review-alerts-card">
           <div class="section-title"><i class="fas fa-bell"></i> Alerts & Warnings</div>
           <div v-if="loadingAlerts" class="text-muted" style="font-size: 0.85rem;"><i class="fas fa-spinner fa-spin"></i> Loading alerts...</div>
@@ -181,7 +182,6 @@
         </div>
       </div>
 
-      <!-- PDF Viewer — slide-out drawer -->
       <div v-if="showPdfDrawer" class="pdf-drawer-overlay" @click.self="showPdfDrawer = false">
         <div class="pdf-drawer">
           <div class="pdf-drawer-header">
@@ -198,7 +198,6 @@
       </div>
     </div>
 
-    <!-- Step 5: Export -->
     <div v-if="currentStep === 4" class="glass-card fade-in">
       <div class="section-title"><i class="fas fa-download"></i> Export Results</div>
       <p class="text-muted" style="margin-bottom: 1rem;">Download results in the preferred format.</p>
@@ -264,6 +263,18 @@ interface SchemaInfo { session_id: string; sheets: { name: string; fields: numbe
 const schemaInfo = ref<SchemaInfo | null>(null)
 const schemaDetails = ref<SchemaSheet[]>([])
 
+/* -- plugins -- */
+interface PluginInfo { plugin_id: string; display_name: string; version: string }
+const plugins = ref<PluginInfo[]>([])
+const selectedPlugin = ref('')
+
+;(async () => {
+  try {
+    const resp = await fetch(`${API_BASE}/plugins`)
+    if (resp.ok) plugins.value = await resp.json()
+  } catch { /* non-fatal */ }
+})()
+
 /* -- pdf upload -- */
 const pdfInput = ref<HTMLInputElement | null>(null)
 const draggingPdf = ref(false)
@@ -328,10 +339,16 @@ async function handleSaveEdit(cell: ResultCell, newValue: string) {
   try {
     const resp = await fetch(`${API_BASE}/sessions/${sessionId.value}/results/${cell.pdf_id}/cells/${cell.field_name}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ new_value: newValue, reason: 'Manual correction' }),
+      body: JSON.stringify({
+        new_value: newValue,
+        reason: 'Manual correction',
+        sheet_name: cell.sheet_name || null,
+        row_index: cell.row_index ?? null,
+      }),
     })
     if (!resp.ok) throw new Error(`Save failed: ${resp.statusText}`)
     cell.value = newValue
+    cell.confidence = 'MANUAL'
   } catch (e: any) { error.value = e.message }
 }
 
@@ -342,6 +359,8 @@ function parseEvidence(json: string): string {
 async function fetchAlerts() {
   loadingAlerts.value = true
   try {
+    // Trigger cross-paper validation first, then fetch alerts
+    await fetch(`${API_BASE}/sessions/${sessionId.value}/validate/cross-paper`, { method: 'POST' }).catch(() => {})
     const resp = await fetch(`${API_BASE}/sessions/${sessionId.value}/alerts`)
     if (!resp.ok) { alerts.value = []; return }
     const data = await resp.json(); alerts.value = data.alerts || []
@@ -360,12 +379,24 @@ function parseSchemaDetails(raw: any): SchemaSheet[] {
     fields: (s.fields ?? s.columns ?? []).map((f: any): SchemaField => ({
       name: f.name ?? f.field_name ?? '', field_type: f.field_type ?? f.type ?? 'text',
       role: f.role ?? 'data', required: f.required ?? false, semantic_tag: f.semantic_tag ?? f.tag ?? undefined,
+      description: f.description ?? undefined,
     })),
   }))
 }
 
 async function resumeSession(sid: string): Promise<void> {
   sessionId.value = sid; error.value = ''; showSessions.value = false; loadingSchema.value = true
+
+  // First check session status to restore running/paused state
+  let sessionStatus = ''
+  try {
+    const statusResp = await fetch(`${API_BASE}/sessions/${sid}`)
+    if (statusResp.ok) {
+      const sessionData = await statusResp.json()
+      sessionStatus = sessionData.status || ''
+    }
+  } catch { /* non-fatal */ }
+
   try {
     const schemaResp = await fetch(`${API_BASE}/sessions/${sid}/schema`)
     if (schemaResp.ok) {
@@ -374,10 +405,28 @@ async function resumeSession(sid: string): Promise<void> {
     }
   } catch { /* non-fatal */ } finally { loadingSchema.value = false }
   try { const r = await fetch(`${API_BASE}/sessions/${sid}/pdfs`); if (r.ok) pdfs.value = await r.json() } catch {}
+
+  // If extraction is running or paused, reconnect to SSE and go to step 3 (Run)
+  if (sessionStatus === 'running' || sessionStatus === 'paused') {
+    isRunning.value = true
+    isPaused.value = sessionStatus === 'paused'
+    currentStep.value = 2
+    // Reconnect to SSE progress stream
+    const eventSource = new EventSource(`${API_BASE}/sessions/${sid}/events`)
+    ext.reconnectSSE(eventSource)
+    return
+  }
+
   loadingResults.value = true
   try {
     const r = await fetch(`${API_BASE}/sessions/${sid}/results`)
-    if (r.ok) { const d = await r.json(); if (d.length > 0) { results.value = d; extractionDone.value = true; currentStep.value = 3 } else if (pdfs.value.length > 0) currentStep.value = 2; else if (schemaInfo.value) currentStep.value = 1; else currentStep.value = 0 }
+    if (r.ok) {
+      const d = await r.json()
+      if (d.length > 0) { results.value = d; extractionDone.value = true; currentStep.value = 3 }
+      else if (pdfs.value.length > 0) currentStep.value = 2
+      else if (schemaInfo.value) currentStep.value = 1
+      else currentStep.value = 0
+    }
   } catch { currentStep.value = 0 } finally { loadingResults.value = false }
 }
 
@@ -386,6 +435,15 @@ function startNewSession(): void {
   pdfs.value = []; results.value = []; extractionDone.value = false; selectedCell.value = null
   selectedEvidence.value = null; currentStep.value = 0; showSessions.value = false
   error.value = ''; runError.value = ''; progress.value = 0
+}
+
+async function onSchemaSaved() {
+  // Re-fetch the schema to reflect saved changes
+  if (!sessionId.value) return
+  try {
+    const r = await fetch(`${API_BASE}/sessions/${sessionId.value}/schema`)
+    if (r.ok) schemaDetails.value = parseSchemaDetails(await r.json())
+  } catch { /* non-fatal */ }
 }
 
 /* -- template handlers -- */
@@ -504,5 +562,6 @@ async function handlePdfUpload(event: Event) { const i = event.target as HTMLInp
 .alert-item:last-child { border-bottom: none; }
 .alert-severity { font-weight: 600; text-transform: uppercase; font-size: 0.7rem; padding: 0.125rem 0.375rem; border-radius: 0.25rem; white-space: nowrap; flex-shrink: 0; }
 .alert-severity.warning { background: #fffbeb; color: #92400e; }
+.plugin-select { font-size: 0.85rem; padding: 0.3rem 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; background: white; cursor: pointer; }
 .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 1rem; font-size: 0.875rem; margin-bottom: 0.5rem; }
 </style>

@@ -51,25 +51,20 @@ class FinalConfidenceAggregator:
         Returns:
             The final :class:`Confidence` level.
         """
-        # --- Base from V3 agreement (or SINGLE for single-model runs) ---
         if v3_agreement is not None:
             base = v3_agreement.confidence
         else:
             base = Confidence.SINGLE
 
-        # --- V1: evidence incoherence error → downgrade ---
         if not v1_source.passed and v1_source.severity == "error":
             base = base.downgrade()
 
-        # --- V2: any error-level rule violation → downgrade ---
         if any(r.severity == "error" for r in v2_rules):
             base = base.downgrade()
 
-        # --- V4: any error-level coherence violation → downgrade ---
         if any(v.severity == "error" for v in v4_coherence):
             base = base.downgrade()
 
-        # --- Upgrade: DIRECT_TABLE + HIGH → VERIFIED ---
         if strategy == ExtractionStrategy.DIRECT_TABLE and base == Confidence.HIGH:
             base = Confidence.VERIFIED
 

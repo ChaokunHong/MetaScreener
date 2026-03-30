@@ -53,10 +53,6 @@ class OpenAlexProvider(SearchProvider):
         self._email = email
         self._client = _client
 
-    # ------------------------------------------------------------------
-    # SearchProvider interface
-    # ------------------------------------------------------------------
-
     @property
     def name(self) -> str:
         """Provider name."""
@@ -77,7 +73,11 @@ class OpenAlexProvider(SearchProvider):
         Returns:
             List of parsed ``RawRecord`` objects.
         """
-        query_str = translate_openalex(query)
+        from metascreener.module0_retrieval.query.ast import truncate_query  # noqa: PLC0415
+
+        # OpenAlex API times out on very long queries; truncate to top terms
+        truncated = truncate_query(query, max_terms_per_group=8)
+        query_str = translate_openalex(truncated)
         if not query_str:
             return []
 
@@ -97,10 +97,6 @@ class OpenAlexProvider(SearchProvider):
         pipe_ids = "|".join(ids)
         return await self._paginate({"filter": f"openalex_id:{pipe_ids}"}, len(ids))
 
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
-
     def _base_params(self) -> dict[str, Any]:
         params: dict[str, Any] = {
             "select": (
@@ -116,7 +112,7 @@ class OpenAlexProvider(SearchProvider):
     async def _paginate(self, extra_params: dict[str, Any], max_results: int) -> list[RawRecord]:
         records: list[RawRecord] = []
         page = 1
-        client = self._client or httpx.AsyncClient()
+        client = self._client or httpx.AsyncClient(timeout=60.0)
         while len(records) < max_results:
             params = {**self._base_params(), **extra_params, "page": page}
             try:

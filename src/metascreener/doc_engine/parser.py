@@ -71,7 +71,6 @@ class DocumentParser:
         """
         logger.info("document_parse_start", pdf=str(pdf_path))
 
-        # Cache look-up — skip full OCR/parse if already cached
         pdf_hash: str | None = None
         if self._cache is not None:
             pdf_hash = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
@@ -80,11 +79,9 @@ class DocumentParser:
                 logger.info("document_cache_hit", pdf=str(pdf_path), pdf_hash=pdf_hash[:12])
                 return cached
 
-        # Step 1 — OCR / Markdown conversion
         ocr_result = await self._ocr_router.convert_pdf(pdf_path)
         markdown: str = ocr_result.markdown
 
-        # Strip YAML frontmatter (e.g. "---\nbackend: ...\n---\n")
         stripped = markdown.strip()
         if stripped.startswith("---"):
             end = stripped.find("---", 3)
@@ -94,7 +91,6 @@ class DocumentParser:
                     markdown = after_frontmatter
                 # else: frontmatter was the only content — keep original
 
-        # Quality check: if OCR produced almost no content, try PyMuPDF fallback
         _MIN_CONTENT_CHARS = 100
         content_chars = len(markdown.strip())
         if content_chars < _MIN_CONTENT_CHARS:
@@ -104,7 +100,6 @@ class DocumentParser:
                 backend=str(ocr_result.backend_usage),
                 pdf=str(pdf_path),
             )
-            # Fallback to PyMuPDF which always works for digitally-born PDFs
             try:
                 from metascreener.io.pdf_parser import extract_text_from_pdf
                 fallback_text = extract_text_from_pdf(pdf_path)
@@ -115,19 +110,11 @@ class DocumentParser:
             except Exception:
                 logger.warning("ocr_pymupdf_fallback_failed")
 
-        # Step 2 — section tree
         sections = parse_sections(markdown)
-
-        # Step 3 — tables
         tables = extract_tables_from_markdown(markdown)
-
-        # Step 4 — figure references
         figures = extract_figure_refs_from_markdown(markdown)
-
-        # Step 5 — metadata
         metadata = extract_metadata(markdown)
 
-        # Step 6 — references (from the "References" section body)
         ref_text = ""
         for section in sections:
             if section.heading.strip().lower() == "references":
@@ -135,14 +122,12 @@ class DocumentParser:
                 break
         references = parse_references(ref_text)
 
-        # Step 7 — link tables to sections via tables_in_section
         table_map = {t.table_id: t for t in tables}
         for section in sections:
             for tid in section.tables_in_section:
                 if tid in table_map and table_map[tid].source_section is None:
                     table_map[tid].source_section = section.heading
 
-        # Step 8 — build StructuredDocument
         doc_id = hashlib.sha256(pdf_path.name.encode()).hexdigest()[:12]
         ocr_report = OCRReport(
             total_pages=ocr_result.total_pages,
@@ -174,7 +159,6 @@ class DocumentParser:
             references=len(references),
         )
 
-        # Store in cache for subsequent requests
         if self._cache is not None and pdf_hash is not None:
             try:
                 await self._cache.put(pdf_hash, _DEFAULT_OCR_CONFIG_HASH, doc)

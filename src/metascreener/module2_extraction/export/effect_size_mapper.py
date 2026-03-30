@@ -13,7 +13,6 @@ from metascreener.core.enums import FieldSemanticTag
 
 log = structlog.get_logger()
 
-
 @dataclass
 class DichotomousData:
     """Dichotomous outcome data for one study."""
@@ -23,7 +22,6 @@ class DichotomousData:
     total_e: int     # total participants in experimental arm
     events_c: int    # events in control arm
     total_c: int     # total participants in control arm
-
 
 @dataclass
 class ContinuousData:
@@ -37,7 +35,6 @@ class ContinuousData:
     sd_c: float
     n_c: int
 
-
 class EffectSizeMapper:
     """Map extracted field dictionaries to typed meta-analytic structures.
 
@@ -47,10 +44,6 @@ class EffectSizeMapper:
     experimental arm and the second is the control arm — matching the order in
     which they appear when iterating over ``field_tags``.
     """
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     def map_to_dichotomous(
         self,
@@ -134,10 +127,6 @@ class EffectSizeMapper:
             sd_c=sd_c,
             n_c=n_c,
         )
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _fields_with_tag(

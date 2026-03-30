@@ -47,10 +47,6 @@ class RetrievalOrchestrator:
         self._enable_semantic_dedup = enable_semantic_dedup
         self._output_dir = Path(output_dir)
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
     async def run(
         self,
         query: BooleanQuery,
@@ -104,10 +100,6 @@ class RetrievalOrchestrator:
             ocr_completed=result.ocr_completed,
         )
         return result
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     async def _search_all(
         self,
@@ -163,7 +155,9 @@ class RetrievalOrchestrator:
             Updated :class:`RetrievalResult`.
         """
         try:
-            from metascreener.module0_retrieval.downloader.manager import PDFDownloader  # noqa: PLC0415
+            from metascreener.module0_retrieval.downloader.manager import (
+                PDFDownloader,  # noqa: PLC0415
+            )
 
             pdf_dir = self._output_dir / "pdfs"
             downloader = PDFDownloader()
@@ -201,7 +195,9 @@ class RetrievalOrchestrator:
                 if not record.pmid and not record.doi:
                     continue
                 # Reconstruct filename using the same logic as PDFDownloader
-                from metascreener.module0_retrieval.downloader.manager import build_filename  # noqa: PLC0415
+                from metascreener.module0_retrieval.downloader.manager import (
+                    build_filename,  # noqa: PLC0415
+                )
                 pdf_path = pdf_dir / build_filename(record)
                 if pdf_path.exists():
                     try:

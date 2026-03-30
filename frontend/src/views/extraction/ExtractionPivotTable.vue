@@ -1,6 +1,5 @@
 <template>
   <div class="pivot-wrapper" @keydown="handleKeydown" tabindex="0" ref="tableWrapper">
-    <!-- Bulk toolbar -->
     <div class="bulk-toolbar" v-if="bulk.selectedCells.value.size > 0">
       <span class="text-muted">{{ bulk.selectedCells.value.size }} cell(s) selected</span>
       <button @click="bulk.bulkAccept()" class="btn btn-sm btn-success"><i class="fas fa-check-double"></i> Accept Selected</button>
@@ -8,7 +7,6 @@
       <button @click="bulk.clearSelection()" class="btn btn-sm btn-secondary"><i class="fas fa-times"></i> Clear</button>
     </div>
 
-    <!-- Sheet tabs -->
     <div class="sheet-tabs" v-if="sheetNames.length > 1">
       <button v-for="sheet in sheetNames" :key="sheet"
               :class="['sheet-tab', { active: activeSheet === sheet }]"
@@ -18,7 +16,6 @@
       </button>
     </div>
 
-    <!-- Controls bar -->
     <div class="pivot-controls">
       <div class="view-toggle">
         <button :class="['btn', 'btn-sm', viewMode === 'pivot' ? 'btn-primary' : 'btn-secondary']" @click="viewMode = 'pivot'"><i class="fas fa-th"></i> Pivot</button>
@@ -41,7 +38,6 @@
       </div>
     </div>
 
-    <!-- Pivot View -->
     <div v-if="viewMode === 'pivot'" class="pivot-scroll">
       <table class="pivot-table">
         <thead>
@@ -77,7 +73,6 @@
       </table>
     </div>
 
-    <!-- Flat View -->
     <div v-else style="overflow-x: auto;">
       <table class="results-table">
         <thead>

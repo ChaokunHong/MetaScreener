@@ -41,6 +41,67 @@ logger = structlog.get_logger(__name__)
 # Fallback context character limit when no sections match
 _FALLBACK_CONTEXT_CHARS = 5000
 
+# LLM call settings
+_LLM_TIMEOUT_SECONDS = 120
+_LLM_MAX_RETRIES = 2
+_LLM_RETRY_DELAY_SECONDS = 3
+
+async def _call_with_retry(
+    backend: Any,
+    prompt: str,
+    *,
+    seed: int = 42,
+    timeout: float = _LLM_TIMEOUT_SECONDS,
+    max_retries: int = _LLM_MAX_RETRIES,
+) -> str:
+    """Call backend.complete() with timeout and retry on transient errors.
+
+    Args:
+        backend: LLM backend with async complete() method.
+        prompt: The prompt to send.
+        seed: RNG seed for reproducibility.
+        timeout: Timeout in seconds per attempt.
+        max_retries: Number of retry attempts after initial failure.
+
+    Returns:
+        The LLM response string.
+
+    Raises:
+        asyncio.TimeoutError: If all attempts time out.
+        Exception: The last exception if all retries fail.
+    """
+    model_id = getattr(backend, "model_id", "unknown")
+    last_error: Exception | None = None
+
+    for attempt in range(1 + max_retries):
+        try:
+            return await asyncio.wait_for(
+                backend.complete(prompt, seed=seed),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            last_error = asyncio.TimeoutError(
+                f"LLM call timed out after {timeout}s (model={model_id}, attempt={attempt + 1})"
+            )
+            logger.warning(
+                "llm_call_timeout",
+                model_id=model_id,
+                attempt=attempt + 1,
+                timeout=timeout,
+            )
+        except Exception as exc:
+            last_error = exc
+            logger.warning(
+                "llm_call_error",
+                model_id=model_id,
+                attempt=attempt + 1,
+                error=str(exc),
+            )
+
+        if attempt < max_retries:
+            await asyncio.sleep(_LLM_RETRY_DELAY_SECONDS)
+
+    raise last_error  # type: ignore[misc]
 
 class LLMBackend(Protocol):
     """Structural protocol for LLM backends used by LLMExtractor."""
@@ -50,7 +111,6 @@ class LLMBackend(Protocol):
     async def complete(self, prompt: str, *, seed: int = 42) -> str:
         """Send a prompt and return the model's text response."""
         ...
-
 
 class LLMExtractor:
     """Dual-model field-group extraction with section-scoped context.
@@ -105,10 +165,21 @@ class LLMExtractor:
             model_b=model_id_b,
         )
 
-        response_a, response_b = await asyncio.gather(
-            backend_a.complete(prompt_a, seed=42),
-            backend_b.complete(prompt_b, seed=42),
-        )
+        try:
+            response_a, response_b = await asyncio.gather(
+                _call_with_retry(backend_a, prompt_a),
+                _call_with_retry(backend_b, prompt_b),
+            )
+        except Exception:
+            # If both fail, try them individually so partial results are kept
+            try:
+                response_a = await _call_with_retry(backend_a, prompt_a)
+            except Exception:
+                response_a = "{}"
+            try:
+                response_b = await _call_with_retry(backend_b, prompt_b)
+            except Exception:
+                response_b = "{}"
 
         results_a = self._parse_response(response_a, fields, model_id=model_id_a)
         results_b = self._parse_response(response_b, fields, model_id=model_id_b)
@@ -172,10 +243,20 @@ class LLMExtractor:
             model_b=model_id_b,
         )
 
-        response_a, response_b = await asyncio.gather(
-            backend_a.complete(prompt_a, seed=42),
-            backend_b.complete(prompt_b, seed=42),
-        )
+        try:
+            response_a, response_b = await asyncio.gather(
+                _call_with_retry(backend_a, prompt_a),
+                _call_with_retry(backend_b, prompt_b),
+            )
+        except Exception:
+            try:
+                response_a = await _call_with_retry(backend_a, prompt_a)
+            except Exception:
+                response_a = '{"rows": []}'
+            try:
+                response_b = await _call_with_retry(backend_b, prompt_b)
+            except Exception:
+                response_b = '{"rows": []}'
 
         rows_a = self._parse_response_many(response_a, fields, model_id=model_id_a)
         rows_b = self._parse_response_many(response_b, fields, model_id=model_id_b)
@@ -186,30 +267,14 @@ class LLMExtractor:
             rows_b=len(rows_b),
         )
 
-        # Merge rows from both models by row index.
-        # Use the longer list as the reference; fill missing entries with empty results.
-        n_rows = max(len(rows_a), len(rows_b))
-        if n_rows == 0:
+        # Align rows from both models by content similarity rather than
+        # naive index pairing.  This handles the common case where models
+        # return the same rows in a different order.
+        if len(rows_a) == 0 and len(rows_b) == 0:
             return []
 
-        merged: list[dict[str, tuple[RawExtractionResult, RawExtractionResult]]] = []
-        for row_idx in range(n_rows):
-            row_a = rows_a[row_idx] if row_idx < len(rows_a) else {}
-            row_b = rows_b[row_idx] if row_idx < len(rows_b) else {}
-            merged_row: dict[str, tuple[RawExtractionResult, RawExtractionResult]] = {
-                f.name: (
-                    row_a.get(f.name, self._empty_result(f.name, model_id=model_id_a)),
-                    row_b.get(f.name, self._empty_result(f.name, model_id=model_id_b)),
-                )
-                for f in fields
-            }
-            merged.append(merged_row)
-
-        return merged
-
-    # ------------------------------------------------------------------
-    # Context building
-    # ------------------------------------------------------------------
+        aligned = _align_rows(rows_a, rows_b, fields, model_id_a, model_id_b, self._empty_result)
+        return aligned
 
     def _build_context(
         self,
@@ -256,10 +321,6 @@ class LLMExtractor:
             return doc.raw_markdown[:_FALLBACK_CONTEXT_CHARS]
 
         return "\n\n".join(parts)
-
-    # ------------------------------------------------------------------
-    # Prompt building
-    # ------------------------------------------------------------------
 
     def _build_prompt(
         self,
@@ -335,10 +396,6 @@ class LLMExtractor:
                 f"{fields_block}\n\n"
                 f"{json_instruction}"
             )
-
-    # ------------------------------------------------------------------
-    # Response parsing
-    # ------------------------------------------------------------------
 
     def _parse_response(
         self,
@@ -477,10 +534,6 @@ class LLMExtractor:
 
         return parsed_rows
 
-    # ------------------------------------------------------------------
-    # Empty result factory
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _empty_result(
         field_name: str,
@@ -505,11 +558,107 @@ class LLMExtractor:
             error=f"Field '{field_name}' not found in response",
         )
 
+def _row_signature(
+    row: dict[str, RawExtractionResult],
+) -> str:
+    """Build a normalised string signature from a row's non-null values.
 
-# ---------------------------------------------------------------------------
-# Module-level helpers
-# ---------------------------------------------------------------------------
+    Used for content-based similarity comparison between rows from
+    different models.
+    """
+    parts = sorted(
+        f"{k}={str(v.value).strip().lower()}"
+        for k, v in row.items()
+        if v.value is not None
+    )
+    return "|".join(parts)
 
+def _row_similarity(sig_a: str, sig_b: str) -> float:
+    """Compute Jaccard similarity between two row signatures."""
+    tokens_a = set(sig_a.split("|"))
+    tokens_b = set(sig_b.split("|"))
+    if not tokens_a and not tokens_b:
+        return 1.0
+    if not tokens_a or not tokens_b:
+        return 0.0
+    return len(tokens_a & tokens_b) / len(tokens_a | tokens_b)
+
+def _align_rows(
+    rows_a: list[dict[str, RawExtractionResult]],
+    rows_b: list[dict[str, RawExtractionResult]],
+    fields: list[FieldSchema],
+    model_id_a: str,
+    model_id_b: str,
+    empty_result_fn: Any,
+) -> list[dict[str, tuple[RawExtractionResult, RawExtractionResult]]]:
+    """Align rows from two models by content similarity.
+
+    Uses a greedy best-match strategy:
+    1. Compute pairwise similarity between all rows_a and rows_b.
+    2. Greedily pair the most similar rows (threshold >= 0.3).
+    3. Unpaired rows from either model become single-model rows.
+
+    Args:
+        rows_a: Parsed rows from model A.
+        rows_b: Parsed rows from model B.
+        fields: Field schemas for the sheet.
+        model_id_a: Model A identifier.
+        model_id_b: Model B identifier.
+        empty_result_fn: Factory for empty results.
+
+    Returns:
+        Aligned list of row dicts with paired (result_a, result_b) per field.
+    """
+    sigs_a = [_row_signature(r) for r in rows_a]
+    sigs_b = [_row_signature(r) for r in rows_b]
+
+    # Build similarity matrix and greedily match
+    used_b: set[int] = set()
+    pairs: list[tuple[int, int | None]] = []  # (idx_a, idx_b or None)
+
+    for i, sig_a in enumerate(sigs_a):
+        best_j: int | None = None
+        best_sim = 0.3  # minimum threshold
+        for j, sig_b in enumerate(sigs_b):
+            if j in used_b:
+                continue
+            sim = _row_similarity(sig_a, sig_b)
+            if sim > best_sim:
+                best_sim = sim
+                best_j = j
+        pairs.append((i, best_j))
+        if best_j is not None:
+            used_b.add(best_j)
+
+    # Add unmatched rows from model B
+    unmatched_b = [j for j in range(len(rows_b)) if j not in used_b]
+
+    merged: list[dict[str, tuple[RawExtractionResult, RawExtractionResult]]] = []
+
+    # Paired rows
+    for idx_a, idx_b in pairs:
+        row_a = rows_a[idx_a]
+        row_b = rows_b[idx_b] if idx_b is not None else {}
+        merged.append({
+            f.name: (
+                row_a.get(f.name, empty_result_fn(f.name, model_id=model_id_a)),
+                row_b.get(f.name, empty_result_fn(f.name, model_id=model_id_b)) if row_b else empty_result_fn(f.name, model_id=model_id_b),
+            )
+            for f in fields
+        })
+
+    # Unmatched model B rows (model A has no corresponding row)
+    for j in unmatched_b:
+        row_b = rows_b[j]
+        merged.append({
+            f.name: (
+                empty_result_fn(f.name, model_id=model_id_a),
+                row_b.get(f.name, empty_result_fn(f.name, model_id=model_id_b)),
+            )
+            for f in fields
+        })
+
+    return merged
 
 def _extract_json_string(text: str) -> str:
     """Extract a JSON object string from a raw LLM response.

@@ -25,8 +25,6 @@ class ExtractionRunnerMixin:
     # the extraction is allowed to proceed and *cleared* when paused.
     _paused: dict[str, asyncio.Event] = {}
 
-    # === Pause / Resume ===
-
     async def pause_extraction(self, session_id: str) -> bool:
         """Pause a running extraction.
 
@@ -76,8 +74,6 @@ class ExtractionRunnerMixin:
         """
         event = self._paused.get(session_id)
         return event is not None and not event.is_set()
-
-    # === SSE progress ===
 
     async def emit_progress(
         self,
@@ -180,8 +176,6 @@ class ExtractionRunnerMixin:
         finally:
             self._progress.pop(session_id, None)  # type: ignore[attr-defined]
 
-    # === Run extraction ===
-
     async def run_extraction(
         self,
         session_id: str,
@@ -257,7 +251,7 @@ class ExtractionRunnerMixin:
 
         n_pdfs = len(pdfs)
         for i, pdf_info in enumerate(pdfs):
-            # ── Pause check ── block here until resumed (or never if not paused)
+            # Block here until resumed if paused
             pause_event = self._paused.get(session_id)
             if pause_event is not None:
                 await pause_event.wait()
@@ -293,11 +287,29 @@ class ExtractionRunnerMixin:
                 doc_parser = DocumentParser(ocr_router=ocr_router, cache=doc_cache)
                 doc = await doc_parser.parse(pdf_path)
 
+                # Build parsing quality summary from OCR report
+                parse_quality: dict = {}
+                if hasattr(doc, "ocr_report") and doc.ocr_report is not None:
+                    report = doc.ocr_report
+                    scores = report.quality_scores or {}
+                    avg_quality = (
+                        sum(scores.values()) / len(scores) if scores else 0.0
+                    )
+                    parse_quality = {
+                        "total_pages": report.total_pages,
+                        "backends_used": report.backend_usage,
+                        "avg_quality": round(avg_quality, 2),
+                        "tables_found": len(doc.tables),
+                        "figures_found": len(doc.figures),
+                        "sections_found": len(doc.sections),
+                        "warnings": report.warnings[:5],  # cap for SSE size
+                    }
+
                 await self.emit_progress(
                     session_id,
                     "doc_parsed",
                     base_progress + 0.3 / n_pdfs,
-                    {"pdf": pdf_info["filename"]},
+                    {"pdf": pdf_info["filename"], "parse_quality": parse_quality},
                 )
                 await repo.update_pdf_status(session_id, pdf_info["pdf_id"], "extracting")
                 result = await orchestrator.extract(schema, doc, backend_a, backend_b, arbitration_backend)
@@ -396,8 +408,6 @@ class ExtractionRunnerMixin:
         await self.emit_progress(session_id, "batch_done", 1.0, results_summary)
         return results_summary
 
-    # === Cross-paper validation ===
-
     async def run_cross_paper_validation(self, session_id: str) -> list[dict]:
         """Run cross-paper outlier detection on all extracted values.
 
@@ -439,8 +449,6 @@ class ExtractionRunnerMixin:
             for a in alerts
         ]
 
-    # === Alerts ===
-
     async def get_alerts(self, session_id: str) -> list[dict]:
         """Return all validation alerts for a session.
 
@@ -451,8 +459,6 @@ class ExtractionRunnerMixin:
             List of alert dicts.
         """
         return await self.run_cross_paper_validation(session_id)
-
-    # === Download ===
 
     async def get_latest_export_path(self, session_id: str):
         """Find the most recently modified export file for a session.
@@ -476,8 +482,6 @@ class ExtractionRunnerMixin:
 
         return max(candidates, key=lambda p: p.stat().st_mtime)
 
-    # === Plugins ===
-
     @staticmethod
     def list_plugins() -> list[dict]:
         """Return metadata for all installed extraction plugins.
@@ -487,6 +491,7 @@ class ExtractionRunnerMixin:
             and ``version`` keys.
         """
         import yaml
+
         from metascreener.module2_extraction.plugins import _PLUGINS_DIR
 
         plugins: list[dict] = []
@@ -521,9 +526,13 @@ class ExtractionRunnerMixin:
         """
         from metascreener.module0_retrieval.ocr.marker_backend import MarkerBackend  # noqa: PLC0415
         from metascreener.module0_retrieval.ocr.mineru_backend import MinerUBackend  # noqa: PLC0415
-        from metascreener.module0_retrieval.ocr.pymupdf_backend import PyMuPDFBackend  # noqa: PLC0415
+        from metascreener.module0_retrieval.ocr.pymupdf_backend import (
+            PyMuPDFBackend,  # noqa: PLC0415
+        )
         from metascreener.module0_retrieval.ocr.router import OCRRouter  # noqa: PLC0415
-        from metascreener.module0_retrieval.ocr.tesseract_backend import TesseractBackend  # noqa: PLC0415
+        from metascreener.module0_retrieval.ocr.tesseract_backend import (
+            TesseractBackend,  # noqa: PLC0415
+        )
         from metascreener.module0_retrieval.ocr.vlm_backend import VLMBackend  # noqa: PLC0415
 
         # Load OCR config (optional section in models.yaml)

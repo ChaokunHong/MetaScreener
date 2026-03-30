@@ -27,7 +27,6 @@ CONFIDENCE_COLORS: dict[str, str] = {
     "FAILED":   "ef4444",  # red
 }
 
-
 def export_extraction_results(
     results: list[dict[str, str]],
     field_names: list[str],
@@ -55,9 +54,6 @@ def export_extraction_results(
     ws = wb.active
     ws.title = "Extraction Results"
 
-    # ------------------------------------------------------------------ #
-    # Headers
-    # ------------------------------------------------------------------ #
     col = 1
     for name in field_names:
         ws.cell(1, col, name)
@@ -67,16 +63,10 @@ def export_extraction_results(
         else:
             col += 1
 
-    # ------------------------------------------------------------------ #
-    # Group results by pdf_id → field_name → cell_dict
-    # ------------------------------------------------------------------ #
     by_pdf: dict[str, dict[str, dict[str, str]]] = defaultdict(dict)
     for cell in results:
         by_pdf[cell["pdf_id"]][cell["field_name"]] = cell
 
-    # ------------------------------------------------------------------ #
-    # Data rows — one row per pdf_id
-    # ------------------------------------------------------------------ #
     row = 2
     for _pdf_id, fields in by_pdf.items():
         col = 1
@@ -103,9 +93,6 @@ def export_extraction_results(
 
         row += 1
 
-    # ------------------------------------------------------------------ #
-    # Metadata sheet
-    # ------------------------------------------------------------------ #
     meta = wb.create_sheet("_MetaScreener_Log")
     meta["A1"] = "Export Date"
     meta["B1"] = datetime.now(UTC).isoformat()

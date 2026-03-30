@@ -10,14 +10,6 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
-from metascreener.api.schemas import (
-    RunScreeningRequest,
-    ScreeningRecordSummary,
-    ScreeningResultsResponse,
-)
-from metascreener.core.models import Record, ReviewCriteria
-from metascreener.criteria.frameworks import FRAMEWORK_ELEMENTS
-
 from metascreener.api.routes.screening_helpers import (
     _apply_screening_token_limits,
     _build_screening_backends,
@@ -26,10 +18,9 @@ from metascreener.api.routes.screening_helpers import (
     _load_learned_weights,
     _parse_framework,
     _resolve_review_criteria,
-    _trim_raw_decisions,
     _trigger_recalibration,
+    _trim_raw_decisions,
 )
-from metascreener.module1_screening.layer3.runtime_tracker import RuntimeTracker
 from metascreener.api.routes.screening_sessions import (
     _sessions,
     compute_readiness,
@@ -37,6 +28,14 @@ from metascreener.api.routes.screening_sessions import (
     run_completeness_check,
     run_terminology_enhancement,
 )
+from metascreener.api.schemas import (
+    RunScreeningRequest,
+    ScreeningRecordSummary,
+    ScreeningResultsResponse,
+)
+from metascreener.core.models import Record, ReviewCriteria
+from metascreener.criteria.frameworks import FRAMEWORK_ELEMENTS
+from metascreener.module1_screening.layer3.runtime_tracker import RuntimeTracker
 
 logger = structlog.get_logger(__name__)
 
@@ -212,8 +211,6 @@ async def get_record_detail(session_id: str, record_index: int) -> dict[str, Any
         raise HTTPException(status_code=404, detail="Record index out of range")
     return raw[record_index]
 
-
-# ── Background tasks ──
 
 async def _run_screening_bg(session: dict[str, Any], records: list[Record], backends: list[Any], criteria_payload: dict[str, Any], seed: int) -> None:
     """Screen records concurrently in the background."""

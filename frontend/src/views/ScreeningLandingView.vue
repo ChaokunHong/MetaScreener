@@ -5,7 +5,6 @@
 
     <div class="glass-card">
       <div class="screening-stage-grid">
-        <!-- TI/AB Card -->
         <router-link to="/screening/ta" class="stage-card stage-card--ta">
           <div class="stage-card-glow stage-card-glow--ta"></div>
           <div class="stage-card-content">
@@ -41,10 +40,8 @@
           </div>
         </router-link>
 
-        <!-- Vertical divider -->
         <div class="stage-divider"></div>
 
-        <!-- FT Card -->
         <router-link to="/screening/ft" class="stage-card stage-card--ft">
           <div class="stage-card-glow stage-card-glow--ft"></div>
           <div class="stage-card-content">

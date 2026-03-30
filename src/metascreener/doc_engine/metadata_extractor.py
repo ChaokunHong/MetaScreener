@@ -106,14 +106,10 @@ def _extract_authors(markdown: str) -> list[str]:
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
-        # Skip DOI lines, URLs, and very short tokens
         if "doi" in stripped.lower() or "http" in stripped.lower():
             continue
-        # Candidate: contains commas, long enough, looks like names
         if "," in stripped and len(stripped) > 10:
             parts = [p.strip() for p in stripped.split(",")]
-            # Require that the first three parts each contain at least one
-            # uppercase letter (name-like)
             if all(any(c.isupper() for c in p) for p in parts[:3]):
                 return parts[:20]  # Cap at 20 authors
     return []

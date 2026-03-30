@@ -30,7 +30,6 @@ from metascreener.module2_extraction.pdf_chunker import chunk_text
 
 logger = structlog.get_logger(__name__)
 
-
 @dataclass
 class ModelExtraction:
     """Extraction result from a single model."""
@@ -40,7 +39,6 @@ class ModelExtraction:
     evidence: list[dict[str, Any]] = field(default_factory=list)
     success: bool = True
     error: str | None = None
-
 
 def _merge_one_per_study(chunk_results: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
     """Merge ONE_PER_STUDY chunk results: first non-null wins per field."""
@@ -60,7 +58,6 @@ def _merge_one_per_study(chunk_results: list[dict[str, Any]]) -> tuple[dict[str,
 
     return merged_fields, merged_evidence
 
-
 def _merge_many_per_study(chunk_results: list[Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Merge MANY_PER_STUDY chunk results: concatenate all rows."""
     all_rows: list[dict[str, Any]] = []
@@ -78,7 +75,6 @@ def _merge_many_per_study(chunk_results: list[Any]) -> tuple[list[dict[str, Any]
             all_evidence.append(chunk.get("evidence", {}))
 
     return all_rows, all_evidence
-
 
 async def _extract_single_model(
     sheet: SheetSchema,
@@ -166,7 +162,6 @@ async def _extract_single_model(
             success=False,
             error=str(exc),
         )
-
 
 async def extract_dual(
     sheet: SheetSchema,

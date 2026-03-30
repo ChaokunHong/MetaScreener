@@ -2,7 +2,6 @@
   <div v-if="results.length > 0" class="glass-card fade-in" style="margin-top: 1rem;">
     <div class="section-title"><i class="fas fa-chart-pie"></i> Extraction Summary</div>
 
-    <!-- Summary stats row -->
     <div class="stats-row">
       <div class="stat-card">
         <div class="stat-value">{{ totalFields }}</div>
@@ -30,7 +29,6 @@
       </div>
     </div>
 
-    <!-- Confidence distribution bar -->
     <div class="confidence-bar">
       <div
         v-for="level in confidenceLevels"
@@ -41,7 +39,6 @@
       ></div>
     </div>
 
-    <!-- Per-PDF health -->
     <div class="section-title" style="margin-top: 1rem; font-size: 0.9rem;">
       <i class="fas fa-file-pdf"></i> Per-PDF Quality
     </div>

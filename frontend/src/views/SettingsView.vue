@@ -3,7 +3,6 @@
     <h1 class="page-title" style="margin-bottom: 0.25rem;">LLM Configuration</h1>
     <p class="text-muted" style="margin-bottom: 1.5rem;">Configure API keys, verify connectivity, and select models for screening</p>
 
-    <!-- API Keys -->
     <div class="glass-card">
       <div class="section-title">
         <i class="fas fa-key"></i> API Keys
@@ -82,7 +81,6 @@
 
     </div>
 
-    <!-- Model Selection (collapsible) -->
     <div class="glass-card">
       <div class="section-title section-title-clickable" @click="modelsExpanded = !modelsExpanded">
         <i class="fas fa-robot"></i> Model Selection
@@ -94,7 +92,6 @@
       </div>
       <div v-show="modelsExpanded" class="collapsible-body">
 
-      <!-- Quick Setup — Presets -->
       <div v-if="presets.length > 0" style="margin-bottom: 1.5rem;">
         <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.6rem;">
           <i class="fas fa-wand-magic-sparkles" style="font-size: 0.75rem; margin-right: 4px;"></i>
@@ -124,12 +121,10 @@
         </div>
       </div>
 
-      <!-- Minimum validation warning -->
       <div v-if="enabledModels.length > 0 && enabledModels.length < 2" class="alert alert-danger" style="margin-bottom: 1rem;">
         <i class="fas fa-triangle-exclamation"></i> At least 2 models must be enabled for ensemble screening.
       </div>
 
-      <!-- Model Grid -->
       <div v-if="loadingModels" class="text-muted" style="padding: 1rem 0;">Loading models...</div>
       <div v-else class="model-grid">
         <div
@@ -170,7 +165,6 @@
       </div>
     </div>
 
-    <!-- Inference Config -->
     <div class="glass-card">
       <div class="section-title">
         <i class="fas fa-sliders-h"></i> Inference Configuration
@@ -219,7 +213,6 @@
       </div>
     </div>
 
-    <!-- Performance Settings -->
     <div class="glass-card">
       <div class="section-title">
         <i class="fas fa-gauge-high"></i> Performance
@@ -268,7 +261,6 @@
       </div>
     </div>
 
-    <!-- Action Buttons — at the very bottom after all settings -->
     <div style="display: flex; gap: 0.75rem; align-items: center; justify-content: center; margin-top: 0.5rem;">
       <button class="btn btn-primary" :disabled="saving" @click="doSave">
         <i v-if="saving" class="fas fa-spinner fa-spin"></i>
@@ -282,20 +274,16 @@
       </button>
     </div>
 
-    <!-- Glass Modals -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="activeModal" class="modal-overlay" @click.self="activeModal = null">
           <div class="modal-glass-panel">
-            <!-- Decorative refraction line -->
             <div class="modal-refraction"></div>
 
-            <!-- Close -->
             <button class="modal-close" @click="activeModal = null">
               <i class="fas fa-times"></i>
             </button>
 
-            <!-- API Keys Info -->
             <template v-if="activeModal === 'apikeys'">
               <div class="modal-header-row">
                 <div class="modal-icon-wrap modal-icon-purple"><i class="fas fa-key"></i></div>
@@ -335,7 +323,6 @@
               </div>
             </template>
 
-            <!-- Models Info -->
             <template v-if="activeModal === 'models'">
               <div class="modal-header-row">
                 <div class="modal-icon-wrap modal-icon-cyan"><i class="fas fa-robot"></i></div>
@@ -365,7 +352,6 @@
               </div>
             </template>
 
-            <!-- Presets Info -->
             <template v-if="activeModal === 'presets'">
               <div class="modal-header-row">
                 <div class="modal-icon-wrap modal-icon-purple"><i class="fas fa-wand-magic-sparkles"></i></div>
@@ -399,7 +385,6 @@
               </div>
             </template>
 
-            <!-- Performance Info -->
             <template v-if="activeModal === 'performance'">
               <div class="modal-header-row">
                 <div class="modal-icon-wrap modal-icon-cyan"><i class="fas fa-gauge-high"></i></div>
@@ -430,7 +415,6 @@
               </div>
             </template>
 
-            <!-- Inference Info -->
             <template v-if="activeModal === 'inference'">
               <div class="modal-header-row">
                 <div class="modal-icon-wrap modal-icon-green"><i class="fas fa-sliders-h"></i></div>

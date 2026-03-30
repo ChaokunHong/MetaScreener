@@ -99,7 +99,6 @@ async function confirmDelete(sessionId: string): Promise<void> {
       sessions.value = sessions.value.filter((s) => s.id !== sessionId)
     }
   } catch {
-    // Silently ignore delete errors
   }
 }
 

@@ -40,8 +40,6 @@ class ExtractionService(ExtractionRunnerMixin):
         self._data_dir.mkdir(parents=True, exist_ok=True)
         self._progress: dict[str, asyncio.Queue] = {}
 
-    # === Session lifecycle ===
-
     async def create_session(self) -> str:
         """Create a new extraction session.
 
@@ -80,8 +78,6 @@ class ExtractionService(ExtractionRunnerMixin):
             List of session dicts.
         """
         return await self._repo.list_sessions()
-
-    # === Template ===
 
     async def upload_template(
         self,
@@ -127,8 +123,6 @@ class ExtractionService(ExtractionRunnerMixin):
             ],
         }
 
-    # === PDFs ===
-
     async def upload_pdf(
         self,
         session_id: str,
@@ -168,8 +162,6 @@ class ExtractionService(ExtractionRunnerMixin):
         """
         return await self._repo.get_pdfs(session_id)
 
-    # === Results ===
-
     async def get_results(
         self,
         session_id: str,
@@ -186,8 +178,6 @@ class ExtractionService(ExtractionRunnerMixin):
         """
         return await self._repo.get_cells(session_id, pdf_id)
 
-    # === Edit ===
-
     async def edit_cell(
         self,
         session_id: str,
@@ -196,11 +186,14 @@ class ExtractionService(ExtractionRunnerMixin):
         new_value: str,
         edited_by: str = "user",
         reason: str = "",
+        sheet_name: str | None = None,
+        row_index: int | None = None,
     ) -> None:
         """Apply a human correction to an extracted cell value.
 
-        Persists both an edit record (audit trail) and updates the cell value
-        in the extraction_cells table.
+        Finds the existing cell by (pdf_id, field_name) — optionally narrowed
+        by *sheet_name* and *row_index* — then persists an edit record and
+        updates the cell value.
 
         Args:
             session_id: Parent session identifier.
@@ -209,14 +202,33 @@ class ExtractionService(ExtractionRunnerMixin):
             new_value: The corrected value.
             edited_by: User or system performing the edit.
             reason: Human-readable justification for the change.
+            sheet_name: If provided, limits the lookup to this sheet.
+            row_index: If provided, limits the lookup to this row.
         """
-        # Resolve current value for the audit trail
+        # Resolve current cell for the audit trail and correct upsert target
         cells = await self._repo.get_cells(session_id, pdf_id)
-        old_value = ""
+
+        matched_cell: dict | None = None
         for cell in cells:
-            if cell["field_name"] == field_name:
-                old_value = cell["value"]
-                break
+            if cell["field_name"] != field_name:
+                continue
+            if sheet_name is not None and cell.get("sheet_name") != sheet_name:
+                continue
+            if row_index is not None and cell.get("row_index") != row_index:
+                continue
+            matched_cell = cell
+            break
+
+        old_value = matched_cell["value"] if matched_cell else ""
+        resolved_sheet = (
+            sheet_name
+            or (matched_cell["sheet_name"] if matched_cell else "default")
+        )
+        resolved_row = (
+            row_index
+            if row_index is not None
+            else (matched_cell.get("row_index", 0) if matched_cell else 0)
+        )
 
         await self._repo.save_edit(
             session_id,
@@ -228,17 +240,19 @@ class ExtractionService(ExtractionRunnerMixin):
             reason,
         )
 
-        # Upsert the cell so get_results reflects the edit
+        # Upsert the cell so get_results reflects the edit.
+        # Preserve original evidence and validations; mark as manual edit.
         await self._repo.save_cell(
             session_id=session_id,
             pdf_id=pdf_id,
-            sheet_name="Studies",
-            row_index=0,
+            sheet_name=resolved_sheet,
+            row_index=resolved_row,
             field_name=field_name,
             value=new_value,
             confidence="manual",
-            evidence_json="{}",
+            evidence_json=matched_cell.get("evidence_json", "{}") if matched_cell else "{}",
             strategy="manual",
+            validations_json=matched_cell.get("validations_json", "{}") if matched_cell else "{}",
         )
 
         log.info(
@@ -248,8 +262,6 @@ class ExtractionService(ExtractionRunnerMixin):
             field_name=field_name,
             edited_by=edited_by,
         )
-
-    # === Schema access ===
 
     async def get_schema_json(self, session_id: str) -> str | None:
         """Return the raw schema JSON string for a session.
@@ -272,8 +284,6 @@ class ExtractionService(ExtractionRunnerMixin):
         await self._repo.save_schema(session_id, schema_json)
         await self._repo.update_session_status(session_id, "schema_ready")
 
-    # === PDF removal ===
-
     async def remove_pdf(self, session_id: str, pdf_id: str) -> None:
         """Remove a PDF and its extraction cells from the session.
 
@@ -282,8 +292,6 @@ class ExtractionService(ExtractionRunnerMixin):
             pdf_id: The PDF to remove.
         """
         await self._repo.delete_pdf(session_id, pdf_id)
-
-    # === Evidence lookup ===
 
     async def get_evidence_for_field(
         self, session_id: str, pdf_id: str, field_name: str
@@ -310,8 +318,6 @@ class ExtractionService(ExtractionRunnerMixin):
                     return {}
         return None
 
-    # === Task management ===
-
     async def start_extraction(self, session_id: str) -> None:
         """Start extraction via ExtractionTaskManager (supports cancellation/duplicate detection).
 
@@ -323,8 +329,6 @@ class ExtractionService(ExtractionRunnerMixin):
             session_id: The session to run extraction on.
         """
         await self._task_manager.start(session_id, self.run_extraction(session_id))
-
-    # === Status helpers ===
 
     def is_running(self, session_id: str) -> bool:
         """Return whether *session_id* has an active extraction task.

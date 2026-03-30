@@ -28,7 +28,13 @@ configs/api_keys.yaml
 
 # Databases
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
+
+# Runtime data
+data/
+src/data/
 
 # Validation data (regenerated via scripts/)
 validation/results/*

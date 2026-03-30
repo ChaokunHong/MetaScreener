@@ -20,7 +20,6 @@ _MAPPING_KEYWORDS = {
     "codebook", "codes",
 }
 
-
 def infer_sheet_roles(sheets: list[RawSheetInfo]) -> dict[str, str]:
     """Classify each sheet as data / mapping / reference / documentation.
 
@@ -48,7 +47,6 @@ def infer_sheet_roles(sheets: list[RawSheetInfo]) -> dict[str, str]:
         roles[sheet.sheet_name] = "data"
     log.info("sheet_roles_inferred", roles=roles)
     return roles
-
 
 def infer_relationships(sheets: list[RawSheetInfo]) -> list[SheetRelation]:
     """Detect cross-sheet foreign key relationships.

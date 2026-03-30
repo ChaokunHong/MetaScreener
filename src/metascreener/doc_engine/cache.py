@@ -47,11 +47,6 @@ CREATE TABLE IF NOT EXISTS doc_cache (
 _PRAGMA_WAL = "PRAGMA journal_mode=WAL"
 
 
-# ---------------------------------------------------------------------------
-# Serialization helpers
-# ---------------------------------------------------------------------------
-
-
 def _default_converter(obj: Any) -> Any:  # noqa: ANN401
     """Convert non-JSON-serialisable types produced by asdict().
 
@@ -84,11 +79,6 @@ def _to_json(doc: StructuredDocument) -> str:
     """
     raw = asdict(doc)
     return json.dumps(raw, default=_default_converter)
-
-
-# ---------------------------------------------------------------------------
-# Deserialization helpers
-# ---------------------------------------------------------------------------
 
 
 def _deserialise_bbox(d: dict[str, Any] | None) -> BoundingBox | None:
@@ -251,11 +241,6 @@ def _from_json(raw_json: str) -> StructuredDocument:
     )
 
 
-# ---------------------------------------------------------------------------
-# DocumentCache
-# ---------------------------------------------------------------------------
-
-
 class DocumentCache:
     """SQLite-backed persistent cache for parsed StructuredDocument objects.
 
@@ -272,10 +257,6 @@ class DocumentCache:
     def __init__(self, db_path: Path) -> None:
         self._db_path = db_path
         self._conn: sqlite3.Connection | None = None
-
-    # ------------------------------------------------------------------
-    # Lifecycle
-    # ------------------------------------------------------------------
 
     async def initialize(self) -> None:
         """Open the database and create the schema if not already present."""
@@ -296,10 +277,6 @@ class DocumentCache:
         if self._conn is not None:
             self._conn.close()
             self._conn = None
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     async def get(self, pdf_hash: str, ocr_config_hash: str) -> StructuredDocument | None:
         """Return a cached StructuredDocument or *None* on a cache miss.

@@ -23,7 +23,6 @@ from metascreener.module2_extraction.repository_schema import SCHEMA_SQL as _SCH
 
 log = structlog.get_logger(__name__)
 
-
 class ExtractionRepository(CellsAndEditsMixin):
     """SQLite-backed persistence for extraction sessions and results."""
 
@@ -47,10 +46,6 @@ class ExtractionRepository(CellsAndEditsMixin):
 
         await asyncio.to_thread(_init)
         self._initialized = True
-
-    # ------------------------------------------------------------------
-    # Session CRUD
-    # ------------------------------------------------------------------
 
     async def create_session(self, session_id: str, status: str = "created") -> None:
         """Persist a new session record.
@@ -164,10 +159,6 @@ class ExtractionRepository(CellsAndEditsMixin):
 
         return await asyncio.to_thread(_read)
 
-    # ------------------------------------------------------------------
-    # Schema
-    # ------------------------------------------------------------------
-
     async def save_schema(self, session_id: str, schema_json: str) -> None:
         """Persist an extraction schema JSON string for a session.
 
@@ -208,10 +199,6 @@ class ExtractionRepository(CellsAndEditsMixin):
             return row[0]  # may be None if column not set
 
         return await asyncio.to_thread(_read)
-
-    # ------------------------------------------------------------------
-    # PDFs
-    # ------------------------------------------------------------------
 
     async def add_pdf(
         self,

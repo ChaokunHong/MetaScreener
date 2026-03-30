@@ -8,12 +8,6 @@ import structlog
 
 log = structlog.get_logger()
 
-
-# ---------------------------------------------------------------------------
-# Individual formula functions (keyword-only arguments)
-# ---------------------------------------------------------------------------
-
-
 def odds_ratio(*, a: float, b: float, c: float, d: float) -> float | None:
     """Compute odds ratio: (a*d) / (b*c).
 
@@ -24,7 +18,6 @@ def odds_ratio(*, a: float, b: float, c: float, d: float) -> float | None:
         return None
     return (a * d) / denom
 
-
 def risk_ratio(*, e1: float, n1: float, e2: float, n2: float) -> float | None:
     """Compute risk ratio: (e1/n1) / (e2/n2).
 
@@ -34,11 +27,9 @@ def risk_ratio(*, e1: float, n1: float, e2: float, n2: float) -> float | None:
         return None
     return (e1 / n1) / (e2 / n2)
 
-
 def mean_difference(*, m1: float, m2: float) -> float:
     """Compute mean difference: m1 - m2."""
     return m1 - m2
-
 
 def ci_lower_or(*, or_val: float, se: float) -> float | None:
     """Compute lower 95% CI for an odds ratio: exp(ln(or_val) - 1.96*se).
@@ -49,7 +40,6 @@ def ci_lower_or(*, or_val: float, se: float) -> float | None:
         return None
     return math.exp(math.log(or_val) - 1.96 * se)
 
-
 def ci_upper_or(*, or_val: float, se: float) -> float | None:
     """Compute upper 95% CI for an odds ratio: exp(ln(or_val) + 1.96*se).
 
@@ -58,7 +48,6 @@ def ci_upper_or(*, or_val: float, se: float) -> float | None:
     if or_val <= 0:
         return None
     return math.exp(math.log(or_val) + 1.96 * se)
-
 
 def nnt(*, arr: float) -> float | None:
     """Compute number needed to treat: 1 / abs(arr).
@@ -69,7 +58,6 @@ def nnt(*, arr: float) -> float | None:
         return None
     return 1.0 / abs(arr)
 
-
 def se_from_ci(*, ci_lo: float, ci_hi: float) -> float | None:
     """Compute SE from a log-scale 95% CI: (ln(ci_hi) - ln(ci_lo)) / 3.92.
 
@@ -78,11 +66,6 @@ def se_from_ci(*, ci_lo: float, ci_hi: float) -> float | None:
     if ci_lo <= 0 or ci_hi <= 0:
         return None
     return (math.log(ci_hi) - math.log(ci_lo)) / 3.92
-
-
-# ---------------------------------------------------------------------------
-# Formula registry
-# ---------------------------------------------------------------------------
 
 _FORMULAS: dict[str, Callable[..., float | None]] = {
     "odds_ratio": odds_ratio,
@@ -93,12 +76,6 @@ _FORMULAS: dict[str, Callable[..., float | None]] = {
     "nnt": nnt,
     "se_from_ci": se_from_ci,
 }
-
-
-# ---------------------------------------------------------------------------
-# Engine
-# ---------------------------------------------------------------------------
-
 
 class ComputationEngine:
     """Compute derived effect sizes from extracted values.

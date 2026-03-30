@@ -13,7 +13,6 @@ from typing import Any
 
 import structlog
 
-from metascreener.module0_retrieval.models import DedupResult, MergeEvent, RawRecord
 from metascreener.module0_retrieval.dedup.rules import (
     find_doi_duplicates,
     find_external_id_duplicates,
@@ -22,12 +21,9 @@ from metascreener.module0_retrieval.dedup.rules import (
     find_title_year_duplicates,
 )
 from metascreener.module0_retrieval.dedup.semantic import find_semantic_duplicates
+from metascreener.module0_retrieval.models import DedupResult, MergeEvent, RawRecord
 
 log = structlog.get_logger(__name__)
-
-# ---------------------------------------------------------------------------
-# Union-Find
-# ---------------------------------------------------------------------------
 
 
 class _UnionFind:
@@ -89,11 +85,6 @@ class _UnionFind:
         for id_ in ids:
             result[self.find(id_)].append(id_)
         return dict(result)
-
-
-# ---------------------------------------------------------------------------
-# Record merging
-# ---------------------------------------------------------------------------
 
 
 def _merge_records(records: list[RawRecord]) -> RawRecord:
@@ -181,11 +172,6 @@ def _merge_records(records: list[RawRecord]) -> RawRecord:
         raw_data=anchor.raw_data,
     )
 
-
-# ---------------------------------------------------------------------------
-# Layer descriptor
-# ---------------------------------------------------------------------------
-
 _LAYER_DESCRIPTORS: dict[int, tuple[str, str]] = {
     1: ("doi", "doi"),
     2: ("pmid", "pmid"),
@@ -194,11 +180,6 @@ _LAYER_DESCRIPTORS: dict[int, tuple[str, str]] = {
     5: ("title_year", "title+year"),
     6: ("semantic", "title embedding"),
 }
-
-
-# ---------------------------------------------------------------------------
-# DedupEngine
-# ---------------------------------------------------------------------------
 
 
 class DedupEngine:
@@ -222,10 +203,6 @@ class DedupEngine:
         self.enable_semantic = enable_semantic
         self.semantic_threshold = semantic_threshold
         self.semantic_model = semantic_model
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     def deduplicate(self, records: list[RawRecord]) -> DedupResult:
         """Run the full 6-layer deduplication pipeline.

@@ -19,8 +19,14 @@ from metascreener.core.models_extraction import FieldSchema
 from metascreener.doc_engine.models import Figure, StructuredDocument, Table
 from metascreener.module2_extraction.engine.routing_helpers import (
     COMPUTABLE_ABBREV as _COMPUTABLE_ABBREV,
+)
+from metascreener.module2_extraction.engine.routing_helpers import (
     COMPUTABLE_MAP as _COMPUTABLE_MAP,
+)
+from metascreener.module2_extraction.engine.routing_helpers import (
     FIGURE_KEYWORDS as _FIGURE_KEYWORDS,
+)
+from metascreener.module2_extraction.engine.routing_helpers import (
     SECTION_KEYWORD_MAP as _SECTION_KEYWORD_MAP,
 )
 from metascreener.module2_extraction.models import (
@@ -34,6 +40,40 @@ from metascreener.module2_extraction.models import (
 
 log = structlog.get_logger(__name__)
 
+import re as _re
+
+_NORMALISE_RE = _re.compile(r"[^a-z0-9 ]+")
+
+def _normalise_header(text: str) -> str:
+    """Lower-case, strip, collapse underscores/hyphens/punctuation to spaces."""
+    return _NORMALISE_RE.sub(" ", text.strip().lower().replace("_", " ").replace("-", " ")).strip()
+
+def _match_tier(
+    needle: str,
+    needle_tokens: set[str],
+    header: str,
+) -> int:
+    """Return match quality tier: 3=exact, 2=token overlap, 1=substring, 0=none."""
+    # Tier 3: exact match after normalisation
+    if needle == header:
+        return 3
+
+    header_tokens = set(header.split())
+
+    # Tier 2: >=50% bidirectional token overlap (handles word reordering)
+    if needle_tokens and header_tokens:
+        overlap = needle_tokens & header_tokens
+        jaccard = len(overlap) / len(needle_tokens | header_tokens)
+        if jaccard >= 0.5:
+            return 2
+
+    # Tier 1: substring containment — only if shorter side >= 5 chars
+    # (avoids false positives like "or" matching "author")
+    shorter = min(len(needle), len(header))
+    if shorter >= 5 and (needle in header or header in needle):
+        return 1
+
+    return 0
 
 class FieldRouter:
     """Route schema fields to optimal extraction strategies.
@@ -41,10 +81,6 @@ class FieldRouter:
     All routing is heuristic — no LLM calls are made here.  The router
     is intentionally deterministic so routing plans can be unit-tested.
     """
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     def route(
         self,
@@ -210,10 +246,6 @@ class FieldRouter:
 
         return ExtractionPlan(phases=phases)
 
-    # ------------------------------------------------------------------
-    # Internal routing
-    # ------------------------------------------------------------------
-
     def _route_single(
         self,
         field: FieldSchema,
@@ -268,19 +300,25 @@ class FieldRouter:
             fallback_strategy=None,
         )
 
-    # ------------------------------------------------------------------
-    # Matching helpers
-    # ------------------------------------------------------------------
-
     def _find_table_match(
         self,
         field_name: str,
         doc: StructuredDocument,
     ) -> tuple[Table, int] | None:
-        """Find a table column that matches *field_name*.
+        """Find a table column that best matches *field_name*.
 
-        Uses case-insensitive substring matching against header cells
-        (row 0 of each table).  The first match wins.
+        Uses a multi-tier matching strategy to avoid false positives from
+        naive substring matching while still catching reasonable synonyms:
+
+        1. **Exact match** (case-insensitive, after normalisation)
+        2. **Token overlap** — >=50% of tokens shared between field name and
+           header (handles reordering like "Total N" vs "N Total")
+        3. **Substring containment** — only when the shorter string is at
+           least 5 chars (avoids "or" matching "author")
+
+        The best match across all tables is returned. Among multiple matches
+        the one with the highest tier (most specific) wins; ties broken by
+        the table with the highest ``extraction_quality_score``.
 
         Args:
             field_name: The schema field name to look up.
@@ -289,16 +327,32 @@ class FieldRouter:
         Returns:
             (Table, column_index) tuple, or None if no match is found.
         """
-        needle = field_name.strip().lower()
+        needle = _normalise_header(field_name)
+        needle_tokens = set(needle.split())
+
+        best: tuple[int, float, Table, int] | None = None  # (tier, quality, table, col)
+
         for table in doc.tables:
             if not table.cells:
                 continue
             header_row = table.cells[0]
+            quality = getattr(table, "extraction_quality_score", 0.5)
+
             for col_idx, cell in enumerate(header_row):
-                header_text = cell.value.strip().lower()
-                # Exact match takes priority; fall back to substring
-                if header_text == needle or needle in header_text or header_text in needle:
-                    return table, col_idx
+                header = _normalise_header(cell.value)
+                if not header:
+                    continue
+
+                tier = _match_tier(needle, needle_tokens, header)
+                if tier == 0:
+                    continue  # no match
+
+                candidate = (tier, quality, table, col_idx)
+                if best is None or (tier, quality) > (best[0], best[1]):
+                    best = candidate
+
+        if best is not None:
+            return best[2], best[3]
         return None
 
     def _check_computable(self, field_name: str) -> str | None:
@@ -402,10 +456,6 @@ class FieldRouter:
             return doc.sections[0].heading
 
         return None
-
-    # ------------------------------------------------------------------
-    # Utility
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _routing_plans_to_field_schemas(

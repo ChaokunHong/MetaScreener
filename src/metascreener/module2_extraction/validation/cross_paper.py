@@ -16,7 +16,6 @@ _MIN_PAPERS = 5
 # IQR fence multiplier: flag if value < Q1 - k*IQR or > Q3 + k*IQR.
 _IQR_MULTIPLIER = 3.0
 
-
 class CrossPaperValidator:
     """V5: Detect statistical outliers in extracted values across all papers.
 
@@ -82,12 +81,6 @@ class CrossPaperValidator:
         all_alerts = self.detect_outliers(all_vals, field_tags)
         return [a for a in all_alerts if a.pdf_id in new_values]
 
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-
 def _to_float(value: Any) -> float | None:
     """Convert a value to float, returning None if not numeric."""
     if value is None:
@@ -97,7 +90,6 @@ def _to_float(value: Any) -> float | None:
     if isinstance(value, (int, float)):
         return float(value)
     return None
-
 
 def _percentile(sorted_values: list[float], pct: float) -> float:
     """Compute a percentile from a sorted list using linear interpolation.
@@ -119,7 +111,6 @@ def _percentile(sorted_values: list[float], pct: float) -> float:
         return sorted_values[-1]
     frac = pos - lo
     return sorted_values[lo] + frac * (sorted_values[hi] - sorted_values[lo])
-
 
 def _check_field(
     field_name: str,

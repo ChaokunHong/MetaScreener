@@ -16,7 +16,6 @@ class ExtractionStrategy(StrEnum):
     VLM_FIGURE = "vlm_figure"
     COMPUTED = "computed"
 
-
 @dataclass
 class SourceHint:
     """Hint about where to find a field's value in the document."""
@@ -27,7 +26,6 @@ class SourceHint:
     figure_id: str | None = None
     panel_label: str | None = None
     computation_formula: str | None = None
-
 
 @dataclass
 class SourceLocation:
@@ -44,7 +42,6 @@ class SourceLocation:
     figure_id: str | None = None
     panel_label: str | None = None
 
-
 @dataclass
 class FieldRoutingPlan:
     """Extraction plan for a single field."""
@@ -55,7 +52,6 @@ class FieldRoutingPlan:
     confidence_prior: float
     fallback_strategy: ExtractionStrategy | None = None
 
-
 @dataclass
 class FieldGroup:
     """Group of related fields extracted together for consistency."""
@@ -65,7 +61,6 @@ class FieldGroup:
     relevant_tables: list[str]
     group_type: str  # "baseline", "outcome", "design"
 
-
 @dataclass
 class ExtractionPhase:
     """A phase of extraction — fields within can be parallel."""
@@ -74,13 +69,11 @@ class ExtractionPhase:
     field_groups: list[FieldGroup]
     depends_on: list[int]
 
-
 @dataclass
 class ExtractionPlan:
     """Complete dependency-aware phased extraction plan."""
 
     phases: list[ExtractionPhase]
-
 
 @dataclass
 class RawExtractionResult:

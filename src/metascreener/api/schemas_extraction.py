@@ -6,9 +6,6 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
-# --- Evaluation API schemas ---
-
-
 class EvaluationMetrics(BaseModel):
     """Evaluation metrics summary.
 
@@ -89,9 +86,6 @@ class RunEvaluationRequest(BaseModel):
     seed: int = 42
 
 
-# --- History schemas ---
-
-
 class HistoryItemSummary(BaseModel):
     """Summary of a history item (no data payload).
 
@@ -158,9 +152,6 @@ class HistoryListResponse(BaseModel):
 
     items: list[HistoryItemSummary]
     total: int
-
-
-# --- Criteria suggest-terms schemas ---
 
 
 class SuggestTermsRequest(BaseModel):

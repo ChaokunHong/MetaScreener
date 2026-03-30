@@ -1,6 +1,5 @@
 <template>
   <div class="home">
-    <!-- Animated Background Orbs -->
     <div class="bg-orbs" aria-hidden="true">
       <div class="orb orb-1"></div>
       <div class="orb orb-2"></div>
@@ -8,7 +7,6 @@
       <div class="orb orb-4"></div>
     </div>
 
-    <!-- Hero Section — Liquid Glass -->
     <section
       ref="heroRef"
       class="hero-liquid"
@@ -55,7 +53,6 @@
       </div>
     </section>
 
-    <!-- Pipeline — Liquid Glass Cards with Connected Flow -->
     <section class="pipeline">
       <div class="pipeline-header">
         <h2 class="pipeline-title">End-to-end pipeline</h2>
@@ -81,7 +78,6 @@
       </div>
     </section>
 
-    <!-- Stats — Floating Glass Capsules -->
     <section class="stats-float">
       <div v-for="stat in stats" :key="stat.label" class="stat-capsule">
         <div class="stat-value">{{ stat.value }}</div>
@@ -177,7 +173,6 @@ onMounted(async () => {
     const health = await apiGet<{ version: string }>('/health')
     stats.value[1] = { value: `v${health.version}`, label: 'Version' }
   } catch {
-    // server not running yet
   }
 })
 

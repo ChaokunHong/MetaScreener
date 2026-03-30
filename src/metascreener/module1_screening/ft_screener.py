@@ -385,7 +385,11 @@ class FTScreener(HCNScreener):
             for d in chunk_decisions:
                 if d.decision == agg_decision:
                     tier_votes[d.tier.value] += 1
-            agg_tier = Tier(tier_votes.most_common(1)[0][0])
+            if tier_votes:
+                agg_tier = Tier(tier_votes.most_common(1)[0][0])
+            else:
+                # Fallback: no chunk matched agg_decision (edge case)
+                agg_tier = Tier.THREE
 
         # Merge rule results and element consensus across chunks
         merged_rule = merge_rule_results(chunk_decisions)
@@ -420,6 +424,20 @@ class FTScreener(HCNScreener):
                 adjusted_confidence=adjusted_conf,
             )
 
+        # Merge model_outputs from all chunks so the detail view
+        # can display per-model rationale, element assessment, and
+        # ft_assessment without drilling into chunk_details.
+        merged_outputs: dict[str, Any] = {}
+        for cd in chunk_decisions:
+            for mo in cd.model_outputs:
+                if mo.model_id not in merged_outputs:
+                    merged_outputs[mo.model_id] = mo
+                else:
+                    # Keep the output with longer rationale (more informative)
+                    existing = merged_outputs[mo.model_id]
+                    if len(mo.rationale or "") > len(existing.rationale or ""):
+                        merged_outputs[mo.model_id] = mo
+
         return ScreeningDecision(
             record_id=original_record.record_id,
             stage=ScreeningStage.FULL_TEXT,
@@ -427,6 +445,7 @@ class FTScreener(HCNScreener):
             tier=agg_tier,
             final_score=round(avg_score, 4),
             ensemble_confidence=adjusted_conf,
+            model_outputs=list(merged_outputs.values()),
             rule_result=merged_rule,
             element_consensus=merged_consensus,
             chunking_applied=True,

@@ -1,10 +1,13 @@
 """Extraction session state management."""
 from __future__ import annotations
+
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+
 from metascreener.core.models_extraction import ExtractionSchema, ExtractionSessionResult
+
 
 @dataclass
 class PDFInfo:

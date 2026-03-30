@@ -17,6 +17,7 @@ __all__ = [
     "QualityScore",
     "Record",
     "ReviewCriteria",
+    "TextQualityResult",
     "WizardSession",
     # models_consensus
     "ChunkHeterogeneityResult",

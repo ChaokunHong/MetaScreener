@@ -38,9 +38,6 @@ def _get_service() -> ExtractionService:
     return _service
 
 
-# --- Request/Response models ---
-
-
 class SessionResponse(BaseModel):
     """Response returned when a session is created."""
 
@@ -67,9 +64,8 @@ class EditRequest(BaseModel):
 
     new_value: str
     reason: str = ""
-
-
-# --- Session endpoints ---
+    sheet_name: str | None = None
+    row_index: int | None = None
 
 
 @router.post("/sessions", response_model=SessionResponse)
@@ -130,9 +126,6 @@ async def list_sessions() -> list[dict]:
     return await service.list_sessions()
 
 
-# --- Template ---
-
-
 @router.post("/sessions/{session_id}/template")
 async def upload_template(
     session_id: str, file: UploadFile = File(...)
@@ -152,9 +145,6 @@ async def upload_template(
         session_id, content, file.filename or "template.xlsx"
     )
     return result
-
-
-# --- PDFs ---
 
 
 @router.post("/sessions/{session_id}/pdfs", response_model=PDFResponse)
@@ -191,9 +181,6 @@ async def list_pdfs(session_id: str) -> list[dict]:
     return await service.get_pdfs(session_id)
 
 
-# --- Results ---
-
-
 @router.get("/sessions/{session_id}/results")
 async def get_results(
     session_id: str, pdf_id: str | None = None
@@ -209,9 +196,6 @@ async def get_results(
     """
     service = _get_service()
     return await service.get_results(session_id, pdf_id)
-
-
-# --- Edit ---
 
 
 @router.put("/sessions/{session_id}/results/{pdf_id}/cells/{field_name}")
@@ -231,12 +215,15 @@ async def edit_cell(
     """
     service = _get_service()
     await service.edit_cell(
-        session_id, pdf_id, field_name, body.new_value, reason=body.reason
+        session_id,
+        pdf_id,
+        field_name,
+        body.new_value,
+        reason=body.reason,
+        sheet_name=body.sheet_name,
+        row_index=body.row_index,
     )
     return {"status": "updated"}
-
-
-# --- Export ---
 
 
 @router.post("/sessions/{session_id}/export")
@@ -264,19 +251,29 @@ async def export_results(session_id: str, format: str = "excel") -> dict:
     session_dir = service._data_dir / session_id
     session_dir.mkdir(parents=True, exist_ok=True)
 
+    # Map format to file extension for consistent naming
+    ext_map = {
+        "filled_template": "xlsx",
+        "excel": "xlsx",
+        "csv": "csv",
+        "revman": "xml",
+        "r_meta": "csv",
+        "json": "json",
+    }
+    if format not in ext_map:
+        raise HTTPException(status_code=400, detail=f"Unsupported format: {format}")
+
+    # Use format-specific filename to avoid overwriting different exports
+    output = session_dir / f"export_{format}.{ext_map[format]}"
+
     if format == "filled_template":
         from metascreener.core.models_extraction import ExtractionSchema
         from metascreener.module2_extraction.export.template_filler import (
             export_filled_template,
         )
 
-        # Locate the original template file in the session directory
         templates = list(session_dir.glob("*.xlsx"))
-        # Exclude any previous export files
-        templates = [
-            t for t in templates
-            if not t.name.startswith("export")
-        ]
+        templates = [t for t in templates if not t.name.startswith("export")]
         if not templates:
             raise HTTPException(
                 status_code=400,
@@ -287,51 +284,41 @@ async def export_results(session_id: str, format: str = "excel") -> dict:
         schema_json = await service.get_schema_json(session_id)
         if not schema_json:
             raise HTTPException(
-                status_code=400,
-                detail="No schema found for this session",
+                status_code=400, detail="No schema found for this session",
             )
         schema = ExtractionSchema.model_validate_json(schema_json)
-
-        output = session_dir / "export_filled.xlsx"
         export_filled_template(template_path, results, schema, output)
-        return {"path": str(output), "format": "filled_template"}
+
     elif format == "excel":
         from metascreener.module2_extraction.export.excel import export_extraction_results
 
-        output = session_dir / "export.xlsx"
         export_extraction_results(results, field_names, output)
-        return {"path": str(output), "format": "excel"}
+
     elif format == "csv":
         from metascreener.module2_extraction.export.csv_export import export_to_csv
 
-        output = session_dir / "export.csv"
         export_to_csv(results, field_names, output)
-        return {"path": str(output), "format": "csv"}
+
     elif format == "revman":
         from metascreener.module2_extraction.export.revman import export_to_revman
 
-        output = session_dir / "export_revman.xml"
         field_tags = {r["field_name"]: r.get("strategy", "") for r in results}
         export_to_revman(results, field_tags, output)
-        return {"path": str(output), "format": "revman"}
+
     elif format == "r_meta":
         from metascreener.module2_extraction.export.r_meta import export_to_r_meta
 
-        output = session_dir / "export_r_meta.csv"
         field_tags = {r["field_name"]: r.get("strategy", "") for r in results}
         export_to_r_meta(results, field_tags, output)
-        return {"path": str(output), "format": "r_meta"}
+
     elif format == "json":
         import json as json_mod
 
-        output = session_dir / "export.json"
         output.write_text(json_mod.dumps(results, indent=2, ensure_ascii=False))
-        return {"path": str(output), "format": "json"}
-    else:
-        raise HTTPException(status_code=400, detail=f"Unsupported format: {format}")
 
-
-# --- Run extraction ---
+    # Return format-specific download URL so the frontend downloads the correct file
+    download_url = f"/api/extraction/v3/sessions/{session_id}/download?filename={output.name}"
+    return {"path": str(output), "format": format, "download_url": download_url}
 
 
 @router.post("/sessions/{session_id}/run")
@@ -365,9 +352,6 @@ async def run_extraction(session_id: str) -> dict:
     # The task manager registers the task, enabling is_running() / cancel() to work.
     asyncio.create_task(service.start_extraction(session_id))
     return {"status": "started", "session_id": session_id}
-
-
-# --- Cancel ---
 
 
 @router.post("/sessions/{session_id}/cancel")
@@ -423,9 +407,6 @@ async def resume_extraction(session_id: str) -> dict:
     if not resumed:
         raise HTTPException(status_code=400, detail="No paused extraction to resume")
     return {"status": "resumed"}
-
-
-# --- SSE Progress ---
 
 
 @router.get("/sessions/{session_id}/events")

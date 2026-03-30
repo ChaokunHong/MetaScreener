@@ -12,10 +12,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-# Geometry primitive — imported from its own module to avoid circular deps.
 from metascreener.doc_engine.geometry import BoundingBox  # noqa: F401
-
-# Table types and helpers re-exported for backward compatibility.
 from metascreener.doc_engine.models_table import (  # noqa: F401
     RowGroup,
     Table,
@@ -24,16 +21,12 @@ from metascreener.doc_engine.models_table import (  # noqa: F401
 )
 
 __all__ = [
-    # Re-exported from geometry
     "BoundingBox",
-    # Re-exported from models_table
     "RowGroup",
     "Table",
     "TableCell",
     "_table_to_markdown",
-    # Enumerations
     "FigureType",
-    # Dataclasses
     "DocumentMetadata",
     "Reference",
     "SubFigure",
@@ -42,10 +35,6 @@ __all__ = [
     "OCRReport",
     "StructuredDocument",
 ]
-
-# ---------------------------------------------------------------------------
-# Enumerations
-# ---------------------------------------------------------------------------
 
 
 class FigureType(StrEnum):
@@ -61,11 +50,6 @@ class FigureType(StrEnum):
     HEATMAP = "heatmap"
     OTHER = "other"
     UNKNOWN = "unknown"
-
-
-# ---------------------------------------------------------------------------
-# Metadata
-# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -89,11 +73,6 @@ class DocumentMetadata:
     study_type: str | None
 
 
-# ---------------------------------------------------------------------------
-# References
-# ---------------------------------------------------------------------------
-
-
 @dataclass
 class Reference:
     """A single bibliographic reference parsed from the reference list.
@@ -113,11 +92,6 @@ class Reference:
     title: str | None = None
     authors: list[str] | None = None
     year: int | None = None
-
-
-# ---------------------------------------------------------------------------
-# Figures
-# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -164,11 +138,6 @@ class Figure:
     source_section: str | None
 
 
-# ---------------------------------------------------------------------------
-# Document sections
-# ---------------------------------------------------------------------------
-
-
 @dataclass
 class Section:
     """A hierarchical section of a document.
@@ -192,11 +161,6 @@ class Section:
     figures_in_section: list[str]
 
 
-# ---------------------------------------------------------------------------
-# OCR provenance
-# ---------------------------------------------------------------------------
-
-
 @dataclass
 class OCRReport:
     """Summary of the OCR/parsing process used to produce a document.
@@ -214,11 +178,6 @@ class OCRReport:
     conversion_time_s: float
     quality_scores: dict[int, float]
     warnings: list[str]
-
-
-# ---------------------------------------------------------------------------
-# Top-level document
-# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -252,10 +211,6 @@ class StructuredDocument:
     raw_markdown: str
     ocr_report: OCRReport
 
-    # ------------------------------------------------------------------
-    # Lookup helpers
-    # ------------------------------------------------------------------
-
     def get_table(self, table_id: str) -> Table | None:
         """Return the Table with the given ID, or None if not found.
 
@@ -283,10 +238,6 @@ class StructuredDocument:
             if figure.figure_id == figure_id:
                 return figure
         return None
-
-    # ------------------------------------------------------------------
-    # Markdown reconstruction
-    # ------------------------------------------------------------------
 
     def to_markdown(
         self,

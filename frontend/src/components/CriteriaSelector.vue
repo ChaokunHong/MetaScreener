@@ -1,11 +1,9 @@
 <template>
   <div class="criteria-selector">
-    <!-- Loading -->
     <div v-if="loading" style="text-align: center; padding: 2rem;">
       <i class="fas fa-spinner fa-spin"></i> Loading saved criteria...
     </div>
 
-    <!-- Empty state -->
     <div v-else-if="criteriaList.length === 0" class="criteria-empty">
       <i class="fas fa-list-check" style="font-size: 2rem; opacity: 0.3;"></i>
       <p style="margin-top: 0.75rem; font-weight: 600;">No saved criteria</p>
@@ -15,9 +13,7 @@
       </router-link>
     </div>
 
-    <!-- Criteria list -->
     <template v-else>
-      <!-- Tag filter -->
       <div v-if="allTags.length" class="criteria-tag-filter">
         <button
           class="tag-filter-btn"
@@ -33,7 +29,6 @@
         >{{ tag }}</button>
       </div>
 
-      <!-- Cards -->
       <div class="criteria-card-list">
         <div
           v-for="item in filteredList"

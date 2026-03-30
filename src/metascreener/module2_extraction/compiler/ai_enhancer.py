@@ -23,10 +23,6 @@ log = structlog.get_logger()
 
 _VALID_ROLES = {r.value for r in FieldRole}
 
-# ---------------------------------------------------------------------------
-# Semantic tag inference
-# ---------------------------------------------------------------------------
-
 _SEMANTIC_TAG_PATTERNS: dict[str, str] = {
     "n_total": r"(?i)(total\s*(n|sample|patients?|participants?)|n\s*total|sample[\s_]*size)",
     "n_arm": r"(?i)(n\s*=|group\s*size|arm\s*size|per\s*arm)",
@@ -47,7 +43,6 @@ _SEMANTIC_TAG_PATTERNS: dict[str, str] = {
     "outcome": r"(?i)(outcome|endpoint|primary|secondary)",
     "follow_up": r"(?i)(follow[\s-]*up|duration|period|months?|weeks?|years?)",
 }
-
 
 def infer_semantic_tag(field_name: str) -> str | None:
     """Infer a semantic tag from a field name using regex patterns.
@@ -94,7 +89,6 @@ Return ONLY valid JSON:
   "cardinality": "one_per_study" | "many_per_study"
 }}"""
 
-
 @dataclass
 class FieldEnhancement:
     """AI-enhanced understanding of a field."""
@@ -104,14 +98,12 @@ class FieldEnhancement:
     required: bool
     semantic_tag: str | None = None
 
-
 @dataclass
 class SheetEnhancement:
     """AI-enhanced understanding of a sheet."""
 
     fields: dict[str, FieldEnhancement] = field(default_factory=dict)
     cardinality: str = "one_per_study"
-
 
 def _build_prompt(sheet: RawSheetInfo) -> str:
     """Build the enhancement prompt for a sheet."""
@@ -134,7 +126,6 @@ def _build_prompt(sheet: RawSheetInfo) -> str:
         sample_data=sample_data,
     )
 
-
 def _heuristic_role(f_info: RawSheetInfo | object) -> FieldRole:
     """Fallback heuristic when AI is unavailable."""
     if hasattr(f_info, "has_formula") and f_info.has_formula:  # noqa: ARG001
@@ -149,34 +140,55 @@ def _heuristic_role(f_info: RawSheetInfo | object) -> FieldRole:
         return FieldRole.METADATA
     return FieldRole.EXTRACT
 
-
 def _heuristic_required(name: str) -> bool:
-    """Heuristic: only key identifier fields are required."""
-    name_lower = name.lower()
-    # Only a few core fields should be required by default
-    required_patterns = {
-        "first_author", "publication_year", "study_design", "country",
-        "pathogen_species", "antibiotic", "n_tested", "n_resistant",
-        "risk_factor", "effect_measure", "effect_value",
-    }
-    return name_lower in required_patterns
+    """Heuristic: mark key identifier fields as required.
 
+    Uses generic academic/SR patterns only — no domain-specific keywords.
+    The AI enhancer (LLM path) handles domain-specific required detection.
+    """
+    name_lower = name.lower()
+    # Generic SR identifier fields that are universally required
+    generic_required = {
+        "first_author", "author", "publication_year", "year",
+        "study_design", "study_type", "country",
+    }
+    # Also mark fields whose name contains common ID patterns
+    id_patterns = ["study_id", "author_id", "record_id"]
+    if name_lower in generic_required:
+        return True
+    return any(p in name_lower for p in id_patterns)
 
 def _heuristic_cardinality(sheet: RawSheetInfo) -> str:
-    """Heuristic: guess cardinality from sheet name and row count."""
+    """Heuristic: guess cardinality from sheet structure and name.
+
+    Uses generic structural signals only — no domain-specific keywords.
+    The AI enhancer (LLM path) handles domain-specific cardinality detection.
+    """
     name_lower = sheet.sheet_name.lower().replace(" ", "_")
-    # Sheets with these patterns typically have multiple rows per study
+
+    # Generic patterns that suggest multiple rows per study
     many_patterns = [
-        "resistance", "pathogen", "molecular", "risk_factor",
-        "outcome", "antibiotic", "isolate", "specimen",
+        "outcome", "result", "endpoint", "subgroup",
+        "arm", "group", "comparison", "intervention",
+        "detail", "item", "record", "entry",
     ]
+    # Pluralised sheet names often signal many-per-study
+    if name_lower.endswith("s") and not name_lower.endswith("ss"):
+        # e.g. "outcomes", "interventions", "pathogens"
+        singular = name_lower.rstrip("s")
+        if len(singular) >= 4:  # avoid false positives on short words
+            many_patterns.append(singular)
+
     if any(p in name_lower for p in many_patterns):
         return "many_per_study"
-    # If row count is much higher than typical single-study sheets
-    if sheet.row_count > 200:
-        return "many_per_study"
-    return "one_per_study"
 
+    # Structural heuristic: high row count relative to number of fields
+    # suggests multiple rows per study
+    n_fields = len(sheet.fields)
+    if n_fields > 0 and sheet.row_count > max(200, n_fields * 20):
+        return "many_per_study"
+
+    return "one_per_study"
 
 def _heuristic_enhancement(sheet: RawSheetInfo) -> SheetEnhancement:
     """Pure heuristic enhancement — no LLM needed."""
@@ -191,7 +203,6 @@ def _heuristic_enhancement(sheet: RawSheetInfo) -> SheetEnhancement:
         )
     cardinality = _heuristic_cardinality(sheet)
     return SheetEnhancement(fields=fields, cardinality=cardinality)
-
 
 def parse_enhancement_response(
     raw: dict[str, Any],
@@ -222,7 +233,6 @@ def parse_enhancement_response(
         cardinality = "one_per_study"
 
     return SheetEnhancement(fields=fields, cardinality=cardinality)
-
 
 async def enhance_fields(
     sheet: RawSheetInfo,

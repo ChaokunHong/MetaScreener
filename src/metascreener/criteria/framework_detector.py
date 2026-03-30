@@ -100,10 +100,6 @@ class FrameworkDetector:
         raw_response = await self._backend.complete(prompt, seed)
         return self._parse_response(raw_response, prompt_hash)
 
-    # ------------------------------------------------------------------
-    # Multi-model voting
-    # ------------------------------------------------------------------
-
     async def _detect_with_voting(
         self,
         user_input: str,
@@ -166,7 +162,6 @@ class FrameworkDetector:
                 prompt_hash=prompt_hash,
             )
 
-        # --- Tally votes ---
         votes: Counter[CriteriaFramework] = Counter()
         confidence_sums: dict[CriteriaFramework, float] = {}
         for r in results:
@@ -215,10 +210,6 @@ class FrameworkDetector:
             alternatives=alternatives,
             prompt_hash=prompt_hash,
         )
-
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
 
     def _parse_response(
         self,

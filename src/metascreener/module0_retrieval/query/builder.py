@@ -12,8 +12,6 @@ from __future__ import annotations
 
 from metascreener.module0_retrieval.models import BooleanQuery, QueryGroup, QueryTerm
 
-# --- semantic role maps (lowercase element key → query group slot) -----------
-
 _POP_KEYS: frozenset[str] = frozenset({"population", "participants", "patients", "sample"})
 _INT_KEYS: frozenset[str] = frozenset({"intervention", "exposure", "index_test", "phenomenon"})
 _OUT_KEYS: frozenset[str] = frozenset({"outcome", "evaluation", "research_type"})
@@ -72,18 +70,42 @@ def _build_from_pico(pico: object) -> BooleanQuery:
 
 
 def _build_from_review(criteria: object) -> BooleanQuery:
-    """Build a BooleanQuery from a ReviewCriteria instance."""
+    """Build a BooleanQuery from a ReviewCriteria instance.
+
+    Matches PilotSearcher behavior: only **required** elements are used
+    (optional elements over-constrain the search). Each group is capped
+    at ``_MAX_TERMS_PER_GROUP`` terms to keep queries manageable.
+    """
     pop_terms: list[QueryTerm] = []
     int_terms: list[QueryTerm] = []
     out_terms: list[QueryTerm] = []
     cmp_terms: list[QueryTerm] = []
     excl_terms: list[QueryTerm] = []
 
+    # Only use required elements (matches PilotSearcher behavior)
+    required_keys: set[str] = set()
+    framework = getattr(criteria, "framework", None)
+    if framework:
+        try:
+            from metascreener.criteria.frameworks import FRAMEWORK_ELEMENTS  # noqa: PLC0415
+
+            fw_info = FRAMEWORK_ELEMENTS.get(str(framework), {})
+            required_keys = set(fw_info.get("required", []))
+        except ImportError:
+            pass
+
     elements: dict = getattr(criteria, "elements", {})
     for key, element in elements.items():
+        # Skip optional elements to avoid over-constraining
+        if required_keys and key not in required_keys:
+            continue
+
         key_lower = key.lower()
         include_terms = _terms_from_list(getattr(element, "include", []))
         exclude_terms = _terms_from_list(getattr(element, "exclude", []))
+
+        # Cap terms per group (matches PilotSearcher._MAX_TERMS_PER_ELEMENT)
+        include_terms = include_terms[:_MAX_TERMS_PER_GROUP]
 
         if key_lower in _POP_KEYS:
             pop_terms.extend(include_terms)
@@ -97,7 +119,7 @@ def _build_from_review(criteria: object) -> BooleanQuery:
             # Unknown element: fold includes into population as fallback.
             pop_terms.extend(include_terms)
 
-        excl_terms.extend(exclude_terms)
+        excl_terms.extend(exclude_terms[:_MAX_TERMS_PER_GROUP])
 
     # Study-design exclusions from top-level field.
     study_excl = getattr(criteria, "study_design_exclude", [])
@@ -110,3 +132,5 @@ def _build_from_review(criteria: object) -> BooleanQuery:
         additional=QueryGroup(terms=cmp_terms),
         exclusions=QueryGroup(terms=excl_terms, operator="NOT"),
     )
+
+_MAX_TERMS_PER_GROUP: int = 8

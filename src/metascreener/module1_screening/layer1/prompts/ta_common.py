@@ -58,9 +58,12 @@ def build_instructions_section() -> str:
         "- Include terms: the article matches if it involves ANY of the listed terms.\n"
         "- Exclude terms: the article is excluded if it involves ANY of the listed terms.\n\n"
         "Decision rules (recall-biased):\n"
-        "- INCLUDE: Article clearly matches the criteria, or when uncertain.\n"
-        "- EXCLUDE: Article clearly does NOT match one or more required criteria.\n"
-        "- When in doubt, always INCLUDE to maximize recall.\n\n"
+        "- INCLUDE: Article matches all required criteria, or when uncertain.\n"
+        "- EXCLUDE: Article clearly does NOT match one or more required criteria, "
+        "OR the article's study type matches any STUDY_TYPE Exclude term.\n"
+        "- If ANY element has a mismatch (matches an Exclude term), "
+        "the overall decision MUST be EXCLUDE.\n"
+        "- When in doubt about eligibility, INCLUDE to maximize recall.\n\n"
         "Provide a confidence score (0.0-1.0) reflecting your certainty, "
         "and a relevance score (0.0-1.0) reflecting overall fit."
     )
@@ -90,6 +93,46 @@ def build_output_spec() -> str:
         '  "rationale": "Brief explanation"\n'
         "}"
     )
+
+
+def render_study_design(
+    include: list[str] | None,
+    exclude: list[str] | None,
+) -> list[str]:
+    """Render publication type constraints as a criteria element.
+
+    Renders in the same format as other criteria elements so that
+    LLMs evaluate it in ``element_assessment`` with match/mismatch.
+    A match to an exclude term triggers EXCLUDE like any other element.
+
+    Args:
+        include: Allowed study designs (may be None or empty).
+        exclude: Excluded study designs / publication types.
+
+    Returns:
+        Prompt lines (empty if nothing to render).
+    """
+    if not include and not exclude:
+        return []
+    lines = ["### STUDY_TYPE"]
+    if include:
+        lines.append(f"  Include: {', '.join(include)}")
+    if exclude:
+        # Expand "review" for clarity — LLMs often treat
+        # "review" and "meta-analysis" as distinct categories
+        terms = list(exclude)
+        has_review = any(t.lower() == "review" for t in terms)
+        if has_review:
+            subtypes = [
+                "systematic review", "meta-analysis",
+                "scoping review", "narrative review",
+                "literature review",
+            ]
+            for st in subtypes:
+                if st.lower() not in {t.lower() for t in terms}:
+                    terms.append(st)
+        lines.append(f"  Exclude: {', '.join(terms)}")
+    return lines
 
 
 def render_element(label: str, element: CriteriaElement) -> list[str]:

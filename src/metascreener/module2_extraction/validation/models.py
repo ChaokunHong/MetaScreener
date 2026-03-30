@@ -25,7 +25,6 @@ class ValidationResult:
     severity: str | None = None  # "error" | "warning" | "info"
     message: str | None = None
 
-
 @dataclass
 class RuleResult:
     """Result of a single rule check against one field value.
@@ -42,7 +41,6 @@ class RuleResult:
     severity: str  # "error" | "warning" | "info"
     rule_id: str | None = None
 
-
 @dataclass
 class ArbitrationResult:
     """Result of LLM-mediated arbitration between two conflicting values.
@@ -58,7 +56,6 @@ class ArbitrationResult:
     chosen_value: Any
     reasoning: str
     evidence_sentence: str | None = None
-
 
 @dataclass
 class AgreementResult:
@@ -77,7 +74,6 @@ class AgreementResult:
     confidence: Confidence
     evidence: list[SourceLocation]
     arbitration: ArbitrationResult | None = None
-
 
 @dataclass
 class CoherenceViolation:
@@ -101,7 +97,6 @@ class CoherenceViolation:
     severity: str
     suggested_action: str
 
-
 @dataclass
 class OutlierAlert:
     """Alert for a statistically unusual value in a cross-study comparison.
@@ -121,7 +116,6 @@ class OutlierAlert:
     population_summary: str
     possible_cause: str
     suggested_action: str
-
 
 @dataclass
 class ValidationSummary:

@@ -35,7 +35,6 @@ class ExtractedField:
     validation_passed: bool
     warnings: list[str] = field(default_factory=list)
 
-
 @dataclass
 class SheetExtractionResult:
     """Extraction results for a single sheet.
@@ -52,7 +51,6 @@ class SheetExtractionResult:
     cardinality: str = "one_per_study"
     fields: dict[str, ExtractedField] = field(default_factory=dict)
     rows: list[dict[str, ExtractedField]] | None = None
-
 
 @dataclass
 class DocumentExtractionResult:

@@ -138,8 +138,8 @@ class ParallelRunner:
                 if attempt > 0:
                     # Clear cached response on retry — the cached response
                     # may be the malformed one causing the parse failure.
-                    from metascreener.llm.response_cache import evict_cached  # noqa: PLC0415
                     from metascreener.llm.base import hash_prompt  # noqa: PLC0415
+                    from metascreener.llm.response_cache import evict_cached  # noqa: PLC0415
                     evict_cached(backend.model_id, hash_prompt(prompt))
                     logger.info(
                         "backend_parse_retry",

@@ -10,14 +10,6 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile
 
-from metascreener.api.schemas import (
-    FTUploadResponse,
-    RunScreeningRequest,
-    ScreeningRecordSummary,
-    ScreeningResultsResponse,
-)
-from metascreener.core.models import Record, ReviewCriteria
-
 from metascreener.api.routes.screening_helpers import (
     _apply_screening_token_limits,
     _build_screening_backends,
@@ -25,14 +17,21 @@ from metascreener.api.routes.screening_helpers import (
     _get_openrouter_api_key,
     _load_learned_weights,
     _resolve_review_criteria,
-    _trim_raw_decisions,
     _trigger_recalibration,
+    _trim_raw_decisions,
 )
-from metascreener.module1_screening.layer3.runtime_tracker import RuntimeTracker
 from metascreener.api.routes.screening_sessions import (
     _cleanup_expired_sessions,
     _ft_sessions,
 )
+from metascreener.api.schemas import (
+    FTUploadResponse,
+    RunScreeningRequest,
+    ScreeningRecordSummary,
+    ScreeningResultsResponse,
+)
+from metascreener.core.models import Record, ReviewCriteria
+from metascreener.module1_screening.layer3.runtime_tracker import RuntimeTracker
 
 logger = structlog.get_logger(__name__)
 
@@ -43,8 +42,9 @@ ft_router = APIRouter()
 async def ft_upload_pdfs(files: list[UploadFile]) -> FTUploadResponse:
     """Upload PDF files for full-text screening."""
     _cleanup_expired_sessions()
-    from metascreener.io.pdf_parser import extract_text_from_pdf  # noqa: PLC0415
     import uuid  # noqa: PLC0415
+
+    from metascreener.io.pdf_parser import extract_text_from_pdf  # noqa: PLC0415
 
     session_id = str(uuid.uuid4())
     records: list[Record] = []
@@ -172,8 +172,6 @@ async def ft_continue_screening(session_id: str, background_tasks: BackgroundTas
     return {"status": "started", "remaining": len(remaining)}
 
 
-# ── Background tasks ──
-
 async def _run_ft_bg(session: dict[str, Any], records: list[Record], backends: list[Any], criteria_payload: dict[str, Any], seed: int) -> None:
     """Run FT screening in background using FTScreener."""
     from metascreener.api.deps import get_config  # noqa: PLC0415
@@ -286,6 +284,22 @@ async def _ft_screen_batch(session: dict[str, Any], records: list[Record], scree
             except Exception as exc:  # noqa: BLE001
                 logger.warning("ft_record_error", record_id=record.record_id, error=str(exc))
                 session["results"].append({"record_id": str(record.record_id), "title": record.source_file or record.title or "(untitled)", "decision": "HUMAN_REVIEW", "tier": "3", "score": 0.0, "confidence": 0.0})
+                # Keep raw_decisions in sync with results so detail index matches
+                session["raw_decisions"].append({
+                    "record_id": str(record.record_id),
+                    "decision": "HUMAN_REVIEW",
+                    "tier": 3,
+                    "final_score": 0.0,
+                    "ensemble_confidence": 0.0,
+                    "model_outputs": [{
+                        "model_id": "error",
+                        "decision": "HUMAN_REVIEW",
+                        "score": 0.0,
+                        "confidence": 0.0,
+                        "rationale": f"Screening failed: {exc}",
+                        "error": str(exc),
+                    }],
+                })
     await asyncio.gather(*[_one(r) for r in records])
 
 

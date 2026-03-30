@@ -99,10 +99,6 @@ class CriteriaGenerator:
         prompt = build_parse_text_prompt(criteria_text, framework.value, language)
         return await self._generate(prompt, framework, seed)
 
-    # ------------------------------------------------------------------
-    # Round 2 (cross-evaluation) public API
-    # ------------------------------------------------------------------
-
     async def generate_from_topic_with_dedup(
         self,
         topic: str,
@@ -147,10 +143,6 @@ class CriteriaGenerator:
         prompt = build_parse_text_prompt(criteria_text, framework.value, language)
         return await self._generate_with_dedup(prompt, framework, seed)
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
     async def _generate_with_dedup(
         self,
         prompt: str,
@@ -173,7 +165,6 @@ class CriteriaGenerator:
         """
         prompt_hash = hash_prompt(prompt)
 
-        # --- Round 1: parallel generation (with total timeout) ---
         async_tasks = [
             asyncio.ensure_future(self._call_backend(backend, prompt, seed))
             for backend in self._backends
@@ -222,7 +213,6 @@ class CriteriaGenerator:
             prompt_hash=prompt_hash,
         )
 
-        # --- Round 2: cross-evaluation (only with >= 2 backends) ---
         round2_evaluations: dict[str, Any] | None = None
         if len(model_outputs) >= 2:
             round2_evaluations = await self._run_round2(criteria, seed)

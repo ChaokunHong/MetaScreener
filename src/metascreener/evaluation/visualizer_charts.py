@@ -13,10 +13,6 @@ from metascreener.core.enums import Decision, Tier
 from metascreener.core.models import ScreeningDecision
 from metascreener.evaluation.models import AUROCResult
 
-# ---------------------------------------------------------------------------
-# Color schemes
-# ---------------------------------------------------------------------------
-
 COLORS: dict[str, str] = {
     "include": "#2ecc71",   # green
     "exclude": "#e74c3c",   # red
@@ -34,10 +30,6 @@ TIER_COLORS: dict[int, str] = {
     Tier.THREE: "#f39c12",  # orange - human review
 }
 
-# ---------------------------------------------------------------------------
-# Shared layout helper
-# ---------------------------------------------------------------------------
-
 _BASE_LAYOUT: dict[str, object] = {
     "template": "plotly_white",
     "font": {"family": "Arial, sans-serif", "size": 12},
@@ -49,11 +41,6 @@ def _base_layout(**kwargs: object) -> dict[str, object]:
     merged = dict(_BASE_LAYOUT)
     merged.update(kwargs)
     return merged
-
-
-# ---------------------------------------------------------------------------
-# 1. ROC Curve
-# ---------------------------------------------------------------------------
 
 
 def plot_roc_curve(auroc_result: AUROCResult) -> go.Figure:
@@ -116,11 +103,6 @@ def plot_roc_curve(auroc_result: AUROCResult) -> go.Figure:
     return fig
 
 
-# ---------------------------------------------------------------------------
-# 3. Score Distribution
-# ---------------------------------------------------------------------------
-
-
 def plot_score_distribution(
     scores: list[float],
     labels: list[int],
@@ -172,11 +154,6 @@ def plot_score_distribution(
     )
 
     return fig
-
-
-# ---------------------------------------------------------------------------
-# 4. Threshold Analysis
-# ---------------------------------------------------------------------------
 
 
 def plot_threshold_analysis(
@@ -246,11 +223,6 @@ def plot_threshold_analysis(
     return fig
 
 
-# ---------------------------------------------------------------------------
-# 5. Confusion Matrix
-# ---------------------------------------------------------------------------
-
-
 def plot_confusion_matrix(
     predictions: list[Decision],
     labels: list[Decision],
@@ -310,11 +282,6 @@ def plot_confusion_matrix(
     )
 
     return fig
-
-
-# ---------------------------------------------------------------------------
-# 7. Tier Distribution
-# ---------------------------------------------------------------------------
 
 
 def plot_tier_distribution(decisions: list[ScreeningDecision]) -> go.Figure:

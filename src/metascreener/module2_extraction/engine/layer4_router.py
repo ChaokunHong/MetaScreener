@@ -23,7 +23,6 @@ from metascreener.core.models_extraction import CellValue
 
 log = structlog.get_logger()
 
-
 def route_decisions(cells: dict[str, CellValue]) -> dict[str, CellValue]:
     """Log routing statistics and return cells unchanged.
 

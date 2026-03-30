@@ -93,7 +93,6 @@ class MeSHValidator:
             :class:`MeSHValidationResult` for the term.
         """
         async with self._semaphore:
-            # --- Step 1: esearch ---
             esearch_params: dict[str, Any] = {
                 "db": "mesh",
                 "term": f'"{term}"[MeSH Terms]',
@@ -122,7 +121,6 @@ class MeSHValidator:
                     term=term, is_valid=True, mesh_uid=mesh_uid
                 )
 
-            # --- Step 2: espell for suggestion ---
             espell_params: dict[str, Any] = {
                 "db": "mesh",
                 "term": term,

@@ -19,10 +19,6 @@ class CellsAndEditsMixin:
     - ``self._ensure_init()`` (async method)
     """
 
-    # ------------------------------------------------------------------
-    # Results (cells)
-    # ------------------------------------------------------------------
-
     async def save_cell(
         self,
         session_id: str,
@@ -116,10 +112,6 @@ class CellsAndEditsMixin:
             return [dict(r) for r in rows]
 
         return await asyncio.to_thread(_read)
-
-    # ------------------------------------------------------------------
-    # Edits
-    # ------------------------------------------------------------------
 
     async def save_edit(
         self,
