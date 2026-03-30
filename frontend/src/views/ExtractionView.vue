@@ -245,7 +245,8 @@ const showSessions = ref(true)
 const sessionManagerRef = ref<InstanceType<typeof SessionManager> | null>(null)
 
 const exportFormats = [
-  { id: 'excel', label: 'Export Excel', icon: 'fas fa-file-excel', primary: true },
+  { id: 'filled_template', label: 'Download Filled Template', icon: 'fas fa-file-excel', primary: true },
+  { id: 'excel', label: 'Export Excel', icon: 'fas fa-file-excel', primary: false },
   { id: 'csv', label: 'Export CSV', icon: 'fas fa-file-csv', primary: false },
   { id: 'revman', label: 'Export RevMan XML', icon: 'fas fa-file-code', primary: false },
   { id: 'r_meta', label: 'Export R meta', icon: 'fas fa-chart-bar', primary: false },

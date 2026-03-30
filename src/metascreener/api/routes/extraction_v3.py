@@ -245,7 +245,8 @@ async def export_results(session_id: str, format: str = "excel") -> dict:
 
     Args:
         session_id: The session whose results to export.
-        format: Export format — ``"excel"``, ``"csv"``, ``"revman"``, ``"r_meta"``, or ``"json"``.
+        format: Export format — ``"filled_template"``, ``"excel"``, ``"csv"``,
+            ``"revman"``, ``"r_meta"``, or ``"json"``.
 
     Returns:
         Dict with ``path`` and ``format`` keys.
@@ -263,7 +264,38 @@ async def export_results(session_id: str, format: str = "excel") -> dict:
     session_dir = service._data_dir / session_id
     session_dir.mkdir(parents=True, exist_ok=True)
 
-    if format == "excel":
+    if format == "filled_template":
+        from metascreener.core.models_extraction import ExtractionSchema
+        from metascreener.module2_extraction.export.template_filler import (
+            export_filled_template,
+        )
+
+        # Locate the original template file in the session directory
+        templates = list(session_dir.glob("*.xlsx"))
+        # Exclude any previous export files
+        templates = [
+            t for t in templates
+            if not t.name.startswith("export")
+        ]
+        if not templates:
+            raise HTTPException(
+                status_code=400,
+                detail="Original template not found in session directory",
+            )
+        template_path = templates[0]
+
+        schema_json = await service.get_schema_json(session_id)
+        if not schema_json:
+            raise HTTPException(
+                status_code=400,
+                detail="No schema found for this session",
+            )
+        schema = ExtractionSchema.model_validate_json(schema_json)
+
+        output = session_dir / "export_filled.xlsx"
+        export_filled_template(template_path, results, schema, output)
+        return {"path": str(output), "format": "filled_template"}
+    elif format == "excel":
         from metascreener.module2_extraction.export.excel import export_extraction_results
 
         output = session_dir / "export.xlsx"
