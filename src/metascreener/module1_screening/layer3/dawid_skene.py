@@ -25,7 +25,7 @@ class BayesianDawidSkene:
         self,
         n_models: int,
         n_classes: int = 2,
-        alpha_0: float = 6.5,
+        alpha_0: float = 3.0,
         beta_0: float = 1.0,
         prevalence: float = 0.03,
     ) -> None:
