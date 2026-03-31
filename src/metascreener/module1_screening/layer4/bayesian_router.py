@@ -6,7 +6,7 @@ import math
 
 import structlog
 
-from metascreener.core.enums import Decision, ScreeningStage, Tier
+from metascreener.core.enums import Decision, Tier
 from metascreener.core.models_bayesian import LossMatrix
 from metascreener.core.models_screening import RuleViolation, ScreeningDecision
 

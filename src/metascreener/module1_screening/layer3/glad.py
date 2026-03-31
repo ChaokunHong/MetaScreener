@@ -114,7 +114,7 @@ class GLAD(BayesianDawidSkene):
         e_log_pi = digamma(self.posterior) - digamma(
             self.posterior.sum(axis=2, keepdims=True)
         )
-        for i, (ann, q) in enumerate(zip(annotations, parse_qualities)):
+        for i, (ann, q) in enumerate(zip(annotations, parse_qualities, strict=True)):
             if ann is None:
                 continue
             for c in range(self.n_classes):

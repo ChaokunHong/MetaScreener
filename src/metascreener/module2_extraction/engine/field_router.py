@@ -10,6 +10,7 @@ one of four strategies:
 """
 from __future__ import annotations
 
+import re as _re
 from collections import defaultdict
 
 import structlog
@@ -39,8 +40,6 @@ from metascreener.module2_extraction.models import (
 )
 
 log = structlog.get_logger(__name__)
-
-import re as _re
 
 _NORMALISE_RE = _re.compile(r"[^a-z0-9 ]+")
 

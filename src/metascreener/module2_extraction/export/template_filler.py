@@ -21,7 +21,7 @@ from pathlib import Path
 import openpyxl
 import structlog
 
-from metascreener.core.enums import FieldRole, SheetCardinality, SheetRole
+from metascreener.core.enums import FieldRole, SheetRole
 from metascreener.core.models_extraction import ExtractionSchema
 
 log = structlog.get_logger(__name__)
@@ -82,7 +82,7 @@ def export_filled_template(
 
     for cell in results:
         sheet_name = cell.get("sheet_name", "")
-        pdf_id = cell.get("pdf_id", "")
+        pdf_id = cell.get("pdf_id", "") or "_default"
         row_index = cell.get("row_index", 0)
         if not isinstance(row_index, int):
             try:
@@ -92,7 +92,7 @@ def export_filled_template(
         field_name = cell.get("field_name", "")
         value = cell.get("value", "")
 
-        if sheet_name and field_name and pdf_id:
+        if sheet_name and field_name:
             grouped[sheet_name][pdf_id][row_index][field_name] = value
             if pdf_id not in pdf_order:
                 pdf_order[pdf_id] = len(pdf_order)
@@ -104,7 +104,6 @@ def export_filled_template(
     sorted_pdf_ids = sorted(pdf_order.keys(), key=lambda pid: pdf_order[pid])
 
     filled_count = 0
-    schema_map = {s.sheet_name: s for s in schema.sheets}
 
     # Step 4 — iterate data sheets only
     for sheet_schema in schema.sheets:
@@ -121,7 +120,6 @@ def export_filled_template(
 
         ws = wb[sheet_schema.sheet_name]
         sheet_name = sheet_schema.sheet_name
-        is_many = sheet_schema.cardinality == SheetCardinality.MANY_PER_STUDY
 
         # Build header -> column index mapping (1-based)
         header_map: dict[str, int] = {}

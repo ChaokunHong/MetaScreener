@@ -13,7 +13,6 @@ re-exported here for backward compatibility.
 """
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 import structlog
@@ -32,6 +31,7 @@ from metascreener.module2_extraction.engine.llm_execution import (
     _CONFIDENCE_DISAGREE,
     _CONFIDENCE_SINGLE,
     execute_computed,
+    execute_llm_text,
 )
 from metascreener.module2_extraction.engine.llm_extractor import LLMExtractor
 from metascreener.module2_extraction.engine.orchestrator_models import (  # noqa: F401

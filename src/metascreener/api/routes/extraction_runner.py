@@ -469,8 +469,6 @@ class ExtractionRunnerMixin:
         Returns:
             Path to the most recently modified export file, or ``None``.
         """
-        from pathlib import Path
-
         data_dir = self._data_dir  # type: ignore[attr-defined]
         session_dir = data_dir / session_id
         if not session_dir.exists():

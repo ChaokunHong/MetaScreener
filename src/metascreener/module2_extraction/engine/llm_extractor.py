@@ -504,7 +504,6 @@ class LLMExtractor:
             # by wrapping or returning empty
             return []
 
-        field_set = {f.name for f in fields}
         parsed_rows: list[dict[str, RawExtractionResult]] = []
 
         for raw_row in raw_rows:

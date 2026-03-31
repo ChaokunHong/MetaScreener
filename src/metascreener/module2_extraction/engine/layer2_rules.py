@@ -14,7 +14,7 @@ Plan 3 plugins.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable
 
 from metascreener.core.enums import FieldRole

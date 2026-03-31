@@ -10,7 +10,6 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 
-import numpy as np
 import structlog
 from scipy.special import digamma
 
@@ -85,7 +84,7 @@ class SPRTInference:
         e_log_pi = digamma(self.ds.posterior) - digamma(
             self.ds.posterior.sum(axis=2, keepdims=True)
         )
-        for ann, q, idx in zip(annotations, parse_qualities, model_indices):
+        for ann, q, idx in zip(annotations, parse_qualities, model_indices, strict=True):
             if ann is None:
                 continue
             log_lr_i = e_log_pi[idx, 0, ann] - e_log_pi[idx, 1, ann]

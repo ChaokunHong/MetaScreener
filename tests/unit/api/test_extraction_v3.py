@@ -297,7 +297,7 @@ class TestExport:
         assert resp.status_code == 200
         data = resp.json()
         assert data["format"] == "json"
-        assert data["path"].endswith("export.json")
+        assert data["path"].endswith("export_json.json")
 
     def test_export_json_creates_valid_json_file(self, client):
         import json

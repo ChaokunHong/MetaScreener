@@ -424,7 +424,6 @@ class HCNScreener:
         """
         import math  # noqa: PLC0415
 
-        import numpy as np  # noqa: PLC0415
         from scipy.stats import entropy as scipy_entropy  # noqa: PLC0415
 
         annotations: list[int | None] = []
@@ -509,7 +508,6 @@ class HCNScreener:
                 and not self._use_glad
                 and hasattr(self, "glad")
             ):
-                import numpy as np  # noqa: PLC0415
 
                 self.glad.posterior = self.ds.posterior.copy()
                 pilot_data = []

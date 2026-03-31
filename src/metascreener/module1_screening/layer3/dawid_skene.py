@@ -62,7 +62,7 @@ class BayesianDawidSkene:
             self.posterior.sum(axis=2, keepdims=True)
         )
 
-        for i, (ann, q) in enumerate(zip(annotations, parse_qualities)):
+        for i, (ann, q) in enumerate(zip(annotations, parse_qualities, strict=True)):
             if ann is None:
                 continue
             for c in range(self.n_classes):
@@ -87,7 +87,7 @@ class BayesianDawidSkene:
             y = record["true_label"]
             w = record["ipw_weight"]
             for i, (ann, q) in enumerate(
-                zip(record["annotations"], record["parse_qualities"])
+                zip(record["annotations"], record["parse_qualities"], strict=True)
             ):
                 if ann is None:
                     continue

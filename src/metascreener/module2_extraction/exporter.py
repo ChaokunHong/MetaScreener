@@ -13,7 +13,7 @@ from typing import Any
 import openpyxl
 import structlog
 
-from metascreener.core.enums import Confidence, FieldRole
+from metascreener.core.enums import Confidence
 from metascreener.core.models_extraction import (
     ExtractionSchema,
     ExtractionSessionResult,
