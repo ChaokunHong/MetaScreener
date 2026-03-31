@@ -12,6 +12,7 @@ from metascreener.core.enums import Decision, ScreeningStage
 from metascreener.core.exceptions import LLMParseError
 from metascreener.core.models import ModelOutput, PICOAssessment, PICOCriteria, Record
 from metascreener.llm.response_parser import (  # noqa: F401 - re-export for compat
+    ParseResult,
     parse_llm_response,
     strip_code_fences,
     strip_thinking_tags,
@@ -232,10 +233,12 @@ class LLMBackend(ABC):
             put_cached(self.model_id, prompt_hash_val, raw_response)
 
         try:
-            parsed = parse_llm_response(raw_response, self.model_id)
+            parse_result = parse_llm_response(raw_response, self.model_id)
         except LLMParseError as e:
             self._log.warning("parse_error", model_id=self.model_id, error=str(e))
             raise
+
+        parsed = parse_result.data
 
         # Map element_assessment OR pico_assessment → element_assessment field
         assessment_data = parsed.get("element_assessment") or parsed.get(
@@ -287,6 +290,8 @@ class LLMBackend(ABC):
             ft_assessment=ft_assessment,
             raw_response=raw_response,
             prompt_hash=prompt_hash_val,
+            parse_quality=parse_result.parse_quality,
+            parse_stage=parse_result.parse_stage,
         )
 
     async def screen(
@@ -322,10 +327,12 @@ class LLMBackend(ABC):
         raw_response = await self._call_api(prompt, seed=seed)
 
         try:
-            parsed = parse_llm_response(raw_response, self.model_id)
+            parse_result = parse_llm_response(raw_response, self.model_id)
         except LLMParseError as e:
             self._log.warning("parse_error", model_id=self.model_id, error=str(e))
             raise
+
+        parsed = parse_result.data
 
         # Build element assessment
         element_assessment: dict[str, PICOAssessment] = {}
@@ -356,4 +363,6 @@ class LLMBackend(ABC):
             element_assessment=element_assessment,
             raw_response=raw_response,
             prompt_hash=prompt_hash,
+            parse_quality=parse_result.parse_quality,
+            parse_stage=parse_result.parse_stage,
         )

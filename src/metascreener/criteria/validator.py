@@ -159,7 +159,7 @@ class CriteriaValidator:
 
         try:
             raw = await backend.complete(prompt, seed)
-            parsed = parse_llm_response(raw, backend.model_id)
+            parsed = parse_llm_response(raw, backend.model_id).data
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "quality_validation_llm_error",

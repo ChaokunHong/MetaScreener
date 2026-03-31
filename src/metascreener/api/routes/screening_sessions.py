@@ -89,7 +89,7 @@ async def run_terminology_enhancement(
     from metascreener.llm.response_parser import parse_llm_response  # noqa: PLC0415
     for _eb in sort_backends_by_tier(backends, cfg):
         try:
-            enh_data = parse_llm_response(await _eb.complete(build_enhance_terminology_prompt(criteria, language=language), seed), _eb.model_id)
+            enh_data = parse_llm_response(await _eb.complete(build_enhance_terminology_prompt(criteria, language=language), seed), _eb.model_id).data
             _exp: dict[str, list[str]] = {}
             for ekey, einfo in enh_data.get("elements", {}).items():
                 if isinstance(einfo, dict):
@@ -140,7 +140,7 @@ async def run_auto_refine(
         refine_data = None
         for _rb in sort_backends_by_tier(backends, cfg):
             try:
-                rd = parse_llm_response(await _rb.complete(refine_prompt, seed), _rb.model_id)
+                rd = parse_llm_response(await _rb.complete(refine_prompt, seed), _rb.model_id).data
                 refine_data = rd; break
             except Exception:
                 logger.warning("auto_refine_backend_failed", model=_rb.model_id, exc_info=True)
@@ -201,7 +201,7 @@ async def run_completeness_check(
                     continue
             if raw_s is None:
                 continue
-            parsed_s = parse_llm_response(raw_s, _fb.model_id)
+            parsed_s = parse_llm_response(raw_s, _fb.model_id).data
             terms = [s["term"] for s in parsed_s.get("suggestions", []) if isinstance(s, dict) and "term" in s]
             if terms:
                 capped = terms[:8]
@@ -305,7 +305,7 @@ async def suggest_terms(req: SuggestTermsRequest) -> SuggestTermsResponse:
         existing = {t.strip().lower() for t in req.current_include + req.current_exclude}
         for _sb in sort_backends_by_tier(backends, _gc()):
             try:
-                data = parse_llm_response(await _sb.complete(prompt, seed=42), _sb.model_id)
+                data = parse_llm_response(await _sb.complete(prompt, seed=42), _sb.model_id).data
                 filtered = [TermSuggestion(term=s["term"], rationale=s["rationale"]) for s in data.get("suggestions", []) if isinstance(s, dict) and "term" in s and "rationale" in s and s["term"].strip().lower() not in existing]
                 return SuggestTermsResponse(suggestions=filtered)
             except Exception:
@@ -362,7 +362,7 @@ async def pilot_search(req: PilotSearchRequest) -> PilotDiagnostic:
     prompt = build_pilot_relevance_prompt([a.model_dump() for a in search_result.articles], criteria.model_dump(mode="json"))
     for _pb in sort_backends_by_tier(backends, get_config()):
         try:
-            data = parse_llm_response(await _pb.complete(prompt, seed=42), _pb.model_id)
+            data = parse_llm_response(await _pb.complete(prompt, seed=42), _pb.model_id).data
             assessments = [RelevanceAssessment(pmid=a.get("pmid", ""), title=a.get("title", ""), is_relevant=bool(a.get("is_relevant", False)), reason=a.get("reason", "")) for a in data.get("assessments", []) if isinstance(a, dict)]
             if not assessments:
                 raise ValueError("No valid assessments parsed")

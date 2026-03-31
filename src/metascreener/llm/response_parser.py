@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import dataclass
 from typing import Any
 
 import structlog
@@ -14,6 +15,26 @@ import structlog
 from metascreener.core.exceptions import LLMParseError
 
 logger = structlog.get_logger(__name__)
+
+# Default stage weights: later stages indicate harder-to-parse responses.
+_DEFAULT_STAGE_WEIGHTS: dict[int, float] = {
+    1: 1.0,
+    2: 0.9,
+    3: 0.8,
+    4: 0.7,
+    5: 0.5,
+    6: 0.3,
+}
+
+
+@dataclass
+class ParseResult:
+    """Result of LLM response parsing with quality metadata."""
+
+    data: dict[str, Any]
+    parse_stage: int
+    parse_quality: float
+
 
 
 _THINK_CLOSED_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
@@ -186,27 +207,34 @@ def _fix_broken_string_values(text: str) -> str:
     return text
 
 
-def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
+def parse_llm_response(
+    raw_response: str,
+    model_id: str,
+    stage_weights: dict[int, float] | None = None,
+) -> ParseResult:
     """Parse and validate JSON response from an LLM.
 
     Multi-stage approach for robustness:
-    1. Strip thinking tags (preserving JSON whether inside or outside).
-    2. Strip code fences and try direct ``json.loads``.
-    3. Extract the first ``{...}`` block and retry.
-    4. Repair common JSON issues (trailing commas, broken strings).
+    1. Strip thinking tags + direct ``json.loads``.
+    2. Extract the first ``{...}`` block and retry.
+    3. Repair common JSON issues (trailing commas, broken strings).
+    4. Try repair on raw response (JSON broken by tag stripping).
     5. Handle double-encoded JSON strings.
     6. Last resort: search the raw response for any JSON object.
 
     Args:
         raw_response: Raw string response from the LLM API.
         model_id: Model identifier for error reporting.
+        stage_weights: Optional mapping of stage number to quality weight.
+            Defaults to :data:`_DEFAULT_STAGE_WEIGHTS`.
 
     Returns:
-        Parsed JSON as dict.
+        ParseResult with parsed data, stage number, and quality weight.
 
     Raises:
         LLMParseError: If all parsing strategies fail.
     """
+    weights = stage_weights or _DEFAULT_STAGE_WEIGHTS
     if not raw_response or not raw_response.strip():
         raise LLMParseError(
             f"Empty response from {model_id}",
@@ -226,8 +254,14 @@ def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
 
     cleaned = strip_code_fences(without_thinking)
 
-    # Stage 1: Direct parse
+    # Track which stage succeeded for quality metadata.
+    result: Any = None
+    stage: int = 0
+
+    # Stage 1: Direct parse after strip_thinking_tags + strip_code_fences
     result = _try_json_loads(cleaned)
+    if result is not None:
+        stage = 1
 
     # Stage 2: Extract JSON object from mixed text
     extracted: str | None = None
@@ -235,12 +269,16 @@ def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
         extracted = _extract_json_object(cleaned)
         if extracted:
             result = _try_json_loads(extracted)
+            if result is not None:
+                stage = 2
 
     # Stage 3: Repair common issues and retry
     if result is None:
         target = extracted or cleaned
         repaired = _repair_json(target)
         result = _try_json_loads(repaired)
+        if result is not None:
+            stage = 3
 
     # Stage 4: Try repair on the raw response (JSON might have been
     # broken by thinking tag stripping)
@@ -249,6 +287,8 @@ def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
         if raw_extracted:
             repaired_raw = _repair_json(raw_extracted)
             result = _try_json_loads(repaired_raw)
+            if result is not None:
+                stage = 4
 
     if result is None:
         logger.warning(
@@ -263,20 +303,23 @@ def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
             model_id=model_id,
         )
 
-    # Handle double-encoded JSON (LLM returned a JSON string containing JSON)
+    # Stage 5: Handle double-encoded JSON (LLM returned a JSON string
+    # containing JSON)
     if isinstance(result, str):
         inner = _try_json_loads(result)
         if isinstance(inner, dict):
             result = inner
+            stage = 5
         else:
             extracted_inner = _extract_json_object(result)
             if extracted_inner:
                 inner2 = _try_json_loads(extracted_inner)
                 if isinstance(inner2, dict):
                     result = inner2
+                    stage = 5
 
+    # Stage 6: Last resort — search the entire raw response for any JSON
     if not isinstance(result, dict):
-        # Last resort: search the entire raw response for any JSON object
         fallback = _extract_json_object(raw_response)
         if fallback:
             fb_repaired = _repair_json(fallback)
@@ -287,7 +330,11 @@ def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
                     model_id=model_id,
                     original_type=type(result).__name__,
                 )
-                return fb_result
+                return ParseResult(
+                    data=fb_result,
+                    parse_stage=6,
+                    parse_quality=weights.get(6, 0.3),
+                )
 
         raise LLMParseError(
             f"Expected JSON object from {model_id}, got {type(result).__name__}",
@@ -295,4 +342,8 @@ def parse_llm_response(raw_response: str, model_id: str) -> dict[str, Any]:
             model_id=model_id,
         )
 
-    return result
+    return ParseResult(
+        data=result,
+        parse_stage=stage,
+        parse_quality=weights.get(stage, 1.0),
+    )

@@ -244,13 +244,13 @@ class CriteriaGenerator:
             """Call one backend for cross-eval and validate response."""
             try:
                 raw = await backend.complete(cross_prompt, seed)
-                parsed = parse_llm_response(raw, backend.model_id)
+                parsed = parse_llm_response(raw, backend.model_id).data
                 if validate_cross_evaluate_response(parsed):
                     return backend.model_id, parsed
                 logger.warning(
                     "round2_invalid_response",
                     backend=backend.model_id,
-                    keys=list(parsed.keys()) if isinstance(parsed, dict) else type(parsed).__name__,
+                    keys=list(parsed.keys()),
                     sample=str(parsed)[:200],
                 )
                 return backend.model_id, None
@@ -364,7 +364,7 @@ class CriteriaGenerator:
         """
         try:
             raw = await backend.complete(prompt, seed)
-            parsed = parse_llm_response(raw, backend.model_id)
+            parsed = parse_llm_response(raw, backend.model_id).data
             # Validate minimum expected structure
             if "elements" not in parsed:
                 logger.warning("missing_elements_key", backend=backend.model_id)

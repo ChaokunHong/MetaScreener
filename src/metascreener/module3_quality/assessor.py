@@ -216,7 +216,7 @@ class RoBAssessor:
                 backend.complete(prompt, seed=seed),
                 timeout=self._timeout_s,
             )
-            parsed = parse_llm_response(raw, backend.model_id)
+            parsed = parse_llm_response(raw, backend.model_id).data
             logger.debug(
                 "rob_call_ok",
                 model_id=backend.model_id,

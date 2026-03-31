@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -117,10 +116,10 @@ async def _extract_single_model(
                 try:
                     parsed = json.loads(raw_response.strip())
                 except (json.JSONDecodeError, ValueError):
-                    parsed = parse_llm_response(raw_response, model_id)
+                    parsed = parse_llm_response(raw_response, model_id).data
                 raw_chunks.append(parsed)
             else:
-                parsed = parse_llm_response(raw_response, model_id)
+                parsed = parse_llm_response(raw_response, model_id).data
                 raw_chunks.append(parsed)
 
             logger.debug(

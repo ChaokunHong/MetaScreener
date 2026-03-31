@@ -233,7 +233,7 @@ class FrameworkDetector:
         """
         log_backend = backend or self._backend
         try:
-            parsed = parse_llm_response(raw_response, log_backend.model_id)
+            parsed = parse_llm_response(raw_response, log_backend.model_id).data
 
             framework_str = parsed.get("recommended_framework", "")
             if not isinstance(framework_str, str):
