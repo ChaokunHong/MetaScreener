@@ -139,6 +139,55 @@ class CalibrationConfig(BaseModel):
     )
 
 
+# --- v2.1 Bayesian upgrade configuration ---
+
+class DecisionConfig(BaseModel):
+    loss_preset: str = "balanced"
+    prevalence_prior: str = "low"
+
+class AggregationConfig(BaseModel):
+    method: str = "weighted_average"
+    ds_prior_alpha: float = 3.0
+    ds_prior_beta: float = 1.0
+    glad_switch_after_n: int = 20
+    batch_update_size: int = 20
+
+class ECSConfig(BaseModel):
+    method: str = "arithmetic"
+    trim_percentile: float = 0.10
+    min_threshold: float = 0.20
+    epsilon: float = 0.01
+
+class SPRTConfig(BaseModel):
+    enabled: bool = False
+    waves: int = 2
+
+class RCPSConfig(BaseModel):
+    enabled: bool = False
+    alpha_fnr: float = 0.05
+    alpha_automation: float = 0.60
+    delta: float = 0.05
+    min_calibration_size: int = 10
+
+class IPWConfig(BaseModel):
+    audit_rate: float = 0.0
+    seed: int = 42
+
+class ESASConfig(BaseModel):
+    enabled: bool = False
+    gamma: float = 0.3
+    tau: float = 0.5
+
+class ParseQualityConfig(BaseModel):
+    enabled: bool = False
+    stage_weights: dict[int, float] = Field(
+        default_factory=lambda: {1: 1.0, 2: 1.0, 3: 0.7, 4: 0.7, 5: 0.3, 6: 0.3}
+    )
+
+class RouterConfig(BaseModel):
+    method: str = "threshold"
+
+
 class MetaScreenerConfig(BaseModel):
     """Root configuration for MetaScreener.
 
@@ -171,6 +220,16 @@ class MetaScreenerConfig(BaseModel):
     calibration: CalibrationConfig = Field(
         default_factory=CalibrationConfig
     )
+    # v2.1 Bayesian upgrade — all have defaults for backward compatibility
+    decision: DecisionConfig = Field(default_factory=DecisionConfig)
+    aggregation: AggregationConfig = Field(default_factory=AggregationConfig)
+    ecs: ECSConfig = Field(default_factory=ECSConfig)
+    sprt: SPRTConfig = Field(default_factory=SPRTConfig)
+    rcps: RCPSConfig = Field(default_factory=RCPSConfig)
+    ipw: IPWConfig = Field(default_factory=IPWConfig)
+    esas: ESASConfig = Field(default_factory=ESASConfig)
+    parse_quality: ParseQualityConfig = Field(default_factory=ParseQualityConfig)
+    router: RouterConfig = Field(default_factory=RouterConfig)
 
 
 def load_model_config(path: Path) -> MetaScreenerConfig:
