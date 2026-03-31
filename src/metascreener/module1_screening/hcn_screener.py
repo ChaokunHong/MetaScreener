@@ -19,13 +19,15 @@ from collections.abc import Callable, Sequence
 
 import structlog
 
-from metascreener.core.enums import ScreeningStage
+from metascreener.config import MetaScreenerConfig
+from metascreener.core.enums import Decision, ScreeningStage, Tier
 from metascreener.core.models import (
     AuditEntry,
     ModelOutput,
     PICOCriteria,
     Record,
     ReviewCriteria,
+    RuleCheckResult,
     ScreeningDecision,
 )
 from metascreener.llm.base import LLMBackend
@@ -91,6 +93,7 @@ class HCNScreener:
         heuristic_alpha: float = 0.5,
         element_weights: dict[str, float] | None = None,
         calibration_overrides: dict[str, float] | None = None,
+        config: MetaScreenerConfig | None = None,
     ) -> None:
         self._backends = list(backends)
         self._inference = InferenceEngine(backends, timeout_s=timeout_s)
@@ -103,6 +106,83 @@ class HCNScreener:
         self._element_weights = element_weights
         self._calibration_overrides = calibration_overrides
 
+        # ── v2.1 Bayesian pipeline (component-level feature switches) ──
+        self._config = config or MetaScreenerConfig()
+        self._use_bayesian = self._config.aggregation.method in (
+            "dawid_skene",
+            "glad",
+        )
+        self._use_glad = False
+        self._labelled_buffer: list[dict] = []
+
+        if self._use_bayesian:
+            prevalence_map = {"low": 0.03, "medium": 0.07, "high": 0.15}
+            prevalence = prevalence_map[self._config.decision.prevalence_prior]
+            n_models = len(self._backends)
+
+            from metascreener.module1_screening.layer3.dawid_skene import (  # noqa: PLC0415
+                BayesianDawidSkene,
+            )
+
+            self.ds = BayesianDawidSkene(
+                n_models=n_models,
+                alpha_0=self._config.aggregation.ds_prior_alpha,
+                beta_0=self._config.aggregation.ds_prior_beta,
+                prevalence=prevalence,
+            )
+
+            if self._config.aggregation.method == "glad":
+                from metascreener.module1_screening.layer3.glad import GLAD  # noqa: PLC0415
+
+                self.glad = GLAD(
+                    n_models=n_models,
+                    alpha_0=self._config.aggregation.ds_prior_alpha,
+                    beta_0=self._config.aggregation.ds_prior_beta,
+                    prevalence=prevalence,
+                )
+
+        if self._config.sprt.enabled and self._use_bayesian:
+            from metascreener.core.models_bayesian import LossMatrix  # noqa: PLC0415
+            from metascreener.module1_screening.layer1.sprt_inference import (  # noqa: PLC0415
+                SPRTInference,
+            )
+
+            loss = LossMatrix.from_preset(self._config.decision.loss_preset)
+            self.sprt = SPRTInference(
+                loss, self.ds, wave1_size=self._config.sprt.waves
+            )
+
+        if self._config.router.method == "bayesian":
+            from metascreener.core.models_bayesian import LossMatrix  # noqa: PLC0415
+            from metascreener.module1_screening.layer4.bayesian_router import (  # noqa: PLC0415
+                BayesianRouter,
+            )
+
+            loss = LossMatrix.from_preset(self._config.decision.loss_preset)
+            self.bayesian_router = BayesianRouter(loss)
+
+        if self._config.rcps.enabled:
+            from metascreener.module1_screening.layer4.rcps import (  # noqa: PLC0415
+                RCPSController,
+            )
+
+            self.rcps = RCPSController(
+                alpha_fnr=self._config.rcps.alpha_fnr,
+                alpha_automation=self._config.rcps.alpha_automation,
+                delta=self._config.rcps.delta,
+                min_calibration_size=self._config.rcps.min_calibration_size,
+            )
+
+        if self._config.ipw.audit_rate > 0:
+            from metascreener.module1_screening.layer3.ipw import (  # noqa: PLC0415
+                IPWController,
+            )
+
+            self.ipw = IPWController(
+                audit_rate=self._config.ipw.audit_rate,
+                seed=self._config.ipw.seed,
+            )
+
     async def screen_single(
         self,
         record: Record,
@@ -111,6 +191,10 @@ class HCNScreener:
         stage: str | None = None,
     ) -> ScreeningDecision:
         """Screen a single record through the full HCN pipeline.
+
+        Supports component-level dispatch between v2.0 (CCA) and v2.1
+        (Bayesian) paths based on ``self._config``.  Each step uses an
+        if/else to select the appropriate component.
 
         Args:
             record: The literature record to screen.
@@ -124,72 +208,189 @@ class HCNScreener:
         if stage is None:
             stage = self.default_stage
 
-        # Layer 1: Parallel LLM inference
-        model_outputs = await self._inference.infer(
-            record, criteria, seed=seed, stage=stage
-        )
+        # ── Step 0: Hard rule pre-check (v2.1 only) ──
+        if self._use_bayesian:
+            hard_result = self._rules.check_hard_rules(record, criteria)
+            if hard_result.has_hard_violation:
+                return ScreeningDecision(
+                    record_id=record.record_id,
+                    stage=ScreeningStage(stage),
+                    decision=Decision.EXCLUDE,
+                    tier=Tier.ZERO,
+                    final_score=0.0,
+                    ensemble_confidence=1.0,
+                    rule_result=hard_result,
+                )
 
-        # Layer 2: Semantic rule engine
-        rule_result = self._rules.check(
-            record, criteria, model_outputs, stage=stage
-        )
+        # ── Step 1: Inference ──
+        early_stop = False
+        if self._config.sprt.enabled and self._use_bayesian:
+            model_outputs, early_stop = await self.sprt.run(
+                record, criteria, self._backends, seed
+            )
+        else:
+            model_outputs = await self._inference.infer(
+                record, criteria, seed=seed, stage=stage
+            )
 
-        # Element-level consensus for structured adjudication
+        # ── Step 2: Rules ──
+        if self._use_bayesian:
+            model_outputs = self._rules.apply_soft_rules(
+                model_outputs, criteria, record
+            )
+            rule_result = RuleCheckResult()
+        else:
+            rule_result = self._rules.check(
+                record, criteria, model_outputs, stage=stage
+            )
+
+        # Sort by model_id for determinism
+        model_outputs.sort(key=lambda o: o.model_id)
+
+        # ── Step 3: Element Consensus ──
         element_consensus = build_element_consensus(criteria, model_outputs)
 
-        # Layer 3a: Element Consensus Score (ECS)
-        ecs_result = compute_ecs(
-            element_consensus, element_weights=self._element_weights
-        )
+        # ── Step 4: ECS ──
+        if self._config.ecs.method == "geometric":
+            from metascreener.module1_screening.layer3.element_consensus import (  # noqa: PLC0415
+                compute_ecs_geometric,
+            )
 
-        # Layer 3b: Disagreement classification (informational)
-        disagreement_result = classify_disagreement(
-            model_outputs, ecs_result=ecs_result
-        )
+            ecs_result = compute_ecs_geometric(
+                element_consensus,
+                self._element_weights or {},
+                trim_percentile=self._config.ecs.trim_percentile,
+                min_threshold=self._config.ecs.min_threshold,
+                epsilon=self._config.ecs.epsilon,
+            )
+        else:
+            ecs_result = compute_ecs(
+                element_consensus, element_weights=self._element_weights
+            )
 
-        # Layer 3c: Calibration (fitted if available, else CAMD heuristic)
-        calibration_factors = get_calibration_factors(
-            model_outputs,
-            fitted_calibrators=self._fitted_calibrators,
-            alpha=self._heuristic_alpha,
-            prior_weights=self._prior_weights,
-        )
+        # ── Step 5: Aggregation ──
+        p_include: float | None = None
+        confidence: float | None = None
+        s_final: float = 0.0
+        c_ensemble: float = 0.0
+        disagree_result = None
 
-        # Merge static overrides from active learning (pilot recalibration)
-        # with heuristic factors — overrides take precedence.
-        if self._calibration_overrides:
-            merged = dict(calibration_factors) if calibration_factors else {}
-            merged.update(self._calibration_overrides)
-            calibration_factors = merged
+        if self._use_bayesian:
+            p_include, confidence = self._aggregate_bayesian(model_outputs)
+        else:
+            # v2.0 path: CAMD + CCA
+            disagree_result = classify_disagreement(
+                model_outputs, ecs_result=ecs_result
+            )
+            calibration_factors = get_calibration_factors(
+                model_outputs,
+                fitted_calibrators=self._fitted_calibrators,
+                alpha=self._heuristic_alpha,
+                prior_weights=self._prior_weights,
+            )
+            if self._calibration_overrides:
+                merged = (
+                    dict(calibration_factors) if calibration_factors else {}
+                )
+                merged.update(self._calibration_overrides)
+                calibration_factors = merged
+            s_final, c_ensemble = self._aggregator.aggregate(
+                model_outputs,
+                rule_penalty=rule_result.total_penalty,
+                calibration_overrides=calibration_factors or None,
+            )
 
-        # Layer 3d: Calibrated confidence aggregation
-        s_final, c_ensemble = self._aggregator.aggregate(
-            model_outputs,
-            rule_penalty=rule_result.total_penalty,
-            calibration_overrides=calibration_factors or None,
-        )
+        # ── Step 5b: ESAS (optional, v2.1 only) ──
+        if self._config.esas.enabled and p_include is not None:
+            from metascreener.module1_screening.layer3.evidence_alignment import (  # noqa: PLC0415
+                compute_esas,
+                esas_modulation,
+            )
 
-        # Layer 4: Hierarchical decision routing with ECS gating
-        decision, tier = self._router.route(
-            model_outputs,
-            rule_result,
-            s_final,
-            c_ensemble,
-            element_consensus=element_consensus,
-            ecs_result=ecs_result,
-            disagreement_result=disagreement_result,
-        )
+            mean_esas, _ = compute_esas(
+                model_outputs, list(element_consensus.keys())
+            )
+            confidence = esas_modulation(
+                confidence,  # type: ignore[arg-type]
+                mean_esas,
+                gamma=self._config.esas.gamma,
+                tau=self._config.esas.tau,
+            )
 
+        # ── Step 6: Routing ──
+        expected_loss: dict[str, float] | None = None
+
+        if self._config.router.method == "bayesian":
+            # RCPS adjustment
+            if self._config.rcps.enabled and hasattr(self, "rcps"):
+                from metascreener.core.models_bayesian import LossMatrix  # noqa: PLC0415
+                from metascreener.module1_screening.layer4.bayesian_router import (  # noqa: PLC0415
+                    BayesianRouter,
+                )
+
+                adjusted_loss = self.rcps.adjust_loss(
+                    LossMatrix.from_preset(self._config.decision.loss_preset)
+                )
+                adjusted_router = BayesianRouter(adjusted_loss)
+            else:
+                adjusted_router = self.bayesian_router
+
+            bayes_decision = adjusted_router.route(
+                p_include=p_include,  # type: ignore[arg-type]
+                ecs_final=ecs_result.score,
+                rule_overrides=[],
+            )
+            decision = bayes_decision.decision
+            tier = bayes_decision.tier
+            expected_loss = bayes_decision.expected_loss
+            s_final_out = p_include  # type: ignore[assignment]
+            c_ensemble_out = confidence  # type: ignore[assignment]
+        elif p_include is not None:
+            # DS aggregation + old threshold router
+            decision, tier = self._router.route(
+                model_outputs,
+                rule_result,
+                p_include,
+                confidence,  # type: ignore[arg-type]
+                element_consensus=element_consensus,
+                ecs_result=ecs_result,
+            )
+            s_final_out = p_include
+            c_ensemble_out = confidence  # type: ignore[assignment]
+        else:
+            # Full v2.0 path — disagreement already computed in step 5
+            decision, tier = self._router.route(
+                model_outputs,
+                rule_result,
+                s_final,
+                c_ensemble,
+                element_consensus=element_consensus,
+                ecs_result=ecs_result,
+                disagreement_result=disagree_result,
+            )
+            s_final_out = s_final
+            c_ensemble_out = c_ensemble
+
+        # ── Step 7: IPW audit sampling ──
+        requires_labelling = False
+        ipw_weight: float | None = None
+        if self._config.ipw.audit_rate > 0 and hasattr(self, "ipw"):
+            requires_labelling = self.ipw.should_audit(decision)
+            if requires_labelling:
+                ipw_weight = self.ipw.get_ipw_weight(decision)
+
+        # ── Step 8: Build result ──
         logger.info(
             "screening_complete",
             record_id=record.record_id,
             stage=stage,
             decision=decision.value,
             tier=tier.value,
-            score=round(s_final, 4),
-            confidence=round(c_ensemble, 4),
+            score=round(s_final_out, 4),
+            confidence=(
+                round(c_ensemble_out, 4) if c_ensemble_out else 0.0
+            ),
             ecs_score=round(ecs_result.score, 4),
-            disagreement=disagreement_result.disagreement_type.value,
         )
 
         return ScreeningDecision(
@@ -197,14 +398,153 @@ class HCNScreener:
             stage=ScreeningStage(stage),
             decision=decision,
             tier=tier,
-            final_score=s_final,
-            ensemble_confidence=c_ensemble,
+            final_score=s_final_out,
+            ensemble_confidence=c_ensemble_out or 0.0,
             model_outputs=model_outputs,
             rule_result=rule_result,
             element_consensus=element_consensus,
             ecs_result=ecs_result,
-            disagreement_result=disagreement_result,
+            disagreement_result=disagree_result,
+            p_include=p_include,
+            expected_loss=expected_loss,
+            requires_labelling=requires_labelling,
+            ipw_weight=ipw_weight,
+            sprt_early_stop=early_stop,
+            models_called=len(model_outputs),
         )
+
+    def _aggregate_bayesian(
+        self,
+        model_outputs: list[ModelOutput],
+    ) -> tuple[float, float]:
+        """Aggregate using Dawid-Skene or GLAD.
+
+        Returns:
+            Tuple of (p_include, confidence).
+        """
+        import math  # noqa: PLC0415
+
+        import numpy as np  # noqa: PLC0415
+        from scipy.stats import entropy as scipy_entropy  # noqa: PLC0415
+
+        annotations: list[int | None] = []
+        for o in model_outputs:
+            if o.decision == Decision.INCLUDE:
+                annotations.append(0)
+            elif o.decision == Decision.EXCLUDE:
+                annotations.append(1)
+            else:
+                annotations.append(None)
+
+        if self._config.parse_quality.enabled:
+            qualities = [o.parse_quality for o in model_outputs]
+        else:
+            qualities = [1.0] * len(model_outputs)
+
+        if self._use_glad and hasattr(self, "glad") and self.glad.active:
+            features = self.glad.compute_features(None, model_outputs, criteria=None)
+            difficulty = self.glad.predict_difficulty(features)
+            posterior = self.glad.e_step_glad(annotations, qualities, difficulty)
+        else:
+            posterior = self.ds.e_step(annotations, qualities)
+
+        p_include = float(posterior[0])
+
+        # Confidence = 1 - normalized entropy
+        ent = scipy_entropy(posterior)
+        max_ent = math.log(len(posterior))
+        confidence = 1.0 - (ent / max_ent if max_ent > 0 else 0.0)
+
+        return p_include, confidence
+
+    def incorporate_feedback(
+        self,
+        record_id: str,
+        true_label: int,
+        decision: ScreeningDecision,
+    ) -> None:
+        """Process human feedback for online learning (v2.1 only).
+
+        Accumulates labelled records and triggers batch updates to
+        the Dawid-Skene confusion matrix (and optionally GLAD
+        difficulty model) every ``batch_update_size`` records.
+
+        Args:
+            record_id: Identifier of the labelled record.
+            true_label: Ground truth label (0=INCLUDE, 1=EXCLUDE).
+            decision: The original ScreeningDecision for the record.
+        """
+        if not self._use_bayesian:
+            return
+
+        annotations: list[int | None] = []
+        for o in decision.model_outputs:
+            if o.decision == Decision.INCLUDE:
+                annotations.append(0)
+            elif o.decision == Decision.EXCLUDE:
+                annotations.append(1)
+            else:
+                annotations.append(None)
+
+        labelled = {
+            "record_id": record_id,
+            "annotations": annotations,
+            "parse_qualities": [o.parse_quality for o in decision.model_outputs],
+            "true_label": true_label,
+            "ipw_weight": decision.ipw_weight or 1.0,
+        }
+        self._labelled_buffer.append(labelled)
+
+        batch_size = self._config.aggregation.batch_update_size
+        if len(self._labelled_buffer) % batch_size == 0:
+            batch = sorted(
+                self._labelled_buffer, key=lambda r: r["record_id"]
+            )
+            self.ds.m_step_update(batch)
+
+            # GLAD switch check
+            if (
+                self._config.aggregation.method == "glad"
+                and len(batch) >= self._config.aggregation.glad_switch_after_n
+                and not self._use_glad
+                and hasattr(self, "glad")
+            ):
+                import numpy as np  # noqa: PLC0415
+
+                self.glad.posterior = self.ds.posterior.copy()
+                pilot_data = []
+                for r in batch:
+                    features = self.glad.compute_features(None, [], criteria=None)
+                    ds_pred = (
+                        0
+                        if self.ds.e_step(
+                            r["annotations"], r["parse_qualities"]
+                        )[0]
+                        > 0.5
+                        else 1
+                    )
+                    pilot_data.append(
+                        {
+                            "features": features,
+                            "ds_correct": ds_pred == r["true_label"],
+                        }
+                    )
+                self.glad.fit_difficulty_model(pilot_data)
+                self._use_glad = self.glad.active
+
+            # RCPS recalibration
+            if self._config.rcps.enabled and hasattr(self, "rcps"):
+                cal_records = [
+                    {
+                        "p_include": self.ds.e_step(
+                            r["annotations"], r["parse_qualities"]
+                        )[0],
+                        "true_label": r["true_label"],
+                        "ipw_weight": r["ipw_weight"],
+                    }
+                    for r in batch
+                ]
+                self.rcps.calibrate(cal_records)
 
     async def screen_batch(
         self,
