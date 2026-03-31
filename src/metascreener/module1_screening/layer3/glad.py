@@ -143,7 +143,7 @@ class GLAD(BayesianDawidSkene):
         y = np.array([1 if d["ds_correct"] else 0 for d in pilot_data])
         if len(np.unique(y)) < 2:
             return
-        clf = LogisticRegression(C=1.0, penalty="l2", max_iter=1000)
+        clf = LogisticRegression(C=1.0, l1_ratio=0, max_iter=1000)
         clf.fit(x, y)
         self.difficulty_weights = clf.coef_[0].astype(np.float64)
         self.active = True

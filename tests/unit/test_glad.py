@@ -37,7 +37,8 @@ class TestGLADInactive:
 
 class TestGLADDifficulty:
     def test_low_difficulty_increases_entropy(self) -> None:
-        glad = GLAD(n_models=4, prevalence=0.03)
+        # Use balanced prevalence so difficulty modulation increases uncertainty
+        glad = GLAD(n_models=4, prevalence=0.50)
         ann = [0, 0, 0, 1]
         q = [1.0, 1.0, 1.0, 1.0]
         p_easy = glad.e_step_glad(ann, q, difficulty=1.0)
