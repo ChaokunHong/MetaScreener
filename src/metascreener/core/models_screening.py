@@ -97,6 +97,13 @@ class ScreeningDecision(BaseModel):
     chunk_heterogeneity: ChunkHeterogeneityResult | None = None
     human_decision: Decision | None = None  # set after human review
     decided_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    # v2.1: Bayesian decision metadata
+    p_include: float | None = None
+    expected_loss: dict[str, float] | None = None
+    requires_labelling: bool = False
+    ipw_weight: float | None = None
+    sprt_early_stop: bool = False
+    models_called: int = 0
 
 
 class AuditEntry(BaseModel):
@@ -147,6 +154,13 @@ class AuditEntry(BaseModel):
     n_chunks: int | None = None
     text_quality: Any | None = None
     chunk_heterogeneity: ChunkHeterogeneityResult | None = None
+    # v2.1: Ablation traceability
+    aggregation_method: str = "weighted_average"
+    router_method: str = "threshold"
+    loss_preset: str | None = None
+    p_include: float | None = None
+    sprt_early_stop: bool = False
+    models_called: int = 0
 
 
 class ExtractionResult(BaseModel):

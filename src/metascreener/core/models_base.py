@@ -138,6 +138,9 @@ class ModelOutput(BaseModel):
     prompt_hash: str | None = None
     latency_ms: float | None = None
     error: str | None = None
+    # v2.1: Parse quality weighting for Bayesian aggregation
+    parse_quality: float = 1.0
+    parse_stage: int = 1
 
     @property
     def pico_assessment(self) -> dict[str, PICOAssessment]:
