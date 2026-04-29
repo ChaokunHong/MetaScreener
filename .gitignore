@@ -52,23 +52,24 @@ frontend/node_modules/
 frontend/dist/
 
 # Non-core directories (kept locally, not in repo)
-.github/
-.zenodo.json
-CITATION.cff
-Makefile
-demo/
-docs/
-logo/
-packaging/
-paper/
-model_icon/
-metascreener1.0/
-backend/
+/.github/
+/.zenodo.json
+/CITATION.cff
+/Makefile
+/demo/
+/docs/
+/experiments/
+/logo/
+/packaging/
+/paper/
+/frontend/public/model_icon/
+/metascreener1.0/
+/backend/
 
 # Claude Code / dev tooling
-CLAUDE.md
-.claude/
-.metascreener/
+/CLAUDE.md
+/.claude/
+/.metascreener/
 
 # OS / editor junk
 .DS_Store
