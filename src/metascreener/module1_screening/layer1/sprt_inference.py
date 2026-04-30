@@ -42,6 +42,11 @@ class SPRTInference:
         loss: Asymmetric loss matrix that defines SPRT boundaries.
         ds: Bayesian Dawid-Skene model for per-model confusion matrices.
         wave1_size: Number of models to call in the first wave.
+        complementary_mismatch_force_wave2: When True, cancel exclude
+            early-stop if wave1 models have complementary (non-overlapping)
+            mismatch sets on exclusion-relevant elements.
+        complementary_overlap_threshold: Jaccard overlap below which
+            mismatch sets are considered complementary.
     """
 
     def __init__(
@@ -49,12 +54,51 @@ class SPRTInference:
         loss: LossMatrix,
         ds: BayesianDawidSkene,
         wave1_size: int = 2,
+        complementary_mismatch_force_wave2: bool = False,
+        complementary_overlap_threshold: float = 0.5,
     ) -> None:
         self.loss = loss
         self.ds = ds
         self.wave1_size = wave1_size
+        self.complementary_mismatch_force_wave2 = complementary_mismatch_force_wave2
+        self.complementary_overlap_threshold = complementary_overlap_threshold
         self.A = loss.sprt_include_boundary
         self.B = loss.sprt_exclude_boundary
+
+    def _has_complementary_mismatch(
+        self,
+        outputs: list[ModelOutput],
+        criteria: ReviewCriteria | PICOCriteria,
+    ) -> bool:
+        """Check if wave1 outputs show complementary mismatch patterns."""
+        valid = [o for o in outputs if o.error is None and o.decision == Decision.EXCLUDE]
+        if len(valid) != 2:
+            return False
+
+        if isinstance(criteria, PICOCriteria):
+            criteria = ReviewCriteria.from_pico_criteria(criteria)
+        required = set(criteria.required_elements)
+
+        def mismatch_set(output: ModelOutput) -> set[str]:
+            result: set[str] = set()
+            for key, assessment in output.element_assessment.items():
+                if key not in required:
+                    continue
+                if assessment.match is False:
+                    result.add(key)
+            return result
+
+        m1 = mismatch_set(valid[0])
+        m2 = mismatch_set(valid[1])
+
+        if not m1 or not m2:
+            return False
+
+        union = m1 | m2
+        intersection = m1 & m2
+        jaccard = len(intersection) / len(union) if union else 1.0
+
+        return jaccard < self.complementary_overlap_threshold
 
     def compute_llr(
         self,
@@ -148,8 +192,20 @@ class SPRTInference:
         )
 
         if llr > self.A or llr < self.B:
-            outputs_w1.sort(key=lambda o: o.model_id)
-            return outputs_w1, True
+            if (
+                llr < self.B
+                and self.complementary_mismatch_force_wave2
+                and w1_size < n
+                and self._has_complementary_mismatch(outputs_w1, criteria)
+            ):
+                logger.info(
+                    "sprt_complementary_mismatch_force_wave2",
+                    record_id=record.record_id,
+                    llr=llr,
+                )
+            else:
+                outputs_w1.sort(key=lambda o: o.model_id)
+                return outputs_w1, True
 
         if w1_size < n:
             wave2_backends = sorted_backends[w1_size:]

@@ -99,7 +99,17 @@ class HCNScreener:
         self._inference = InferenceEngine(backends, timeout_s=timeout_s)
         self._rules = rule_engine or RuleEngine()
         self._aggregator = aggregator or CCAggregator(weights=prior_weights)
-        self._router = router or DecisionRouter()
+        # Propagate calibration.ecs_threshold from config to the router
+        # so ablation configs can override the default ECS gate (e.g. A0
+        # single-model baseline sets ecs_threshold=0.0).
+        if router is not None:
+            self._router = router
+        elif config is not None:
+            self._router = DecisionRouter(
+                ecs_threshold=config.calibration.ecs_threshold,
+            )
+        else:
+            self._router = DecisionRouter()
         self._fitted_calibrators = fitted_calibrators
         self._heuristic_alpha = heuristic_alpha
         self._prior_weights = prior_weights
@@ -139,6 +149,8 @@ class HCNScreener:
                     alpha_0=self._config.aggregation.ds_prior_alpha,
                     beta_0=self._config.aggregation.ds_prior_beta,
                     prevalence=prevalence,
+                    shrinkage=self._config.aggregation.glad_shrinkage,
+                    reg_C=self._config.aggregation.glad_reg_C,
                 )
 
         if self._config.sprt.enabled and self._use_bayesian:
@@ -149,7 +161,11 @@ class HCNScreener:
 
             loss = LossMatrix.from_preset(self._config.decision.loss_preset)
             self.sprt = SPRTInference(
-                loss, self.ds, wave1_size=self._config.sprt.waves
+                loss,
+                self.ds,
+                wave1_size=self._config.sprt.waves,
+                complementary_mismatch_force_wave2=self._config.sprt.complementary_mismatch_force_wave2,
+                complementary_overlap_threshold=self._config.sprt.complementary_overlap_threshold,
             )
 
         if self._config.router.method == "bayesian":
@@ -159,9 +175,22 @@ class HCNScreener:
             )
 
             loss = LossMatrix.from_preset(self._config.decision.loss_preset)
-            self.bayesian_router = BayesianRouter(loss)
+            self.bayesian_router = BayesianRouter(
+                loss,
+                routing_mode=self._config.router.routing_mode,
+                ecs_auto_threshold=self._config.router.ecs_auto_threshold,
+                use_ecs_margin=self._config.router.use_ecs_margin,
+                wave2_uncertainty_margin=self._config.router.wave2_uncertainty_margin,
+                ecs_include_gate=self._config.router.ecs_include_gate,
+                ecs_exclude_max=self._config.router.ecs_exclude_max,
+                eas_gate_full=self._config.router.eas_gate_full,
+                eas_gate_two_model_sprt=self._config.router.eas_gate_two_model_sprt,
+                eas_widening_factor=self._config.router.eas_widening_factor,
+                phase2_gates_enabled=self._config.router.phase2_gates_enabled,
+            )
 
         if self._config.rcps.enabled:
+            from metascreener.core.models_bayesian import LossMatrix  # noqa: PLC0415
             from metascreener.module1_screening.layer4.rcps import (  # noqa: PLC0415
                 RCPSController,
             )
@@ -171,6 +200,11 @@ class HCNScreener:
                 alpha_automation=self._config.rcps.alpha_automation,
                 delta=self._config.rcps.delta,
                 min_calibration_size=self._config.rcps.min_calibration_size,
+                candidate_margin_scales=(
+                    self._config.rcps.candidate_margin_scales
+                ),
+                base_margin=self._config.rcps.base_margin,
+                loss=LossMatrix.from_preset(self._config.decision.loss_preset),
             )
 
         if self._config.ipw.audit_rate > 0:
@@ -233,6 +267,39 @@ class HCNScreener:
                 record, criteria, seed=seed, stage=stage
             )
 
+        # ── Step 1b: All-errors fail-safe ──
+        # When every backend errored (e.g. an upstream API outage), all
+        # downstream layers receive degenerate inputs: rules see empty
+        # signal, ECS defaults to 1.0 (all elements unclear), and
+        # `_aggregate_bayesian` falls back to the prevalence prior — a
+        # situation in which the Bayesian router auto-INCLUDEs every
+        # record because c_hr > c_fp*(1-prior). Short-circuit here so
+        # the absence of LLM signal surfaces as HUMAN_REVIEW + Tier 3
+        # instead of a confident-looking auto-decision.
+        if model_outputs and all(o.error is not None for o in model_outputs):
+            logger.warning(
+                "all_backends_errored_fail_safe",
+                record_id=record.record_id,
+                n_backends=len(model_outputs),
+                error_samples=[
+                    (o.model_id, o.error) for o in model_outputs[:3]
+                ],
+            )
+            return ScreeningDecision(
+                record_id=record.record_id,
+                stage=ScreeningStage(stage),
+                decision=Decision.HUMAN_REVIEW,
+                tier=Tier.THREE,
+                final_score=0.0,
+                ensemble_confidence=0.0,
+                model_outputs=model_outputs,
+                rule_result=RuleCheckResult(),
+                p_include=None,
+                expected_loss=None,
+                sprt_early_stop=early_stop,
+                models_called=len(model_outputs),
+            )
+
         # ── Step 2: Rules ──
         if self._use_bayesian:
             model_outputs = self._rules.apply_soft_rules(
@@ -270,13 +337,24 @@ class HCNScreener:
 
         # ── Step 5: Aggregation ──
         p_include: float | None = None
+        q_include: float | None = None
+        exclude_certainty: float | None = None
+        exclude_certainty_passes: bool | None = None
+        exclude_certainty_supporting: int | None = None
+        exclude_certainty_regime: str | None = None
+        loss_prefers_exclude: bool | None = None
+        effective_difficulty: float | None = None
         confidence: float | None = None
         s_final: float = 0.0
         c_ensemble: float = 0.0
         disagree_result = None
 
+        glad_difficulty = 1.0
+        esas_score = 0.0
         if self._use_bayesian:
-            p_include, confidence = self._aggregate_bayesian(model_outputs)
+            p_include, confidence, glad_difficulty = self._aggregate_bayesian(
+                model_outputs
+            )
         else:
             # v2.0 path: CAMD + CCA
             disagree_result = classify_disagreement(
@@ -310,6 +388,7 @@ class HCNScreener:
             mean_esas, _ = compute_esas(
                 model_outputs, list(element_consensus.keys())
             )
+            esas_score = mean_esas
             confidence = esas_modulation(
                 confidence,  # type: ignore[arg-type]
                 mean_esas,
@@ -321,28 +400,131 @@ class HCNScreener:
         expected_loss: dict[str, float] | None = None
 
         if self._config.router.method == "bayesian":
-            # RCPS adjustment
+            # RCPS margin adjustment
+            rcps_margin_scale = 1.0
             if self._config.rcps.enabled and hasattr(self, "rcps"):
-                from metascreener.core.models_bayesian import LossMatrix  # noqa: PLC0415
-                from metascreener.module1_screening.layer4.bayesian_router import (  # noqa: PLC0415
-                    BayesianRouter,
+                rcps_margin_scale = self.rcps.get_margin_scale()
+
+            # Phase 2: compute exclude_certainty BEFORE the router so the
+            # router's directional EXCLUDE gate can consult `passes`.
+            exclude_result = None
+            exclude_certainty_passes_for_router: bool | None = None
+            if (
+                self._config.router.exclude_certainty_enabled
+                and p_include is not None
+            ):
+                from metascreener.module1_screening.layer4.exclude_certainty import (  # noqa: PLC0415
+                    compute_exclude_certainty,
                 )
 
-                adjusted_loss = self.rcps.adjust_loss(
-                    LossMatrix.from_preset(self._config.decision.loss_preset)
+                exclude_result = compute_exclude_certainty(
+                    model_outputs,
+                    element_consensus,
+                    sprt_early_stop=early_stop,
+                    models_called=len(model_outputs),
+                    element_weights=self._element_weights,
+                    full_threshold=(
+                        self._config.router.exclude_certainty_full_threshold
+                    ),
+                    early_threshold=(
+                        self._config.router.exclude_certainty_early_threshold
+                    ),
+                    full_min_supporting=(
+                        self._config.router.exclude_certainty_full_min_supporting
+                    ),
+                    early_min_supporting=(
+                        self._config.router.exclude_certainty_early_min_supporting
+                    ),
+                    support_ratio_threshold=(
+                        self._config.router.exclude_certainty_support_ratio
+                    ),
+                    mode=self._config.router.exclude_certainty_mode,
+                    coverage_early_threshold=(
+                        self._config.router.exclude_certainty_coverage_early_threshold
+                    ),
+                    coverage_full_threshold=(
+                        self._config.router.exclude_certainty_coverage_full_threshold
+                    ),
+                    contradiction_weight_threshold=(
+                        self._config.router.exclude_certainty_contradiction_weight_threshold
+                    ),
+                    min_replicated_high_weight=(
+                        self._config.router.exclude_certainty_min_replicated_high_weight
+                    ),
                 )
-                adjusted_router = BayesianRouter(adjusted_loss)
-            else:
-                adjusted_router = self.bayesian_router
+                exclude_certainty_passes_for_router = exclude_result.passes
 
-            bayes_decision = adjusted_router.route(
+            bayes_decision = self.bayesian_router.route(
                 p_include=p_include,  # type: ignore[arg-type]
                 ecs_final=ecs_result.score,
+                eas_score=ecs_result.eas_score,
                 rule_overrides=[],
+                ensemble_confidence=confidence if confidence is not None else 0.5,
+                esas_score=esas_score,
+                esas_margin_narrowing_factor=(
+                    self._config.esas.margin_narrowing_factor
+                ),
+                esas_margin_narrowing_tau=self._config.esas.margin_narrowing_tau,
+                rcps_margin_scale=rcps_margin_scale,
+                glad_difficulty=glad_difficulty,
+                sprt_early_stop=early_stop,
+                exclude_certainty_passes=exclude_certainty_passes_for_router,
+                models_called=len(model_outputs),
             )
             decision = bayes_decision.decision
             tier = bayes_decision.tier
             expected_loss = bayes_decision.expected_loss
+
+            if exclude_result is not None:
+                exclude_certainty = exclude_result.score
+                exclude_certainty_passes = exclude_result.passes
+                exclude_certainty_supporting = exclude_result.supporting_elements
+                exclude_certainty_regime = exclude_result.regime
+
+                safe_beta = max(glad_difficulty, 0.01)
+                # The difficulty-floor calibration is defined for the
+                # complete four-model production panel, not SPRT early stops.
+                full_model_floor_allowed = len(model_outputs) == 4
+                if (
+                    self._config.router.exclude_certainty_difficulty_floor_enabled
+                    and exclude_result.passes
+                    and full_model_floor_allowed
+                ):
+                    safe_beta = max(
+                        safe_beta,
+                        self._config.router.exclude_certainty_difficulty_floor,
+                    )
+                effective_difficulty = safe_beta
+                adjusted_c_fn = self.bayesian_router.loss.c_fn / safe_beta
+                loss_prefers_exclude = (
+                    adjusted_c_fn * p_include
+                    < self.bayesian_router.loss.c_fp * (1.0 - p_include)
+                )
+                ec_override = (
+                    self._config.router.exclude_certainty_loss_override
+                    and exclude_result.passes
+                )
+                # Phase 2.5 safety: never promote a router-issued
+                # HUMAN_REVIEW back to auto-EXCLUDE. The router has already
+                # consulted ``exclude_certainty_passes``; if it still chose
+                # HR, that decision reflects a Phase 2 gate (low EAS,
+                # 2-model SPRT under stricter EAS, or directional conflict)
+                # and must not be bypassed.
+                router_committed = decision != Decision.HUMAN_REVIEW
+                if (
+                    router_committed
+                    and exclude_result.passes
+                    and (loss_prefers_exclude or ec_override)
+                ):
+                    decision = Decision.EXCLUDE
+                    if tier == Tier.THREE:
+                        tier = Tier.TWO
+                elif decision == Decision.EXCLUDE and not exclude_result.passes:
+                    # Phase 2 gates already block EXCLUDE without a passing
+                    # exclude_certainty; defensive only.
+                    decision = Decision.HUMAN_REVIEW
+                    tier = Tier.THREE
+
             s_final_out = p_include  # type: ignore[assignment]
             c_ensemble_out = confidence  # type: ignore[assignment]
         elif p_include is not None:
@@ -350,12 +532,12 @@ class HCNScreener:
             decision, tier = self._router.route(
                 model_outputs,
                 rule_result,
-                p_include,
+                p_include,  # type: ignore[arg-type]
                 confidence,  # type: ignore[arg-type]
                 element_consensus=element_consensus,
                 ecs_result=ecs_result,
             )
-            s_final_out = p_include
+            s_final_out = p_include  # type: ignore[assignment]
             c_ensemble_out = confidence  # type: ignore[assignment]
         else:
             # Full v2.0 path — disagreement already computed in step 5
@@ -406,6 +588,15 @@ class HCNScreener:
             ecs_result=ecs_result,
             disagreement_result=disagree_result,
             p_include=p_include,
+            q_include=q_include,
+            exclude_certainty=exclude_certainty,
+            exclude_certainty_passes=exclude_certainty_passes,
+            exclude_certainty_supporting_elements=exclude_certainty_supporting,
+            exclude_certainty_regime=exclude_certainty_regime,
+            loss_prefers_exclude=loss_prefers_exclude,
+            effective_difficulty=effective_difficulty,
+            esas_score=esas_score if self._use_bayesian else None,
+            glad_difficulty=glad_difficulty,
             expected_loss=expected_loss,
             requires_labelling=requires_labelling,
             ipw_weight=ipw_weight,
@@ -416,11 +607,12 @@ class HCNScreener:
     def _aggregate_bayesian(
         self,
         model_outputs: list[ModelOutput],
-    ) -> tuple[float, float]:
+    ) -> tuple[float, float, float]:
         """Aggregate using Dawid-Skene or GLAD.
 
         Returns:
-            Tuple of (p_include, confidence).
+            Tuple of (p_include, confidence, difficulty).
+            difficulty is 1.0 when GLAD is inactive.
         """
         import math  # noqa: PLC0415
 
@@ -440,6 +632,7 @@ class HCNScreener:
         else:
             qualities = [1.0] * len(model_outputs)
 
+        difficulty = 1.0
         if self._use_glad and hasattr(self, "glad") and self.glad.active:
             features = self.glad.compute_features(None, model_outputs, criteria=None)
             difficulty = self.glad.predict_difficulty(features)
@@ -454,7 +647,7 @@ class HCNScreener:
         max_ent = math.log(len(posterior))
         confidence = 1.0 - (ent / max_ent if max_ent > 0 else 0.0)
 
-        return p_include, confidence
+        return p_include, confidence, difficulty
 
     def incorporate_feedback(
         self,
@@ -491,6 +684,10 @@ class HCNScreener:
             "parse_qualities": [o.parse_quality for o in decision.model_outputs],
             "true_label": true_label,
             "ipw_weight": decision.ipw_weight or 1.0,
+            # Stored for GLAD pilot: compute_features needs real record
+            # + model_outputs, not None/[]. Without these, all feature
+            # vectors are identical and logistic regression fails to fit.
+            "model_outputs": decision.model_outputs,
         }
         self._labelled_buffer.append(labelled)
 
@@ -512,7 +709,14 @@ class HCNScreener:
                 self.glad.posterior = self.ds.posterior.copy()
                 pilot_data = []
                 for r in batch:
-                    features = self.glad.compute_features(None, [], criteria=None)
+                    # Use stored model_outputs for real feature
+                    # extraction (score variance, confidence spread).
+                    # Previously this passed (None, [], None) which
+                    # produced identical feature vectors for every
+                    # record, making logistic regression degenerate.
+                    features = self.glad.compute_features(
+                        None, r.get("model_outputs", []), criteria=None
+                    )
                     ds_pred = (
                         0
                         if self.ds.e_step(

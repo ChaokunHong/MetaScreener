@@ -4,18 +4,23 @@ from __future__ import annotations
 import pytest
 
 from metascreener.core.enums import Decision
+from metascreener.core.exceptions import LLMFatalError
 from metascreener.core.models import ModelOutput, PICOCriteria, Record
+from metascreener.llm import response_cache
 from metascreener.llm.base import LLMBackend, build_screening_prompt, strip_code_fences
 
 
 class ConcreteBackend(LLMBackend):
     """Minimal concrete implementation for testing."""
 
+    api_calls: int = 0
+
     async def _call_api(
         self,
         prompt: str,
         seed: int,
     ) -> str:
+        self.api_calls += 1
         return '{"decision": "INCLUDE", "confidence": 0.9, "score": 0.85, "rationale": "match"}'
 
     @property
@@ -96,6 +101,21 @@ async def test_complete_default_seed(backend: ConcreteBackend) -> None:
     """complete() should use default seed=42."""
     result = await backend.complete("test prompt")
     assert isinstance(result, str)
+
+
+@pytest.mark.asyncio
+async def test_call_with_prompt_cache_only_raises_on_cache_miss(
+    backend: ConcreteBackend,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cache-only benchmark replay must fail fast before any API call."""
+    response_cache._cache.clear()
+    monkeypatch.setenv("METASCREENER_CACHE_ONLY", "1")
+
+    with pytest.raises(LLMFatalError, match="cache-only"):
+        await backend.call_with_prompt("cache-only miss", seed=42)
+
+    assert backend.api_calls == 0
 
 
 class TestStripCodeFences:

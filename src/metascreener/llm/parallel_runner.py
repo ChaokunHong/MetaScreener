@@ -12,7 +12,7 @@ from collections.abc import Sequence
 import structlog
 
 from metascreener.core.enums import Decision, ScreeningStage
-from metascreener.core.exceptions import LLMError, LLMParseError
+from metascreener.core.exceptions import LLMError, LLMFatalError, LLMParseError
 from metascreener.core.models import ModelOutput, PICOCriteria, Record
 from metascreener.llm.base import LLMBackend
 
@@ -42,7 +42,7 @@ class ParallelRunner:
         self._timeout_s = timeout_s
         self._consecutive_failures: dict[str, int] = {}
         self._skipped_models: set[str] = set()
-        self._max_consecutive_failures = 3
+        self._max_consecutive_failures = 20
 
     @property
     def backend_count(self) -> int:
@@ -184,6 +184,13 @@ class ParallelRunner:
                     error=f"Timeout after {self._timeout_s}s",
                 )
 
+            except LLMFatalError:
+                logger.error(
+                    "backend_fatal_error",
+                    model_id=backend.model_id,
+                )
+                raise
+
             except LLMError as e:
                 logger.warning(
                     "backend_error",
@@ -267,6 +274,13 @@ class ParallelRunner:
                 rationale="Timeout — model did not respond in time.",
                 error=f"Timeout after {self._timeout_s}s",
             )
+        except LLMFatalError:
+            logger.error(
+                "backend_fatal_error",
+                model_id=backend.model_id,
+                record_id=record.record_id,
+            )
+            raise
         except LLMError as e:
             logger.warning(
                 "backend_error",

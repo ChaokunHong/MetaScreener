@@ -352,14 +352,32 @@ def compute_ecs_geometric(
 
     element_scores: dict[str, float] = {}
     for name, ec in element_consensus.items():
-        ratio = ec.support_ratio if ec.support_ratio is not None else 0.5
+        if ec.support_ratio is None:
+            continue
+        ratio = ec.support_ratio
         element_scores[name] = ratio
 
+    if not element_scores:
+        return ECSResult(
+            score=1.0,
+            eas_score=1.0,
+            conflict_pattern=classify_conflict(element_consensus),
+            weak_elements=[],
+            element_scores={},
+        )
+
     names = list(element_scores.keys())
-    ratios = np.array([element_scores[n] for n in names], dtype=np.float64)
+    raw_ratios = np.array([element_scores[n] for n in names], dtype=np.float64)
     weights = np.array([element_weights.get(n, 1.0) for n in names], dtype=np.float64)
 
-    log_vals = np.log(ratios + epsilon)
+    # Epsilon smoothing: prevent geometric mean collapse from exact-zero
+    # ratios. A support_ratio of 0.0 (all models mismatch) would zero out
+    # the entire geometric mean and the conditional min gate. Clamping to
+    # epsilon preserves the strong penalty (very low score) while keeping
+    # the score non-degenerate so downstream thresholds retain resolution.
+    ratios = np.maximum(raw_ratios, epsilon)
+
+    log_vals = np.log(ratios)
 
     if trim_percentile > 0 and len(log_vals) > 1:
         threshold = np.percentile(log_vals, trim_percentile * 100)
@@ -367,18 +385,27 @@ def compute_ecs_geometric(
 
     geo_mean = float(np.exp(np.average(log_vals, weights=weights)))
 
-    min_ratio = float(ratios.min())
-    if min_ratio <= min_threshold:
-        ecs_final = min(min_ratio, geo_mean)
-    else:
-        ecs_final = geo_mean
+    # The geometric mean already penalises low-consensus elements
+    # heavily (e.g. one element at 0.01 with four others at 0.75
+    # yields geo ≈ 0.36 vs arithmetic ≈ 0.60).  The conditional
+    # min gate that previously capped the output to the lowest raw
+    # ratio was removed because it collapsed ECS to epsilon whenever
+    # any single element had full mismatch, destroying all downstream
+    # threshold resolution and causing the Bayesian router to flip
+    # almost every EXCLUDE to HUMAN_REVIEW.
+    ecs_final = geo_mean
 
     ecs_final = max(0.0, min(1.0, ecs_final))
 
     weak = [n for n, r in element_scores.items() if r < _WEAK_ELEMENT_THRESHOLD]
+    eas_score = compute_eas(
+        element_consensus,
+        element_weights=element_weights,
+    )
 
     return ECSResult(
         score=ecs_final,
+        eas_score=eas_score,
         conflict_pattern=classify_conflict(element_consensus),
         weak_elements=weak,
         element_scores=element_scores,

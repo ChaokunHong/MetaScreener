@@ -27,6 +27,36 @@ _EXCLUDED_TITLE_KEYWORDS: tuple[str, ...] = (
     "retraction",
 )
 
+_EVIDENCE_SYNTHESIS_TERMS: tuple[str, ...] = (
+    "systematic review",
+    "systematic reviews",
+    "meta-analysis",
+    "meta analysis",
+    "meta-analyses",
+    "meta analyses",
+    "umbrella review",
+    "umbrella reviews",
+    "review of reviews",
+    "evidence synthesis",
+)
+
+_CONTEXTUAL_REVIEW_KEYWORDS: frozenset[str] = frozenset({
+    "systematic review",
+    "meta-analysis",
+    "meta analysis",
+})
+
+
+def _criteria_allows_evidence_synthesis(criteria: ReviewCriteria) -> bool:
+    """Return True when evidence syntheses are valid target studies."""
+    haystack = " ".join(
+        [
+            criteria.research_question or "",
+            *[str(term) for term in criteria.study_design_include],
+        ]
+    ).lower()
+    return any(term in haystack for term in _EVIDENCE_SYNTHESIS_TERMS)
+
 
 class PublicationTypeRule(Rule):
     """Exclude records with non-primary publication types.
@@ -59,8 +89,14 @@ class PublicationTypeRule(Rule):
         Returns:
             RuleViolation if the record is a non-primary type, else None.
         """
-        # Check study_type enum
+        evidence_synthesis_allowed = _criteria_allows_evidence_synthesis(criteria)
+
+        # Check study_type enum. A structured REVIEW label is contextual: it is
+        # disqualifying for primary-study reviews but eligible for umbrella or
+        # review-of-review protocols.
         if record.study_type in _EXCLUDED_TYPES:
+            if record.study_type == StudyType.REVIEW and evidence_synthesis_allowed:
+                return None
             return RuleViolation(
                 rule_name=self.name,
                 rule_type=self.rule_type,
@@ -71,11 +107,15 @@ class PublicationTypeRule(Rule):
                 penalty=0.0,
             )
 
-        # Check title keywords (only if study_type is UNKNOWN or OTHER)
+        # Check title keywords (only if study_type is UNKNOWN or OTHER).
+        # Evidence-synthesis terms are intentionally not Tier-0 title rules:
+        # they are protocol-dependent and should be decided by LLM/router.
         if record.study_type in (StudyType.UNKNOWN, StudyType.OTHER):
             title_lower = record.title.lower()
             for keyword in _EXCLUDED_TITLE_KEYWORDS:
                 if keyword in title_lower:
+                    if keyword in _CONTEXTUAL_REVIEW_KEYWORDS:
+                        continue
                     return RuleViolation(
                         rule_name=self.name,
                         rule_type=self.rule_type,

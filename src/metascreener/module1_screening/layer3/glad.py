@@ -37,10 +37,14 @@ class GLAD(BayesianDawidSkene):
         alpha_0: float = 3.0,
         beta_0: float = 1.0,
         prevalence: float = 0.03,
+        shrinkage: float = 0.0,
+        reg_C: float = 1.0,
     ) -> None:
         super().__init__(n_models, n_classes, alpha_0, beta_0, prevalence)
         self.difficulty_weights: np.ndarray | None = None
         self.active: bool = False
+        self.shrinkage = shrinkage
+        self.reg_C = reg_C
 
     def compute_features(
         self,
@@ -143,7 +147,7 @@ class GLAD(BayesianDawidSkene):
         y = np.array([1 if d["ds_correct"] else 0 for d in pilot_data])
         if len(np.unique(y)) < 2:
             return
-        clf = LogisticRegression(C=1.0, l1_ratio=0, max_iter=1000)
+        clf = LogisticRegression(C=self.reg_C, l1_ratio=0, max_iter=1000)
         clf.fit(x, y)
         self.difficulty_weights = clf.coef_[0].astype(np.float64)
         self.active = True

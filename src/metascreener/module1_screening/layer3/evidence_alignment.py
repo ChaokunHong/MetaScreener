@@ -61,4 +61,4 @@ def esas_modulation(
     tau: float = 0.5,
 ) -> float:
     boost = gamma * max(0.0, mean_esas - tau)
-    return confidence * (1.0 + boost)
+    return max(0.0, min(1.0, confidence * (1.0 + boost)))

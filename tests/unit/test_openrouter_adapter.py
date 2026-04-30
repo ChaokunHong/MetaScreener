@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from metascreener.core.exceptions import LLMRateLimitError, LLMTimeoutError
+from metascreener.core.exceptions import LLMFatalError, LLMRateLimitError, LLMTimeoutError
 from metascreener.llm.adapters.openrouter import OpenRouterAdapter
 
 
@@ -117,6 +117,33 @@ async def test_rate_limit_succeeds_on_retry(adapter: OpenRouterAdapter) -> None:
         result = await adapter._call_api("test prompt", seed=42)
 
     assert json.loads(result)["decision"] == "INCLUDE"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status_code", [401, 402, 403, 404])
+async def test_fatal_http_status_aborts_without_retry(
+    adapter: OpenRouterAdapter,
+    status_code: int,
+) -> None:
+    """Auth/billing/model errors are fatal and must not be hidden as retryable output."""
+    mock_resp = MagicMock()
+    mock_resp.status_code = status_code
+    mock_resp.text = f"fatal {status_code}"
+
+    with patch.object(
+        adapter._client,
+        "post",
+        new_callable=AsyncMock,
+        return_value=mock_resp,
+    ) as post_mock, patch(
+        "metascreener.llm.adapters.openrouter.asyncio.sleep",
+        new_callable=AsyncMock,
+    ) as sleep_mock:
+        with pytest.raises(LLMFatalError):
+            await adapter._call_api("test prompt", seed=42)
+
+    assert post_mock.await_count == 1
+    sleep_mock.assert_not_awaited()
 
 
 @pytest.mark.asyncio

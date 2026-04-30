@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 from abc import ABC, abstractmethod
 
 import structlog
 
 from metascreener.core.enums import Decision, ScreeningStage
-from metascreener.core.exceptions import LLMParseError
+from metascreener.core.exceptions import LLMFatalError, LLMParseError
 from metascreener.core.models import ModelOutput, PICOAssessment, PICOCriteria, Record
 from metascreener.llm.response_parser import (  # noqa: F401 - re-export for compat
     ParseResult,
@@ -229,6 +230,18 @@ class LLMBackend(ABC):
         if cached is not None:
             raw_response = cached
         else:
+            if os.environ.get("METASCREENER_CACHE_ONLY", "").lower() in {
+                "1",
+                "true",
+                "yes",
+            }:
+                raise LLMFatalError(
+                    (
+                        "LLM cache-only mode is enabled, but no cached response "
+                        f"exists for {self.model_id}/{prompt_hash_val[:8]}"
+                    ),
+                    model_id=self.model_id,
+                )
             raw_response = await self._call_api(prompt, seed=seed)
             put_cached(self.model_id, prompt_hash_val, raw_response)
 

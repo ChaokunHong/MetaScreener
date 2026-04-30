@@ -99,6 +99,15 @@ class ScreeningDecision(BaseModel):
     decided_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     # v2.1: Bayesian decision metadata
     p_include: float | None = None
+    q_include: float | None = None
+    exclude_certainty: float | None = None
+    exclude_certainty_passes: bool | None = None
+    exclude_certainty_supporting_elements: int | None = None
+    exclude_certainty_regime: str | None = None
+    loss_prefers_exclude: bool | None = None
+    effective_difficulty: float | None = None
+    esas_score: float | None = None
+    glad_difficulty: float = 1.0
     expected_loss: dict[str, float] | None = None
     requires_labelling: bool = False
     ipw_weight: float | None = None
@@ -159,6 +168,8 @@ class AuditEntry(BaseModel):
     router_method: str = "threshold"
     loss_preset: str | None = None
     p_include: float | None = None
+    q_include: float | None = None
+    exclude_certainty: float | None = None
     sprt_early_stop: bool = False
     models_called: int = 0
 

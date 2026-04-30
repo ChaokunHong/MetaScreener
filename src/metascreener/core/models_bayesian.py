@@ -37,6 +37,7 @@ class LossMatrix:
         presets = {
             "high_recall": cls(c_fn=100, c_fp=1, c_hr=10),
             "balanced": cls(c_fn=50, c_fp=1, c_hr=5),
+            "balanced_low_hr": cls(c_fn=50, c_fp=1, c_hr=2),
             "high_throughput": cls(c_fn=20, c_fp=1, c_hr=3),
         }
         if name not in presets:

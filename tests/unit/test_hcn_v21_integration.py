@@ -8,11 +8,21 @@ import pytest
 from metascreener.config import (
     AggregationConfig,
     ECSConfig,
+    MetaCalibratorConfig,
     MetaScreenerConfig,
     RouterConfig,
 )
-from metascreener.core.enums import CriteriaFramework, Decision
-from metascreener.core.models import ModelOutput, PICOAssessment, Record, ReviewCriteria
+from metascreener.core.enums import CriteriaFramework, Decision, ScreeningStage, Tier
+from metascreener.core.models import (
+    ECSResult,
+    ElementConsensus,
+    ModelOutput,
+    PICOAssessment,
+    Record,
+    ReviewCriteria,
+    RuleCheckResult,
+    ScreeningDecision,
+)
 
 
 def _make_mock_backend(
@@ -211,6 +221,21 @@ def test_bayesian_router_config() -> None:
     assert hasattr(screener, "bayesian_router")
 
 
+def test_meta_calibrator_config_is_runtime_noop() -> None:
+    """Meta-calibrator config is retained for experiments, not runtime wiring."""
+    from metascreener.module1_screening.hcn_screener import HCNScreener
+
+    config = MetaScreenerConfig(
+        aggregation=AggregationConfig(method="dawid_skene"),
+        meta_calibrator=MetaCalibratorConfig(enabled=True),
+        router=RouterConfig(method="bayesian"),
+    )
+    backends = [_make_mock_backend(f"m-{i}") for i in range(4)]
+    screener = HCNScreener(backends=backends, config=config)
+
+    assert not hasattr(screener, "meta_calibrator")
+
+
 def test_default_config_no_bayesian_attributes() -> None:
     """Default config should not create Bayesian attributes."""
     from metascreener.module1_screening.hcn_screener import HCNScreener
@@ -275,3 +300,103 @@ async def test_ds_mixed_decisions() -> None:
     assert result.p_include is not None
     assert 0.0 <= result.p_include <= 1.0
     assert result.expected_loss is not None
+
+
+@pytest.mark.asyncio
+async def test_meta_calibrator_falls_back_before_fit() -> None:
+    """Runtime routing should stay on raw p_include even if config enables it."""
+    from metascreener.module1_screening.hcn_screener import HCNScreener
+
+    config = MetaScreenerConfig(
+        aggregation=AggregationConfig(method="dawid_skene"),
+        meta_calibrator=MetaCalibratorConfig(enabled=True, min_samples=5),
+        router=RouterConfig(method="bayesian"),
+    )
+    backends = [_make_mock_backend(f"m-{i}") for i in range(4)]
+    screener = HCNScreener(backends=backends, config=config)
+
+    result = await screener.screen_single(_make_record(), _make_criteria())
+
+    assert result.p_include is not None
+    assert result.q_include is None
+    assert result.final_score == pytest.approx(result.p_include)
+
+
+def test_incorporate_feedback_ignores_meta_calibrator_config() -> None:
+    """Batch feedback should not add meta-calibrator state to runtime."""
+    from metascreener.module1_screening.hcn_screener import HCNScreener
+
+    config = MetaScreenerConfig(
+        aggregation=AggregationConfig(method="dawid_skene", batch_update_size=2),
+        meta_calibrator=MetaCalibratorConfig(enabled=True, min_samples=2),
+        router=RouterConfig(method="bayesian"),
+    )
+    backends = [_make_mock_backend(f"m-{i}") for i in range(4)]
+    screener = HCNScreener(backends=backends, config=config)
+
+    def make_decision(record_id: str, p_include: float, decision_votes: list[Decision]) -> ScreeningDecision:
+        model_outputs = [
+            ModelOutput(
+                model_id=f"m-{idx}",
+                decision=vote,
+                score=0.9 if vote == Decision.INCLUDE else 0.1,
+                confidence=0.9,
+                rationale="mock",
+                element_assessment={
+                    "population": PICOAssessment(
+                        match=vote == Decision.INCLUDE,
+                        evidence="ev",
+                    )
+                },
+                parse_quality=1.0,
+            )
+            for idx, vote in enumerate(decision_votes)
+        ]
+        n_include = sum(1 for vote in decision_votes if vote == Decision.INCLUDE)
+        n_exclude = len(decision_votes) - n_include
+        return ScreeningDecision(
+            record_id=record_id,
+            stage=ScreeningStage.TITLE_ABSTRACT,
+            decision=Decision.INCLUDE,
+            tier=Tier.ONE,
+            final_score=p_include,
+            ensemble_confidence=0.9,
+            model_outputs=model_outputs,
+            rule_result=RuleCheckResult(),
+            element_consensus={
+                "population": ElementConsensus(
+                    name="Population",
+                    required=True,
+                    exclusion_relevant=True,
+                    n_match=n_include,
+                    n_mismatch=n_exclude,
+                    n_unclear=0,
+                    support_ratio=n_include / max(n_include + n_exclude, 1),
+                )
+            },
+            ecs_result=ECSResult(
+                score=0.9 if p_include > 0.5 else 0.1,
+                eas_score=1.0,
+            ),
+            p_include=p_include,
+            q_include=p_include,
+            esas_score=0.4,
+            glad_difficulty=1.0,
+            sprt_early_stop=True,
+            models_called=2,
+            ipw_weight=1.0,
+        )
+
+    screener.incorporate_feedback(
+        "r-pos",
+        0,
+        make_decision("r-pos", 0.9, [Decision.INCLUDE, Decision.INCLUDE]),
+    )
+    screener.incorporate_feedback(
+        "r-neg",
+        1,
+        make_decision("r-neg", 0.05, [Decision.EXCLUDE, Decision.EXCLUDE]),
+    )
+
+    assert not hasattr(screener, "meta_calibrator")
+    assert all("meta_features" not in row for row in screener._labelled_buffer)

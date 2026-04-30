@@ -149,6 +149,28 @@ models:
     cost_per_1m_tokens: 0.08
     description: "Google lightweight, extremely cheap, good fallback"
 
+  gemma4-26b-a4b:
+    name: "Google Gemma 4 26B A4B"
+    version: "2026-03"
+    provider: "openrouter"
+    model_id: "google/gemma-4-26b-a4b-it"
+    license: "Apache-2.0"
+    tier: 2
+    thinking: true
+    cost_per_1m_tokens: 0.20
+    description: "Google DeepMind latest MoE (25.2B total, 3.8B active), 256K context"
+
+  glm5.1:
+    name: "Z.ai GLM 5.1"
+    version: "2026-03"
+    provider: "openrouter"
+    model_id: "z-ai/glm-5.1"
+    license: "Custom"
+    tier: 1
+    thinking: true
+    cost_per_1m_tokens: 2.05
+    description: "Zhipu flagship reasoning (input $0.95 + output $3.15), 202K context"
+
   mistral-small4:
     name: "Mistral Small 4"
     version: "2026-03"
