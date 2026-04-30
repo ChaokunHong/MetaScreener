@@ -1,0 +1,23 @@
+# Ablation A3: Bayesian router (vs A2 threshold router)
+aggregation:
+  method: "dawid_skene"
+ecs:
+  method: "arithmetic"
+sprt:
+  enabled: false
+rcps:
+  enabled: false
+ipw:
+  audit_rate: 0.0
+esas:
+  enabled: false
+parse_quality:
+  enabled: true
+router:
+  method: "bayesian"
+  phase2_gates_enabled: false  # legacy ablation: no exclude-certainty
+backends:
+  - "deepseek-v3"
+  - "qwen3"
+  - "kimi-k2"
+  - "llama4-maverick"

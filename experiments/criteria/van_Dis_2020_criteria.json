@@ -1,0 +1,63 @@
+{
+  "framework": "pico",
+  "research_question": "What are the long-term outcomes of CBT for anxiety-related disorders compared to other treatments or control conditions?",
+  "elements": {
+    "population": {
+      "name": "Population",
+      "include": [
+        "adults (≥18 years) with a primary anxiety-related disorder",
+        "specific phobia, social anxiety disorder, panic disorder, agoraphobia, GAD, OCD, PTSD"
+      ],
+      "exclude": [
+        "children and adolescents (<18 years)",
+        "comorbid anxiety as secondary diagnosis only",
+        "subclinical anxiety without formal diagnosis"
+      ]
+    },
+    "intervention": {
+      "name": "Intervention",
+      "include": [
+        "cognitive behavioral therapy (CBT)",
+        "exposure-based CBT",
+        "CBT variants (ACT, MBCT, DBT with CBT component)"
+      ],
+      "exclude": [
+        "pharmacotherapy only",
+        "psychodynamic therapy without CBT component"
+      ]
+    },
+    "comparison": {
+      "name": "Comparison",
+      "include": [
+        "waitlist control",
+        "active control (supportive therapy, pill placebo)",
+        "pharmacotherapy",
+        "other psychotherapy"
+      ],
+      "exclude": []
+    },
+    "outcome": {
+      "name": "Outcome",
+      "include": [
+        "symptom severity at ≥12 months follow-up",
+        "remission/response rate at long-term follow-up",
+        "relapse rates",
+        "quality of life at follow-up"
+      ],
+      "exclude": [
+        "outcomes measured only at post-treatment (no follow-up data)"
+      ]
+    }
+  },
+  "study_design_include": [
+    "randomized controlled trials (RCTs)",
+    "controlled clinical trials"
+  ],
+  "study_design_exclude": [
+    "case studies",
+    "observational studies without control group",
+    "qualitative studies"
+  ],
+  "NEEDS_REVIEW": false,
+  "review_notes": {}
+}

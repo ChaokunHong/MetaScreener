@@ -1,0 +1,62 @@
+{
+  "framework": "pico",
+  "research_question": "What is the performance of fault prediction models in software engineering, and which predictors and techniques perform best?",
+  "elements": {
+    "population": {
+      "name": "Population (Software Context)",
+      "include": [
+        "software systems, modules, files, or classes",
+        "open-source or industrial software projects",
+        "any programming language"
+      ],
+      "exclude": [
+        "hardware fault prediction",
+        "network/infrastructure fault prediction (non-software)"
+      ]
+    },
+    "intervention": {
+      "name": "Intervention (Prediction Technique)",
+      "include": [
+        "machine learning-based fault prediction models (Naive Bayes, random forest, neural networks, etc.)",
+        "statistical models (logistic regression, discriminant analysis)",
+        "software metrics-based approaches (CK metrics, McCabe, Halstead)",
+        "process metrics, change metrics, social network metrics"
+      ],
+      "exclude": [
+        "manual code review or inspection without prediction model",
+        "testing techniques not involving predictive models"
+      ]
+    },
+    "comparison": {
+      "name": "Comparison",
+      "include": [
+        "baseline model (e.g., random classifier)",
+        "alternative fault prediction model",
+        "no explicit comparator (single-model studies)"
+      ],
+      "exclude": []
+    },
+    "outcome": {
+      "name": "Outcome (Performance Metric)",
+      "include": [
+        "prediction accuracy, precision, recall, F-measure",
+        "AUC-ROC",
+        "probability of detection (PD), probability of false alarm (PF)"
+      ],
+      "exclude": [
+        "subjective quality assessments without quantitative metrics"
+      ]
+    }
+  },
+  "study_design_include": [
+    "empirical studies (experiments, case studies, controlled experiments)",
+    "cross-project prediction studies",
+    "within-project prediction studies"
+  ],
+  "study_design_exclude": [
+    "theoretical papers without empirical validation",
+    "secondary studies (existing systematic reviews, mapping studies)"
+  ],
+  "NEEDS_REVIEW": false,
+  "review_notes": {}
+}

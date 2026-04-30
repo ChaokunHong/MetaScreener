@@ -1,0 +1,61 @@
+{
+  "framework": "peco",
+  "research_question": "Does early-life exposure to Bisphenol A (BPA) lead to obesity-related outcomes in rodents?",
+  "elements": {
+    "population": {
+      "name": "Population",
+      "include": [
+        "rodents (mice and rats)",
+        "exposed during early life (prenatal, postnatal, perinatal, neonatal periods)"
+      ],
+      "exclude": [
+        "non-rodent animals (fish, birds, primates)",
+        "adult-only exposures without early-life component",
+        "in vitro studies"
+      ]
+    },
+    "exposure": {
+      "name": "Exposure",
+      "include": [
+        "Bisphenol A (BPA) exposure",
+        "any route of administration (oral gavage, diet, injection, osmotic pump)"
+      ],
+      "exclude": [
+        "bisphenol analogues (BPS, BPF) without BPA comparison",
+        "combined chemical mixtures without isolatable BPA effect"
+      ]
+    },
+    "comparison": {
+      "name": "Comparison",
+      "include": [
+        "vehicle control (oil, water, corn oil)",
+        "unexposed control group"
+      ],
+      "exclude": []
+    },
+    "outcome": {
+      "name": "Outcome",
+      "include": [
+        "body weight, body mass index (BMI equivalent)",
+        "fat mass, adiposity",
+        "metabolic parameters (glucose, insulin, lipid profiles)",
+        "adipokines (leptin, adiponectin)"
+      ],
+      "exclude": [
+        "reproductive or endocrine outcomes unrelated to obesity",
+        "behavioral outcomes without metabolic component"
+      ]
+    }
+  },
+  "study_design_include": [
+    "controlled animal experiments",
+    "randomized animal studies"
+  ],
+  "study_design_exclude": [
+    "human studies",
+    "in vitro / cell culture studies",
+    "review articles"
+  ],
+  "NEEDS_REVIEW": false,
+  "review_notes": {}
+}

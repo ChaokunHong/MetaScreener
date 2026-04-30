@@ -1,0 +1,28 @@
+# Ablation A10 variant: A9 + regime-aware meta-calibrator with fixed router margin
+aggregation:
+  method: "glad"
+ecs:
+  method: "geometric"
+sprt:
+  enabled: true
+rcps:
+  enabled: true
+ipw:
+  audit_rate: 0.05
+esas:
+  enabled: true
+parse_quality:
+  enabled: true
+meta_calibrator:
+  enabled: true
+  min_samples: 20
+  regularization_C: 0.1
+router:
+  method: "bayesian"
+  use_ecs_margin: false
+  phase2_gates_enabled: false  # legacy ablation: no exclude-certainty
+backends:
+  - "deepseek-v3"
+  - "qwen3"
+  - "kimi-k2"
+  - "llama4-maverick"

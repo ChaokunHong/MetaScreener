@@ -1,0 +1,56 @@
+{
+  "framework": "pico",
+  "research_question": "How do animal and human methotrexate efficacy studies for rheumatoid arthritis compare in experimental design, and what does this reveal about translational value?",
+  "elements": {
+    "population": {
+      "name": "Population",
+      "include": [
+        "animal models of rheumatoid arthritis (collagen-induced arthritis, adjuvant-induced arthritis, etc.)",
+        "human patients with rheumatoid arthritis"
+      ],
+      "exclude": [
+        "other inflammatory conditions (psoriasis, IBD) without RA-specific data"
+      ]
+    },
+    "intervention": {
+      "name": "Intervention",
+      "include": [
+        "methotrexate (MTX) at any dose, route, duration"
+      ],
+      "exclude": [
+        "combination biologic therapies (MTX + bDMARD) without MTX-alone arm",
+        "other DMARDs without methotrexate group"
+      ]
+    },
+    "comparison": {
+      "name": "Comparison",
+      "include": [
+        "placebo",
+        "vehicle control",
+        "no treatment",
+        "other DMARD comparator"
+      ],
+      "exclude": []
+    },
+    "outcome": {
+      "name": "Outcome",
+      "include": [
+        "disease activity measures (DAS28, ACR response, joint scores)",
+        "structural/radiological outcomes",
+        "study design characteristics (dose, duration, endpoints)"
+      ],
+      "exclude": []
+    }
+  },
+  "study_design_include": [
+    "randomized controlled trials (human studies)",
+    "controlled animal experiments"
+  ],
+  "study_design_exclude": [
+    "observational studies",
+    "case reports",
+    "reviews"
+  ],
+  "NEEDS_REVIEW": false,
+  "review_notes": {}
+}

@@ -1,0 +1,23 @@
+# Ablation A9: Full pipeline — ESAS adaptive stopping enabled (vs A8 no ESAS)
+aggregation:
+  method: "glad"
+ecs:
+  method: "geometric"
+sprt:
+  enabled: true
+rcps:
+  enabled: true
+ipw:
+  audit_rate: 0.05
+esas:
+  enabled: true
+parse_quality:
+  enabled: true
+router:
+  method: "bayesian"
+  phase2_gates_enabled: false  # legacy ablation: no exclude-certainty
+backends:
+  - "deepseek-v3"
+  - "qwen3"
+  - "kimi-k2"
+  - "llama4-maverick"

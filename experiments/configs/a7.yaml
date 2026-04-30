@@ -1,0 +1,25 @@
+# Ablation A7: GLAD aggregation replaces Dawid-Skene (vs A6 DS + IPW)
+# GLAD extends DS with per-item difficulty estimation. Requires labelled
+# data from the IPW audit loop (enabled in A6) to fit its difficulty model.
+aggregation:
+  method: "glad"
+ecs:
+  method: "geometric"
+sprt:
+  enabled: true
+rcps:
+  enabled: false
+ipw:
+  audit_rate: 0.05
+esas:
+  enabled: false
+parse_quality:
+  enabled: true
+router:
+  method: "bayesian"
+  phase2_gates_enabled: false  # legacy ablation: no exclude-certainty
+backends:
+  - "deepseek-v3"
+  - "qwen3"
+  - "kimi-k2"
+  - "llama4-maverick"

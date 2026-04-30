@@ -1,0 +1,58 @@
+{
+  "framework": "pico",
+  "research_question": "How does Bayesian estimation compare to frequentist estimation for structural equation models (SEM) in small sample contexts?",
+  "elements": {
+    "population": {
+      "name": "Population (Study Context)",
+      "include": [
+        "studies using structural equation models (SEM)",
+        "studies addressing small sample contexts in SEM (no fixed numeric threshold required)",
+        "simulation studies and empirical comparisons of estimation methods"
+      ],
+      "exclude": [
+        "studies on other multivariate methods (e.g., HLM, MANOVA) without SEM",
+        "large-sample-only studies (n > 1000 without small sample conditions)"
+      ]
+    },
+    "intervention": {
+      "name": "Intervention (Estimation Method)",
+      "include": [
+        "Bayesian estimation (MCMC, Gibbs sampling, etc.)",
+        "informative prior specification"
+      ],
+      "exclude": []
+    },
+    "comparison": {
+      "name": "Comparison",
+      "include": [
+        "maximum likelihood (ML) estimation",
+        "generalized least squares (GLS)",
+        "weighted least squares (WLS/DWLS)",
+        "other frequentist estimators"
+      ],
+      "exclude": []
+    },
+    "outcome": {
+      "name": "Outcome",
+      "include": [
+        "parameter bias / estimation accuracy",
+        "standard error accuracy",
+        "model fit indices",
+        "convergence rates",
+        "Type I error / power"
+      ],
+      "exclude": []
+    }
+  },
+  "study_design_include": [
+    "Monte Carlo simulation studies",
+    "empirical comparisons",
+    "methodological studies comparing estimation approaches"
+  ],
+  "study_design_exclude": [
+    "theoretical/conceptual papers without simulation or empirical data",
+    "application papers without method comparison"
+  ],
+  "NEEDS_REVIEW": false,
+  "review_notes": {}
+}

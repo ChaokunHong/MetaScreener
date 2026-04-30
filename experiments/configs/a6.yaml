@@ -1,0 +1,26 @@
+# Ablation A6: IPW audit sampling at 5% (vs A5 no auditing)
+# IPW provides online learning via human feedback. Placed before GLAD
+# because GLAD requires labelled data from the IPW audit loop to
+# estimate item difficulty — the dependency must be satisfied first.
+aggregation:
+  method: "dawid_skene"
+ecs:
+  method: "geometric"
+sprt:
+  enabled: true
+rcps:
+  enabled: false
+ipw:
+  audit_rate: 0.05
+esas:
+  enabled: false
+parse_quality:
+  enabled: true
+router:
+  method: "bayesian"
+  phase2_gates_enabled: false  # legacy ablation: no exclude-certainty
+backends:
+  - "deepseek-v3"
+  - "qwen3"
+  - "kimi-k2"
+  - "llama4-maverick"

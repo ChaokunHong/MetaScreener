@@ -1,0 +1,62 @@
+{
+  "framework": "pico",
+  "research_question": "What is the comparative effectiveness and safety of common therapies (D-penicillamine, zinc, trientine, tetrathiomolybdate) for Wilson disease?",
+  "elements": {
+    "population": {
+      "name": "Population",
+      "include": [
+        "patients with Wilson disease (any age, any stage)",
+        "both hepatic and neurological presentation"
+      ],
+      "exclude": [
+        "healthy controls",
+        "patients with other copper metabolism disorders"
+      ]
+    },
+    "intervention": {
+      "name": "Intervention",
+      "include": [
+        "D-penicillamine",
+        "zinc salts (zinc sulfate, zinc acetate, zinc gluconate)",
+        "trientine (triethylene tetramine)",
+        "tetrathiomolybdate (ammonium tetrathiomolybdate)"
+      ],
+      "exclude": [
+        "liver transplantation",
+        "dietary restriction alone"
+      ]
+    },
+    "comparison": {
+      "name": "Comparison",
+      "include": [
+        "placebo",
+        "no treatment",
+        "any other active Wilson disease treatment"
+      ],
+      "exclude": []
+    },
+    "outcome": {
+      "name": "Outcome",
+      "include": [
+        "mortality",
+        "clinical symptom improvement (hepatic and neurological)",
+        "copper excretion / serum copper levels",
+        "treatment discontinuation due to adverse events",
+        "side effects / tolerability"
+      ],
+      "exclude": []
+    }
+  },
+  "study_design_include": [
+    "randomized controlled trials (RCTs)",
+    "prospective controlled studies",
+    "retrospective controlled studies"
+  ],
+  "study_design_exclude": [
+    "case reports",
+    "uncontrolled observational studies",
+    "review articles"
+  ],
+  "NEEDS_REVIEW": false,
+  "review_notes": {}
+}

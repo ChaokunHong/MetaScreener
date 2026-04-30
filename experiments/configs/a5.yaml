@@ -1,0 +1,23 @@
+# Ablation A5: SPRT two-phase inference enabled (vs A4 single-phase)
+aggregation:
+  method: "dawid_skene"
+ecs:
+  method: "geometric"
+sprt:
+  enabled: true
+rcps:
+  enabled: false
+ipw:
+  audit_rate: 0.0
+esas:
+  enabled: false
+parse_quality:
+  enabled: true
+router:
+  method: "bayesian"
+  phase2_gates_enabled: false  # legacy ablation: no exclude-certainty
+backends:
+  - "deepseek-v3"
+  - "qwen3"
+  - "kimi-k2"
+  - "llama4-maverick"

@@ -1,0 +1,45 @@
+{
+  "config": {
+    "name": "a10_fixed_margin",
+    "use_ecs_margin": false,
+    "min_samples": 20,
+    "regularization_C": 0.1,
+    "loss_preset": "balanced",
+    "audit_rate": 0.05,
+    "batch_update_size": 20,
+    "alpha_fnr": 0.05,
+    "alpha_automation": 0.6,
+    "delta": 0.05,
+    "min_rcps_calibration_size": 10
+  },
+  "summary": {
+    "n_datasets": 13,
+    "baseline_mean_sensitivity": 0.980300775504689,
+    "baseline_mean_specificity": 0.09912233817038592,
+    "baseline_mean_auto_rate": 0.493353861763348,
+    "replay_mean_sensitivity": 0.859585504110393,
+    "replay_mean_specificity": 0.16624926634085718,
+    "replay_mean_auto_rate": 0.4931106741793649,
+    "baseline_mean_excl_precision": 0.9780594475620805,
+    "replay_mean_excl_precision": 0.9792301321219158,
+    "baseline_mean_p_iqr": 0.003040135688501411,
+    "replay_mean_q_iqr": 0.013317637261169022,
+    "baseline_total_fn": 27,
+    "replay_total_fn": 97
+  },
+  "datasets": [
+    "Appenzeller-Herzog_2019",
+    "Chou_2003",
+    "Hall_2012",
+    "Jeyaraman_2020",
+    "Leenaars_2020",
+    "Moran_2021",
+    "Muthu_2021",
+    "Radjenovic_2013",
+    "Smid_2020",
+    "Wassenaar_2017",
+    "van_Dis_2020",
+    "van_de_Schoot_2018",
+    "van_der_Waal_2022"
+  ]
+}

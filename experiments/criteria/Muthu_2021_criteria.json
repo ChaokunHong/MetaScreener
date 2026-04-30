@@ -1,0 +1,54 @@
+{
+  "framework": "pico",
+  "research_question": "What is the fragility of statistically significant outcomes reported in RCTs in spine surgery?",
+  "elements": {
+    "population": {
+      "name": "Population (Meta-Research)",
+      "include": [
+        "randomized controlled trials (RCTs) in spine surgery",
+        "RCTs reporting at least one statistically significant binary outcome (p < 0.05)"
+      ],
+      "exclude": [
+        "non-randomized studies",
+        "studies without binary outcomes (continuous outcomes only)",
+        "studies in non-spine orthopaedic surgery"
+      ]
+    },
+    "intervention": {
+      "name": "Intervention",
+      "include": [
+        "any surgical or non-surgical treatment for spine conditions"
+      ],
+      "exclude": []
+    },
+    "comparison": {
+      "name": "Comparison",
+      "include": [
+        "any comparator arm in the RCT"
+      ],
+      "exclude": []
+    },
+    "outcome": {
+      "name": "Outcome",
+      "include": [
+        "fragility index (FI) — minimum events to reverse significance",
+        "fragility quotient (FI / sample size)",
+        "reversal number",
+        "p-value of the original outcome"
+      ],
+      "exclude": [
+        "clinical outcomes without fragility analysis"
+      ]
+    }
+  },
+  "study_design_include": [
+    "randomized controlled trials (RCTs) in spine surgery"
+  ],
+  "study_design_exclude": [
+    "observational studies",
+    "systematic reviews",
+    "case series"
+  ],
+  "NEEDS_REVIEW": false,
+  "review_notes": {}
+}

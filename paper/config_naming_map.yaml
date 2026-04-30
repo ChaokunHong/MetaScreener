@@ -1,0 +1,136 @@
+# Paper-facing config names ↔ internal config IDs
+# Single source of truth for paper writing scripts and supplementary tables.
+# Created 2026-04-27 after the Codex math audit.
+#
+# Reading rule:
+#   * Main paper text uses paper_facing names (MS-Base, MS-Recall, MS-Efficient).
+#   * Main paper ablation figure uses ablation_curve internal IDs (a0..a9), which
+#     are standard ablation-ladder labels and do not need to be hidden.
+#   * Supplementary tables list every executed config under its internal ID.
+#   * Configs in the codebase but not executed on external 35 (a13a, a13c) are
+#     listed under planned_not_run and must be flagged in any analysis script.
+
+paper_facing:
+  MS-Base:
+    internal: a1
+    description: >-
+      4-LLM ensemble baseline (deepseek-v3 + qwen3 + kimi-k2 + llama4-maverick),
+      weighted-average aggregation, threshold router. No SPRT/RCPS/IPW/GLAD/ESAS.
+  MS-Recall:
+    internal: a13b_coverage_rule
+    description: >-
+      High-recall production mode. Full HCN scaffold (GLAD + geometric ECS +
+      SPRT + RCPS + ESAS) plus Bayesian routing with coverage-rule
+      exclude-certainty.
+    note: >-
+      Originally proposed as "MS-Safe"; renamed to MS-Recall on Codex's
+      recommendation to avoid implying a regulatory/clinical safety claim.
+      First mention in the manuscript should clarify the mode is
+      recall-prioritising, not a safety guarantee.
+  MS-Efficient:
+    internal: a14c_difficulty_floor_100
+    description: >-
+      Difficulty-floor sensitivity variant of MS-Recall. Same scaffold as
+      MS-Recall plus a 1.00 floor for the exclude-certainty loss adjustment,
+      gated to the complete four-model panel.
+    note: >-
+      After the Phase 5 strict full-panel guard and Phase 6 external-35
+      cache replay, a14c is empirically identical to MS-Recall on all replayed
+      records. Do not claim a higher-throughput mode unless a future replay
+      shows a non-zero automation gain without recall loss.
+
+ablation_curve:
+  description: >-
+    Component-by-component ablation ladder displayed in main paper Fig 2.
+    Each step adds exactly one component to the previous configuration.
+    Internal IDs (a0..a9) are kept as labels — they are standard ablation
+    notation and do not need to be hidden behind paper-facing names.
+  configs:
+    - id: a0
+      adds: single-model baseline (deepseek-v3 only, all features off)
+    - id: a1
+      adds: 3 more LLMs → 4-LLM ensemble (= MS-Base)
+    - id: a2
+      adds: Dawid-Skene aggregation + parse-quality filter
+    - id: a3
+      adds: Bayesian router (replaces threshold router)
+    - id: a4
+      adds: geometric ECS (replaces arithmetic)
+    - id: a5
+      adds: SPRT two-phase inference
+    - id: a6
+      adds: IPW audit sampling at 5%
+    - id: a7
+      adds: GLAD aggregation (replaces Dawid-Skene)
+    - id: a8
+      adds: adaptive risk-control margin (formerly "RCPS"; replay-calibrated margin selector)
+    - id: a9
+      adds: ESAS adaptive margin narrowing
+
+supplementary_executed:
+  description: >-
+    Variants and sensitivity analyses run on the 35 external datasets.
+    All cache-hit on the LLM cache produced by the a1 / a13b runs.
+  configs:
+    a9_no_sprt: "a9 minus SPRT — sensitivity check on SPRT contribution"
+    a10_fixed_margin: "a9 + regime-aware meta-calibrator + fixed router margin (use_ecs_margin=false)"
+    a11_rule_exclude: >-
+      Alternative exclude-certainty variant on the same Bayesian/GLAD/ECS
+      scaffold as MS-Recall. Converges to similar performance via a different
+      exclusion mechanism — useful as supplementary robustness evidence.
+    a14a_difficulty_floor_060: "difficulty floor threshold 0.60 (less aggressive)"
+    a14b_difficulty_floor_080: "difficulty floor threshold 0.80 (intermediate)"
+    solo_deepseek-v3: "single-model baseline (deepseek-v3 only)"
+    solo_qwen3: "single-model baseline (qwen3 only)"
+    solo_kimi-k2: "single-model baseline (kimi-k2 only)"
+    solo_llama4-maverick: "single-model baseline (llama4-maverick only)"
+
+planned_not_run:
+  description: >-
+    Defined in the codebase ALL_CONFIGS list but not executed on external 35
+    due to additional API spend incurred by Wave 2 inference. Must be flagged
+    as "planned but not run" in any analysis script.
+  configs:
+    - a13a_complementary_wave2
+    - a13c_combined
+
+counts:
+  total_executed_external: 21
+  total_in_codebase_all_configs: 24   # 21 + a13a + a13c + a10 (yaml-missing)
+  total_result_jsons_external: 735    # 35 datasets × 21 configs
+  total_in_codebase_yaml_files: 28    # includes 4 newer a15* and 2 a9_* variants not in this campaign
+
+status_notes:
+  - id: a10_yaml_missing
+    severity: cosmetic
+    description: >-
+      run_full_benchmark.ALL_CONFIGS lists 'a10', but the actual file is
+      a10_fixed_margin.yaml. Resulted in 35 'failed' config lookups in the
+      ablation log. Benign — does not indicate a real inference failure.
+  - id: ms_efficient_identical_after_phase5
+    severity: paper-blocking
+    description: >-
+      Phase 6 replay found a14a/a14b/a14c identical to a13b_coverage_rule
+      on metrics and key per-record routing fields. Treat the difficulty-floor
+      variants as sensitivity analyses, not as a demonstrated efficient
+      production mode.
+  - id: easy_high_auto_recall_drop
+    severity: paper-blocking
+    description: >-
+      In the Phase 6 external-35 replay, a13b high-auto datasets (Auto >= 40%)
+      had lower pooled recall than hard low-auto datasets: 0.9662 vs 0.9936.
+      Do not frame automation gains as inherently safer on "easy" datasets;
+      report the high-auto recall cost explicitly.
+  - id: zero_positive_sensitivity_na
+    severity: reporting
+    description: >-
+      CLEF_CD011140 and CLEF_CD012342 have zero positive labels in the current
+      external-35 replay. Per-dataset sensitivity for these datasets must be
+      reported as not applicable, not as 0.0.
+  - id: adaptive_risk_control_scope
+    severity: reporting
+    description: >-
+      Use "adaptive risk-control margin" in the manuscript. The implementation
+      calibrates the loss/margin component with replay and Hoeffding bounds;
+      avoid implying a full-router conformal guarantee unless that stronger
+      calibration is implemented and audited separately.

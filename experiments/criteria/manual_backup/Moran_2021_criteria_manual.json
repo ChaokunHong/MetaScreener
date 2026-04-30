@@ -1,0 +1,59 @@
+{
+  "framework": "peco",
+  "research_question": "Does poor nutritional condition promote high-risk behaviours in animals?",
+  "elements": {
+    "population": {
+      "name": "Population",
+      "include": [
+        "non-human animals (any species)",
+        "animals with manipulated nutritional status"
+      ],
+      "exclude": [
+        "humans",
+        "studies on domesticated livestock with no wild-type parallels"
+      ]
+    },
+    "exposure": {
+      "name": "Exposure",
+      "include": [
+        "food restriction, fasting, or caloric deficit",
+        "poor nutritional condition (low body condition index)",
+        "protein or micronutrient deprivation"
+      ],
+      "exclude": [
+        "pharmacological appetite suppression without nutritional manipulation",
+        "obesity/overnutrition conditions"
+      ]
+    },
+    "comparison": {
+      "name": "Comparison",
+      "include": [
+        "ad libitum fed controls",
+        "good body condition animals"
+      ],
+      "exclude": []
+    },
+    "outcome": {
+      "name": "Outcome",
+      "include": [
+        "predator approach / anti-predator behaviour",
+        "novel food/environment exploration",
+        "activity levels / foraging risk-taking",
+        "boldness or risk-taking behaviour indices"
+      ],
+      "exclude": [
+        "physiological stress markers without behavioural outcome"
+      ]
+    }
+  },
+  "study_design_include": [
+    "controlled animal experiments",
+    "observational field studies with nutritional manipulation"
+  ],
+  "study_design_exclude": [
+    "review articles",
+    "modelling studies without empirical data"
+  ],
+  "NEEDS_REVIEW": false,
+  "review_notes": {}
+}

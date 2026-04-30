@@ -1,0 +1,32 @@
+# A13a: A11 + complementary mismatch forces wave2
+# When wave1 models both vote EXCLUDE but on different elements,
+# cancel SPRT early-stop and call wave2 for verification.
+aggregation:
+  method: "glad"
+ecs:
+  method: "geometric"
+sprt:
+  enabled: true
+  complementary_mismatch_force_wave2: true
+  complementary_overlap_threshold: 0.5
+rcps:
+  enabled: true
+ipw:
+  audit_rate: 0.05
+esas:
+  enabled: true
+parse_quality:
+  enabled: true
+router:
+  method: "bayesian"
+  exclude_certainty_enabled: true
+  exclude_certainty_full_threshold: 0.75
+  exclude_certainty_early_threshold: 0.95
+  exclude_certainty_full_min_supporting: 1
+  exclude_certainty_early_min_supporting: 2
+  exclude_certainty_support_ratio: 0.75
+backends:
+  - "deepseek-v3"
+  - "qwen3"
+  - "kimi-k2"
+  - "llama4-maverick"

@@ -1,0 +1,61 @@
+{
+  "framework": "peco",
+  "research_question": "What is the human and animal evidence for potential transgenerational inheritance of health effects?",
+  "elements": {
+    "population": {
+      "name": "Population",
+      "include": [
+        "humans (any age, both sexes)",
+        "animal models (rodents, zebrafish, Drosophila, C. elegans)",
+        "F1/F2/F3 offspring generations"
+      ],
+      "exclude": [
+        "in vitro cell line studies without whole-organism data"
+      ]
+    },
+    "exposure": {
+      "name": "Exposure",
+      "include": [
+        "environmental chemical exposures (pesticides, endocrine disruptors, heavy metals)",
+        "nutritional exposures (high-fat diet, caloric restriction, protein restriction)",
+        "physical/social stressors (stress, trauma, exercise)",
+        "paternal or maternal exposures before conception or during gestation"
+      ],
+      "exclude": [
+        "therapeutic drug exposures with no transgenerational follow-up beyond F1",
+        "exposures measured only in directly exposed generation (F0) without offspring data"
+      ]
+    },
+    "comparison": {
+      "name": "Comparison",
+      "include": [
+        "unexposed control offspring",
+        "vehicle-treated controls"
+      ],
+      "exclude": []
+    },
+    "outcome": {
+      "name": "Outcome",
+      "include": [
+        "health effects in unexposed F2+ offspring (true transgenerational; F1 germline transmission counts only if unexposed in utero)",
+        "epigenetic changes (DNA methylation, histone modification, miRNA) in offspring",
+        "metabolic, reproductive, neurological, or immunological outcomes across generations"
+      ],
+      "exclude": [
+        "outcomes measured only in directly exposed generation (F0)"
+      ]
+    }
+  },
+  "study_design_include": [
+    "animal experimental studies",
+    "human epidemiological studies (cohort, cross-sectional)",
+    "evidence maps"
+  ],
+  "study_design_exclude": [
+    "review articles",
+    "editorials",
+    "opinion pieces"
+  ],
+  "NEEDS_REVIEW": false,
+  "review_notes": {}
+}

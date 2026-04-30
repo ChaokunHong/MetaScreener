@@ -1,0 +1,58 @@
+{
+  "framework": "peco",
+  "research_question": "What are the longitudinal PTSD symptom trajectories following trauma exposure, as reported in prospective studies?",
+  "elements": {
+    "population": {
+      "name": "Population",
+      "include": [
+        "individuals exposed to a traumatic event (any type)",
+        "adults or adolescents (≥12 years)",
+        "clinical and non-clinical populations post-trauma"
+      ],
+      "exclude": [
+        "general population without specified trauma exposure",
+        "children (<12 years) only without adult data"
+      ]
+    },
+    "exposure": {
+      "name": "Exposure",
+      "include": [
+        "trauma exposure (combat, disaster, accident, assault, abuse)"
+      ],
+      "exclude": [
+        "subclinical stressful life events not meeting trauma criteria"
+      ]
+    },
+    "comparison": {
+      "name": "Comparison",
+      "include": [
+        "within-person trajectory comparison (different trajectory classes)",
+        "no explicit between-group comparison required"
+      ],
+      "exclude": []
+    },
+    "outcome": {
+      "name": "Outcome",
+      "include": [
+        "PTSD symptom severity assessed at ≥3 time points",
+        "trajectory group membership (resilient, recovery, chronic, delayed onset)",
+        "PTSD diagnosis using DSM or ICD criteria"
+      ],
+      "exclude": [
+        "single time-point PTSD assessment only",
+        "general anxiety or depression without PTSD-specific measures"
+      ]
+    }
+  },
+  "study_design_include": [
+    "prospective longitudinal studies",
+    "cohort studies with ≥3 assessment waves"
+  ],
+  "study_design_exclude": [
+    "cross-sectional studies",
+    "retrospective studies",
+    "case reports"
+  ],
+  "NEEDS_REVIEW": false,
+  "review_notes": {}
+}

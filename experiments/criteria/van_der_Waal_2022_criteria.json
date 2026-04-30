@@ -1,0 +1,49 @@
+{
+  "framework": "peo",
+  "research_question": "What role do older adults with cancer prefer in treatment decision making?",
+  "elements": {
+    "population": {
+      "name": "Population",
+      "include": [
+        "older adults (≥60 years) with any cancer type",
+        "cancer patients in active treatment or treatment decision phase"
+      ],
+      "exclude": [
+        "cancer survivors in long-term follow-up without treatment decisions",
+        "caregivers/family members (unless patient data reported separately)",
+        "adults <60 years"
+      ]
+    },
+    "exposure": {
+      "name": "Exposure / Phenomenon",
+      "include": [
+        "treatment decision-making process",
+        "preferred role in treatment decisions (active, shared, passive)"
+      ],
+      "exclude": []
+    },
+    "outcome": {
+      "name": "Outcome",
+      "include": [
+        "preferred decision-making role (active, passive, shared/collaborative)",
+        "actual decision-making role",
+        "concordance between preferred and actual role",
+        "satisfaction with decision-making"
+      ],
+      "exclude": [
+        "clinical treatment outcomes (survival, response rate) without role data"
+      ]
+    }
+  },
+  "study_design_include": [
+    "quantitative surveys / questionnaire studies",
+    "mixed-methods studies",
+    "qualitative studies with reported role preferences"
+  ],
+  "study_design_exclude": [
+    "case reports",
+    "opinion pieces"
+  ],
+  "NEEDS_REVIEW": false,
+  "review_notes": {}
+}

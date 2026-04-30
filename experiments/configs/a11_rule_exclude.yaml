@@ -1,0 +1,28 @@
+# Ablation A11: A9 + rule-based EXCLUDE certification
+aggregation:
+  method: "glad"
+ecs:
+  method: "geometric"
+sprt:
+  enabled: true
+rcps:
+  enabled: true
+ipw:
+  audit_rate: 0.05
+esas:
+  enabled: true
+parse_quality:
+  enabled: true
+router:
+  method: "bayesian"
+  exclude_certainty_enabled: true
+  exclude_certainty_full_threshold: 0.75
+  exclude_certainty_early_threshold: 0.95
+  exclude_certainty_full_min_supporting: 1
+  exclude_certainty_early_min_supporting: 2
+  exclude_certainty_support_ratio: 0.75
+backends:
+  - "deepseek-v3"
+  - "qwen3"
+  - "kimi-k2"
+  - "llama4-maverick"

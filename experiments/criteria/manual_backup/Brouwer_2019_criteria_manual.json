@@ -1,0 +1,65 @@
+{
+  "framework": "peco",
+  "research_question": "Do psychological risk factors predict depressive relapse or recurrence in individuals with a history of depression?",
+  "elements": {
+    "population": {
+      "name": "Population",
+      "include": [
+        "adults (≥18 years) with a history of major depressive disorder or depressive episode",
+        "currently in remission or partial remission at baseline"
+      ],
+      "exclude": [
+        "children and adolescents (<18 years)",
+        "bipolar disorder without unipolar depression data",
+        "primary diagnosis other than depression (e.g., anxiety-only, psychosis)"
+      ]
+    },
+    "exposure": {
+      "name": "Exposure (Psychological Risk Factor)",
+      "include": [
+        "cognitive reactivity / negative automatic thoughts",
+        "rumination",
+        "mindfulness / self-compassion",
+        "emotion regulation strategies",
+        "psychological theories/models (Beck, Teasdale, Nolen-Hoeksema, etc.)"
+      ],
+      "exclude": [
+        "pharmacological or biological predictors only",
+        "sociodemographic predictors without psychological theory link"
+      ]
+    },
+    "comparison": {
+      "name": "Comparison",
+      "include": [
+        "lower levels of the same psychological risk factor",
+        "absence of the risk factor"
+      ],
+      "exclude": []
+    },
+    "outcome": {
+      "name": "Outcome",
+      "include": [
+        "depressive relapse (return of symptoms in same episode)",
+        "depressive recurrence (new depressive episode)",
+        "time to relapse/recurrence"
+      ],
+      "exclude": [
+        "first onset of depression (no prior history)",
+        "subclinical depressive symptoms without diagnostic threshold"
+      ]
+    }
+  },
+  "study_design_include": [
+    "prospective longitudinal studies",
+    "cohort studies",
+    "randomized controlled trials with relapse/recurrence follow-up"
+  ],
+  "study_design_exclude": [
+    "cross-sectional studies",
+    "case reports",
+    "retrospective studies",
+    "qualitative studies"
+  ],
+  "NEEDS_REVIEW": false,
+  "review_notes": {}
+}

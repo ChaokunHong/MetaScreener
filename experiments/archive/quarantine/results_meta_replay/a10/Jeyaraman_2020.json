@@ -1,0 +1,1924 @@
+{
+  "config": "a10",
+  "dataset": "Jeyaraman_2020",
+  "baseline_metrics": {
+    "n": 100,
+    "tp": 4,
+    "fn": 2,
+    "tn": 17,
+    "fp": 77,
+    "sensitivity": 0.6666666666666666,
+    "specificity": 0.18085106382978725,
+    "auto_rate": 0.79,
+    "tier_counts": {
+      "0": 2,
+      "1": 16,
+      "2": 61,
+      "3": 17,
+      "null": 4
+    }
+  },
+  "replay_metrics": {
+    "n": 100,
+    "tp": 4,
+    "fn": 2,
+    "tn": 17,
+    "fp": 77,
+    "sensitivity": 0.6666666666666666,
+    "specificity": 0.18085106382978725,
+    "auto_rate": 0.79,
+    "tier_counts": {
+      "0": 2,
+      "1": 76,
+      "2": 1,
+      "3": 17,
+      "null": 4
+    }
+  },
+  "baseline_excl_precision": 0.8666666666666667,
+  "replay_excl_precision": 0.8666666666666667,
+  "baseline_p_iqr": 0.010600667850164384,
+  "replay_q_iqr": 0.045396798588056474,
+  "n_labelled": 23,
+  "n_2model_fit": true,
+  "n_4model_fit": false,
+  "router_use_ecs_margin": true,
+  "results": [
+    {
+      "record_id": "https://openalex.org/W2994178258",
+      "true_label": 0,
+      "decision": "EXCLUDE",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.47392716336789764,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W1830000322",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.021867241478865575,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2504228461",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.030000000000000002,
+      "final_score": 0.030000000000000002,
+      "ensemble_confidence": 0.847216474785914,
+      "tier": 2,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.97,
+        "exclude": 1.5,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.6597539553864472,
+      "q_include": 0.030000000000000002
+    },
+    {
+      "record_id": "https://openalex.org/W3089040287",
+      "true_label": 0,
+      "decision": "EXCLUDE",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.6597539553864472,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2075589379",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.12011244339814313,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2345079783",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.054928027165305884,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2011790530",
+      "true_label": 1,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2969413901",
+      "true_label": 0,
+      "decision": "EXCLUDE",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.47392716336789764,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W1971098711",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.047817624989501865,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2347115686",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2091961852",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W1615758256",
+      "true_label": 0,
+      "decision": "EXCLUDE",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.9201876506248751,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2124530447",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.047817624989501865,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W3203960907",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2506146754",
+      "true_label": 0,
+      "decision": "EXCLUDE",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.47392716336789764,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2164519154",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2778425583",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.021867241478865575,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2057344590",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.12011244339814313,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2167307573",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2088256967",
+      "true_label": 1,
+      "decision": "INCLUDE",
+      "p_include": 0.9258004967782825,
+      "final_score": 0.9258004967782825,
+      "ensemble_confidence": 0.6185965338950254,
+      "tier": 1,
+      "models_called": 4,
+      "sprt_early_stop": false,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.0742,
+        "exclude": 46.290025,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.9201876506248751,
+      "q_include": 0.9258004967782825
+    },
+    {
+      "record_id": "https://openalex.org/W3007172259",
+      "true_label": 0,
+      "decision": "EXCLUDE",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.5,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W68021579",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2997816191",
+      "true_label": 0,
+      "decision": "ERROR",
+      "p_include": null,
+      "final_score": null,
+      "ensemble_confidence": null,
+      "tier": null,
+      "models_called": 0,
+      "sprt_early_stop": false,
+      "requires_labelling": false,
+      "expected_loss": null,
+      "ecs_final": null,
+      "q_include": null
+    },
+    {
+      "record_id": "https://openalex.org/W1995505695",
+      "true_label": 0,
+      "decision": "EXCLUDE",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.4125775590312576,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W329060891",
+      "true_label": 0,
+      "decision": "EXCLUDE",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.4125775590312576,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2125795069",
+      "true_label": 1,
+      "decision": "EXCLUDE",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.4125775590312576,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2163488598",
+      "true_label": 0,
+      "decision": "EXCLUDE",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.3126753205970494,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2335965534",
+      "true_label": 0,
+      "decision": "EXCLUDE",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.4125775590312576,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2078621777",
+      "true_label": 0,
+      "decision": "EXCLUDE",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.4125775590312576,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W2108146806",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.047817624989501865,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W3029299424",
+      "true_label": 1,
+      "decision": "EXCLUDE",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.7578582832551991,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W3215895671",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.12011244339814313,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W4214937157",
+      "true_label": 0,
+      "decision": "HUMAN_REVIEW",
+      "p_include": 0.0015374388802028007,
+      "final_score": 0.0015374388802028007,
+      "ensemble_confidence": 0.9834158917582109,
+      "tier": 3,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.998463,
+        "exclude": 0.076872,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.054928027165305884,
+      "q_include": 0.0015374388802028007
+    },
+    {
+      "record_id": "https://openalex.org/W1974735076",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138054853275047,
+      "final_score": 0.04693430816070081,
+      "ensemble_confidence": 0.9053447464819888,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953066,
+        "exclude": 2.346715,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.054928027165305884,
+      "q_include": 0.04693430816070081
+    },
+    {
+      "record_id": "https://openalex.org/W2186238379",
+      "true_label": 1,
+      "decision": "INCLUDE",
+      "p_include": 0.2876455976290646,
+      "final_score": 0.18810453680881273,
+      "ensemble_confidence": 0.13433954215307098,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.811895,
+        "exclude": 9.405227,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.9201876506248751,
+      "q_include": 0.18810453680881273
+    },
+    {
+      "record_id": "https://openalex.org/W2408636618",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138100966235035,
+      "final_score": 0.045269069859093944,
+      "ensemble_confidence": 0.9053444538169805,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.954731,
+        "exclude": 2.263453,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.4125775590312576,
+      "q_include": 0.045269069859093944
+    },
+    {
+      "record_id": "https://openalex.org/W3134704629",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.01213801450457683,
+      "final_score": 0.046934237468259275,
+      "ensemble_confidence": 0.9053450025631815,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953066,
+        "exclude": 2.346712,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.054928027165305884,
+      "q_include": 0.046934237468259275
+    },
+    {
+      "record_id": "https://openalex.org/W2941354132",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04662660115611814,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.953373,
+        "exclude": 2.33133,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.12011244339814313,
+      "q_include": 0.04662660115611814
+    },
+    {
+      "record_id": "https://openalex.org/W2028224522",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04693439905113115,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953066,
+        "exclude": 2.34672,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.054928027165305884,
+      "q_include": 0.04693439905113115
+    },
+    {
+      "record_id": "https://openalex.org/W2074139229",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138054853275047,
+      "final_score": 0.04693430816070081,
+      "ensemble_confidence": 0.9053447464819888,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953066,
+        "exclude": 2.346715,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.054928027165305884,
+      "q_include": 0.04693430816070081
+    },
+    {
+      "record_id": "https://openalex.org/W2081100709",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.01213801450457683,
+      "final_score": 0.04654243991097142,
+      "ensemble_confidence": 0.9326882506203926,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953458,
+        "exclude": 2.327122,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.04654243991097142
+    },
+    {
+      "record_id": "https://openalex.org/W2959199570",
+      "true_label": 1,
+      "decision": "INCLUDE",
+      "p_include": 0.28764629947471526,
+      "final_score": 0.18810478248451276,
+      "ensemble_confidence": 0.19255202763040227,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.811895,
+        "exclude": 9.405239,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.9201876506248751,
+      "q_include": 0.18810478248451276
+    },
+    {
+      "record_id": "https://openalex.org/W3154050831",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.046542600210853165,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.32713,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.046542600210853165
+    },
+    {
+      "record_id": "https://openalex.org/W2554616413",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04551413890481199,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.954486,
+        "exclude": 2.275707,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.35916962641800115,
+      "q_include": 0.04551413890481199
+    },
+    {
+      "record_id": "https://openalex.org/W2032883484",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04709124805275733,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.952909,
+        "exclude": 2.354562,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.021867241478865575,
+      "q_include": 0.04709124805275733
+    },
+    {
+      "record_id": "https://openalex.org/W3015312825",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.01213801450457683,
+      "final_score": 0.04415105488456402,
+      "ensemble_confidence": 0.9053450025631815,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.955849,
+        "exclude": 2.207553,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.6597539553864472,
+      "q_include": 0.04415105488456402
+    },
+    {
+      "record_id": "https://openalex.org/W3006542034",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04693439905113115,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953066,
+        "exclude": 2.34672,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.054928027165305884,
+      "q_include": 0.04693439905113115
+    },
+    {
+      "record_id": "https://openalex.org/W2219273457",
+      "true_label": 0,
+      "decision": "EXCLUDE",
+      "p_include": null,
+      "final_score": 0.0,
+      "ensemble_confidence": 1.0,
+      "tier": 0,
+      "models_called": 0,
+      "sprt_early_stop": false,
+      "requires_labelling": false,
+      "expected_loss": null,
+      "ecs_final": null,
+      "q_include": null
+    },
+    {
+      "record_id": "https://openalex.org/W3154719990",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04526907961672967,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.954731,
+        "exclude": 2.263454,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.4125775590312576,
+      "q_include": 0.04526907961672967
+    },
+    {
+      "record_id": "https://openalex.org/W2895011813",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04709124805275733,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.952909,
+        "exclude": 2.354562,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.021867241478865575,
+      "q_include": 0.04709124805275733
+    },
+    {
+      "record_id": "https://openalex.org/W2972370134",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04662660115611814,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953373,
+        "exclude": 2.33133,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.12011244339814313,
+      "q_include": 0.04662660115611814
+    },
+    {
+      "record_id": "https://openalex.org/W2900009423",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.0121380836738548,
+      "final_score": 0.04654256013583364,
+      "ensemble_confidence": 0.9053445635664572,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.327128,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.04654256013583364
+    },
+    {
+      "record_id": "https://openalex.org/W3092407792",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.01213801450457683,
+      "final_score": 0.04654243991097142,
+      "ensemble_confidence": 0.9053450025631815,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953458,
+        "exclude": 2.327122,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.04654243991097142
+    },
+    {
+      "record_id": "https://openalex.org/W2911886249",
+      "true_label": 0,
+      "decision": "ERROR",
+      "p_include": null,
+      "final_score": null,
+      "ensemble_confidence": null,
+      "tier": null,
+      "models_called": 0,
+      "sprt_early_stop": false,
+      "requires_labelling": false,
+      "expected_loss": null,
+      "ecs_final": null,
+      "q_include": null
+    },
+    {
+      "record_id": "https://openalex.org/W4221082774",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04693439905113115,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953066,
+        "exclude": 2.34672,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.054928027165305884,
+      "q_include": 0.04693439905113115
+    },
+    {
+      "record_id": "https://openalex.org/W2787159600",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138054853275047,
+      "final_score": 0.04654251004210523,
+      "ensemble_confidence": 0.9053447464819888,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.327126,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.04654251004210523
+    },
+    {
+      "record_id": "https://openalex.org/W2045493117",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04709124805275733,
+      "ensemble_confidence": 0.916951396941921,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.952909,
+        "exclude": 2.354562,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.021867241478865575,
+      "q_include": 0.04709124805275733
+    },
+    {
+      "record_id": "https://openalex.org/W2018296787",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.01213801450457683,
+      "final_score": 0.04654243991097142,
+      "ensemble_confidence": 0.9053450025631815,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953458,
+        "exclude": 2.327122,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.04654243991097142
+    },
+    {
+      "record_id": "https://openalex.org/W2397368881",
+      "true_label": 0,
+      "decision": "ERROR",
+      "p_include": null,
+      "final_score": null,
+      "ensemble_confidence": null,
+      "tier": null,
+      "models_called": 0,
+      "sprt_early_stop": false,
+      "requires_labelling": false,
+      "expected_loss": null,
+      "ecs_final": null,
+      "q_include": null
+    },
+    {
+      "record_id": "https://openalex.org/W2868222150",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04709124805275733,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.952909,
+        "exclude": 2.354562,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.021867241478865575,
+      "q_include": 0.04709124805275733
+    },
+    {
+      "record_id": "https://openalex.org/W2110609533",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04551413890481199,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.954486,
+        "exclude": 2.275707,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.35916962641800115,
+      "q_include": 0.04551413890481199
+    },
+    {
+      "record_id": "https://openalex.org/W343135126",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138100966235035,
+      "final_score": 0.046542590192095216,
+      "ensemble_confidence": 0.9053444538169805,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.32713,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.046542590192095216
+    },
+    {
+      "record_id": "https://openalex.org/W2612459136",
+      "true_label": 0,
+      "decision": "ERROR",
+      "p_include": null,
+      "final_score": null,
+      "ensemble_confidence": null,
+      "tier": null,
+      "models_called": 0,
+      "sprt_early_stop": false,
+      "requires_labelling": false,
+      "expected_loss": null,
+      "ecs_final": null,
+      "q_include": null
+    },
+    {
+      "record_id": "https://openalex.org/W2755918290",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.046542600210853165,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.32713,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.046542600210853165
+    },
+    {
+      "record_id": "https://openalex.org/W2407047247",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04709124805275733,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.952909,
+        "exclude": 2.354562,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.021867241478865575,
+      "q_include": 0.04709124805275733
+    },
+    {
+      "record_id": "https://openalex.org/W3001723272",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.01213801450457683,
+      "final_score": 0.04498897639574815,
+      "ensemble_confidence": 0.9053450025631815,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.955011,
+        "exclude": 2.249449,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.47392716336789764,
+      "q_include": 0.04498897639574815
+    },
+    {
+      "record_id": "https://openalex.org/W4243862948",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04709124805275733,
+      "ensemble_confidence": 0.9596650822678232,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.952909,
+        "exclude": 2.354562,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.021867241478865575,
+      "q_include": 0.04709124805275733
+    },
+    {
+      "record_id": "https://openalex.org/W2217705163",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04709124805275733,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.952909,
+        "exclude": 2.354562,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.021867241478865575,
+      "q_include": 0.04709124805275733
+    },
+    {
+      "record_id": "https://openalex.org/W2163145389",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138054853275047,
+      "final_score": 0.04526899179808005,
+      "ensemble_confidence": 0.9053447464819888,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.954731,
+        "exclude": 2.26345,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.4125775590312576,
+      "q_include": 0.04526899179808005
+    },
+    {
+      "record_id": "https://openalex.org/W2012202211",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04709124805275733,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.952909,
+        "exclude": 2.354562,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.021867241478865575,
+      "q_include": 0.04709124805275733
+    },
+    {
+      "record_id": "https://openalex.org/W197279779",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04709124805275733,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.952909,
+        "exclude": 2.354562,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.021867241478865575,
+      "q_include": 0.04709124805275733
+    },
+    {
+      "record_id": "https://openalex.org/W4210853108",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012137962627873533,
+      "final_score": 0.044988889094871996,
+      "ensemble_confidence": 0.9053453318094828,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.955011,
+        "exclude": 2.249444,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.47392716336789764,
+      "q_include": 0.044988889094871996
+    },
+    {
+      "record_id": "https://openalex.org/W3048252013",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.01213801450457683,
+      "final_score": 0.04696792898299347,
+      "ensemble_confidence": 0.9053450025631815,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953032,
+        "exclude": 2.348396,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.047817624989501845,
+      "q_include": 0.04696792898299347
+    },
+    {
+      "record_id": "https://openalex.org/W2466852311",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138054853275047,
+      "final_score": 0.04498904429654087,
+      "ensemble_confidence": 0.9053447464819888,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.955011,
+        "exclude": 2.249452,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.47392716336789764,
+      "q_include": 0.04498904429654087
+    },
+    {
+      "record_id": "https://openalex.org/W2126041710",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.0121380836738548,
+      "final_score": 0.04654256013583364,
+      "ensemble_confidence": 0.9053445635664572,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.327128,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.04654256013583364
+    },
+    {
+      "record_id": "https://openalex.org/W3129158030",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138054853275047,
+      "final_score": 0.04300180177555029,
+      "ensemble_confidence": 0.9053447464819888,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.956998,
+        "exclude": 2.15009,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.9201876506248751,
+      "q_include": 0.04300180177555029
+    },
+    {
+      "record_id": "https://openalex.org/W2936627901",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.01213801450457683,
+      "final_score": 0.046934237468259275,
+      "ensemble_confidence": 0.9053450025631815,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953066,
+        "exclude": 2.346712,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.054928027165305884,
+      "q_include": 0.046934237468259275
+    },
+    {
+      "record_id": "https://openalex.org/W2790970342",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138054853275047,
+      "final_score": 0.04498904429654087,
+      "ensemble_confidence": 0.9053447464819888,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.955011,
+        "exclude": 2.249452,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.47392716336789764,
+      "q_include": 0.04498904429654087
+    },
+    {
+      "record_id": "https://openalex.org/W2527762504",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138100966235035,
+      "final_score": 0.046542590192095216,
+      "ensemble_confidence": 0.9053444538169805,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.32713,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.046542590192095216
+    },
+    {
+      "record_id": "https://openalex.org/W2113139321",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.0121380836738548,
+      "final_score": 0.04654256013583364,
+      "ensemble_confidence": 0.9053445635664572,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.327128,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.04654256013583364
+    },
+    {
+      "record_id": "https://openalex.org/W2769942584",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.0121380836738548,
+      "final_score": 0.04654256013583364,
+      "ensemble_confidence": 0.9053445635664572,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.327128,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.04654256013583364
+    },
+    {
+      "record_id": "https://openalex.org/W1969834555",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.046542600210853165,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.32713,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.046542600210853165
+    },
+    {
+      "record_id": "https://openalex.org/W2083241886",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.01213801450457683,
+      "final_score": 0.04300173673900033,
+      "ensemble_confidence": 0.9053450025631815,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.956998,
+        "exclude": 2.150087,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.9201876506248751,
+      "q_include": 0.04300173673900033
+    },
+    {
+      "record_id": "https://openalex.org/W2043665458",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138054853275047,
+      "final_score": 0.04526899179808005,
+      "ensemble_confidence": 0.9053447464819888,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.954731,
+        "exclude": 2.26345,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.4125775590312576,
+      "q_include": 0.04526899179808005
+    },
+    {
+      "record_id": "https://openalex.org/W2077984765",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.01213801450457683,
+      "final_score": 0.046934237468259275,
+      "ensemble_confidence": 0.9386846915464606,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953066,
+        "exclude": 2.346712,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.054928027165305884,
+      "q_include": 0.046934237468259275
+    },
+    {
+      "record_id": "https://openalex.org/W2521773766",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04709124805275733,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.952909,
+        "exclude": 2.354562,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.021867241478865575,
+      "q_include": 0.04709124805275733
+    },
+    {
+      "record_id": "https://openalex.org/W2790482057",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04709124805275733,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.952909,
+        "exclude": 2.354562,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.021867241478865575,
+      "q_include": 0.04709124805275733
+    },
+    {
+      "record_id": "https://openalex.org/W2111778760",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.0121380836738548,
+      "final_score": 0.046934358655363745,
+      "ensemble_confidence": 0.9053445635664572,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953066,
+        "exclude": 2.346718,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.054928027165305884,
+      "q_include": 0.046934358655363745
+    },
+    {
+      "record_id": "https://openalex.org/W2901666476",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138054853275047,
+      "final_score": 0.04654251004210523,
+      "ensemble_confidence": 0.9053447464819888,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.327126,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.04654251004210523
+    },
+    {
+      "record_id": "https://openalex.org/W2178069657",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.0121380836738548,
+      "final_score": 0.04498909279716675,
+      "ensemble_confidence": 0.9053445635664572,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": true,
+      "expected_loss": {
+        "include": 0.955011,
+        "exclude": 2.249455,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.47392716336789764,
+      "q_include": 0.04498909279716675
+    },
+    {
+      "record_id": "https://openalex.org/W1963768929",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.01213801450457683,
+      "final_score": 0.04654243991097142,
+      "ensemble_confidence": 0.9053450025631815,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953458,
+        "exclude": 2.327122,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.04654243991097142
+    },
+    {
+      "record_id": "https://openalex.org/W2137995228",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138054853275047,
+      "final_score": 0.04654251004210523,
+      "ensemble_confidence": 0.9053447464819888,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.327126,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.04654251004210523
+    },
+    {
+      "record_id": "https://openalex.org/W3010635982",
+      "true_label": 0,
+      "decision": "EXCLUDE",
+      "p_include": null,
+      "final_score": 0.0,
+      "ensemble_confidence": 1.0,
+      "tier": 0,
+      "models_called": 0,
+      "sprt_early_stop": false,
+      "requires_labelling": false,
+      "expected_loss": null,
+      "ecs_final": null,
+      "q_include": null
+    },
+    {
+      "record_id": "https://openalex.org/W2168562733",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138100966235035,
+      "final_score": 0.045269069859093944,
+      "ensemble_confidence": 0.9613895866723173,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.954731,
+        "exclude": 2.263453,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.4125775590312576,
+      "q_include": 0.045269069859093944
+    },
+    {
+      "record_id": "https://openalex.org/W2626868958",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.046542600210853165,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.32713,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.046542600210853165
+    },
+    {
+      "record_id": "https://openalex.org/W2115820898",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.046542600210853165,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.32713,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.046542600210853165
+    },
+    {
+      "record_id": "https://openalex.org/W2026162145",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.046542600210853165,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.32713,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.046542600210853165
+    },
+    {
+      "record_id": "https://openalex.org/W2800819477",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04693439905113115,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953066,
+        "exclude": 2.34672,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.054928027165305884,
+      "q_include": 0.04693439905113115
+    },
+    {
+      "record_id": "https://openalex.org/W1594818194",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138106730367184,
+      "final_score": 0.04693439905113115,
+      "ensemble_confidence": 0.9053444172337954,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953066,
+        "exclude": 2.34672,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.054928027165305884,
+      "q_include": 0.04693439905113115
+    },
+    {
+      "record_id": "https://openalex.org/W3049637447",
+      "true_label": 0,
+      "decision": "INCLUDE",
+      "p_include": 0.012138054853275047,
+      "final_score": 0.04654251004210523,
+      "ensemble_confidence": 0.9053447464819888,
+      "tier": 1,
+      "models_called": 2,
+      "sprt_early_stop": true,
+      "requires_labelling": false,
+      "expected_loss": {
+        "include": 0.953457,
+        "exclude": 2.327126,
+        "human_review": 5.0
+      },
+      "ecs_final": 0.1379729661461215,
+      "q_include": 0.04654251004210523
+    }
+  ]
+}
