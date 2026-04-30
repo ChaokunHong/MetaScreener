@@ -1,0 +1,35 @@
+# A14b: A13b + GLAD difficulty floor=0.80 when exclude_certainty passes
+aggregation:
+  method: "glad"
+ecs:
+  method: "geometric"
+sprt:
+  enabled: true
+rcps:
+  enabled: true
+ipw:
+  audit_rate: 0.05
+esas:
+  enabled: true
+parse_quality:
+  enabled: true
+router:
+  method: "bayesian"
+  exclude_certainty_enabled: true
+  exclude_certainty_mode: "coverage"
+  exclude_certainty_coverage_early_threshold: 0.60
+  exclude_certainty_coverage_full_threshold: 0.50
+  exclude_certainty_contradiction_weight_threshold: 0.8
+  exclude_certainty_min_replicated_high_weight: 1
+  exclude_certainty_full_threshold: 0.75
+  exclude_certainty_early_threshold: 0.95
+  exclude_certainty_full_min_supporting: 1
+  exclude_certainty_early_min_supporting: 2
+  exclude_certainty_support_ratio: 0.75
+  exclude_certainty_difficulty_floor_enabled: true
+  exclude_certainty_difficulty_floor: 0.80
+backends:
+  - "deepseek-v3"
+  - "qwen3"
+  - "kimi-k2"
+  - "llama4-maverick"

@@ -139,6 +139,104 @@ class CalibrationConfig(BaseModel):
     )
 
 
+# --- v2.1 Bayesian upgrade configuration ---
+
+class DecisionConfig(BaseModel):
+    loss_preset: str = "balanced"
+    prevalence_prior: str = "low"
+
+class AggregationConfig(BaseModel):
+    method: str = "weighted_average"
+    ds_prior_alpha: float = 3.0
+    ds_prior_beta: float = 1.0
+    glad_switch_after_n: int = 20
+    glad_shrinkage: float = 0.0
+    glad_reg_C: float = 1.0  # noqa: N815  # YAML-stable name; matches GLAD paper notation
+    batch_update_size: int = 20
+
+class ECSConfig(BaseModel):
+    method: str = "arithmetic"
+    trim_percentile: float = 0.10
+    min_threshold: float = 0.20
+    epsilon: float = 0.01
+
+class SPRTConfig(BaseModel):
+    enabled: bool = False
+    waves: int = 2
+    complementary_mismatch_force_wave2: bool = False
+    complementary_overlap_threshold: float = 0.5
+
+class RCPSConfig(BaseModel):
+    enabled: bool = False
+    alpha_fnr: float = 0.05
+    alpha_automation: float = 0.60
+    delta: float = 0.05
+    min_calibration_size: int = 10
+    candidate_margin_scales: list[float] = Field(
+        default_factory=lambda: [0.7, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 2.0]
+    )
+    base_margin: float = 0.10
+
+class IPWConfig(BaseModel):
+    audit_rate: float = 0.0
+    seed: int = 42
+
+class ESASConfig(BaseModel):
+    enabled: bool = False
+    gamma: float = 1.0
+    tau: float = 0.3
+    margin_narrowing_factor: float = Field(default=0.30, ge=0.0, le=0.30)
+    margin_narrowing_tau: float = Field(default=0.50, ge=0.0, lt=1.0)
+
+class ParseQualityConfig(BaseModel):
+    enabled: bool = False
+    stage_weights: dict[int, float] = Field(
+        default_factory=lambda: {1: 1.0, 2: 1.0, 3: 0.7, 4: 0.7, 5: 0.3, 6: 0.3}
+    )
+
+class MetaCalibratorConfig(BaseModel):
+    enabled: bool = False
+    min_samples: int = 20
+    regularization_C: float = 0.1  # noqa: N815  # YAML-stable name; matches sklearn convention
+
+class RouterConfig(BaseModel):
+    method: str = "threshold"
+    routing_mode: str = "margin"
+    ecs_auto_threshold: float = 0.60
+    use_ecs_margin: bool = True
+    exclude_certainty_enabled: bool = False
+    exclude_certainty_full_threshold: float = 0.75
+    exclude_certainty_early_threshold: float = 0.95
+    exclude_certainty_full_min_supporting: int = 1
+    exclude_certainty_early_min_supporting: int = 2
+    exclude_certainty_support_ratio: float = 0.75
+    exclude_certainty_mode: str = "replicated"
+    exclude_certainty_coverage_early_threshold: float = 0.60
+    exclude_certainty_coverage_full_threshold: float = 0.50
+    exclude_certainty_contradiction_weight_threshold: float = 0.8
+    exclude_certainty_min_replicated_high_weight: int = 1
+    exclude_certainty_difficulty_floor_enabled: bool = False
+    exclude_certainty_difficulty_floor: float = 1.0
+    # A15a: when True, passes=True alone forces EXCLUDE even if loss_prefers_exclude=False.
+    # Bypasses the GLAD-difficulty × c_fn lockout for records whose rule-based
+    # EC evidence is strong (coverage mode: unanimous vote + coverage threshold +
+    # replicated high-weight element + no strong contradiction).
+    exclude_certainty_loss_override: bool = False
+    # A15c: optional narrower margin for SPRT wave2 records (all 4 models
+    # consulted). None = same margin as wave1.
+    wave2_uncertainty_margin: float | None = None
+    # ── Phase 2 directional gates (Codex math audit, 2026-04-27) ──
+    # Controls the new ECS / EAS / exclude_certainty signal separation.
+    # phase2_gates_enabled=False reverts to legacy ECS-asymmetric routing
+    # (used only by regression / ablation A0).
+    ecs_include_gate: float = 0.50
+    ecs_exclude_max: float = 0.50
+    eas_gate_full: float = 0.50
+    eas_gate_two_model_sprt: float = 0.70
+    eas_widening_factor: float = 0.30
+    phase2_gates_enabled: bool = True
+
+
 class MetaScreenerConfig(BaseModel):
     """Root configuration for MetaScreener.
 
@@ -171,6 +269,19 @@ class MetaScreenerConfig(BaseModel):
     calibration: CalibrationConfig = Field(
         default_factory=CalibrationConfig
     )
+    # v2.1 Bayesian upgrade — all have defaults for backward compatibility
+    decision: DecisionConfig = Field(default_factory=DecisionConfig)
+    aggregation: AggregationConfig = Field(default_factory=AggregationConfig)
+    ecs: ECSConfig = Field(default_factory=ECSConfig)
+    sprt: SPRTConfig = Field(default_factory=SPRTConfig)
+    rcps: RCPSConfig = Field(default_factory=RCPSConfig)
+    ipw: IPWConfig = Field(default_factory=IPWConfig)
+    esas: ESASConfig = Field(default_factory=ESASConfig)
+    parse_quality: ParseQualityConfig = Field(default_factory=ParseQualityConfig)
+    meta_calibrator: MetaCalibratorConfig = Field(
+        default_factory=MetaCalibratorConfig
+    )
+    router: RouterConfig = Field(default_factory=RouterConfig)
 
 
 def load_model_config(path: Path) -> MetaScreenerConfig:
@@ -208,4 +319,15 @@ def load_model_config(path: Path) -> MetaScreenerConfig:
         criteria=CriteriaConfig(**data.get("criteria", {})),
         element_weights=data.get("element_weights", {}),
         calibration=CalibrationConfig(**data.get("calibration", {})),
+        # v2.1 Bayesian pipeline fields — fall back to defaults if absent
+        decision=DecisionConfig(**data.get("decision", {})),
+        aggregation=AggregationConfig(**data.get("aggregation", {})),
+        ecs=ECSConfig(**data.get("ecs", {})),
+        sprt=SPRTConfig(**data.get("sprt", {})),
+        rcps=RCPSConfig(**data.get("rcps", {})),
+        ipw=IPWConfig(**data.get("ipw", {})),
+        esas=ESASConfig(**data.get("esas", {})),
+        parse_quality=ParseQualityConfig(**data.get("parse_quality", {})),
+        meta_calibrator=MetaCalibratorConfig(**data.get("meta_calibrator", {})),
+        router=RouterConfig(**data.get("router", {})),
     )

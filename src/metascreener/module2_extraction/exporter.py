@@ -13,14 +13,13 @@ from typing import Any
 import openpyxl
 import structlog
 
-from metascreener.core.enums import Confidence, FieldRole
+from metascreener.core.enums import Confidence
 from metascreener.core.models_extraction import (
     ExtractionSchema,
     ExtractionSessionResult,
 )
 
 log = structlog.get_logger()
-
 
 def export_to_excel(
     *,
@@ -83,7 +82,6 @@ def export_to_excel(
     log.info("excel_exported", path=str(output_path), sheets=len(schema.data_sheets),
              pdfs=len(results))
     return output_path
-
 
 def _write_log_sheet(
     wb: Any,

@@ -11,7 +11,7 @@ import time
 import httpx
 import structlog
 
-from metascreener.core.exceptions import LLMRateLimitError, LLMTimeoutError
+from metascreener.core.exceptions import LLMFatalError, LLMRateLimitError, LLMTimeoutError
 from metascreener.llm.base import INFERENCE_TEMPERATURE, LLMBackend
 
 logger = structlog.get_logger(__name__)
@@ -128,21 +128,34 @@ class OpenRouterAdapter(LLMBackend):
                 response = await self._client.post("/chat/completions", json=payload)
                 latency_ms = (time.perf_counter() - t0) * 1000
 
+                if response.status_code in {401, 402, 403, 404}:
+                    response_text = str(getattr(response, "text", ""))[:500]
+                    logger.error(
+                        "openrouter_fatal_http_status",
+                        model_id=self.model_id,
+                        status=response.status_code,
+                        response=response_text,
+                    )
+                    raise LLMFatalError(
+                        (
+                            f"OpenRouter returned fatal HTTP {response.status_code} "
+                            f"for {self._openrouter_model_name}: {response_text}"
+                        ),
+                        model_id=self.model_id,
+                        status_code=response.status_code,
+                    )
+
                 if response.status_code == 429:
                     raise LLMRateLimitError(
                         f"Rate limit exceeded (attempt {attempt + 1})",
                         model_id=self.model_id,
                     )
 
-                if response.status_code == 404:
-                    # Model not available (privacy settings or deprecated)
-                    logger.warning(
-                        "openrouter_model_unavailable",
-                        model_id=self.model_id,
-                        status=404,
-                    )
-                    raise LLMTimeoutError(
-                        f"Model {self._openrouter_model_name} unavailable (404)",
+                # Retry on transient 5xx (OpenRouter/provider outages).
+                # Reuses LLMRateLimitError's retry path (exponential backoff).
+                if 500 <= response.status_code < 600:
+                    raise LLMRateLimitError(
+                        f"Server error {response.status_code} (attempt {attempt + 1})",
                         model_id=self.model_id,
                     )
 
@@ -177,6 +190,9 @@ class OpenRouterAdapter(LLMBackend):
             except (
                 httpx.TimeoutException,
                 httpx.ConnectError,
+                httpx.RemoteProtocolError,  # server disconnected mid-response
+                httpx.ReadError,
+                httpx.WriteError,
                 LLMRateLimitError,
                 LLMTimeoutError,  # Retry on empty content too
             ) as e:

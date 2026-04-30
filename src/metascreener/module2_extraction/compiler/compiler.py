@@ -11,6 +11,7 @@ Pipeline:
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -44,6 +45,19 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger()
 
+# In-memory schema cache keyed by file content hash.
+# Avoids redundant compilation when the same template is re-uploaded
+# (e.g. session resume, retry after error).
+_schema_cache: dict[str, ExtractionSchema] = {}
+_CACHE_MAX_SIZE = 32
+
+def _file_hash(path: Path) -> str:
+    """Compute SHA-256 hex digest of a file."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 async def compile_template(
     path: Path,
@@ -65,6 +79,13 @@ async def compile_template(
     """
     if not path.exists():
         raise FileNotFoundError(f"Template not found: {path}")
+
+    # Cache check — return cached schema if template content is unchanged
+    content_hash = _file_hash(path)
+    cached = _schema_cache.get(content_hash)
+    if cached is not None:
+        log.info("compile_cache_hit", schema_id=cached.schema_id)
+        return cached
 
     # Step 1: Structure scan
     raw_sheets = scan_template(path)
@@ -103,8 +124,14 @@ async def compile_template(
         data_sheets=len(schema.data_sheets),
         total_fields=sum(len(s.fields) for s in schema.sheets),
     )
-    return schema
 
+    # Store in cache (evict oldest if full)
+    if len(_schema_cache) >= _CACHE_MAX_SIZE:
+        oldest_key = next(iter(_schema_cache))
+        del _schema_cache[oldest_key]
+    _schema_cache[content_hash] = schema
+
+    return schema
 
 def _extract_mappings(
     path: Path,
@@ -150,7 +177,6 @@ def _extract_mappings(
 
     wb.close()
     return mappings
-
 
 def _build_schema(
     raw_sheets: list[RawSheetInfo],

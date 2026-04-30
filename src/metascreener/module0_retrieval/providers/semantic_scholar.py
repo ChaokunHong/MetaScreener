@@ -38,10 +38,6 @@ class SemanticScholarProvider(SearchProvider):
         self._api_key = api_key
         self._client = _client
 
-    # ------------------------------------------------------------------
-    # SearchProvider interface
-    # ------------------------------------------------------------------
-
     @property
     def name(self) -> str:
         """Provider name."""
@@ -63,7 +59,11 @@ class SemanticScholarProvider(SearchProvider):
         Returns:
             List of parsed ``RawRecord`` objects.
         """
-        query_str = translate_openalex(query)
+        from metascreener.module0_retrieval.query.ast import truncate_query  # noqa: PLC0415
+
+        # S2 API has strict query length limits; truncate to top terms
+        truncated = truncate_query(query, max_terms_per_group=6)
+        query_str = translate_openalex(truncated)
         if not query_str:
             return []
 
@@ -84,10 +84,6 @@ class SemanticScholarProvider(SearchProvider):
         # For simplicity, retrieve via search with paperIds filter
         return await self._paginate({"ids": ",".join(ids)}, len(ids))
 
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
-
     def _headers(self) -> dict[str, str]:
         headers: dict[str, str] = {}
         if self._api_key:
@@ -97,7 +93,7 @@ class SemanticScholarProvider(SearchProvider):
     async def _paginate(self, extra_params: dict[str, Any], max_results: int) -> list[RawRecord]:
         records: list[RawRecord] = []
         offset = 0
-        client = self._client or httpx.AsyncClient()
+        client = self._client or httpx.AsyncClient(timeout=60.0)
         while len(records) < max_results:
             params: dict[str, Any] = {
                 **extra_params,

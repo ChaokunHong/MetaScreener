@@ -19,10 +19,6 @@ logger = structlog.get_logger(__name__)
 _CHUNK_SIZE = 64 * 1024  # 64 KB streaming chunks
 _PDF_MAGIC = b"%PDF"
 
-# ---------------------------------------------------------------------------
-# Abstract base
-# ---------------------------------------------------------------------------
-
 
 class PDFSource(ABC):
     """Abstract base class for a single PDF retrieval strategy.
@@ -61,10 +57,6 @@ class PDFSource(ABC):
             Absolute path to the saved file as a string, or *None* on failure.
         """
         ...
-
-    # ------------------------------------------------------------------
-    # Shared helpers
-    # ------------------------------------------------------------------
 
     async def _stream_to_file(
         self,
@@ -124,11 +116,6 @@ class PDFSource(ABC):
         except Exception as exc:  # noqa: BLE001
             logger.debug("Download failed", source=self.name, url=url, error=str(exc))
             return None
-
-
-# ---------------------------------------------------------------------------
-# Concrete source implementations
-# ---------------------------------------------------------------------------
 
 
 class OpenAlexDirectSource(PDFSource):
@@ -405,11 +392,6 @@ class DOIResolverSource(PDFSource):
         doi_safe = re.sub(r"[^\w.\-]", "_", record.doi)
         dest = output_dir / f"DOI_{doi_safe}_resolved.pdf"
         return await self._stream_to_file(url, dest, client)
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _safe_stem(record: RawRecord) -> str:

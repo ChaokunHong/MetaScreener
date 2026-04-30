@@ -43,7 +43,6 @@ def _render_fields_block(sheet: SheetSchema) -> str:
         lines.append("\n".join(parts))
     return "\n".join(lines)
 
-
 def _render_cardinality_instruction(sheet: SheetSchema) -> str:
     """Instruction for how many rows to output."""
     if sheet.cardinality == SheetCardinality.ONE_PER_STUDY:
@@ -57,7 +56,6 @@ def _render_cardinality_instruction(sheet: SheetSchema) -> str:
         "distinct entries reported in the paper — do not skip any."
     )
 
-
 def _render_prior_context(prior_context: dict[str, Any] | None) -> str:
     """Render prior sheet results as context."""
     if not prior_context:
@@ -67,7 +65,6 @@ def _render_prior_context(prior_context: dict[str, Any] | None) -> str:
         "Use this as context but do NOT re-extract these fields.\n\n"
         f"```json\n{json.dumps(prior_context, indent=2, default=str)}\n```\n"
     )
-
 
 def _render_output_format(sheet: SheetSchema) -> str:
     """Render expected JSON output format."""
@@ -98,7 +95,6 @@ Return ONLY valid JSON in this exact format (array of objects):
   }
 ]
 ```'''
-
 
 def build_alpha_prompt(
     sheet: SheetSchema,
@@ -144,7 +140,6 @@ Extract data from the provided text according to the field definitions below.
         prompt += f"\n\n{plugin_prompt}"
 
     return prompt
-
 
 def build_beta_prompt(
     sheet: SheetSchema,

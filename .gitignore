@@ -28,7 +28,13 @@ configs/api_keys.yaml
 
 # Databases
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
+
+# Runtime data
+data/
+src/data/
 
 # Validation data (regenerated via scripts/)
 validation/results/*
@@ -46,23 +52,44 @@ frontend/node_modules/
 frontend/dist/
 
 # Non-core directories (kept locally, not in repo)
-.github/
-.zenodo.json
-CITATION.cff
-Makefile
-demo/
-docs/
-logo/
-packaging/
-paper/
-model_icon/
-metascreener1.0/
-backend/
+/.github/
+/.zenodo.json
+/CITATION.cff
+/Makefile
+/demo/
+/logo/
+/packaging/
+/frontend/public/model_icon/
+/metascreener1.0/
+/backend/
 
-# Claude Code / dev tooling
-CLAUDE.md
-.claude/
-.metascreener/
+# Claude Code / Codex local tooling
+/CLAUDE.md
+/AGENTS.md
+/.claude/
+/.codex/
+/.metascreener/
+/CODEX.md
+/CODEX_*.md
+
+# Local agent handoff / audit notes (Claude Code + Codex)
+/*HANDOFF*.md
+/SESSION_HANDOFF.md
+/PROJECT_STATE.md
+/BENCHMARK_DIAGNOSIS.md
+/METRICS_V2_MIGRATION_SUMMARY.md
+
+# AI planning/spec files
+/docs/superpowers/
+/paper/FINDINGS_LEDGER.md
+/paper/NEXT_STEPS.md
+
+# Experiment data — too large for git (datasets: ~341MB, results: ~13GB)
+experiments/datasets/
+experiments/results/
+experiments/results_v1_post_audit/
+experiments/.cache/
+external_sources/
 
 # OS / editor junk
 .DS_Store

@@ -1,0 +1,22 @@
+# Ablation A1: 4-model ensemble baseline (add 3 backends vs A0)
+aggregation:
+  method: "weighted_average"
+ecs:
+  method: "arithmetic"
+sprt:
+  enabled: false
+rcps:
+  enabled: false
+ipw:
+  audit_rate: 0.0
+esas:
+  enabled: false
+parse_quality:
+  enabled: false
+router:
+  method: "threshold"
+backends:
+  - "deepseek-v3"
+  - "qwen3"
+  - "kimi-k2"
+  - "llama4-maverick"

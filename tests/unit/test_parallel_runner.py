@@ -78,3 +78,28 @@ async def test_handles_individual_failure_gracefully(
     failed = [o for o in outputs if o.error is not None]
     assert len(successful) == 2
     assert len(failed) == 1
+
+
+@pytest.mark.asyncio
+async def test_fatal_backend_error_propagates(
+    sample_record_include: Record,
+    amr_criteria: PICOCriteria,
+) -> None:
+    """Fatal provider errors must abort the run instead of becoming review outputs."""
+    from metascreener.core.exceptions import LLMFatalError
+
+    fatal_adapter = MockLLMAdapter(model_id="fatal-model")
+
+    async def raise_fatal(prompt: str, seed: int) -> str:
+        raise LLMFatalError(
+            "OpenRouter returned 402",
+            model_id="fatal-model",
+            status_code=402,
+        )
+
+    fatal_adapter._call_api = raise_fatal  # type: ignore[method-assign]
+
+    runner = ParallelRunner(backends=[fatal_adapter])
+
+    with pytest.raises(LLMFatalError):
+        await runner.run(sample_record_include, amr_criteria, seed=42)

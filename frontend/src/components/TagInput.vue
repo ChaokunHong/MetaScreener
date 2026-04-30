@@ -1,6 +1,5 @@
 <template>
   <div class="tag-input-wrap">
-    <!-- Existing tags -->
     <div class="tag-list" v-if="modelValue.length">
       <span v-for="tag in modelValue" :key="tag" class="tag-chip">
         {{ tag }}
@@ -10,7 +9,6 @@
       </span>
     </div>
 
-    <!-- Predefined suggestions -->
     <div class="tag-suggestions" v-if="unusedSuggestions.length">
       <span class="tag-suggestions-label">Suggestions:</span>
       <button
@@ -22,7 +20,6 @@
       >+ {{ s }}</button>
     </div>
 
-    <!-- Free input -->
     <div class="tag-free-input">
       <input
         v-model="inputValue"

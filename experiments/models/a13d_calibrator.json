@@ -1,0 +1,258 @@
+{
+  "version": "a13d-lite-v1",
+  "element_groups": [
+    "population_like",
+    "topic_like",
+    "study_design"
+  ],
+  "models": [
+    "deepseek-v3",
+    "qwen3",
+    "kimi-k2",
+    "llama4-maverick"
+  ],
+  "theta": {
+    "deepseek-v3": {
+      "population_like": {
+        "match": {
+          "match": 0.025,
+          "mismatch": 0.1,
+          "unclear": 0.875
+        },
+        "mismatch": {
+          "match": 0.03333333333333333,
+          "mismatch": 0.1,
+          "unclear": 0.8666666666666667
+        },
+        "unclear": {
+          "match": 0.05,
+          "mismatch": 0.05,
+          "unclear": 0.9
+        }
+      },
+      "topic_like": {
+        "match": {
+          "match": 0.03225806451612903,
+          "mismatch": 0.043010752688172046,
+          "unclear": 0.9247311827956989
+        },
+        "mismatch": {
+          "match": 0.011904761904761904,
+          "mismatch": 0.16666666666666666,
+          "unclear": 0.8214285714285714
+        },
+        "unclear": {
+          "match": 0.07692307692307693,
+          "mismatch": 0.15384615384615385,
+          "unclear": 0.7692307692307693
+        }
+      },
+      "study_design": {
+        "match": {
+          "match": 0.008333333333333333,
+          "mismatch": 0.008333333333333333,
+          "unclear": 0.9833333333333333
+        },
+        "mismatch": {
+          "match": 0.024390243902439025,
+          "mismatch": 0.024390243902439025,
+          "unclear": 0.9512195121951219
+        },
+        "unclear": {
+          "match": 0.034482758620689655,
+          "mismatch": 0.034482758620689655,
+          "unclear": 0.9310344827586207
+        }
+      }
+    },
+    "qwen3": {
+      "population_like": {
+        "match": {
+          "match": 0.0875,
+          "mismatch": 0.0375,
+          "unclear": 0.875
+        },
+        "mismatch": {
+          "match": 0.022222222222222223,
+          "mismatch": 0.05555555555555555,
+          "unclear": 0.9222222222222223
+        },
+        "unclear": {
+          "match": 0.05,
+          "mismatch": 0.05,
+          "unclear": 0.9
+        }
+      },
+      "topic_like": {
+        "match": {
+          "match": 0.043010752688172046,
+          "mismatch": 0.07526881720430108,
+          "unclear": 0.8817204301075269
+        },
+        "mismatch": {
+          "match": 0.023809523809523808,
+          "mismatch": 0.047619047619047616,
+          "unclear": 0.9285714285714286
+        },
+        "unclear": {
+          "match": 0.07692307692307693,
+          "mismatch": 0.07692307692307693,
+          "unclear": 0.8461538461538461
+        }
+      },
+      "study_design": {
+        "match": {
+          "match": 0.008333333333333333,
+          "mismatch": 0.008333333333333333,
+          "unclear": 0.9833333333333333
+        },
+        "mismatch": {
+          "match": 0.024390243902439025,
+          "mismatch": 0.024390243902439025,
+          "unclear": 0.9512195121951219
+        },
+        "unclear": {
+          "match": 0.034482758620689655,
+          "mismatch": 0.034482758620689655,
+          "unclear": 0.9310344827586207
+        }
+      }
+    },
+    "kimi-k2": {
+      "population_like": {
+        "match": {
+          "match": 0.0125,
+          "mismatch": 0.025,
+          "unclear": 0.9625
+        },
+        "mismatch": {
+          "match": 0.011111111111111112,
+          "mismatch": 0.03333333333333333,
+          "unclear": 0.9555555555555556
+        },
+        "unclear": {
+          "match": 0.05,
+          "mismatch": 0.05,
+          "unclear": 0.9
+        }
+      },
+      "topic_like": {
+        "match": {
+          "match": 0.021505376344086023,
+          "mismatch": 0.010752688172043012,
+          "unclear": 0.967741935483871
+        },
+        "mismatch": {
+          "match": 0.011904761904761904,
+          "mismatch": 0.03571428571428571,
+          "unclear": 0.9523809523809523
+        },
+        "unclear": {
+          "match": 0.07692307692307693,
+          "mismatch": 0.07692307692307693,
+          "unclear": 0.8461538461538461
+        }
+      },
+      "study_design": {
+        "match": {
+          "match": 0.008333333333333333,
+          "mismatch": 0.008333333333333333,
+          "unclear": 0.9833333333333333
+        },
+        "mismatch": {
+          "match": 0.024390243902439025,
+          "mismatch": 0.024390243902439025,
+          "unclear": 0.9512195121951219
+        },
+        "unclear": {
+          "match": 0.034482758620689655,
+          "mismatch": 0.034482758620689655,
+          "unclear": 0.9310344827586207
+        }
+      }
+    },
+    "llama4-maverick": {
+      "population_like": {
+        "match": {
+          "match": 0.0125,
+          "mismatch": 0.0125,
+          "unclear": 0.975
+        },
+        "mismatch": {
+          "match": 0.011111111111111112,
+          "mismatch": 0.011111111111111112,
+          "unclear": 0.9777777777777777
+        },
+        "unclear": {
+          "match": 0.05,
+          "mismatch": 0.05,
+          "unclear": 0.9
+        }
+      },
+      "topic_like": {
+        "match": {
+          "match": 0.010752688172043012,
+          "mismatch": 0.010752688172043012,
+          "unclear": 0.978494623655914
+        },
+        "mismatch": {
+          "match": 0.011904761904761904,
+          "mismatch": 0.011904761904761904,
+          "unclear": 0.9761904761904762
+        },
+        "unclear": {
+          "match": 0.07692307692307693,
+          "mismatch": 0.07692307692307693,
+          "unclear": 0.8461538461538461
+        }
+      },
+      "study_design": {
+        "match": {
+          "match": 0.008333333333333333,
+          "mismatch": 0.008333333333333333,
+          "unclear": 0.9833333333333333
+        },
+        "mismatch": {
+          "match": 0.024390243902439025,
+          "mismatch": 0.024390243902439025,
+          "unclear": 0.9512195121951219
+        },
+        "unclear": {
+          "match": 0.034482758620689655,
+          "mismatch": 0.034482758620689655,
+          "unclear": 0.9310344827586207
+        }
+      }
+    }
+  },
+  "prior": {
+    "population_like": {
+      "match": 0.4250343878954608,
+      "mismatch": 0.48005502063273725,
+      "unclear": 0.09491059147180192
+    },
+    "topic_like": {
+      "match": 0.4965612104539202,
+      "mismatch": 0.4470426409903714,
+      "unclear": 0.05639614855570839
+    },
+    "study_design": {
+      "match": 0.6451169188445667,
+      "mismatch": 0.21045392022008252,
+      "unclear": 0.14442916093535077
+    }
+  },
+  "merged_groups": [],
+  "insufficient_groups": [],
+  "tau": 0.7,
+  "alpha": 1.0,
+  "training_stats": {
+    "total_records": 543,
+    "total_element_labels": 2172,
+    "min_cell_count": 181,
+    "merged_cells": 0,
+    "insufficient_cells": 0,
+    "insufficient_pct": 0.0
+  },
+  "training_date": "2026-04-12"
+}

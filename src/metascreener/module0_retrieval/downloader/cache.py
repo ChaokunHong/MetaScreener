@@ -42,10 +42,6 @@ class DownloadCache:
         self._db_path = Path(db_path)
         self._conn: sqlite3.Connection | None = None
 
-    # ------------------------------------------------------------------
-    # Lifecycle
-    # ------------------------------------------------------------------
-
     async def initialize(self) -> None:
         """Open the database and create the schema if necessary."""
         await asyncio.to_thread(self._sync_initialize)
@@ -64,10 +60,6 @@ class DownloadCache:
         if self._conn is not None:
             self._conn.close()
             self._conn = None
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     async def get(self, record_id: str) -> dict[str, Any] | None:
         """Return cached download info or *None* on a cache miss.
@@ -124,10 +116,6 @@ class DownloadCache:
             (record_id, int(success), pdf_path, source),
         )
         self._conn.commit()
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
 
     def _assert_initialized(self) -> None:
         if self._conn is None:

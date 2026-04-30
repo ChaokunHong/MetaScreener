@@ -1,0 +1,228 @@
+{
+  "summary": {
+    "threshold": 0.7,
+    "mean_sens": 0.9959544022044021,
+    "mean_spec": 0.03290804855249891,
+    "mean_auto": 0.4598163353238669,
+    "pooled_sens": 0.9945242984257358,
+    "total_fn": 8
+  },
+  "datasets": {
+    "Jeyaraman_2020": {
+      "n": 1054,
+      "tp": 80,
+      "fn": 0,
+      "tn": 66,
+      "fp": 908,
+      "sensitivity": 1.0,
+      "specificity": 0.06776180698151951,
+      "auto_rate": 0.10910815939278938,
+      "tier_counts": {
+        "0": 66,
+        "1": 43,
+        "2": 6,
+        "3": 939
+      },
+      "avg_models_per_record": 0.0,
+      "sprt_early_stop_rate": 0.0
+    },
+    "Chou_2003": {
+      "n": 1809,
+      "tp": 11,
+      "fn": 0,
+      "tn": 64,
+      "fp": 1734,
+      "sensitivity": 1.0,
+      "specificity": 0.035595105672969966,
+      "auto_rate": 0.9143173023770038,
+      "tier_counts": {
+        "0": 8,
+        "1": 87,
+        "2": 1559,
+        "3": 155
+      },
+      "avg_models_per_record": 0.0,
+      "sprt_early_stop_rate": 0.0
+    },
+    "van_der_Waal_2022": {
+      "n": 1959,
+      "tp": 33,
+      "fn": 0,
+      "tn": 83,
+      "fp": 1843,
+      "sensitivity": 1.0,
+      "specificity": 0.043094496365524405,
+      "auto_rate": 0.1689637570188872,
+      "tier_counts": {
+        "0": 79,
+        "1": 239,
+        "2": 13,
+        "3": 1628
+      },
+      "avg_models_per_record": 0.0,
+      "sprt_early_stop_rate": 0.0
+    },
+    "Smid_2020": {
+      "n": 2617,
+      "tp": 27,
+      "fn": 0,
+      "tn": 122,
+      "fp": 2468,
+      "sensitivity": 1.0,
+      "specificity": 0.047104247104247106,
+      "auto_rate": 0.17424531906763469,
+      "tier_counts": {
+        "0": 111,
+        "1": 339,
+        "2": 6,
+        "3": 2161
+      },
+      "avg_models_per_record": 0.0,
+      "sprt_early_stop_rate": 0.0
+    },
+    "Muthu_2021": {
+      "n": 2716,
+      "tp": 332,
+      "fn": 4,
+      "tn": 68,
+      "fp": 2312,
+      "sensitivity": 0.9880952380952381,
+      "specificity": 0.02857142857142857,
+      "auto_rate": 0.9930044182621502,
+      "tier_counts": {
+        "0": 69,
+        "1": 2624,
+        "2": 4,
+        "3": 19
+      },
+      "avg_models_per_record": 0.0,
+      "sprt_early_stop_rate": 0.0
+    },
+    "Appenzeller-Herzog_2019": {
+      "n": 2836,
+      "tp": 26,
+      "fn": 0,
+      "tn": 13,
+      "fp": 2797,
+      "sensitivity": 1.0,
+      "specificity": 0.004626334519572953,
+      "auto_rate": 0.8293370944992948,
+      "tier_counts": {
+        "0": 13,
+        "1": 169,
+        "2": 2170,
+        "3": 484
+      },
+      "avg_models_per_record": 0.0,
+      "sprt_early_stop_rate": 0.0
+    },
+    "van_de_Schoot_2018": {
+      "n": 4538,
+      "tp": 38,
+      "fn": 0,
+      "tn": 105,
+      "fp": 4395,
+      "sensitivity": 1.0,
+      "specificity": 0.023333333333333334,
+      "auto_rate": 0.02379903040987219,
+      "tier_counts": {
+        "0": 105,
+        "1": 2,
+        "2": 1,
+        "3": 4430
+      },
+      "avg_models_per_record": 0.0,
+      "sprt_early_stop_rate": 0.0
+    },
+    "Moran_2021": {
+      "n": 5182,
+      "tp": 108,
+      "fn": 3,
+      "tn": 30,
+      "fp": 5041,
+      "sensitivity": 0.972972972972973,
+      "specificity": 0.005915992900808519,
+      "auto_rate": 0.988421458896179,
+      "tier_counts": {
+        "0": 33,
+        "1": 32,
+        "2": 5057,
+        "3": 60
+      },
+      "avg_models_per_record": 0.0,
+      "sprt_early_stop_rate": 0.0
+    },
+    "Radjenovic_2013": {
+      "n": 5853,
+      "tp": 48,
+      "fn": 0,
+      "tn": 34,
+      "fp": 5771,
+      "sensitivity": 1.0,
+      "specificity": 0.005857019810508183,
+      "auto_rate": 0.15667179224329403,
+      "tier_counts": {
+        "0": 34,
+        "1": 789,
+        "2": 94,
+        "3": 4936
+      },
+      "avg_models_per_record": 0.0,
+      "sprt_early_stop_rate": 0.0
+    },
+    "Leenaars_2020": {
+      "n": 6892,
+      "tp": 539,
+      "fn": 0,
+      "tn": 134,
+      "fp": 6219,
+      "sensitivity": 1.0,
+      "specificity": 0.02109239729261766,
+      "auto_rate": 0.9972431804991294,
+      "tier_counts": {
+        "0": 131,
+        "1": 6740,
+        "2": 2,
+        "3": 19
+      },
+      "avg_models_per_record": 0.0,
+      "sprt_early_stop_rate": 0.0
+    },
+    "Wassenaar_2017": {
+      "n": 7572,
+      "tp": 108,
+      "fn": 0,
+      "tn": 7,
+      "fp": 7457,
+      "sensitivity": 1.0,
+      "specificity": 0.0009378349410503751,
+      "auto_rate": 0.0071315372424722665,
+      "tier_counts": {
+        "0": 7,
+        "1": 44,
+        "2": 3,
+        "3": 7518
+      },
+      "avg_models_per_record": 0.0,
+      "sprt_early_stop_rate": 0.0
+    },
+    "Hall_2012": {
+      "n": 8608,
+      "tp": 103,
+      "fn": 1,
+      "tn": 944,
+      "fp": 7560,
+      "sensitivity": 0.9903846153846154,
+      "specificity": 0.11100658513640639,
+      "auto_rate": 0.15555297397769516,
+      "tier_counts": {
+        "0": 945,
+        "1": 390,
+        "2": 4,
+        "3": 7269
+      },
+      "avg_models_per_record": 0.0,
+      "sprt_early_stop_rate": 0.0
+    }
+  }
+}

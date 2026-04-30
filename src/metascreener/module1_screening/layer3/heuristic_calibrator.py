@@ -104,12 +104,8 @@ def get_calibration_factors(
             factors[output.model_id] = _PHI_MAX
         return factors
 
-    # ── CAMD: Confidence-Aware Minority Detection ──────────────
-
-    # Step 1: Determine majority decision via weighted vote
     majority_decision = _weighted_majority(uncalibrated, prior_weights)
 
-    # Step 2: Partition into majority and minority groups
     majority_group = [
         o for o in uncalibrated if _effective_decision(o) == majority_decision
     ]
@@ -117,13 +113,11 @@ def get_calibration_factors(
         o for o in uncalibrated if _effective_decision(o) != majority_decision
     ]
 
-    # Step 3: Compute median confidence of the majority group
     if majority_group:
         majority_conf_median = _median([o.confidence for o in majority_group])
     else:
         majority_conf_median = 0.5  # fallback
 
-    # Step 4: Assign φ_i based on position and confidence
     for output in uncalibrated:
         if output in majority_group:
             # Majority member → full trust

@@ -7,7 +7,6 @@ import structlog
 
 log = structlog.get_logger()
 
-
 def load_prompt_fragments(prompts_dir: Path) -> dict[str, str]:
     """Load all Jinja2 prompt fragments from a plugin's prompts directory.
 

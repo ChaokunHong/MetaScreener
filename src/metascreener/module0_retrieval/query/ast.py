@@ -18,20 +18,55 @@ from __future__ import annotations
 
 from metascreener.module0_retrieval.models import BooleanQuery, QueryGroup, QueryTerm
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
+
+def truncate_query(query: BooleanQuery, max_terms_per_group: int = 8) -> BooleanQuery:
+    """Truncate a query to fit APIs with query length limits.
+
+    Keeps the first ``max_terms_per_group`` terms per group. This
+    preserves the most important terms (typically placed first by the
+    builder) while avoiding API timeouts from overly long queries.
+
+    Args:
+        query: Original boolean query.
+        max_terms_per_group: Maximum terms to keep per group.
+
+    Returns:
+        A truncated copy of the query.
+    """
+
+    def _trunc(group: QueryGroup) -> QueryGroup:
+        if len(group.terms) <= max_terms_per_group:
+            return group
+        return QueryGroup(
+            terms=group.terms[:max_terms_per_group],
+            operator=group.operator,
+        )
+
+    return BooleanQuery(
+        population=_trunc(query.population),
+        intervention=_trunc(query.intervention),
+        outcome=_trunc(query.outcome),
+        additional=_trunc(query.additional),
+        exclusions=_trunc(query.exclusions),
+    )
 
 
 def _render_term_pubmed(term: QueryTerm) -> str:
-    """Render a single term in PubMed syntax."""
+    """Render a single term in PubMed syntax.
+
+    Multi-word terms are left **unquoted** by default so that PubMed's
+    Automatic Term Mapping (ATM) can expand them to MeSH synonyms.
+    This dramatically increases recall vs exact-phrase matching.
+    Only explicitly marked ``phrase=True`` terms are quoted.
+    """
     text = term.text.strip()
     if term.wildcard:
         return f"{text}*"
     if term.mesh:
         return f"{text}[MeSH Terms]"
-    if term.phrase or " " in text:
+    if term.phrase:
         return f'"{text}"'
+    # No quotes — let PubMed ATM auto-expand (matches PilotSearcher behavior)
     return text
 
 
@@ -79,11 +114,6 @@ def _active_content_groups(query: BooleanQuery) -> list[QueryGroup]:
 def _has_terms(query: BooleanQuery) -> bool:
     """Return True if the query has any non-exclusion terms."""
     return any(g.terms for g in _active_content_groups(query))
-
-
-# ---------------------------------------------------------------------------
-# Public translators
-# ---------------------------------------------------------------------------
 
 
 def translate_pubmed(query: BooleanQuery) -> str:

@@ -1,0 +1,64 @@
+{
+  "framework": "pico",
+  "research_question": "Does the source of mesenchymal stem cells (MSC) affect treatment outcomes in knee osteoarthritis?",
+  "elements": {
+    "population": {
+      "name": "Population",
+      "include": [
+        "adult patients with knee osteoarthritis (any grade)",
+        "diagnosis confirmed by clinical and/or radiological criteria"
+      ],
+      "exclude": [
+        "rheumatoid arthritis",
+        "post-traumatic arthritis without OA diagnosis",
+        "pediatric patients (<18 years)"
+      ]
+    },
+    "intervention": {
+      "name": "Intervention",
+      "include": [
+        "mesenchymal stem cell (MSC) therapy / intra-articular MSC injection",
+        "bone marrow-derived MSCs (BM-MSCs)",
+        "adipose-derived MSCs (AD-MSCs)",
+        "synovial-derived MSCs (Syn-MSCs)",
+        "umbilical cord-derived MSCs (UC-MSCs)",
+        "peripheral blood-derived MSCs"
+      ],
+      "exclude": [
+        "platelet-rich plasma (PRP) alone without MSC",
+        "exosome therapy without whole-cell MSC"
+      ]
+    },
+    "comparison": {
+      "name": "Comparison",
+      "include": [
+        "placebo / saline injection",
+        "hyaluronic acid injection",
+        "corticosteroid injection",
+        "different MSC source"
+      ],
+      "exclude": []
+    },
+    "outcome": {
+      "name": "Outcome",
+      "include": [
+        "pain scores (VAS, NRS)",
+        "functional outcomes (KOOS, WOMAC, Lysholm score)",
+        "cartilage regeneration (MRI assessment)",
+        "adverse events"
+      ],
+      "exclude": []
+    }
+  },
+  "study_design_include": [
+    "randomized controlled trials (RCTs)"
+  ],
+  "study_design_exclude": [
+    "non-randomized studies",
+    "observational studies",
+    "case reports",
+    "animal studies"
+  ],
+  "NEEDS_REVIEW": false,
+  "review_notes": {}
+}

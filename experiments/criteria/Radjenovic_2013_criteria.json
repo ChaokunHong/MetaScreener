@@ -1,0 +1,55 @@
+{
+  "framework": "pico",
+  "research_question": "Which software metrics are effective for fault prediction in software systems, and how do they compare?",
+  "elements": {
+    "population": {
+      "name": "Population (Software Context)",
+      "include": [
+        "software modules, classes, files, or functions",
+        "any programming language, paradigm, or project scale"
+      ],
+      "exclude": [
+        "hardware or network fault prediction"
+      ]
+    },
+    "intervention": {
+      "name": "Intervention (Metrics/Predictors)",
+      "include": [
+        "object-oriented metrics (CK metrics: CBO, WMC, RFC, LCOM, DIT, NOC)",
+        "process metrics (number of changes, change frequency, code churn)",
+        "code complexity metrics (McCabe cyclomatic complexity, lines of code)",
+        "developer/social network metrics"
+      ],
+      "exclude": [
+        "prediction techniques without metric specification"
+      ]
+    },
+    "comparison": {
+      "name": "Comparison",
+      "include": [
+        "alternative metric sets",
+        "baseline (no metric)"
+      ],
+      "exclude": []
+    },
+    "outcome": {
+      "name": "Outcome",
+      "include": [
+        "fault/defect prediction accuracy",
+        "AUC, precision, recall, F-measure, G-measure"
+      ],
+      "exclude": []
+    }
+  },
+  "study_design_include": [
+    "empirical studies using fault/defect datasets",
+    "controlled experiments",
+    "case studies with quantitative results"
+  ],
+  "study_design_exclude": [
+    "theoretical papers without quantitative evaluation",
+    "secondary studies (SLRs, mapping studies)"
+  ],
+  "NEEDS_REVIEW": false,
+  "review_notes": {}
+}

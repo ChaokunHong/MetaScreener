@@ -315,3 +315,98 @@ def classify_conflict(
         "intervention": ConflictPattern.INTERVENTION_CONFLICT,
     }
     return conflict_map.get(elem, ConflictPattern.MULTI_ELEMENT_CONFLICT)
+
+
+def compute_ecs_geometric(
+    element_consensus: dict[str, ElementConsensus],
+    element_weights: dict[str, float],
+    trim_percentile: float = 0.10,
+    min_threshold: float = 0.20,
+    epsilon: float = 0.01,
+) -> ECSResult:
+    """Compute ECS using trimmed geometric mean + conditional min.
+
+    Uses a weighted trimmed geometric mean of per-element support ratios.
+    When any element's support ratio falls at or below ``min_threshold``,
+    the final score is capped to the minimum ratio (conditional min gate),
+    preventing high-scoring elements from masking a decisive mismatch.
+
+    Args:
+        element_consensus: Per-element consensus from build_element_consensus().
+        element_weights: Element key → weight mapping.
+        trim_percentile: Lower percentile for trimming log-space outliers.
+            0.10 trims the bottom 10 % of log-values up to the threshold.
+        min_threshold: Support-ratio threshold below which the conditional
+            min gate activates (default 0.20).
+        epsilon: Small additive constant to avoid log(0). Added to every
+            ratio before taking the log.
+
+    Returns:
+        ECSResult with geometric ECS score, conflict pattern, weak elements,
+        and per-element scores.
+    """
+    import numpy as np
+
+    if not element_consensus:
+        return ECSResult(score=0.5, element_scores={})
+
+    element_scores: dict[str, float] = {}
+    for name, ec in element_consensus.items():
+        if ec.support_ratio is None:
+            continue
+        ratio = ec.support_ratio
+        element_scores[name] = ratio
+
+    if not element_scores:
+        return ECSResult(
+            score=1.0,
+            eas_score=1.0,
+            conflict_pattern=classify_conflict(element_consensus),
+            weak_elements=[],
+            element_scores={},
+        )
+
+    names = list(element_scores.keys())
+    raw_ratios = np.array([element_scores[n] for n in names], dtype=np.float64)
+    weights = np.array([element_weights.get(n, 1.0) for n in names], dtype=np.float64)
+
+    # Epsilon smoothing: prevent geometric mean collapse from exact-zero
+    # ratios. A support_ratio of 0.0 (all models mismatch) would zero out
+    # the entire geometric mean and the conditional min gate. Clamping to
+    # epsilon preserves the strong penalty (very low score) while keeping
+    # the score non-degenerate so downstream thresholds retain resolution.
+    ratios = np.maximum(raw_ratios, epsilon)
+
+    log_vals = np.log(ratios)
+
+    if trim_percentile > 0 and len(log_vals) > 1:
+        threshold = np.percentile(log_vals, trim_percentile * 100)
+        log_vals = np.maximum(log_vals, threshold)
+
+    geo_mean = float(np.exp(np.average(log_vals, weights=weights)))
+
+    # The geometric mean already penalises low-consensus elements
+    # heavily (e.g. one element at 0.01 with four others at 0.75
+    # yields geo ≈ 0.36 vs arithmetic ≈ 0.60).  The conditional
+    # min gate that previously capped the output to the lowest raw
+    # ratio was removed because it collapsed ECS to epsilon whenever
+    # any single element had full mismatch, destroying all downstream
+    # threshold resolution and causing the Bayesian router to flip
+    # almost every EXCLUDE to HUMAN_REVIEW.
+    ecs_final = geo_mean
+
+    ecs_final = max(0.0, min(1.0, ecs_final))
+
+    weak = [n for n, r in element_scores.items() if r < _WEAK_ELEMENT_THRESHOLD]
+    eas_score = compute_eas(
+        element_consensus,
+        element_weights=element_weights,
+    )
+
+    return ECSResult(
+        score=ecs_final,
+        eas_score=eas_score,
+        conflict_pattern=classify_conflict(element_consensus),
+        weak_elements=weak,
+        element_scores=element_scores,
+    )

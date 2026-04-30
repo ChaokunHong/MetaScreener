@@ -12,7 +12,7 @@ from collections.abc import Sequence
 import structlog
 
 from metascreener.core.enums import Decision, ScreeningStage
-from metascreener.core.exceptions import LLMError, LLMParseError
+from metascreener.core.exceptions import LLMError, LLMFatalError, LLMParseError
 from metascreener.core.models import ModelOutput, PICOCriteria, Record
 from metascreener.llm.base import LLMBackend
 
@@ -42,7 +42,7 @@ class ParallelRunner:
         self._timeout_s = timeout_s
         self._consecutive_failures: dict[str, int] = {}
         self._skipped_models: set[str] = set()
-        self._max_consecutive_failures = 3
+        self._max_consecutive_failures = 20
 
     @property
     def backend_count(self) -> int:
@@ -138,8 +138,8 @@ class ParallelRunner:
                 if attempt > 0:
                     # Clear cached response on retry — the cached response
                     # may be the malformed one causing the parse failure.
-                    from metascreener.llm.response_cache import evict_cached  # noqa: PLC0415
                     from metascreener.llm.base import hash_prompt  # noqa: PLC0415
+                    from metascreener.llm.response_cache import evict_cached  # noqa: PLC0415
                     evict_cached(backend.model_id, hash_prompt(prompt))
                     logger.info(
                         "backend_parse_retry",
@@ -183,6 +183,13 @@ class ParallelRunner:
                     rationale="Timeout — model did not respond in time.",
                     error=f"Timeout after {self._timeout_s}s",
                 )
+
+            except LLMFatalError:
+                logger.error(
+                    "backend_fatal_error",
+                    model_id=backend.model_id,
+                )
+                raise
 
             except LLMError as e:
                 logger.warning(
@@ -267,6 +274,13 @@ class ParallelRunner:
                 rationale="Timeout — model did not respond in time.",
                 error=f"Timeout after {self._timeout_s}s",
             )
+        except LLMFatalError:
+            logger.error(
+                "backend_fatal_error",
+                model_id=backend.model_id,
+                record_id=record.record_id,
+            )
+            raise
         except LLMError as e:
             logger.warning(
                 "backend_error",

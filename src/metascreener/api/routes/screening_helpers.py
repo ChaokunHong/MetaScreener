@@ -12,6 +12,7 @@ import yaml
 from fastapi import HTTPException
 
 from metascreener.api.schemas import ScreeningRecordSummary
+from metascreener.config import MetaScreenerConfig
 from metascreener.core.enums import CriteriaFramework
 from metascreener.core.models import (
     CriteriaElement,
@@ -20,8 +21,6 @@ from metascreener.core.models import (
     ReviewCriteria,
     ScreeningDecision,
 )
-
-from metascreener.config import MetaScreenerConfig
 
 logger = structlog.get_logger(__name__)
 
@@ -205,6 +204,14 @@ def _review_criteria_from_mapping(data: dict[str, Any]) -> ReviewCriteria:
     payload = dict(data)
     if "population_include" in payload:
         return ReviewCriteria.from_pico_criteria(PICOCriteria(**payload))
+    # Merge publication_type_exclude into study_design_exclude
+    # (frontend uses publication_type_exclude, backend model uses study_design_exclude)
+    pub_type_exc = payload.pop("publication_type_exclude", None)
+    if isinstance(pub_type_exc, list) and pub_type_exc:
+        existing = payload.get("study_design_exclude") or []
+        merged = list(dict.fromkeys(existing + pub_type_exc))  # deduplicated, order-preserving
+        payload["study_design_exclude"] = merged
+        logger.info("publication_type_merged", pub_types=pub_type_exc, final_exclude=merged)
     if "elements" in payload and isinstance(payload["elements"], dict):
         payload["elements"] = {
             key: CriteriaElement(**val) if isinstance(val, dict) else val

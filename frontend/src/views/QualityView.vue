@@ -3,7 +3,6 @@
     <h1 class="page-title" style="margin-bottom: 0.25rem;">Quality Assessment</h1>
     <p class="text-muted" style="margin-bottom: 1.5rem;">Assess risk of bias using RoB 2, ROBINS-I, or QUADAS-2</p>
 
-    <!-- Step 1: Tool selection -->
     <div class="glass-card">
       <div class="section-title"><i class="fas fa-tools"></i> Select Assessment Tool</div>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 0.75rem;">
@@ -26,7 +25,6 @@
       </div>
     </div>
 
-    <!-- Step 2: Upload PDFs -->
     <div class="glass-card">
       <div class="section-title"><i class="fas fa-file-pdf"></i> Upload PDFs</div>
       <div
@@ -55,7 +53,6 @@
       </button>
     </div>
 
-    <!-- Step 3: Run -->
     <div v-if="sessionId" class="glass-card">
       <div class="section-title"><i class="fas fa-clipboard-list"></i> Assess Quality</div>
       <p class="text-muted" style="margin-bottom: 1rem;">
@@ -70,7 +67,6 @@
         {{ running ? 'Assessing…' : 'Assess Quality' }}
       </button>
 
-      <!-- Traffic-light results table -->
       <div v-if="results.length">
         <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
           <div class="section-title" style="margin-bottom: 0;"><i class="fas fa-traffic-light"></i> Results — Traffic Light</div>
@@ -118,7 +114,6 @@ const tools = [
 ]
 const selectedTool = ref('rob2')
 
-// PDF upload
 const pdfInput = ref<HTMLInputElement | null>(null)
 const pdfFiles = ref<File[]>([])
 const draggingPdf = ref(false)
@@ -150,7 +145,6 @@ async function doUploadPdfs() {
   }
 }
 
-// Assess
 const running = ref(false)
 const robError = ref('')
 

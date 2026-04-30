@@ -3,7 +3,10 @@ from __future__ import annotations
 
 from metascreener.core.models import ReviewCriteria
 from metascreener.module1_screening.layer1.prompts.base import ScreeningPrompt
-from metascreener.module1_screening.layer1.prompts.ta_common import render_element
+from metascreener.module1_screening.layer1.prompts.ta_common import (
+    render_element,
+    render_study_design,
+)
 
 
 class SPIDERPrompt(ScreeningPrompt):
@@ -35,16 +38,9 @@ class SPIDERPrompt(ScreeningPrompt):
             if element:
                 lines.extend(render_element(label, element))
 
-        if criteria.study_design_include or criteria.study_design_exclude:
-            lines.append("### STUDY DESIGN RESTRICTIONS")
-            if criteria.study_design_include:
-                lines.append(
-                    f"  Include: {', '.join(criteria.study_design_include)}"
-                )
-            if criteria.study_design_exclude:
-                lines.append(
-                    f"  Exclude: {', '.join(criteria.study_design_exclude)}"
-                )
+        lines.extend(render_study_design(
+            criteria.study_design_include, criteria.study_design_exclude,
+        ))
 
         if criteria.research_question:
             lines.append(f"\nResearch question: {criteria.research_question}")

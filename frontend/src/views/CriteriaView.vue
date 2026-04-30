@@ -1,6 +1,5 @@
 <template>
   <div class="criteria-page">
-    <!-- API Key Setup Modal -->
     <Teleport to="body">
       <div v-if="showApiModal" class="modal-overlay" @click.self="showApiModal = false">
         <div class="modal-glass">
@@ -38,7 +37,6 @@
       </div>
     </Teleport>
 
-    <!-- Criteria Info Modals -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="criteriaModal" class="c-modal-overlay" @click.self="criteriaModal = null">
@@ -46,7 +44,6 @@
             <div class="c-modal-refraction"></div>
             <button class="c-modal-close" @click="criteriaModal = null"><i class="fas fa-times"></i></button>
 
-            <!-- Modes Info -->
             <template v-if="criteriaModal === 'modes'">
               <div class="c-modal-header-row">
                 <div class="c-modal-icon-wrap c-modal-icon-purple"><i class="fas fa-filter"></i></div>
@@ -68,7 +65,6 @@
               </div>
             </template>
 
-            <!-- AI Generation Info -->
             <template v-if="criteriaModal === 'ai-gen'">
               <div class="c-modal-header-row">
                 <div class="c-modal-icon-wrap c-modal-icon-cyan"><i class="fas fa-wand-magic-sparkles"></i></div>
@@ -101,7 +97,6 @@
               </div>
             </template>
 
-            <!-- Manual Entry Info -->
             <template v-if="criteriaModal === 'manual'">
               <div class="c-modal-header-row">
                 <div class="c-modal-icon-wrap c-modal-icon-amber"><i class="fas fa-pen-to-square"></i></div>
@@ -119,7 +114,6 @@
               </div>
             </template>
 
-            <!-- Readiness Score Info -->
             <template v-if="criteriaModal === 'readiness'">
               <div class="c-modal-header-row">
                 <div class="c-modal-icon-wrap c-modal-icon-green"><i class="fas fa-gauge-high"></i></div>
@@ -143,7 +137,6 @@
               </div>
             </template>
 
-            <!-- MeSH Info -->
             <template v-if="criteriaModal === 'mesh'">
               <div class="c-modal-header-row">
                 <div class="c-modal-icon-wrap c-modal-icon-purple"><i class="fas fa-book-medical"></i></div>
@@ -162,7 +155,6 @@
               </div>
             </template>
 
-            <!-- Review & Edit Info -->
             <template v-if="criteriaModal === 'review-edit'">
               <div class="c-modal-header-row">
                 <div class="c-modal-icon-wrap c-modal-icon-cyan"><i class="fas fa-filter"></i></div>
@@ -192,7 +184,6 @@
               </div>
             </template>
 
-            <!-- Pilot Search Info -->
             <template v-if="criteriaModal === 'pilot'">
               <div class="c-modal-header-row">
                 <div class="c-modal-icon-wrap c-modal-icon-cyan"><i class="fas fa-search"></i></div>
@@ -221,7 +212,6 @@
     <h1 class="page-title" style="margin-bottom: 0.25rem;">Define Criteria</h1>
     <p class="text-muted" style="margin-bottom: 1.5rem;">Set up inclusion and exclusion criteria for your systematic review screening.</p>
 
-    <!-- ═══════ MODE SELECTOR (before editor is shown) ═══════ -->
     <div v-if="!generatedCriteria" class="glass-card">
       <div class="section-title">
         <i class="fas fa-filter"></i> How would you like to define criteria?
@@ -264,7 +254,6 @@
       </div>
     </div>
 
-    <!-- ═══════ AI-ASSISTED MODE ═══════ -->
     <div v-if="!generatedCriteria && mode === 'ai'" class="glass-card">
       <div class="section-title">
         <i class="fas fa-wand-magic-sparkles"></i> Generate from Research Topic
@@ -276,7 +265,6 @@
         Describe what your systematic review is about. The AI will generate structured inclusion and exclusion criteria that you can review and edit.
       </p>
 
-      <!-- Model Count Selector -->
       <div style="display:flex;gap:0.75rem;margin-bottom:1rem;align-items:center;">
         <button
           class="btn btn-sm"
@@ -307,7 +295,6 @@
         ></textarea>
       </div>
 
-      <!-- PICO guide -->
       <div class="pico-guide">
         <div class="pico-guide-title"><i class="fas fa-lightbulb"></i> Try to include these elements:</div>
         <div class="pico-guide-items">
@@ -363,7 +350,6 @@
       </div>
     </div>
 
-    <!-- ═══════ GENERATION PROGRESS & LOG ═══════ -->
     <div v-if="generatingCriteria || (criteriaGenLog && !generatedCriteria)" class="glass-card">
       <div class="section-title"><i class="fas fa-spinner fa-spin"></i> Generating Criteria</div>
       <div style="margin-bottom: 1rem;">
@@ -378,7 +364,6 @@
       </div>
     </div>
 
-    <!-- ═══════ MANUAL ENTRY MODE ═══════ -->
     <div v-if="!generatedCriteria && mode === 'manual'" class="glass-card">
       <div class="section-title">
         <i class="fas fa-pen-to-square"></i> Manual Criteria Entry
@@ -390,7 +375,6 @@
         Choose your framework, then add inclusion and exclusion terms for each element. Click <strong>+ Add</strong> to add terms, press Enter to confirm.
       </p>
 
-      <!-- Framework selector + research question row -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
         <div class="form-group" style="margin-bottom: 0;">
           <label class="form-label">Framework</label>
@@ -408,12 +392,10 @@
         </div>
       </div>
 
-      <!-- Framework description hint -->
       <div v-if="frameworkHint" class="pico-guide" style="padding: 0.75rem 1rem; margin-bottom: 1.25rem;">
         <div class="pico-guide-title" style="margin-bottom: 0;"><i class="fas fa-circle-info"></i> {{ frameworkHint }}</div>
       </div>
 
-      <!-- Dynamic element cards -->
       <div class="criteria-elements-editor">
         <div
           v-for="elem in activeElements"
@@ -426,7 +408,6 @@
             <span v-if="elem.optional" class="pico-optional-tag" style="margin-left: 0.4rem;">optional</span>
           </div>
 
-          <!-- Include row -->
           <div class="criteria-editor-row">
             <span class="criteria-term-label include">Include</span>
             <div class="criteria-chips-wrap">
@@ -450,7 +431,6 @@
             </div>
           </div>
 
-          <!-- Exclude row -->
           <div class="criteria-editor-row">
             <span class="criteria-term-label exclude">Exclude</span>
             <div class="criteria-chips-wrap">
@@ -476,7 +456,6 @@
         </div>
       </div>
 
-      <!-- Custom: add new element -->
       <div v-if="selectedFramework === 'custom'" style="margin-bottom: 1rem;">
         <div v-if="!addingCustomElement" style="display: flex; align-items: center; gap: 0.5rem;">
           <button class="btn btn-secondary btn-sm" @click="addingCustomElement = true">
@@ -503,14 +482,12 @@
         </div>
       </div>
 
-      <!-- ── Manual Mode: Screening Filters ── -->
       <div class="screening-filters-section" style="margin-top: 1.25rem;">
         <div class="section-subtitle"><i class="fas fa-sliders"></i> Screening Filters <span class="pico-optional-tag" style="margin-left: 0.4rem;">optional</span></div>
         <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 0.75rem;">
           Papers matching these filters are automatically excluded during screening.
         </p>
 
-        <!-- Publication type exclude -->
         <div class="filter-row">
           <label class="filter-label"><i class="fas fa-file-lines"></i> Excluded Publication Types</label>
           <div class="criteria-chips-wrap">
@@ -534,7 +511,6 @@
           </div>
         </div>
 
-        <!-- Language restriction -->
         <div class="filter-row">
           <label class="filter-label"><i class="fas fa-language"></i> Language Restriction</label>
           <div class="criteria-chips-wrap">
@@ -561,7 +537,6 @@
           </span>
         </div>
 
-        <!-- Date range -->
         <div class="filter-row">
           <label class="filter-label"><i class="fas fa-calendar-range"></i> Date Range</label>
           <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
@@ -605,7 +580,6 @@
       </div>
     </div>
 
-    <!-- ═══════ IMPORT FILE MODE ═══════ -->
     <div v-if="!generatedCriteria && mode === 'import'" class="glass-card">
       <div class="section-title"><i class="fas fa-file-import"></i> Import Criteria File</div>
       <p class="text-muted" style="margin-bottom: 1rem;">
@@ -631,7 +605,6 @@
       </div>
     </div>
 
-    <!-- ═══════ CRITERIA EDITOR (shared by all modes) ═══════ -->
     <div v-if="generatedCriteria" class="glass-card">
       <div class="section-title">
         <i class="fas fa-filter"></i> Review & Edit Criteria
@@ -656,19 +629,16 @@
           Review and refine below, then confirm to proceed to screening.
         </div>
 
-        <!-- Auto-filled elements notice -->
         <div v-if="Object.keys(autoFilledElements).length > 0 && missingRequiredElements.length === 0" class="criteria-autofill-notice">
           <i class="fas fa-circle-check" style="color: #059669;"></i>
           Auto-filled elements: <strong>{{ Object.keys(autoFilledElements).map(k => capitalise(k.replace(/_/g, ' '))).join(', ') }}</strong> — please review the suggested terms below.
         </div>
-        <!-- Missing elements warning (some still missing after auto-fill) -->
         <div v-if="missingRequiredElements.length > 0" class="criteria-missing-warning">
           <i class="fas fa-triangle-exclamation"></i>
           Missing required elements: <strong>{{ missingRequiredElements.map(k => capitalise(k.replace(/_/g, ' '))).join(', ') }}</strong>.
           Click "AI Suggest" on each to generate terms.
         </div>
 
-        <!-- Readiness Score -->
         <div v-if="readinessScore !== null" style="margin:1rem 0;padding:0.75rem 1rem;border-radius:12px;display:flex;align-items:center;gap:1rem;" :style="{ background: readinessScore >= 80 ? 'rgba(34,197,94,0.1)' : readinessScore >= 60 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)', border: '1px solid ' + (readinessScore >= 80 ? 'rgba(34,197,94,0.3)' : readinessScore >= 60 ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)') }">
           <div style="font-size:1.8rem;font-weight:700;min-width:3rem;text-align:center;" :style="{ color: readinessScore >= 80 ? '#22c55e' : readinessScore >= 60 ? '#f59e0b' : '#ef4444' }">{{ readinessScore }}</div>
           <div>
@@ -689,7 +659,6 @@
           </div>
         </div>
 
-        <!-- Editable element cards -->
         <div class="criteria-elements-editor">
           <div
             v-for="(elem, key) in editableCriteria.elements"
@@ -700,7 +669,6 @@
               {{ capitalise(String(elem.name || key)) }}
             </div>
 
-            <!-- Include row -->
             <div class="criteria-editor-row">
               <span class="criteria-term-label include">Include</span>
               <div class="criteria-chips-wrap">
@@ -740,7 +708,6 @@
               </div>
             </div>
 
-            <!-- Exclude row -->
             <div class="criteria-editor-row">
               <span class="criteria-term-label exclude">Exclude</span>
               <div class="criteria-chips-wrap">
@@ -764,7 +731,6 @@
               </div>
             </div>
 
-            <!-- AI Suggest Button -->
             <button
               class="btn btn-secondary btn-sm"
               style="margin-top:0.5rem;"
@@ -775,7 +741,6 @@
               {{ suggestLoading[String(key)] ? 'Suggesting...' : 'AI Suggest' }}
             </button>
 
-            <!-- Suggestion Chips -->
             <div v-if="suggestions[String(key)]?.length" style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;">
               <span
                 v-for="s in suggestions[String(key)]"
@@ -801,7 +766,6 @@
               >Dismiss all</button>
             </div>
 
-            <!-- Terminology Expansion Suggestions -->
             <div v-if="expansionTerms[String(key)]?.length" style="margin-top:0.5rem;">
               <details>
                 <summary style="font-size:0.78rem;cursor:pointer;opacity:0.7;">
@@ -825,7 +789,6 @@
               </details>
             </div>
 
-            <!-- Ambiguity flags -->
             <div v-if="elem.ambiguity_flags?.length" class="ambiguity-section">
               <details>
                 <summary class="ambiguity-toggle">
@@ -842,14 +805,12 @@
           </div>
         </div>
 
-        <!-- ── Screening Filters ── -->
         <div class="screening-filters-section">
           <div class="section-subtitle"><i class="fas fa-sliders"></i> Screening Filters</div>
           <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 0.75rem;">
             These filters are applied as hard rules during screening. Papers matching these criteria are automatically excluded at Tier 0.
           </p>
 
-          <!-- Publication type exclude -->
           <div class="filter-row">
             <label class="filter-label"><i class="fas fa-file-lines"></i> Excluded Publication Types</label>
             <div class="criteria-chips-wrap">
@@ -873,7 +834,6 @@
             </div>
           </div>
 
-          <!-- Language restriction -->
           <div class="filter-row">
             <label class="filter-label"><i class="fas fa-language"></i> Language Restriction</label>
             <div class="criteria-chips-wrap">
@@ -900,7 +860,6 @@
             </span>
           </div>
 
-          <!-- Date range -->
           <div class="filter-row">
             <label class="filter-label"><i class="fas fa-calendar-range"></i> Publication Date Range</label>
             <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
@@ -926,7 +885,6 @@
           </div>
         </div>
 
-        <!-- Name & Tags (shown before confirm) -->
         <div v-if="!criteriaSaved" style="margin-bottom: 1.25rem; margin-top: 1rem;">
           <div class="form-group" style="margin-bottom: 0.75rem;">
             <label class="form-label">Criteria Name</label>
@@ -938,7 +896,6 @@
           </div>
         </div>
 
-        <!-- Editor actions -->
         <div class="criteria-editor-actions">
           <button class="btn btn-primary" @click="confirmCriteria">
             <i class="fas fa-check"></i> Confirm & Save Criteria
@@ -953,7 +910,6 @@
           </button>
         </div>
 
-        <!-- Success banner (after criteria confirmed) -->
         <div v-if="criteriaSaved" class="alert alert-success" style="margin-top: 1rem;">
           <i class="fas fa-check-circle"></i>
           Criteria saved! You can now go to
@@ -967,7 +923,6 @@
       </div>
     </div>
 
-    <!-- ═══════ PILOT SEARCH (separate card, after criteria editor) ═══════ -->
     <div v-if="generatedCriteria" class="glass-card" style="margin-top:1.5rem;">
       <div class="section-title">
         <i class="fas fa-flask-vial"></i> Pilot Search — Validate Your Criteria
@@ -984,7 +939,6 @@
         {{ pilotLoading ? 'Searching PubMed...' : 'Run Pilot Search' }}
       </button>
 
-      <!-- Progress bar + log (during search) -->
       <div v-if="pilotLoading || pilotLog" style="margin-top:1rem;">
         <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;">
           <span class="text-muted" style="font-size:0.82rem;">{{ pilotLoading ? 'Running pilot search...' : 'Pilot search complete' }}</span>
@@ -1004,7 +958,6 @@
           </a>
         </div>
 
-        <!-- Precision diagnostic (show first, most important) -->
         <div v-if="pilotResult.estimated_precision !== null && pilotResult.estimated_precision !== undefined"
           style="padding:0.75rem 1rem;border-radius:12px;font-size:0.9rem;margin-bottom:1rem;"
           :style="{
@@ -1025,7 +978,6 @@
           Could not assess relevance (LLM unavailable)
         </div>
 
-        <!-- Sample articles -->
         <div style="font-size:0.85rem;font-weight:600;margin-bottom:0.5rem;opacity:0.7;">Sample Articles</div>
         <div style="display:flex;flex-direction:column;gap:0.5rem;">
           <div
@@ -1061,7 +1013,6 @@ import { useCriteriaStore, type SavedCriteria, type CriteriaElements, type Gener
 
 const { criteria: savedCriteria, topic: savedTopic, setCriteria, setTopic } = useCriteriaStore()
 
-// ── API Key ────────────────────────────────────────────────
 const showApiModal = ref(false)
 const criteriaModal = ref<string | null>(null)
 
@@ -1072,7 +1023,7 @@ onMounted(async () => {
       showApiModal.value = true
     }
   } catch {
-    // server might not be running yet
+    // ignore — server may not be running
   }
 
   // Restore from store if criteria were previously saved
@@ -1100,7 +1051,6 @@ onMounted(async () => {
   }
 })
 
-// ── State ──────────────────────────────────────────────────
 type CriteriaMode = 'ai' | 'manual' | 'import'
 const mode = ref<CriteriaMode>('ai')
 const selectedModelCount = ref<2 | 4>(4)
@@ -1117,7 +1067,6 @@ const defaultCriteriaName = computed(() => {
   return rq ? `${fw} — ${rq.slice(0, 50)}` : `${fw} Criteria`
 })
 
-// ── Criteria generation progress simulation ──────────────
 const criteriaGenProgress = ref(0)
 const criteriaGenStatus = ref('')
 const criteriaGenLog = ref('')
@@ -1208,7 +1157,6 @@ const readinessScore = ref<number | null>(null)
 const readinessFactors = ref<Record<string, number>>({})
 const expansionTerms = ref<Record<string, string[]>>({})
 
-// ── Screening filters (shared by all modes) ─────────────
 const DEFAULT_PUB_TYPE_EXCLUDE = ['review', 'editorial', 'letter', 'comment', 'erratum']
 
 const editPubTypeExclude = ref<string[]>([...DEFAULT_PUB_TYPE_EXCLUDE])
@@ -1234,7 +1182,6 @@ function resetFilters() {
   editDateTo.value = ''
 }
 
-// Pub type chip helpers
 const addingPubType = ref(false)
 const newPubTypeText = ref('')
 const pubTypeInput = ref<HTMLInputElement | null>(null)
@@ -1256,7 +1203,6 @@ function removePubType(idx: number) {
   editPubTypeExclude.value.splice(idx, 1)
 }
 
-// Language chip helpers
 const addingLang = ref(false)
 const newLangText = ref('')
 const langInput = ref<HTMLInputElement | null>(null)
@@ -1283,7 +1229,6 @@ const addTermInput = ref<HTMLInputElement | null>(null)
 const addingTerm = ref<{ key: string; type: 'include' | 'exclude' } | null>(null)
 const newTermText = ref('')
 
-// ── Framework definitions (mirrors backend criteria/frameworks.py) ────
 interface FrameworkElement {
   key: string
   letter: string
@@ -1376,7 +1321,6 @@ const FRAMEWORKS: FrameworkDef[] = [
 
 const frameworkOptions = FRAMEWORKS.map(fw => ({ value: fw.value, label: fw.label }))
 
-// ── Manual mode state ──────────────────────────────────────
 const manualResearchQuestion = ref('')
 const selectedFramework = ref('pico')
 const addingCustomElement = ref(false)
@@ -1444,7 +1388,6 @@ const hasAnyManualTerms = computed(() => {
   })
 })
 
-// ── AI Generate ────────────────────────────────────────────
 async function doGenerateCriteria() {
   if (!topicText.value.trim()) { criteriaError.value = 'Please enter a research topic.'; return }
   criteriaError.value = ''
@@ -1461,7 +1404,6 @@ async function doGenerateCriteria() {
     if (result.generation_meta) {
       const meta = result.generation_meta
       criteriaGenLog.value += `[${_ts()}] Consensus method: ${meta.consensus_method} (${meta.n_models} models used)\n`
-      // Count total terms generated
       const totalTerms = Object.values(result.elements || {}).reduce((s: number, e: any) => s + (e.include?.length || 0) + (e.exclude?.length || 0), 0)
       const nElements = Object.keys(result.elements || {}).length
       criteriaGenLog.value += `[${_ts()}] Generated ${nElements} elements with ${totalTerms} total terms\n`
@@ -1495,7 +1437,6 @@ async function doGenerateCriteria() {
       } else {
         expansionTerms.value = {}
       }
-      // Extract readiness score
       if (meta.readiness_score !== undefined) {
         readinessScore.value = meta.readiness_score
         readinessFactors.value = meta.readiness_factors || {}
@@ -1519,7 +1460,6 @@ async function doGenerateCriteria() {
     }
     generatedCriteria.value = result
     sourceMode.value = 'ai'
-    // Build editable elements from returned result
     const editableElements: CriteriaElements = Object.fromEntries(
       Object.entries(result.elements).map(([k, v]) => [
         k, {
@@ -1557,7 +1497,6 @@ async function doGenerateCriteria() {
   }
 }
 
-// ── Manual Apply ───────────────────────────────────────────
 function applyManualCriteria() {
   criteriaError.value = ''
   criteriaSaved.value = false
@@ -1595,7 +1534,6 @@ function applyManualCriteria() {
   }
 }
 
-// ── Import ─────────────────────────────────────────────────
 async function onImportFile(e: Event) {
   const f = (e.target as HTMLInputElement).files?.[0]
   if (f) importedContent.value = await f.text()
@@ -1638,7 +1576,6 @@ function doApplyImported() {
   }
 }
 
-// ── Chip editing ───────────────────────────────────────────
 function removeTerm(key: string, type: 'include' | 'exclude', idx: number) {
   const elem = editableCriteria.value.elements[key]
   if (elem) elem[type].splice(idx, 1)
@@ -1680,7 +1617,6 @@ function dismissFlag(elementKey: string, flagIndex: number) {
   }
 }
 
-// ── AI Suggest ────────────────────────────────────────────
 interface TermSuggestion {
   term: string
   rationale: string
@@ -1725,7 +1661,6 @@ function adoptExpansionTerm(elemKey: string, term: string) {
   if (!editableCriteria.value.elements[elemKey].include.includes(term)) {
     editableCriteria.value.elements[elemKey].include.push(term)
   }
-  // Remove from expansion list
   const terms = expansionTerms.value[elemKey]
   if (terms) {
     expansionTerms.value[elemKey] = terms.filter(t => t !== term)
@@ -1759,7 +1694,6 @@ function resetCriteriaEditor() {
   resetFilters()
 }
 
-// ── Confirm & save to store ────────────────────────────────
 function confirmCriteria() {
   const criteria = generatedCriteria.value
   if (!criteria) return
@@ -1793,7 +1727,6 @@ function capitalise(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ')
 }
 
-// ── MeSH Validation ────────────────────────────────────────
 interface MeSHResult {
   term: string
   is_valid: boolean
@@ -1822,7 +1755,6 @@ async function validateMeshTerms() {
     for (const r of resp.results) map[r.term] = r
     meshResults.value = map
   } catch (e) {
-    console.warn('MeSH validation failed', e)
   } finally {
     meshLoading.value = false
   }
@@ -1836,7 +1768,6 @@ function replaceMeshTerm(elemKey: string, oldTerm: string, newTerm: string) {
   validateMeshTerms()
 }
 
-// ── Pilot Search ───────────────────────────────────────────
 interface PilotArticle {
   pmid: string; title: string; authors: string; year: number | null; abstract: string | null
 }
@@ -2716,7 +2647,6 @@ async function runPilotSearch() {
 /* info-btn styles are in main.css (global) */
 </style>
 
-<!-- Unscoped styles for teleported modal -->
 <style>
 /* ── Criteria Glass Modals (matched to SettingsView) ─ */
 .c-modal-overlay {

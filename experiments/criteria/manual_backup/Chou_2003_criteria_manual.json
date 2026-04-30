@@ -1,0 +1,66 @@
+{
+  "framework": "pico",
+  "research_question": "What is the comparative efficacy and safety of long-acting oral opioids for chronic non-cancer pain?",
+  "elements": {
+    "population": {
+      "name": "Population",
+      "include": [
+        "adults (≥18 years) with chronic non-cancer pain (≥3 months duration)",
+        "any chronic pain etiology (low back pain, neuropathic pain, osteoarthritis, fibromyalgia)"
+      ],
+      "exclude": [
+        "acute pain (< 3 months)",
+        "cancer-related pain",
+        "palliative/end-of-life care",
+        "post-operative pain"
+      ]
+    },
+    "intervention": {
+      "name": "Intervention",
+      "include": [
+        "long-acting (extended-release / sustained-release) oral opioids",
+        "morphine SR/ER",
+        "oxycodone CR/ER",
+        "methadone (oral)",
+        "oxymorphone ER",
+        "hydromorphone ER",
+        "levorphanol"
+      ],
+      "exclude": [
+        "short-acting / immediate-release opioids",
+        "parenteral opioids",
+        "transdermal opioids (patches)"
+      ]
+    },
+    "comparison": {
+      "name": "Comparison",
+      "include": [
+        "placebo",
+        "other long-acting opioid",
+        "non-opioid analgesic"
+      ],
+      "exclude": []
+    },
+    "outcome": {
+      "name": "Outcome",
+      "include": [
+        "pain intensity / pain relief",
+        "functional outcomes",
+        "adverse events (constipation, nausea, sedation, respiratory depression)",
+        "withdrawal / discontinuation rates"
+      ],
+      "exclude": []
+    }
+  },
+  "study_design_include": [
+    "randomized controlled trials (RCTs)",
+    "controlled clinical trials"
+  ],
+  "study_design_exclude": [
+    "uncontrolled trials",
+    "observational studies",
+    "case reports"
+  ],
+  "NEEDS_REVIEW": false,
+  "review_notes": {}
+}

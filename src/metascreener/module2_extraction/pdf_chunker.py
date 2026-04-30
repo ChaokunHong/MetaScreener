@@ -11,7 +11,6 @@ from metascreener.io.text_chunker import _estimate_tokens  # noqa: E402
 # Conservative chars-per-token for chunk size calculation
 _CHARS_PER_TOKEN = 4
 
-
 def chunk_text(
     text: str,
     max_chunk_tokens: int = 6000,
@@ -47,7 +46,6 @@ def chunk_text(
 
     # Fallback: character-level splitting
     return _chunk_by_chars(text, max_chars, overlap_chars)
-
 
 def _chunk_by_paragraphs(
     paragraphs: list[str],
@@ -97,7 +95,6 @@ def _chunk_by_paragraphs(
 
     logger.debug("text_chunked", n_chunks=len(chunks), strategy="paragraph")
     return chunks
-
 
 def _chunk_by_chars(text: str, max_chars: int, overlap_chars: int) -> list[str]:
     """Fallback: split text by character count with overlap.

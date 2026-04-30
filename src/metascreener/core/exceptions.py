@@ -26,6 +26,19 @@ class LLMRateLimitError(LLMError):
     """LLM API rate limit exceeded."""
 
 
+class LLMFatalError(LLMError):
+    """Non-retryable LLM provider/configuration failure."""
+
+    def __init__(
+        self,
+        message: str,
+        model_id: str | None = None,
+        status_code: int | None = None,
+    ) -> None:
+        super().__init__(message, model_id=model_id)
+        self.status_code = status_code
+
+
 class LLMParseError(LLMError):
     """Failed to parse LLM JSON response."""
 

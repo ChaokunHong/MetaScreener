@@ -1,0 +1,21 @@
+# Solo model: deepseek-v3 — all pipeline features off, single-model baseline
+aggregation:
+  method: "weighted_average"
+ecs:
+  method: "arithmetic"
+sprt:
+  enabled: false
+rcps:
+  enabled: false
+ipw:
+  audit_rate: 0.0
+esas:
+  enabled: false
+parse_quality:
+  enabled: false
+router:
+  method: "threshold"
+calibration:
+  ecs_threshold: 0.0
+backends:
+  - "deepseek-v3"

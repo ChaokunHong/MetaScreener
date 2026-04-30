@@ -7,8 +7,6 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, HTTPException
 
-from metascreener.api.schemas import ScreeningFeedbackRequest
-
 from metascreener.api.routes.screening_helpers import (
     _persist_feedback_removal,
     _trigger_recalibration,
@@ -18,6 +16,7 @@ from metascreener.api.routes.screening_sessions import (
     _get_session_lock,
     _sessions,
 )
+from metascreener.api.schemas import ScreeningFeedbackRequest
 
 logger = structlog.get_logger(__name__)
 

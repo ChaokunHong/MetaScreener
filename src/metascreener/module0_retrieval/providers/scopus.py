@@ -30,10 +30,6 @@ class ScopusProvider(SearchProvider):
         self._api_key = api_key
         self._client = _client
 
-    # ------------------------------------------------------------------
-    # SearchProvider interface
-    # ------------------------------------------------------------------
-
     @property
     def name(self) -> str:
         """Provider name."""
@@ -73,10 +69,6 @@ class ScopusProvider(SearchProvider):
             return []
         id_query = " OR ".join(f"EID({sid})" for sid in ids)
         return await self._paginate({"query": id_query}, len(ids))
-
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
 
     def _headers(self) -> dict[str, str]:
         return {

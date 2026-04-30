@@ -14,18 +14,13 @@ Plan 3 plugins.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable
 
 from metascreener.core.enums import FieldRole
 from metascreener.core.models_extraction import FieldSchema, SheetSchema
 
-# ---------------------------------------------------------------------------
-# Public types
-# ---------------------------------------------------------------------------
-
 RuleCallback = Callable[[dict, SheetSchema], list["RuleResult"]]
-
 
 @dataclass
 class RuleResult:
@@ -43,13 +38,7 @@ class RuleResult:
     severity: str  # "error" | "warning" | "info"
     rule_id: str = ""
 
-
-# ---------------------------------------------------------------------------
-# Internal rule helpers
-# ---------------------------------------------------------------------------
-
 _MISSING = (None, "", [])  # values considered absent
-
 
 def _is_missing(value: object) -> bool:
     """Return True when a value should be treated as absent."""
@@ -58,7 +47,6 @@ def _is_missing(value: object) -> bool:
     if isinstance(value, str) and value.strip() == "":
         return True
     return False
-
 
 def _check_required(
     field_schema: FieldSchema,
@@ -79,7 +67,6 @@ def _check_required(
                 rule_id="required_001",
             )
     return None
-
 
 def _check_type(
     field_schema: FieldSchema,
@@ -131,7 +118,6 @@ def _check_type(
     # dropdown membership is checked separately below.
     return None
 
-
 def _check_range(
     field_schema: FieldSchema,
     value: object,
@@ -180,7 +166,6 @@ def _check_range(
 
     return results
 
-
 def _check_dropdown(
     field_schema: FieldSchema,
     value: object,
@@ -208,12 +193,6 @@ def _check_dropdown(
             rule_id="dropdown_001",
         )
     return None
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
 
 def validate_row(
     row: dict,

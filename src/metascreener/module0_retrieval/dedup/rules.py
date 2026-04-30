@@ -14,10 +14,6 @@ from collections.abc import Callable
 
 from metascreener.module0_retrieval.models import RawRecord
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
 
 def _find_pairs_by_key(
     records: list[RawRecord],
@@ -48,11 +44,6 @@ def _find_pairs_by_key(
         for other in ids[1:]:
             pairs.append((anchor, other))
     return pairs
-
-
-# ---------------------------------------------------------------------------
-# Layer 1 – DOI
-# ---------------------------------------------------------------------------
 
 _DOI_PREFIXES = re.compile(
     r"^(https?://doi\.org/|doi:)",
@@ -89,11 +80,6 @@ def find_doi_duplicates(records: list[RawRecord]) -> list[tuple[str, str]]:
     )
 
 
-# ---------------------------------------------------------------------------
-# Layer 2 – PMID
-# ---------------------------------------------------------------------------
-
-
 def find_pmid_duplicates(records: list[RawRecord]) -> list[tuple[str, str]]:
     """Layer 2: find duplicate pairs by stripped PMID.
 
@@ -107,11 +93,6 @@ def find_pmid_duplicates(records: list[RawRecord]) -> list[tuple[str, str]]:
         records,
         lambda r: r.pmid.strip() if r.pmid else None,
     )
-
-
-# ---------------------------------------------------------------------------
-# Layer 3 – PMCID
-# ---------------------------------------------------------------------------
 
 
 def _normalise_pmcid(pmcid: str) -> str:
@@ -144,11 +125,6 @@ def find_pmcid_duplicates(records: list[RawRecord]) -> list[tuple[str, str]]:
     )
 
 
-# ---------------------------------------------------------------------------
-# Layer 4 – External IDs
-# ---------------------------------------------------------------------------
-
-
 def find_external_id_duplicates(records: list[RawRecord]) -> list[tuple[str, str]]:
     """Layer 4: find duplicate pairs by OpenAlex, Scopus, or S2 ID.
 
@@ -167,11 +143,6 @@ def find_external_id_duplicates(records: list[RawRecord]) -> list[tuple[str, str
     pairs.extend(_find_pairs_by_key(records, lambda r: r.scopus_id or None))
     pairs.extend(_find_pairs_by_key(records, lambda r: r.s2_id or None))
     return pairs
-
-
-# ---------------------------------------------------------------------------
-# Layer 5 – Title-Year
-# ---------------------------------------------------------------------------
 
 _NON_ALNUM = re.compile(r"[^a-z0-9\s]")
 _WHITESPACE = re.compile(r"\s+")

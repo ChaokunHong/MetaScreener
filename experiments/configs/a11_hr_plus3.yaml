@@ -1,0 +1,28 @@
+# HR supplement: A11 router + 2 strong thinking models (kimi-k2.5 + glm5.1).
+# Rule-based EXCLUDE certification DISABLED for HR records — they need
+# to go through the full Bayesian router (strictest decision path).
+aggregation:
+  method: "glad"
+ecs:
+  method: "geometric"
+sprt:
+  enabled: false
+rcps:
+  enabled: true
+ipw:
+  audit_rate: 0.05
+esas:
+  enabled: true
+parse_quality:
+  enabled: true
+router:
+  method: "bayesian"
+  exclude_certainty_enabled: false
+  phase2_gates_enabled: false  # explicit opt-out: no exclude-certainty gate
+backends:
+  - "deepseek-v3"
+  - "qwen3"
+  - "kimi-k2"
+  - "llama4-maverick"
+  - "kimi-k2.5"
+  - "glm5.1"

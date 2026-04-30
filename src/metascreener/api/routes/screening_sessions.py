@@ -11,6 +11,16 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, HTTPException, UploadFile
 
+from metascreener.api.routes.screening_helpers import (
+    _SESSION_TTL_S,
+    SUPPORTED_EXTENSIONS,
+    _build_screening_backends,
+    _close_backends,
+    _get_ncbi_api_key,
+    _get_openrouter_api_key,
+    _parse_framework,
+    _require_api_key,
+)
 from metascreener.api.schemas import (
     PilotDiagnostic,
     PilotSearchRequest,
@@ -26,17 +36,6 @@ from metascreener.api.schemas import (
 from metascreener.core.enums import CriteriaFramework
 from metascreener.core.models import CriteriaElement, ReviewCriteria
 from metascreener.criteria.frameworks import FRAMEWORK_ELEMENTS
-
-from metascreener.api.routes.screening_helpers import (
-    SUPPORTED_EXTENSIONS,
-    _SESSION_TTL_S,
-    _build_screening_backends,
-    _close_backends,
-    _get_ncbi_api_key,
-    _get_openrouter_api_key,
-    _parse_framework,
-    _require_api_key,
-)
 
 logger = structlog.get_logger(__name__)
 
@@ -79,18 +78,18 @@ def _get_session_lock(session_id: str) -> asyncio.Lock:
     return _session_locks[session_id]
 
 
-# ── Criteria-preview helpers (used by ta_router.criteria_preview) ──
-
 async def run_terminology_enhancement(
     criteria: ReviewCriteria, backends: list[Any], cfg: Any, language: str, seed: int,
 ) -> dict[str, list[str]] | None:
     """Run terminology enhancement (audit-only, not merged into criteria)."""
-    from metascreener.criteria.prompts.enhance_terminology_v1 import build_enhance_terminology_prompt  # noqa: PLC0415
-    from metascreener.llm.response_parser import parse_llm_response  # noqa: PLC0415
+    from metascreener.criteria.prompts.enhance_terminology_v1 import (
+        build_enhance_terminology_prompt,  # noqa: PLC0415
+    )
     from metascreener.llm.factory import sort_backends_by_tier  # noqa: PLC0415
+    from metascreener.llm.response_parser import parse_llm_response  # noqa: PLC0415
     for _eb in sort_backends_by_tier(backends, cfg):
         try:
-            enh_data = parse_llm_response(await _eb.complete(build_enhance_terminology_prompt(criteria, language=language), seed), _eb.model_id)
+            enh_data = parse_llm_response(await _eb.complete(build_enhance_terminology_prompt(criteria, language=language), seed), _eb.model_id).data
             _exp: dict[str, list[str]] = {}
             for ekey, einfo in enh_data.get("elements", {}).items():
                 if isinstance(einfo, dict):
@@ -114,10 +113,15 @@ async def run_auto_refine(
 ) -> tuple[list[str] | None, list[str] | None]:
     """Run auto-refine (rules + quality checks). Returns (changes, triggers)."""
     try:
-        from metascreener.criteria.prompts.auto_refine_v1 import build_auto_refine_prompt  # noqa: PLC0415
-        from metascreener.criteria.validator import CriteriaValidator, ValidationIssue  # noqa: PLC0415
-        from metascreener.llm.response_parser import parse_llm_response  # noqa: PLC0415
+        from metascreener.criteria.prompts.auto_refine_v1 import (
+            build_auto_refine_prompt,  # noqa: PLC0415
+        )
+        from metascreener.criteria.validator import (  # noqa: PLC0415
+            CriteriaValidator,
+            ValidationIssue,
+        )
         from metascreener.llm.factory import sort_backends_by_tier  # noqa: PLC0415
+        from metascreener.llm.response_parser import parse_llm_response  # noqa: PLC0415
 
         rule_issues = CriteriaValidator.validate_rules(criteria)
         _VAGUE = frozenset({"people", "patients", "disease", "treatment", "study", "outcomes", "results", "data", "analysis"})
@@ -136,7 +140,7 @@ async def run_auto_refine(
         refine_data = None
         for _rb in sort_backends_by_tier(backends, cfg):
             try:
-                rd = parse_llm_response(await _rb.complete(refine_prompt, seed), _rb.model_id)
+                rd = parse_llm_response(await _rb.complete(refine_prompt, seed), _rb.model_id).data
                 refine_data = rd; break
             except Exception:
                 logger.warning("auto_refine_backend_failed", model=_rb.model_id, exc_info=True)
@@ -180,9 +184,11 @@ async def run_completeness_check(
                 missing_opt.append(key)
     if not missing_req:
         return missing_req, missing_opt, auto_filled
-    from metascreener.criteria.prompts.suggest_terms_v1 import build_suggest_terms_prompt  # noqa: PLC0415
-    from metascreener.llm.response_parser import parse_llm_response  # noqa: PLC0415
+    from metascreener.criteria.prompts.suggest_terms_v1 import (
+        build_suggest_terms_prompt,  # noqa: PLC0415
+    )
     from metascreener.llm.factory import sort_backends_by_tier  # noqa: PLC0415
+    from metascreener.llm.response_parser import parse_llm_response  # noqa: PLC0415
     for ek in list(missing_req):
         try:
             en = fw_info["labels"].get(ek, ek.title()) if fw_info else ek.title()
@@ -195,7 +201,7 @@ async def run_completeness_check(
                     continue
             if raw_s is None:
                 continue
-            parsed_s = parse_llm_response(raw_s, _fb.model_id)
+            parsed_s = parse_llm_response(raw_s, _fb.model_id).data
             terms = [s["term"] for s in parsed_s.get("suggestions", []) if isinstance(s, dict) and "term" in s]
             if terms:
                 capped = terms[:8]
@@ -225,8 +231,6 @@ def compute_readiness(criteria: ReviewCriteria, framework: CriteriaFramework, n_
     weights = {"completeness": 0.35, "term_coverage": 0.30, "model_consensus": 0.20, "dedup_quality": 0.15}
     return sum(s * weights[n] for n, s in factors), factors
 
-
-# ── Session & Criteria CRUD routes ──
 
 @sessions_router.post("/upload", response_model=UploadResponse)
 async def upload_file(file: UploadFile) -> UploadResponse:
@@ -292,14 +296,16 @@ async def suggest_terms(req: SuggestTermsRequest) -> SuggestTermsResponse:
         raise HTTPException(status_code=503, detail="No models configured.")
     try:
         from metascreener.api.deps import get_config as _gc  # noqa: PLC0415
-        from metascreener.criteria.prompts.suggest_terms_v1 import build_suggest_terms_prompt  # noqa: PLC0415
-        from metascreener.llm.response_parser import parse_llm_response  # noqa: PLC0415
+        from metascreener.criteria.prompts.suggest_terms_v1 import (
+            build_suggest_terms_prompt,  # noqa: PLC0415
+        )
         from metascreener.llm.factory import sort_backends_by_tier  # noqa: PLC0415
+        from metascreener.llm.response_parser import parse_llm_response  # noqa: PLC0415
         prompt = build_suggest_terms_prompt(element_key=req.element_key, element_name=req.element_name, current_include=req.current_include, current_exclude=req.current_exclude, topic=req.topic, framework=req.framework)
         existing = {t.strip().lower() for t in req.current_include + req.current_exclude}
         for _sb in sort_backends_by_tier(backends, _gc()):
             try:
-                data = parse_llm_response(await _sb.complete(prompt, seed=42), _sb.model_id)
+                data = parse_llm_response(await _sb.complete(prompt, seed=42), _sb.model_id).data
                 filtered = [TermSuggestion(term=s["term"], rationale=s["rationale"]) for s in data.get("suggestions", []) if isinstance(s, dict) and "term" in s and "rationale" in s and s["term"].strip().lower() not in existing]
                 return SuggestTermsResponse(suggestions=filtered)
             except Exception:
@@ -329,7 +335,9 @@ async def pilot_search(req: PilotSearchRequest) -> PilotDiagnostic:
     """Run a PubMed pilot search with LLM relevance assessment."""
     from metascreener.api.deps import get_config  # noqa: PLC0415
     from metascreener.criteria.pilot_search import PilotSearcher  # noqa: PLC0415
-    from metascreener.criteria.prompts.pilot_relevance_v1 import build_pilot_relevance_prompt  # noqa: PLC0415
+    from metascreener.criteria.prompts.pilot_relevance_v1 import (
+        build_pilot_relevance_prompt,  # noqa: PLC0415
+    )
 
     criteria_data = dict(req.criteria)
     if "framework" not in criteria_data:
@@ -349,12 +357,12 @@ async def pilot_search(req: PilotSearchRequest) -> PilotDiagnostic:
     if not api_key:
         return PilotDiagnostic(search_result=search_result, assessments=[], estimated_precision=None, model_used="none (no API key)")
     backends = _build_screening_backends(api_key)
-    from metascreener.llm.response_parser import parse_llm_response  # noqa: PLC0415
     from metascreener.llm.factory import sort_backends_by_tier  # noqa: PLC0415
+    from metascreener.llm.response_parser import parse_llm_response  # noqa: PLC0415
     prompt = build_pilot_relevance_prompt([a.model_dump() for a in search_result.articles], criteria.model_dump(mode="json"))
     for _pb in sort_backends_by_tier(backends, get_config()):
         try:
-            data = parse_llm_response(await _pb.complete(prompt, seed=42), _pb.model_id)
+            data = parse_llm_response(await _pb.complete(prompt, seed=42), _pb.model_id).data
             assessments = [RelevanceAssessment(pmid=a.get("pmid", ""), title=a.get("title", ""), is_relevant=bool(a.get("is_relevant", False)), reason=a.get("reason", "")) for a in data.get("assessments", []) if isinstance(a, dict)]
             if not assessments:
                 raise ValueError("No valid assessments parsed")

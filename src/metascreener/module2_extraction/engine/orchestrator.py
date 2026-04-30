@@ -1,8 +1,14 @@
-"""Extraction orchestrator: per-PDF, per-sheet serial extraction.
+"""Legacy extraction orchestrator — DEPRECATED.
+
+.. deprecated::
+    This module is superseded by :class:`NewOrchestrator` in
+    ``new_orchestrator.py``, which provides field-routed, phased extraction
+    with 4-layer validation.  This file is retained only so that existing
+    tests (``test_engine_orchestrator.py``, ``test_extraction_orchestrator_safety.py``)
+    continue to work.  **Do not use for new code.**
 
 Processes each data sheet in extraction_order, passing prior sheet
-results as context to subsequent sheets. Runs the full HCN 4-layer
-pipeline per sheet.
+results as context to subsequent sheets.
 """
 
 from __future__ import annotations
@@ -24,7 +30,6 @@ from metascreener.module2_extraction.engine.layer3_confidence import aggregate_c
 from metascreener.module2_extraction.engine.layer4_router import route_decisions
 
 log = structlog.get_logger()
-
 
 async def extract_pdf(
     *,
@@ -72,7 +77,6 @@ async def extract_pdf(
             cardinality=sheet_schema.cardinality,
         )
 
-        # Layer 1: Dual extraction
         extractions = await extract_dual(
             sheet=sheet_schema,
             text=text,
@@ -86,7 +90,6 @@ async def extract_pdf(
         )
         model_a_result, model_b_result = extractions
 
-        # Log extraction failures explicitly
         if not model_a_result.success:
             log.error("sheet_model_a_failed", sheet=sheet_schema.sheet_name,
                       model=model_a_result.model_id, error=model_a_result.error)
@@ -96,18 +99,15 @@ async def extract_pdf(
         if not model_a_result.success and not model_b_result.success:
             log.error("sheet_both_models_failed", sheet=sheet_schema.sheet_name)
 
-        # Determine row count
         n_rows = _determine_row_count(model_a_result, model_b_result, sheet_schema)
 
         rows: list[RowResult] = []
         sheet_plain_rows: list[dict[str, Any]] = []
 
         for row_idx in range(n_rows):
-            # Layer 2: Rule validation (use model A's row as reference)
             row_a = model_a_result.rows[row_idx] if row_idx < len(model_a_result.rows) else {}
             rule_results = validate_row(row_a, sheet_schema, extra_rules=extra_rules)
 
-            # Layer 3: Confidence aggregation
             ev_a = model_a_result.evidence[row_idx] if row_idx < len(model_a_result.evidence) else {}
             ev_b = model_b_result.evidence[row_idx] if row_idx < len(model_b_result.evidence) else {}
 
@@ -120,7 +120,6 @@ async def extract_pdf(
                 evidence_b=ev_b,
             )
 
-            # Layer 4: Decision routing
             cells = route_decisions(cells)
 
             rows.append(RowResult(row_index=row_idx, fields=cells))
@@ -131,7 +130,6 @@ async def extract_pdf(
             rows=rows,
         )
 
-        # Store plain values for context passing to subsequent sheets
         prior_context[sheet_schema.sheet_name] = sheet_plain_rows
 
         log.info(
@@ -152,7 +150,6 @@ async def extract_pdf(
         pdf_filename=pdf_filename,
         sheets=sheet_results,
     )
-
 
 def _determine_row_count(
     model_a: ModelExtraction,

@@ -3,7 +3,6 @@
     <h1 class="page-title" style="margin-bottom: 0.25rem;">Evaluation</h1>
     <p class="text-muted" style="margin-bottom: 1.5rem;">Upload gold-standard labels to measure HCN screening performance</p>
 
-    <!-- Upload Section -->
     <div class="glass-card">
       <div class="section-title"><i class="fas fa-tags"></i> Upload Gold Labels</div>
 
@@ -52,9 +51,7 @@
       </div>
     </div>
 
-    <!-- Results -->
     <template v-if="metrics">
-      <!-- Metric Cards -->
       <div class="glass-card">
         <div class="section-title" style="margin-bottom: 1rem;"><i class="fas fa-chart-line"></i> Performance Metrics</div>
         <div class="metric-grid">
@@ -64,7 +61,6 @@
           </div>
         </div>
 
-        <!-- Lancet format output -->
         <div class="glass-section">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
             <div class="section-title" style="margin-bottom: 0;"><i class="fas fa-file-medical-alt"></i> Lancet Format Output</div>
@@ -74,7 +70,6 @@
         </div>
       </div>
 
-      <!-- Charts -->
       <div class="glass-card" v-if="rocData">
         <div class="section-title" style="margin-bottom: 1rem;"><i class="fas fa-chart-area"></i> ROC Curve</div>
         <canvas ref="rocCanvas" height="300"></canvas>
@@ -89,7 +84,6 @@ import { apiUpload, apiPost, apiGet } from '@/api'
 import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 
-// Upload labels
 const labelInput = ref<HTMLInputElement | null>(null)
 const labelFile = ref<File | null>(null)
 const draggingLabel = ref(false)
@@ -121,7 +115,6 @@ async function doUploadLabels() {
   }
 }
 
-// Run evaluation
 const screeningSessionId = ref('')
 const running = ref(false)
 const evalError = ref('')

@@ -13,7 +13,6 @@ from metascreener.module2_extraction.plugins.models import PluginRule
 log = structlog.get_logger()
 RuleCallback = Callable[[dict[str, Any], SheetSchema], list[RuleResult]]
 
-
 def build_rule_callbacks(rules: list[PluginRule]) -> list[RuleCallback]:
     """Convert a list of declarative rules into callable callbacks.
 
@@ -24,7 +23,6 @@ def build_rule_callbacks(rules: list[PluginRule]) -> list[RuleCallback]:
         List of RuleCallback functions, one per rule.
     """
     return [_make_callback(rule) for rule in rules]
-
 
 def _make_callback(rule: PluginRule) -> RuleCallback:
     """Create a single RuleCallback from a PluginRule definition.
@@ -98,7 +96,6 @@ def _make_callback(rule: PluginRule) -> RuleCallback:
         return []
 
     return callback
-
 
 def _numeric(val: Any) -> float:
     """Safely convert a value to float, defaulting to 0.0 on failure.

@@ -68,10 +68,6 @@ class PDFDownloader:
         self._validator = validator or PDFValidator()
         self._semaphore = asyncio.Semaphore(max_workers)
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
     async def download_batch(
         self,
         records: list[RawRecord],
@@ -94,10 +90,6 @@ class PDFDownloader:
                 for record in records
             ]
             return await asyncio.gather(*tasks)
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     async def _download_one(
         self,
@@ -218,11 +210,6 @@ class PDFDownloader:
                 result.pdf_path,
                 result.source_used,
             )
-
-
-# ---------------------------------------------------------------------------
-# Filename helpers (also exported for testing)
-# ---------------------------------------------------------------------------
 
 
 def build_filename(record: RawRecord) -> str:

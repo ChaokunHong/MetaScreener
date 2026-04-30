@@ -22,7 +22,6 @@ from metascreener.module2_extraction.engine.layer2_rules import RuleResult
 
 log = structlog.get_logger()
 
-
 def aggregate_confidence(
     *,
     model_a: ModelExtraction,
@@ -97,7 +96,6 @@ def aggregate_confidence(
         single=sum(1 for c in cells.values() if c.confidence == Confidence.SINGLE),
     )
     return cells
-
 
 def _values_agree(a: Any, b: Any) -> bool:
     """Return True when two extracted values are considered equivalent.

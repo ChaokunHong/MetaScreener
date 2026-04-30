@@ -28,7 +28,6 @@ class SheetPattern(BaseModel):
         """
         return bool(re.search(self.pattern, sheet_name, re.IGNORECASE))
 
-
 class PluginConfig(BaseModel):
     """Configuration for a domain extraction plugin.
 
@@ -52,7 +51,6 @@ class PluginConfig(BaseModel):
     auto_detect_keywords: list[str] = Field(default_factory=list)
     auto_detect_columns: list[str] = Field(default_factory=list)
 
-
 class TerminologyEntry(BaseModel):
     """Canonical terminology entry with aliases.
 
@@ -65,7 +63,6 @@ class TerminologyEntry(BaseModel):
     canonical: str
     aliases: list[str] = Field(default_factory=list)
     metadata: dict[str, str] = Field(default_factory=dict)
-
 
 class PluginRule(BaseModel):
     """Validation rule for plugin data.

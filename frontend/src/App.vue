@@ -1,14 +1,11 @@
 <template>
   <div id="app">
-    <!-- Navbar -->
     <header class="app-navbar">
       <div class="navbar-container">
-        <!-- Logo (left) -->
         <router-link to="/" class="navbar-brand">
           <img src="/logo.svg" alt="MetaScreener" />
         </router-link>
 
-        <!-- Nav Links (center, evenly spaced) -->
         <nav class="navbar-nav">
           <router-link
             v-for="item in navItems"
@@ -24,7 +21,6 @@
       </div>
     </header>
 
-    <!-- Alert Container -->
     <div v-if="alert" class="alert-container-fixed">
       <div :class="`alert alert-${alert.type}`">
         <span>{{ alert.message }}</span>
@@ -34,7 +30,6 @@
       </div>
     </div>
 
-    <!-- Page Content -->
     <main class="page-content">
       <div class="std-container">
         <router-view v-slot="{ Component }">
@@ -52,6 +47,7 @@ import { ref, provide } from 'vue'
 
 const navItems = [
   { path: '/settings',   icon: 'fas fa-microchip',         label: 'LLM Config' },
+  { path: '/retrieval',  icon: 'fas fa-search',            label: 'Retrieval'  },
   { path: '/criteria',   icon: 'fas fa-list-check',        label: 'Criteria'   },
   { path: '/screening',  icon: 'fas fa-filter',             label: 'Screening'  },
   { path: '/extraction', icon: 'fas fa-table',              label: 'Extraction' },

@@ -3,7 +3,6 @@
     <h1 class="page-title" style="margin-bottom: 0.25rem;">Title / Abstract Screening</h1>
     <p class="text-muted" style="margin-bottom: 1.5rem;">Select criteria → upload search results → run HCN screening → review decisions</p>
 
-    <!-- Step Indicator -->
     <div class="steps" style="margin-bottom: 2rem;">
       <template v-for="(s, i) in steps" :key="i">
         <div class="step" :class="{ active: currentStep === i + 1, done: currentStep > i + 1 }">
@@ -17,7 +16,6 @@
       </template>
     </div>
 
-    <!-- STEP 1: Select Criteria -->
     <div v-if="currentStep < 4" class="glass-card">
       <div class="section-title"><i class="fas fa-list-check"></i> Select Criteria</div>
       <CriteriaSelector v-model="selectedCriteriaId" @select="onCriteriaSelected" />
@@ -28,7 +26,6 @@
 
     </div>
 
-    <!-- STEP 2: Upload -->
     <div v-if="currentStep >= 2 && currentStep < 4" class="glass-card">
       <div class="section-title"><i class="fas fa-upload"></i> Upload Search Results</div>
       <div
@@ -58,7 +55,6 @@
       </button>
     </div>
 
-    <!-- STEP 3: Run -->
     <div v-if="currentStep >= 3 && currentStep < 4" class="glass-card">
       <div class="section-title"><i class="fas fa-play-circle"></i> Run Screening</div>
       <p class="text-muted" style="margin-bottom: 1rem;">
@@ -66,7 +62,6 @@
         using criteria "<strong>{{ selectedCriteriaName }}</strong>".
       </p>
 
-      <!-- Progress -->
       <div v-if="running" style="margin-bottom: 1rem;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
           <span class="text-muted">
@@ -104,7 +99,6 @@
       </div>
     </div>
 
-    <!-- STEP 4: Results -->
     <div v-if="currentStep >= 4 && results.length" class="glass-card">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
         <div class="section-title" style="margin-bottom: 0;"><i class="fas fa-list-alt"></i> Results</div>
@@ -115,7 +109,6 @@
         </div>
       </div>
 
-      <!-- Pilot review banner -->
       <div v-if="pilotComplete" class="pilot-banner">
         <div class="pilot-banner-content">
           <div class="pilot-banner-icon"><i class="fas fa-flask"></i></div>
@@ -134,7 +127,6 @@
         </button>
       </div>
 
-      <!-- Continue screening progress (inside Step 4) -->
       <div v-if="continuing && running" style="margin-bottom: 1rem;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
           <span class="text-muted">
@@ -148,7 +140,6 @@
         </div>
       </div>
 
-      <!-- Summary Cards -->
       <div class="summary-cards">
         <div class="summary-card summary-card--total">
           <div class="summary-card-number">{{ results.length }}</div>
@@ -168,7 +159,6 @@
         </div>
       </div>
 
-      <!-- Filters -->
       <div class="glass-section filter-panel">
         <div class="filter-panel-header">
           <div class="filter-panel-title">
@@ -192,7 +182,6 @@
         </div>
       </div>
 
-      <!-- Batch Action Bar -->
       <div v-if="selectedIndices.size > 0" class="batch-bar">
         <span style="font-size: 0.82rem;">{{ selectedIndices.size }} selected</span>
         <div style="display: flex; gap: 0.4rem;">
@@ -208,7 +197,6 @@
         </div>
       </div>
 
-      <!-- Results Table -->
       <div class="glass-section results-panel">
       <div class="table-wrap">
         <table>
@@ -289,7 +277,6 @@
                 <td>{{ fmt(r.confidence) }}</td>
                 <td @click.stop>
                   <div class="action-cell">
-                    <!-- Not yet overridden -->
                     <template v-if="!r.human_decision">
                       <template v-if="r.decision === 'HUMAN_REVIEW'">
                         <button class="action-text-btn action-text-btn--include" @click="submitFeedback(oi, 'INCLUDE')" :disabled="feedbackLoading === oi">
@@ -306,7 +293,6 @@
                         </button>
                       </template>
                     </template>
-                    <!-- Already overridden: show status + undo -->
                     <template v-else>
                       <span class="action-status">
                         <i class="fas fa-user-check"></i> {{ r.human_decision === 'INCLUDE' ? 'Included' : 'Excluded' }}
@@ -318,7 +304,6 @@
                   </div>
                 </td>
               </tr>
-              <!-- Expanded detail row -->
               <tr v-if="expandedRow === oi" class="detail-row">
                 <td colspan="8">
                   <div v-if="detailLoading" style="text-align: center; padding: 1rem;">
@@ -407,7 +392,6 @@ const currentStep = ref(1)
 const sessionId = ref<string | null>(null)
 const activeTooltip = ref('')
 
-// Step 2 - Upload
 const fileInput = ref<HTMLInputElement | null>(null)
 const selectedFile = ref<File | null>(null)
 const dragging = ref(false)
@@ -443,7 +427,6 @@ async function doUpload() {
   }
 }
 
-// Step 1 - Select Criteria
 const selectedCriteriaId = ref<string | null>(null)
 const selectedCriteriaName = ref('')
 const selectedCriteriaData = ref<Record<string, unknown> | null>(null)
@@ -460,13 +443,11 @@ async function onCriteriaSelected(item: { id: string; name: string }) {
   }
 }
 
-// Pilot screening state
 const pilotComplete = ref(false)
 const pilotCount = ref(0)
 const remainingCount = ref(0)
 const continuing = ref(false)
 
-// Step 3 - Run
 const running = ref(false)
 const screeningReasoningEffort = ref('medium')
 const runStatus = ref('')
@@ -496,11 +477,9 @@ async function doRun() {
   runStatus.value = 'Setting criteria…'
 
   try {
-    // Set criteria for this screening session
     await apiPost(`/screening/criteria/${sessionId.value}`, selectedCriteriaData.value)
     runStatus.value = 'Screening in progress…'
 
-    // Start screening
     await apiPost(`/screening/run/${sessionId.value}`, { session_id: sessionId.value, seed: 42, reasoning_effort: screeningReasoningEffort.value })
     startPolling()
   } catch (e: unknown) {
@@ -585,7 +564,6 @@ async function doContinue() {
   }
 }
 
-// Step 4 - Results
 const results = ref<Array<{
   title?: string; decision: string; tier?: number; score?: number; confidence?: number;
   human_decision?: string; original_decision?: string
@@ -617,7 +595,6 @@ const avgConfidence = computed(() => {
   return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2)
 })
 
-// Filter state
 const filterTiers = ref<number[]>([])
 const filterDecisions = ref<string[]>([])
 const filterScoreMin = ref<number | null>(null)
@@ -664,7 +641,6 @@ const filteredResults = computed(() => {
   return out
 })
 
-// Batch selection
 const selectedIndices = ref<Set<number>>(new Set())
 const batchLoading = ref(false)
 
@@ -679,7 +655,6 @@ function toggleSelectAll() {
   } else {
     filteredResults.value.forEach(({ originalIndex }) => selectedIndices.value.add(originalIndex))
   }
-  // Force reactivity
   selectedIndices.value = new Set(selectedIndices.value)
 }
 
@@ -765,7 +740,6 @@ async function undoFeedback(index: number) {
   }
 }
 
-// Detail expansion
 const expandedRow = ref<number | null>(null)
 const detailLoading = ref(false)
 const detailData = ref<Record<string, any> | null>(null)

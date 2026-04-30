@@ -1,0 +1,27 @@
+dataset,N,n_include,inc_rate,topic,pub_title,has_title,has_abstract
+Brouwer_2019,38114,62,0.0016266988508159732,Psychology,Psychological theories of depressive relapse and recurrence: A systematic review,True,True
+Bos_2018,4878,10,0.002050020500205002,Medicine,Cerebral small vessel disease and the risk of dementia: A systematic review and ,True,True
+Leenaars_2019,5812,17,0.0029249827942188574,Psychology,Sleep and Microdialysis: An Experiment and a Systematic Review of Histamine and ,True,True
+Wolters_2018,4280,19,0.0044392523364485985,Medicine,"Coronary heart disease, heart failure, and the risk of dementia: A systematic re",True,True
+Chou_2004,1630,9,0.005521472392638037,Medicine,Comparative efficacy and safety of skeletal muscle relaxants for spasticity and ,True,True
+Chou_2003,1908,15,0.007861635220125786,Medicine,Comparative efficacy and safety of long-acting oral opioids for chronic non-canc,True,True
+van_Dis_2020,9128,72,0.007887817703768623,Psychology,Long-term Outcomes of Cognitive Behavioral Therapy for Anxiety-Related Disorders,True,True
+Radjenovic_2013,5935,48,0.008087615838247682,Computer science,Software fault prediction metrics: A systematic literature review,True,True
+van_de_Schoot_2018,4544,38,0.008362676056338027,Psychology,Bayesian PTSD-Trajectory Analysis with Informed Priors Based on a Systematic Lit,True,True
+Appenzeller-Herzog_2019,2873,26,0.00904977375565611,Medicine,Comparative effectiveness of common therapies for Wilson disease: A systematic r,True,True
+Smid_2020,2627,27,0.010277883517320136,Computer science,Bayesian Versus Frequentist Estimation for Structural Equation Models in Small S,True,True
+Hall_2012,8793,104,0.011827590128511315,Computer science,A Systematic Literature Review on Fault Prediction Performance in Software Engin,True,True
+Wassenaar_2017,7668,111,0.014475743348982786,Medicine,Systematic Review and Meta-Analysis of Early-Life Exposure to Bisphenol A and Ob,True,True
+Walker_2018,48375,762,0.015751937984496124,Biology,Human and animal evidence of potential transgenerational inheritance of health e,True,True
+van_der_Waal_2022,1970,33,0.016751269035532996,Medicine,A meta-analysis on the role older adults with cancer favour in treatment decisio,True,True
+Oud_2018,952,20,0.02100840336134454,Psychology,Specialized psychotherapies for adults with borderline personality disorder: A s,True,True
+Moran_2021,5214,111,0.021288837744533946,Biology,Poor nutritional condition promotes high‐risk behaviours: a systematic review an,True,True
+Meijboom_2021,882,37,0.04195011337868481,Medicine,Patients Retransitioning from Biosimilar TNFα Inhibitor to the Corresponding Ori,True,True
+Donners_2021,258,15,0.05813953488372093,Medicine,Pharmacokinetics and Associated Efficacy of Emicizumab in Humans: A Systematic R,True,True
+Menon_2022,975,74,0.0758974358974359,Medicine,The methodological rigour of systematic reviews in environmental health,True,True
+Leenaars_2020,7216,583,0.08079268292682927,Medicine,A Systematic Review Comparing Experimental Design of Animal and Human Methotrexa,True,True
+Jeyaraman_2020,1175,96,0.08170212765957446,Medicine,Does the Source of Mesenchymal Stem Cell Have an Effect in the Management of Ost,True,True
+van_der_Valk_2021,725,89,0.12275862068965518,Medicine,Cross‐sectional relation of long‐term glucocorticoids in hair with anthropometri,True,True
+Muthu_2021,2719,336,0.12357484369253402,Medicine,Fragility Analysis of Statistically Significant Outcomes of Randomized Control T,True,True
+Sep_2021,271,40,0.14760147601476015,Psychology,The rodent object-in-context task: A systematic review and meta-analysis of impo,True,True
+Nelson_2002,366,80,0.2185792349726776,Medicine,Postmenopausal Hormone Replacement Therapy,True,True

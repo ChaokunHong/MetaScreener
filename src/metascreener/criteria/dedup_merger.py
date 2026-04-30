@@ -23,11 +23,6 @@ from metascreener.criteria.models import DedupResult
 logger = structlog.get_logger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Union-Find (Disjoint Set)
-# ---------------------------------------------------------------------------
-
-
 class UnionFind:
     """Disjoint set data structure with path compression and union by rank.
 
@@ -87,11 +82,6 @@ class UnionFind:
         return list(groups.values())
 
 
-# ---------------------------------------------------------------------------
-# Quorum
-# ---------------------------------------------------------------------------
-
-
 def compute_dedup_quorum(n_models: int, fraction: float) -> int:
     """Compute the minimum vote count to confirm a dedup edge.
 
@@ -103,11 +93,6 @@ def compute_dedup_quorum(n_models: int, fraction: float) -> int:
         Quorum value: ``max(2, ceil(n_models * fraction))``.
     """
     return max(2, ceil(n_models * fraction))
-
-
-# ---------------------------------------------------------------------------
-# Edge aggregation
-# ---------------------------------------------------------------------------
 
 
 def aggregate_dedup_edges(
@@ -146,11 +131,6 @@ def aggregate_dedup_edges(
             edges[key]["preferred"][edge["preferred"]] += 1
 
     return edges
-
-
-# ---------------------------------------------------------------------------
-# DedupMerger
-# ---------------------------------------------------------------------------
 
 
 class DedupMerger:
@@ -244,10 +224,6 @@ class DedupMerger:
             quality_scores=quality_scores,
             corrected_term_origin=corrected_origin,
         )
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _build_canonical_map(

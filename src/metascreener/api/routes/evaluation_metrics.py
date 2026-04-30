@@ -11,8 +11,8 @@ from metascreener.api.schemas import (
     EvaluationCharts,
     EvaluationDistributionBin,
     EvaluationMetrics,
-    EvaluationROCPoint,
     EvaluationResponse,
+    EvaluationROCPoint,
 )
 from metascreener.core.enums import Decision
 from metascreener.core.models import Record, ScreeningDecision

@@ -9,7 +9,6 @@ from metascreener.module2_extraction.plugins.models import TerminologyEntry
 
 log = structlog.get_logger()
 
-
 class TerminologyEngine:
     """Standardizes terminology by mapping aliases to canonical forms.
 

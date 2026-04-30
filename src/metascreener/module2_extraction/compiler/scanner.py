@@ -18,7 +18,6 @@ log = structlog.get_logger()
 
 _MAX_SAMPLE_ROWS = 10
 
-
 @dataclass
 class RawFieldInfo:
     """Raw information about a single column from scanning."""
@@ -29,7 +28,6 @@ class RawFieldInfo:
     dropdown_options: list[str] | None = None
     sample_values: list[Any] = field(default_factory=list)
 
-
 @dataclass
 class RawSheetInfo:
     """Raw information about a single sheet from scanning."""
@@ -37,7 +35,6 @@ class RawSheetInfo:
     fields: list[RawFieldInfo]
     row_count: int
     sample_row_count: int
-
 
 def scan_template(path: Path) -> list[RawSheetInfo]:
     """Scan an Excel template and return raw structural info per sheet."""
@@ -133,7 +130,6 @@ def scan_template(path: Path) -> list[RawSheetInfo]:
              total_fields=sum(len(s.fields) for s in sheets))
     return sheets
 
-
 def _resolve_range_reference(wb: Any, formula: str) -> list[str]:
     """Resolve an Excel range reference like 'Sheet!$A$2:$A$60' to actual values."""
     try:
@@ -151,7 +147,6 @@ def _resolve_range_reference(wb: Any, formula: str) -> list[str]:
         return values
     except Exception:
         return []
-
 
 def _infer_type(values: list[Any]) -> str:
     """Infer field type from sample values."""

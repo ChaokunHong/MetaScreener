@@ -10,11 +10,15 @@ def _lazy_map() -> dict[str, type[SearchProvider]]:
     """Build provider map lazily to avoid heavy imports at package load."""
     if _PROVIDER_MAP:
         return _PROVIDER_MAP
-    from metascreener.module0_retrieval.providers.europepmc import EuropePMCProvider  # noqa: PLC0415
+    from metascreener.module0_retrieval.providers.europepmc import (
+        EuropePMCProvider,  # noqa: PLC0415
+    )
     from metascreener.module0_retrieval.providers.openalex import OpenAlexProvider  # noqa: PLC0415
     from metascreener.module0_retrieval.providers.pubmed import PubMedProvider  # noqa: PLC0415
     from metascreener.module0_retrieval.providers.scopus import ScopusProvider  # noqa: PLC0415
-    from metascreener.module0_retrieval.providers.semantic_scholar import SemanticScholarProvider  # noqa: PLC0415
+    from metascreener.module0_retrieval.providers.semantic_scholar import (
+        SemanticScholarProvider,  # noqa: PLC0415
+    )
 
     _PROVIDER_MAP.update(
         {

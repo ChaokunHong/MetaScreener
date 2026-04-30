@@ -28,9 +28,6 @@ router = APIRouter(prefix="/api/v2/extraction", tags=["extraction-v2"])
 _store = SessionStore()
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────
-
-
 def _get_api_key() -> str:
     """Resolve OpenRouter API key from env or user settings."""
     from metascreener.api.routes.screening_helpers import (
@@ -52,9 +49,6 @@ def _build_extraction_backends(api_key: str) -> list[Any]:
         cfg=get_config(), api_key=api_key, enabled_model_ids=enabled,
     )
     return backends
-
-
-# ── Session CRUD ─────────────────────────────────────────────────────────
 
 
 @router.post("/sessions", response_model=CreateSessionResponse)
@@ -79,9 +73,6 @@ async def get_session(session_id: str) -> SessionStatusResponse:
         plugin_id=session.plugin_id,
         results_count=len(session.results),
     )
-
-
-# ── Template + Schema ────────────────────────────────────────────────────
 
 
 @router.post("/sessions/{session_id}/template", response_model=UploadTemplateResponse)
@@ -133,9 +124,6 @@ async def confirm_schema(session_id: str, plugin_id: str | None = None) -> dict[
     return {"session_id": session_id, "status": "ready", "plugin_id": plugin_id}
 
 
-# ── PDF Upload ───────────────────────────────────────────────────────────
-
-
 @router.post("/sessions/{session_id}/pdfs", response_model=UploadPdfsResponse)
 async def upload_pdfs(session_id: str, files: list[UploadFile]) -> UploadPdfsResponse:
     """Upload PDF files for extraction."""
@@ -159,9 +147,6 @@ async def upload_pdfs(session_id: str, files: list[UploadFile]) -> UploadPdfsRes
     return UploadPdfsResponse(
         session_id=session_id, pdf_count=len(session.pdfs), filenames=filenames,
     )
-
-
-# ── Run Extraction ───────────────────────────────────────────────────────
 
 
 @router.post("/sessions/{session_id}/run")
@@ -279,9 +264,6 @@ async def run_extraction(session_id: str) -> dict[str, Any]:
     return response
 
 
-# ── Results ──────────────────────────────────────────────────────────────
-
-
 @router.get("/sessions/{session_id}/results")
 async def get_results(session_id: str) -> dict[str, Any]:
     """Get full extraction results for all PDFs (with cell-level data)."""
@@ -320,9 +302,6 @@ async def get_results(session_id: str) -> dict[str, Any]:
             "sheets": sheets_data,
         }
     return {"session_id": session_id, "results": results_full}
-
-
-# ── Export + Download ────────────────────────────────────────────────────
 
 
 @router.post("/sessions/{session_id}/export")
@@ -373,9 +352,6 @@ async def download_export(session_id: str) -> FileResponse:
         filename="extraction_results.xlsx",
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-
-
-# ── Plugins ──────────────────────────────────────────────────────────────
 
 
 @router.get("/plugins", response_model=list[PluginInfo])

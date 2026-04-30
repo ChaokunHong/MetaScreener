@@ -1,7 +1,7 @@
 """Tests for Layer 2 rule base class, hard rules, and soft rules."""
 from __future__ import annotations
 
-from metascreener.core.enums import Decision, StudyType
+from metascreener.core.enums import CriteriaFramework, Decision, StudyType
 from metascreener.core.models import (
     ModelOutput,
     PICOAssessment,
@@ -64,11 +64,11 @@ class TestPublicationTypeRule:
         assert result is not None
         assert result.rule_type == "hard"
 
-    def test_review_in_title_triggers(
+    def test_review_in_title_does_not_trigger_title_only_hard_rule(
         self,
         amr_review_criteria: ReviewCriteria,
     ) -> None:
-        """'systematic review' in title triggers violation."""
+        """SR/MA title terms are contextual and must not be Tier 0 alone."""
         record = Record(
             title="A systematic review of interventions",
             study_type=StudyType.UNKNOWN,
@@ -76,7 +76,37 @@ class TestPublicationTypeRule:
         result = PublicationTypeRule().check(
             record, amr_review_criteria, [_make_output()]
         )
-        assert result is not None
+        assert result is None
+
+    def test_review_title_passes_when_evidence_synthesis_is_eligible(self) -> None:
+        """SR/MA title terms are eligible when criteria explicitly include them."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.PCC,
+            research_question="Review of methodological rigour in systematic reviews.",
+            study_design_include=["systematic review", "meta-analysis"],
+            study_design_exclude=["narrative review", "editorial"],
+        )
+        record = Record(
+            title="A systematic review and meta-analysis of environmental exposure",
+            study_type=StudyType.UNKNOWN,
+        )
+        result = PublicationTypeRule().check(criteria=criteria, record=record, model_outputs=[])
+        assert result is None
+
+    def test_review_study_type_passes_when_evidence_synthesis_is_eligible(self) -> None:
+        """Structured REVIEW metadata is not a hard violation for umbrella reviews."""
+        criteria = ReviewCriteria(
+            framework=CriteriaFramework.PCC,
+            research_question="Review of systematic reviews themselves.",
+            study_design_include=["umbrella review", "systematic review"],
+            study_design_exclude=["editorial"],
+        )
+        record = Record(
+            title="Umbrella review of environmental health evidence",
+            study_type=StudyType.REVIEW,
+        )
+        result = PublicationTypeRule().check(criteria=criteria, record=record, model_outputs=[])
+        assert result is None
 
     def test_rct_passes(
         self,

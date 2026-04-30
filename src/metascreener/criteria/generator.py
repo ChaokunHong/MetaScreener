@@ -99,10 +99,6 @@ class CriteriaGenerator:
         prompt = build_parse_text_prompt(criteria_text, framework.value, language)
         return await self._generate(prompt, framework, seed)
 
-    # ------------------------------------------------------------------
-    # Round 2 (cross-evaluation) public API
-    # ------------------------------------------------------------------
-
     async def generate_from_topic_with_dedup(
         self,
         topic: str,
@@ -147,10 +143,6 @@ class CriteriaGenerator:
         prompt = build_parse_text_prompt(criteria_text, framework.value, language)
         return await self._generate_with_dedup(prompt, framework, seed)
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
     async def _generate_with_dedup(
         self,
         prompt: str,
@@ -173,20 +165,27 @@ class CriteriaGenerator:
         """
         prompt_hash = hash_prompt(prompt)
 
-        # --- Round 1: parallel generation (with total timeout) ---
         async_tasks = [
             asyncio.ensure_future(self._call_backend(backend, prompt, seed))
             for backend in self._backends
         ]
-        done, pending = await asyncio.wait(async_tasks, timeout=180.0)
+        done, pending = await asyncio.wait(async_tasks, timeout=300.0)
         if pending:
-            logger.warning("round1_total_timeout", timeout_s=180, n_pending=len(pending))
+            logger.warning("round1_total_timeout", timeout_s=300, n_pending=len(pending))
             for t in pending:
                 t.cancel()
-        results: list[Any] = [
-            t.result() if not t.cancelled() and not t.exception() else (t.exception() or TimeoutError("timeout"))
-            for t in async_tasks
-        ]
+        # Safely collect results: cancelled tasks (timed out) → TimeoutError;
+        # any other exception → captured. Avoids InvalidStateError from calling
+        # .exception() on a cancelled task (pre-existing asyncio gotcha).
+        results: list[Any] = []
+        for t in async_tasks:
+            if t in done:
+                try:
+                    results.append(t.result())
+                except BaseException as exc:  # noqa: BLE001
+                    results.append(exc)
+            else:
+                results.append(TimeoutError("round timeout"))
 
         model_outputs: list[dict[str, Any]] = []
         model_ids: list[str] = []
@@ -222,7 +221,6 @@ class CriteriaGenerator:
             prompt_hash=prompt_hash,
         )
 
-        # --- Round 2: cross-evaluation (only with >= 2 backends) ---
         round2_evaluations: dict[str, Any] | None = None
         if len(model_outputs) >= 2:
             round2_evaluations = await self._run_round2(criteria, seed)
@@ -254,13 +252,13 @@ class CriteriaGenerator:
             """Call one backend for cross-eval and validate response."""
             try:
                 raw = await backend.complete(cross_prompt, seed)
-                parsed = parse_llm_response(raw, backend.model_id)
+                parsed = parse_llm_response(raw, backend.model_id).data
                 if validate_cross_evaluate_response(parsed):
                     return backend.model_id, parsed
                 logger.warning(
                     "round2_invalid_response",
                     backend=backend.model_id,
-                    keys=list(parsed.keys()) if isinstance(parsed, dict) else type(parsed).__name__,
+                    keys=list(parsed.keys()),
                     sample=str(parsed)[:200],
                 )
                 return backend.model_id, None
@@ -318,15 +316,21 @@ class CriteriaGenerator:
             asyncio.ensure_future(self._call_backend(backend, prompt, seed))
             for backend in self._backends
         ]
-        done, pending = await asyncio.wait(async_tasks, timeout=180.0)
+        done, pending = await asyncio.wait(async_tasks, timeout=300.0)
         if pending:
-            logger.warning("generate_total_timeout", timeout_s=180, n_pending=len(pending))
+            logger.warning("generate_total_timeout", timeout_s=300, n_pending=len(pending))
             for t in pending:
                 t.cancel()
-        results = [
-            t.result() if not t.cancelled() and not t.exception() else (t.exception() or TimeoutError("timeout"))
-            for t in async_tasks
-        ]
+        # See _generate_with_dedup for the asyncio-cancel gotcha rationale.
+        results = []
+        for t in async_tasks:
+            if t in done:
+                try:
+                    results.append(t.result())
+                except BaseException as exc:  # noqa: BLE001
+                    results.append(exc)
+            else:
+                results.append(TimeoutError("round timeout"))
 
         # Filter successful results
         model_outputs: list[dict[str, Any]] = []
@@ -374,7 +378,7 @@ class CriteriaGenerator:
         """
         try:
             raw = await backend.complete(prompt, seed)
-            parsed = parse_llm_response(raw, backend.model_id)
+            parsed = parse_llm_response(raw, backend.model_id).data
             # Validate minimum expected structure
             if "elements" not in parsed:
                 logger.warning("missing_elements_key", backend=backend.model_id)

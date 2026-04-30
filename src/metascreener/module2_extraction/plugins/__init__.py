@@ -5,8 +5,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import yaml
 import structlog
+import yaml
 
 from metascreener.module2_extraction.plugins.models import (
     PluginConfig,
@@ -23,7 +23,6 @@ from metascreener.module2_extraction.plugins.terminology import TerminologyEngin
 log = structlog.get_logger()
 _PLUGINS_DIR = Path(__file__).parent
 
-
 @dataclass
 class LoadedPlugin:
     """A fully loaded plugin with all resources initialised.
@@ -39,7 +38,6 @@ class LoadedPlugin:
     terminology_engines: dict[str, TerminologyEngine] = field(default_factory=dict)
     rule_callbacks: list[RuleCallback] = field(default_factory=list)
     prompt_fragments: dict[str, str] = field(default_factory=dict)
-
 
 def load_plugin(plugin_id: str) -> LoadedPlugin:
     """Load a plugin by its identifier.
@@ -106,7 +104,6 @@ def load_plugin(plugin_id: str) -> LoadedPlugin:
         rule_callbacks=rule_callbacks,
         prompt_fragments=prompt_fragments,
     )
-
 
 def detect_plugin(
     *,

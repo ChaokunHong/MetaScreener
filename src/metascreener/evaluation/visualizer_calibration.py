@@ -11,10 +11,6 @@ from metascreener.core.models import RoBResult
 from metascreener.evaluation.models import CalibrationMetrics
 from metascreener.evaluation.visualizer_charts import COLORS, _base_layout
 
-# ---------------------------------------------------------------------------
-# RoB color schemes
-# ---------------------------------------------------------------------------
-
 ROB_COLORS: dict[str, str] = {
     "low": "#2ecc71",           # green
     "some_concerns": "#f39c12", # orange
@@ -35,11 +31,6 @@ _ROB_NUMERIC: dict[str, int] = {
     "critical": 5,
     "unclear": 6,
 }
-
-
-# ---------------------------------------------------------------------------
-# 2. Calibration Curve (Reliability Diagram)
-# ---------------------------------------------------------------------------
 
 
 def plot_calibration_curve(cal_metrics: CalibrationMetrics) -> go.Figure:
@@ -100,11 +91,6 @@ def plot_calibration_curve(cal_metrics: CalibrationMetrics) -> go.Figure:
     )
 
     return fig
-
-
-# ---------------------------------------------------------------------------
-# 6. Risk of Bias Heatmap
-# ---------------------------------------------------------------------------
 
 
 def plot_rob_heatmap(rob_results: list[RoBResult]) -> go.Figure:

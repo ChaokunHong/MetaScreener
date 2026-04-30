@@ -3,7 +3,6 @@
     <h1 class="page-title" style="margin-bottom: 0.25rem;">Full-Text Screening</h1>
     <p class="text-muted" style="margin-bottom: 1.5rem;">Select criteria → upload PDFs → run FT screening → review decisions</p>
 
-    <!-- Step Indicator -->
     <div class="steps" style="margin-bottom: 2rem;">
       <template v-for="(s, i) in steps" :key="i">
         <div class="step" :class="{ active: currentStep === i + 1, done: currentStep > i + 1 }">
@@ -17,7 +16,6 @@
       </template>
     </div>
 
-    <!-- STEP 1: Select Criteria -->
     <div v-if="currentStep < 4" class="glass-card">
       <div class="section-title"><i class="fas fa-list-check"></i> Select Criteria</div>
       <CriteriaSelector v-model="selectedCriteriaId" @select="onCriteriaSelected" />
@@ -27,7 +25,6 @@
       </div>
     </div>
 
-    <!-- STEP 2: Upload PDFs -->
     <div v-if="currentStep >= 2 && currentStep < 4" class="glass-card">
       <div class="section-title"><i class="fas fa-file-pdf"></i> Upload PDFs</div>
       <div
@@ -40,7 +37,7 @@
         style="margin-bottom: 1rem;"
       >
         <input ref="fileInput" type="file" accept=".pdf" multiple @change="onFileChange" />
-        <i class="fas fa-file-pdf zone-icon"></i>
+        <i class="fas fa-upload zone-icon"></i>
         <div class="zone-title">{{ pdfFiles.length ? `${pdfFiles.length} PDF(s) selected` : 'Drop PDFs here or click to browse' }}</div>
         <div class="zone-hint">PDF files of papers that passed TI/AB screening</div>
       </div>
@@ -57,7 +54,6 @@
       </button>
     </div>
 
-    <!-- STEP 3: Run -->
     <div v-if="currentStep >= 3 && currentStep < 4" class="glass-card">
       <div class="section-title"><i class="fas fa-play-circle"></i> Run Full-Text Screening</div>
       <p class="text-muted" style="margin-bottom: 1rem;">
@@ -73,6 +69,10 @@
         <div class="progress">
           <div class="progress-bar" :style="{ width: progressPct + '%' }"></div>
         </div>
+        <div v-if="completedCount === 0" class="text-muted" style="margin-top: 0.5rem; font-size: 0.78rem;">
+          <i class="fas fa-clock"></i> Waiting for models to respond... This may take 10–60 seconds.
+        </div>
+        <div class="progress-log" ref="logEl" style="margin-top: 0.75rem;" v-if="logText">{{ logText }}</div>
       </div>
 
       <div v-if="runError" class="alert alert-danger">{{ runError }}</div>
@@ -95,7 +95,6 @@
       </div>
     </div>
 
-    <!-- STEP 4: Results -->
     <div v-if="currentStep >= 4 && results.length" class="glass-card">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
         <div class="section-title" style="margin-bottom: 0;"><i class="fas fa-list-alt"></i> Results</div>
@@ -106,7 +105,6 @@
         </div>
       </div>
 
-      <!-- Pilot review banner -->
       <div v-if="pilotComplete" class="pilot-banner">
         <div class="pilot-banner-content">
           <div class="pilot-banner-icon"><i class="fas fa-flask"></i></div>
@@ -125,7 +123,6 @@
         </button>
       </div>
 
-      <!-- Continue screening progress (inside Step 4) -->
       <div v-if="continuing && running" style="margin-bottom: 1rem;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
           <span class="text-muted">
@@ -139,7 +136,6 @@
         </div>
       </div>
 
-      <!-- Summary Cards -->
       <div class="summary-cards">
         <div class="summary-card summary-card--total">
           <div class="summary-card-number">{{ results.length }}</div>
@@ -159,7 +155,6 @@
         </div>
       </div>
 
-      <!-- Filters -->
       <div class="glass-section filter-panel">
         <div class="filter-panel-header">
           <div class="filter-panel-title">
@@ -183,7 +178,6 @@
         </div>
       </div>
 
-      <!-- Batch Action Bar -->
       <div v-if="selectedIndices.size > 0" class="batch-bar">
         <span style="font-size: 0.82rem;">{{ selectedIndices.size }} selected</span>
         <div style="display: flex; gap: 0.4rem;">
@@ -279,7 +273,6 @@
                 <td>{{ fmt(r.confidence) }}</td>
                 <td @click.stop>
                   <div class="action-cell">
-                    <!-- Not yet overridden -->
                     <template v-if="!r.human_decision">
                       <template v-if="r.decision === 'HUMAN_REVIEW'">
                         <button class="action-text-btn action-text-btn--include" @click="submitFeedback(oi, 'INCLUDE')" :disabled="feedbackLoading === oi">
@@ -296,7 +289,6 @@
                         </button>
                       </template>
                     </template>
-                    <!-- Already overridden: show status + undo -->
                     <template v-else>
                       <span class="action-status">
                         <i class="fas fa-user-check"></i> {{ r.human_decision === 'INCLUDE' ? 'Included' : 'Excluded' }}
@@ -308,7 +300,6 @@
                   </div>
                 </td>
               </tr>
-              <!-- Expanded detail row -->
               <tr v-if="expandedRow === oi" class="detail-row">
                 <td colspan="8">
                   <div v-if="detailLoading" style="text-align: center; padding: 1rem;">
@@ -353,9 +344,25 @@
                               <span v-if="assess.evidence" class="detail-evidence">{{ assess.evidence }}</span>
                             </div>
                           </div>
+                          <div v-if="mo.ft_assessment" class="detail-ft-assessment">
+                            <div class="detail-ft-title">Methodological Assessment</div>
+                            <div class="detail-ft-grid">
+                              <div v-for="(val, dim) in mo.ft_assessment" :key="dim" class="detail-ft-item">
+                                <span class="detail-ft-dim">{{ ftDimLabel(dim as string) }}</span>
+                                <span
+                                  class="badge"
+                                  :class="ftDimClass(dim as string, val)"
+                                  style="font-size: 0.63rem;"
+                                >{{ val === true ? 'yes' : val === false ? 'no' : val ?? 'N/A' }}</span>
+                              </div>
+                            </div>
+                          </div>
                         </template>
                       </div>
                     </div>
+                  </div>
+                  <div v-else style="text-align: center; padding: 1rem; color: #999; font-size: 0.85rem;">
+                    <i class="fas fa-info-circle"></i> No model details available. Try re-running screening.
                   </div>
                 </td>
               </tr>
@@ -369,7 +376,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { apiGet, apiPost, apiUpload, decisionBadgeClass, fmtScore } from '@/api'
 import CriteriaSelector from '@/components/CriteriaSelector.vue'
 
@@ -396,7 +403,6 @@ const currentStep = ref(1)
 const sessionId = ref<string | null>(null)
 const activeTooltip = ref('')
 
-// Step 1 - Select Criteria
 const selectedCriteriaId = ref<string | null>(null)
 const selectedCriteriaName = ref('')
 const selectedCriteriaData = ref<Record<string, unknown> | null>(null)
@@ -413,7 +419,6 @@ async function onCriteriaSelected(item: { id: string; name: string }) {
   }
 }
 
-// Step 2 - Upload PDFs
 const fileInput = ref<HTMLInputElement | null>(null)
 const pdfFiles = ref<File[]>([])
 const dragging = ref(false)
@@ -446,13 +451,11 @@ async function doUpload() {
   }
 }
 
-// Pilot screening state
 const pilotComplete = ref(false)
 const pilotCount = ref(0)
 const remainingCount = ref(0)
 const continuing = ref(false)
 
-// Step 3 - Run
 const running = ref(false)
 const screeningReasoningEffort = ref('medium')
 const runStatus = ref('')
@@ -460,12 +463,23 @@ const completedCount = ref(0)
 const totalCount = ref(0)
 const progressPct = ref(0)
 const runError = ref('')
+const logText = ref('')
+const logEl = ref<HTMLElement | null>(null)
 let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function appendLog(msg: string) {
+  const ts = new Date().toLocaleTimeString()
+  logText.value += `${ts} — ${msg}\n`
+  nextTick(() => {
+    if (logEl.value) logEl.value.scrollTop = logEl.value.scrollHeight
+  })
+}
 
 async function doRun() {
   if (!sessionId.value || !selectedCriteriaData.value) return
   running.value = true
   runError.value = ''
+  logText.value = ''
   completedCount.value = 0
   progressPct.value = 5
   runStatus.value = 'Setting criteria…'
@@ -483,6 +497,7 @@ async function doRun() {
 }
 
 function startPolling() {
+  let lastCompleted = 0
   pollTimer = setInterval(async () => {
     try {
       const data = await apiGet<{
@@ -497,6 +512,15 @@ function startPolling() {
         ? Math.round((completedCount.value / totalCount.value) * 100)
         : 10
       runStatus.value = `Screening… ${completedCount.value} / ${totalCount.value}`
+
+      if (data.completed > lastCompleted && data.results) {
+        const newOnes = data.results.slice(lastCompleted)
+        newOnes.forEach((r: { title?: string; decision: string }) => {
+          const icon = r.decision === 'INCLUDE' ? '✓' : r.decision === 'EXCLUDE' ? '✗' : '?'
+          appendLog(`[${icon}] ${(r.title || 'Record').substring(0, 60)} — ${r.decision}`)
+        })
+        lastCompleted = data.completed
+      }
 
       if (data.status === 'error') {
         clearInterval(pollTimer!)
@@ -548,7 +572,6 @@ async function doContinue() {
   }
 }
 
-// Step 4 - Results
 const results = ref<Array<{
   title?: string; decision: string; tier?: number; score?: number; confidence?: number;
   human_decision?: string; original_decision?: string
@@ -569,18 +592,17 @@ function parseTier(tier: unknown): number {
 const tierCounts = computed(() => {
   const counts = [0, 0, 0, 0]
   results.value.forEach(r => {
-    const t = parseTier(r.tier)
+    const t = parseTier(r.tier) ?? -1
     if (t >= 0 && t <= 3) counts[t]++
   })
   return counts
 })
-const avgConfidence = computed(() => {
+const _avgConfidence = computed(() => {
   const vals = results.value.filter(r => r.confidence != null).map(r => r.confidence as number)
   if (vals.length === 0) return '—'
   return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2)
 })
 
-// Filter state
 const filterTiers = ref<number[]>([])
 const filterDecisions = ref<string[]>([])
 const filterScoreMin = ref<number | null>(null)
@@ -627,7 +649,6 @@ const filteredResults = computed(() => {
   return out
 })
 
-// Batch selection
 const selectedIndices = ref<Set<number>>(new Set())
 const batchLoading = ref(false)
 
@@ -663,13 +684,14 @@ async function batchAction(decision: string) {
       `/screening/ft/batch-feedback/${sessionId.value}`,
       { items }
     )
-    resp.applied.forEach(a => {
-      if (results.value[a.record_index]) {
-        if (!results.value[a.record_index].original_decision) {
-          results.value[a.record_index].original_decision = a.old_decision
+    resp.applied.forEach((a: { record_index: number; old_decision: string; new_decision: string }) => {
+      const row = results.value[a.record_index]
+      if (row) {
+        if (!row.original_decision) {
+          row.original_decision = a.old_decision
         }
-        results.value[a.record_index].decision = a.new_decision
-        results.value[a.record_index].human_decision = a.new_decision
+        row.decision = a.new_decision
+        row.human_decision = a.new_decision
       }
     })
     selectedIndices.value = new Set()
@@ -682,6 +704,21 @@ async function batchAction(decision: string) {
 
 function decisionClass(d: string) { return decisionBadgeClass(d) }
 function fmt(v: unknown) { return fmtScore(v) }
+
+const ftDimLabels: Record<string, string> = {
+  methodology_quality: 'Methodology',
+  sample_size_adequacy: 'Sample Size',
+  outcome_validity: 'Outcome Validity',
+  bias_risk: 'Bias Risk',
+  intervention_detail_match: 'Intervention Match',
+  limitations_noted: 'Limitations Noted',
+}
+function ftDimLabel(dim: string) { return ftDimLabels[dim] || dim }
+function ftDimClass(_dim: string, val: unknown): string {
+  if (val === true || val === 'adequate' || val === 'valid' || val === 'low') return 'badge-include'
+  if (val === false || val === 'inadequate' || val === 'questionable' || val === 'high') return 'badge-exclude'
+  return 'badge-unclear'
+}
 
 // Feedback / user override
 const feedbackLoading = ref<number | null>(null)
@@ -727,7 +764,6 @@ async function undoFeedback(index: number) {
   }
 }
 
-// Detail expansion
 const expandedRow = ref<number | null>(null)
 const detailLoading = ref(false)
 const detailData = ref<Record<string, any> | null>(null)
@@ -745,7 +781,7 @@ async function toggleDetail(index: number) {
 
   // Try local raw_decisions first (from history), then API
   if (localRawDecisions.value.length > index) {
-    detailData.value = localRawDecisions.value[index]
+    detailData.value = localRawDecisions.value[index] ?? null
     detailLoading.value = false
     return
   }
@@ -929,6 +965,32 @@ onMounted(() => {
   font-size: 0.72rem;
   line-height: 1.35;
   margin-top: 0.1rem;
+}
+.detail-ft-assessment {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.detail-ft-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary, #999);
+  margin-bottom: 0.35rem;
+}
+.detail-ft-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.6rem;
+}
+.detail-ft-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+}
+.detail-ft-dim {
+  color: var(--text-secondary, #bbb);
+  font-size: 0.7rem;
 }
 .detail-model-logo {
   width: 18px;
