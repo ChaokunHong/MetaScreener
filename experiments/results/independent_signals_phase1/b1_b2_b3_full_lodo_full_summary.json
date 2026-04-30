@@ -1,0 +1,347 @@
+{
+  "scope": "B1_B2_B3_full_lodo_synergy_diagnostic",
+  "datasets": [
+    "Donners_2021",
+    "Sep_2021",
+    "Nelson_2002",
+    "van_der_Valk_2021",
+    "Meijboom_2021",
+    "Oud_2018",
+    "Menon_2022",
+    "Jeyaraman_2020",
+    "Chou_2004",
+    "Chou_2003",
+    "van_der_Waal_2022",
+    "Smid_2020",
+    "Muthu_2021",
+    "Appenzeller-Herzog_2019",
+    "Wolters_2018",
+    "van_de_Schoot_2018",
+    "Bos_2018",
+    "Moran_2021",
+    "Leenaars_2019",
+    "Radjenovic_2013",
+    "Leenaars_2020",
+    "Wassenaar_2017",
+    "Hall_2012",
+    "van_Dis_2020",
+    "Brouwer_2019",
+    "Walker_2018"
+  ],
+  "n_rows": 142362,
+  "n_openalex_found": 141717,
+  "max_records_per_dataset": null,
+  "workers": 12,
+  "seed_counts": [
+    1,
+    3,
+    5
+  ],
+  "c_values": [
+    0.1,
+    1.0,
+    10.0
+  ],
+  "dataset_summaries": [
+    {
+      "dataset": "Donners_2021",
+      "source": "scored",
+      "rows": 195,
+      "openalex_found": 194,
+      "true_include": 4
+    },
+    {
+      "dataset": "Sep_2021",
+      "source": "scored",
+      "rows": 204,
+      "openalex_found": 204,
+      "true_include": 15
+    },
+    {
+      "dataset": "Nelson_2002",
+      "source": "scored",
+      "rows": 186,
+      "openalex_found": 186,
+      "true_include": 10
+    },
+    {
+      "dataset": "van_der_Valk_2021",
+      "source": "scored",
+      "rows": 662,
+      "openalex_found": 660,
+      "true_include": 53
+    },
+    {
+      "dataset": "Meijboom_2021",
+      "source": "scored",
+      "rows": 831,
+      "openalex_found": 830,
+      "true_include": 30
+    },
+    {
+      "dataset": "Oud_2018",
+      "source": "scored",
+      "rows": 792,
+      "openalex_found": 790,
+      "true_include": 1
+    },
+    {
+      "dataset": "Menon_2022",
+      "source": "scored",
+      "rows": 886,
+      "openalex_found": 884,
+      "true_include": 25
+    },
+    {
+      "dataset": "Jeyaraman_2020",
+      "source": "scored",
+      "rows": 1083,
+      "openalex_found": 1081,
+      "true_include": 72
+    },
+    {
+      "dataset": "Chou_2004",
+      "source": "scored",
+      "rows": 937,
+      "openalex_found": 937,
+      "true_include": 7
+    },
+    {
+      "dataset": "Chou_2003",
+      "source": "scored",
+      "rows": 1805,
+      "openalex_found": 1800,
+      "true_include": 7
+    },
+    {
+      "dataset": "van_der_Waal_2022",
+      "source": "scored",
+      "rows": 1387,
+      "openalex_found": 1380,
+      "true_include": 6
+    },
+    {
+      "dataset": "Smid_2020",
+      "source": "scored",
+      "rows": 1870,
+      "openalex_found": 1845,
+      "true_include": 3
+    },
+    {
+      "dataset": "Muthu_2021",
+      "source": "scored",
+      "rows": 2665,
+      "openalex_found": 2663,
+      "true_include": 329
+    },
+    {
+      "dataset": "Appenzeller-Herzog_2019",
+      "source": "scored",
+      "rows": 2677,
+      "openalex_found": 2656,
+      "true_include": 14
+    },
+    {
+      "dataset": "Wolters_2018",
+      "source": "scored",
+      "rows": 4109,
+      "openalex_found": 4089,
+      "true_include": 12
+    },
+    {
+      "dataset": "van_de_Schoot_2018",
+      "source": "scored",
+      "rows": 4527,
+      "openalex_found": 4484,
+      "true_include": 38
+    },
+    {
+      "dataset": "Bos_2018",
+      "source": "scored",
+      "rows": 3014,
+      "openalex_found": 3008,
+      "true_include": 2
+    },
+    {
+      "dataset": "Moran_2021",
+      "source": "scored",
+      "rows": 5131,
+      "openalex_found": 5103,
+      "true_include": 110
+    },
+    {
+      "dataset": "Leenaars_2019",
+      "source": "scored",
+      "rows": 5684,
+      "openalex_found": 5663,
+      "true_include": 17
+    },
+    {
+      "dataset": "Radjenovic_2013",
+      "source": "scored",
+      "rows": 3391,
+      "openalex_found": 3379,
+      "true_include": 0
+    },
+    {
+      "dataset": "Leenaars_2020",
+      "source": "scored",
+      "rows": 6214,
+      "openalex_found": 6188,
+      "true_include": 302
+    },
+    {
+      "dataset": "Wassenaar_2017",
+      "source": "scored",
+      "rows": 7582,
+      "openalex_found": 7566,
+      "true_include": 95
+    },
+    {
+      "dataset": "Hall_2012",
+      "source": "scored",
+      "rows": 2212,
+      "openalex_found": 2199,
+      "true_include": 7
+    },
+    {
+      "dataset": "van_Dis_2020",
+      "source": "scored",
+      "rows": 8750,
+      "openalex_found": 8718,
+      "true_include": 39
+    },
+    {
+      "dataset": "Brouwer_2019",
+      "source": "scored",
+      "rows": 37311,
+      "openalex_found": 37070,
+      "true_include": 26
+    },
+    {
+      "dataset": "Walker_2018",
+      "source": "scored",
+      "rows": 38257,
+      "openalex_found": 38140,
+      "true_include": 554
+    }
+  ],
+  "b1_metric": {
+    "n": 141717,
+    "n_pos": 1771,
+    "n_neg": 139946,
+    "auc": 0.6169588680502828,
+    "pr_auc": 0.029410963213467915
+  },
+  "b2_metadata_metric": {
+    "n": 141717,
+    "n_pos": 1771,
+    "n_neg": 139946,
+    "auc": 0.615947233192301,
+    "pr_auc": 0.02136854980475976
+  },
+  "b3_deployable_metrics": {
+    "b3_seed1_direct": {
+      "n": 141717,
+      "n_pos": 1771,
+      "n_neg": 139946,
+      "auc": 0.5176912756612752,
+      "pr_auc": 0.01684605179265445
+    },
+    "b3_seed1_neighbor_count": {
+      "n": 141717,
+      "n_pos": 1771,
+      "n_neg": 139946,
+      "auc": 0.6178300296727341,
+      "pr_auc": 0.02929758708144114
+    },
+    "b3_seed1_neighbor_jaccard": {
+      "n": 141717,
+      "n_pos": 1771,
+      "n_neg": 139946,
+      "auc": 0.6179539844775007,
+      "pr_auc": 0.02895407385504466
+    },
+    "b3_seed3_direct": {
+      "n": 141717,
+      "n_pos": 1771,
+      "n_neg": 139946,
+      "auc": 0.5397917538299014,
+      "pr_auc": 0.022111652748622354
+    },
+    "b3_seed3_neighbor_count": {
+      "n": 141717,
+      "n_pos": 1771,
+      "n_neg": 139946,
+      "auc": 0.6344981572024114,
+      "pr_auc": 0.03276513729917942
+    },
+    "b3_seed3_neighbor_jaccard": {
+      "n": 141717,
+      "n_pos": 1771,
+      "n_neg": 139946,
+      "auc": 0.6341597714591584,
+      "pr_auc": 0.033373345547431
+    },
+    "b3_seed5_direct": {
+      "n": 141717,
+      "n_pos": 1771,
+      "n_neg": 139946,
+      "auc": 0.5455192291924038,
+      "pr_auc": 0.021430017586906304
+    },
+    "b3_seed5_neighbor_count": {
+      "n": 141717,
+      "n_pos": 1771,
+      "n_neg": 139946,
+      "auc": 0.6448481463564921,
+      "pr_auc": 0.035408065293666816
+    },
+    "b3_seed5_neighbor_jaccard": {
+      "n": 141717,
+      "n_pos": 1771,
+      "n_neg": 139946,
+      "auc": 0.6426191810226582,
+      "pr_auc": 0.03398026231441881
+    }
+  },
+  "feature_correlations": {
+    "b1_lexical_score__metadata_score": 0.27325981009325595,
+    "b1_lexical_score__b3_seed5_neighbor_count": 0.255442967777907,
+    "metadata_score__b3_seed5_neighbor_count": 0.07889904266100864
+  },
+  "b1_b2_b3_lodo_grid": {
+    "c_grid_metrics": {
+      "c_0.1": {
+        "n": 141717,
+        "n_pos": 1771,
+        "n_neg": 139946,
+        "auc": 0.6019853644766733,
+        "pr_auc": 0.03613327446779449
+      },
+      "c_1.0": {
+        "n": 141717,
+        "n_pos": 1771,
+        "n_neg": 139946,
+        "auc": 0.6019721424694399,
+        "pr_auc": 0.03612973936374196
+      },
+      "c_10.0": {
+        "n": 141717,
+        "n_pos": 1771,
+        "n_neg": 139946,
+        "auc": 0.6019708150234894,
+        "pr_auc": 0.03612875215992906
+      }
+    },
+    "best_c_by_auc": 0.1,
+    "best_metric": {
+      "n": 141717,
+      "n_pos": 1771,
+      "n_neg": 139946,
+      "auc": 0.6019853644766733,
+      "pr_auc": 0.03613327446779449
+    }
+  },
+  "note": "SYNERGY HUMAN_REVIEW records only. Uses deployable known-seed citation neighborhood features and leaves each held-out dataset out of training."
+}

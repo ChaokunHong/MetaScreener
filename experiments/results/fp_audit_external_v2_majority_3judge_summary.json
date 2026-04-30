@@ -1,0 +1,20 @@
+{
+  "n_rows": 289,
+  "models": [
+    "nous-hermes4",
+    "glm5.1",
+    "minimax-m2.7"
+  ],
+  "majority_counts": {
+    "genuine_fp": 183,
+    "label_error": 83,
+    "ambiguous": 23
+  },
+  "agreement_counts": {
+    "3/3": 170,
+    "2/3": 88,
+    "2/2": 18,
+    "no_majority/2": 7,
+    "no_majority/3": 6
+  }
+}

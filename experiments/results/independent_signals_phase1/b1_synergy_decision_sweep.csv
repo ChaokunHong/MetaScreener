@@ -1,0 +1,9 @@
+action,fraction,n_moved,fn_rescued,new_fn,precision_true_include,efficiency_fn_rescued_per_hr_added,precision_true_exclude
+rescue_auto_exclude_to_hr,0.01,213,3,0,0.014084507042253521,0.014084507042253521,
+rescue_auto_exclude_to_hr,0.05,1061,5,0,0.00471253534401508,0.00471253534401508,
+rescue_auto_exclude_to_hr,0.1,2122,5,0,0.00235626767200754,0.00235626767200754,
+rescue_auto_exclude_to_hr,0.25,5304,9,0,0.0016968325791855204,0.0016968325791855204,
+release_hr_to_exclude,0.01,1424,0,24,,,0.9831460674157303
+release_hr_to_exclude,0.05,7119,0,80,,,0.9887624666385728
+release_hr_to_exclude,0.1,14237,0,136,,,0.9904474257217111
+release_hr_to_exclude,0.25,35591,0,298,,,0.9916270967379394

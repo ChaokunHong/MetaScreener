@@ -1,0 +1,423 @@
+{
+  "config": "a13b_coverage_rule",
+  "n_boot": 1000,
+  "overall": {
+    "label": "ALL",
+    "n_datasets_total": 26,
+    "n_datasets_with_data": 26,
+    "datasets_with_data": [
+      "Donners_2021",
+      "Sep_2021",
+      "Nelson_2002",
+      "van_der_Valk_2021",
+      "Meijboom_2021",
+      "Oud_2018",
+      "Menon_2022",
+      "Jeyaraman_2020",
+      "Chou_2004",
+      "Chou_2003",
+      "van_der_Waal_2022",
+      "Smid_2020",
+      "Muthu_2021",
+      "Appenzeller-Herzog_2019",
+      "Wolters_2018",
+      "van_de_Schoot_2018",
+      "Bos_2018",
+      "Moran_2021",
+      "Leenaars_2019",
+      "Radjenovic_2013",
+      "Leenaars_2020",
+      "Wassenaar_2017",
+      "Hall_2012",
+      "van_Dis_2020",
+      "Brouwer_2019",
+      "Walker_2018"
+    ],
+    "n_records_pooled": 168856,
+    "pooled_sens": 0.9473498233215548,
+    "pooled_sens_ci": [
+      0.9389394486013837,
+      0.9557290365946159
+    ],
+    "pooled_wss95": 0.4258807063788111,
+    "pooled_auroc": 0.8579025335680781,
+    "mean_sens": 0.9538763645314977,
+    "mean_sens_ci": [
+      0.8742467795225641,
+      0.9969027889218847
+    ],
+    "mean_auto": 0.5877929517111726,
+    "mean_auto_ci": [
+      0.44593178585117915,
+      0.7290589461255411
+    ],
+    "mean_wss95": 0.471462711781287,
+    "mean_auroc": 0.8526970023729245,
+    "total_fn": 149
+  },
+  "by_framework": [
+    {
+      "label": "framework:pcc",
+      "n_datasets_total": 3,
+      "n_datasets_with_data": 3,
+      "datasets_with_data": [
+        "Menon_2022",
+        "Radjenovic_2013",
+        "Hall_2012"
+      ],
+      "n_records_pooled": 15703,
+      "pooled_sens": 0.668141592920354,
+      "pooled_sens_ci": [
+        0.6042489361702128,
+        0.7272727272727273
+      ],
+      "pooled_wss95": 0.9003335266821345,
+      "pooled_auroc": 0.9750156690654538,
+      "mean_sens": 0.6634615384615384,
+      "mean_sens_ci": [
+        0.0,
+        1.0
+      ],
+      "mean_auto": 0.5384506660067646,
+      "mean_auto_ci": [
+        0.21210053451609234,
+        0.9682051282051282
+      ],
+      "mean_wss95": 0.8855749194015217,
+      "mean_auroc": 0.9763002899693827,
+      "total_fn": 75
+    },
+    {
+      "label": "framework:peco",
+      "n_datasets_total": 6,
+      "n_datasets_with_data": 6,
+      "datasets_with_data": [
+        "van_der_Valk_2021",
+        "Wolters_2018",
+        "Bos_2018",
+        "Moran_2021",
+        "Wassenaar_2017",
+        "Walker_2018"
+      ],
+      "n_records_pooled": 70884,
+      "pooled_sens": 0.9381255686988171,
+      "pooled_sens_ci": [
+        0.9239510977424956,
+        0.951289692303126
+      ],
+      "pooled_wss95": 0.16827972226158422,
+      "pooled_auroc": 0.8260657567439016,
+      "mean_sens": 0.9766342707231813,
+      "mean_sens_ci": [
+        0.9494054608856758,
+        0.99625468164794
+      ],
+      "mean_auto": 0.18390874976617644,
+      "mean_auto_ci": [
+        0.08331398960671346,
+        0.2813584434208069
+      ],
+      "mean_wss95": 0.4124849749507169,
+      "mean_auroc": 0.813303840977832,
+      "total_fn": 68
+    },
+    {
+      "label": "framework:peo",
+      "n_datasets_total": 3,
+      "n_datasets_with_data": 3,
+      "datasets_with_data": [
+        "Nelson_2002",
+        "Meijboom_2021",
+        "Leenaars_2019"
+      ],
+      "n_records_pooled": 7014,
+      "pooled_sens": 0.9925373134328358,
+      "pooled_sens_ci": [
+        0.9758015342250197,
+        1.0
+      ],
+      "pooled_wss95": 0.8182814963451339,
+      "pooled_auroc": 0.9544999626477063,
+      "mean_sens": 0.9958333333333333,
+      "mean_sens_ci": [
+        0.9875000000000002,
+        1.0
+      ],
+      "mean_auto": 0.6986440955204115,
+      "mean_auto_ci": [
+        0.13945578231292516,
+        0.9975723946592683
+      ],
+      "mean_wss95": 0.368169351283613,
+      "mean_auroc": 0.8274247696311713,
+      "total_fn": 1
+    },
+    {
+      "label": "framework:pico",
+      "n_datasets_total": 11,
+      "n_datasets_with_data": 11,
+      "datasets_with_data": [
+        "Donners_2021",
+        "Sep_2021",
+        "Oud_2018",
+        "Jeyaraman_2020",
+        "Chou_2004",
+        "Chou_2003",
+        "Smid_2020",
+        "Muthu_2021",
+        "Appenzeller-Herzog_2019",
+        "Leenaars_2020",
+        "van_Dis_2020"
+      ],
+      "n_records_pooled": 30671,
+      "pooled_sens": 0.9959612277867528,
+      "pooled_sens_ci": [
+        0.9918353931547969,
+        0.999188344576817
+      ],
+      "pooled_wss95": 0.4436826396949097,
+      "pooled_auroc": 0.8383439015125447,
+      "mean_sens": 0.9966450216450217,
+      "mean_sens_ci": [
+        0.9910173160173161,
+        1.0
+      ],
+      "mean_auto": 0.8235034544643829,
+      "mean_auto_ci": [
+        0.6464439395556637,
+        0.9553288666805904
+      ],
+      "mean_wss95": 0.4570621906177143,
+      "mean_auroc": 0.8556530010158524,
+      "total_fn": 5
+    },
+    {
+      "label": "framework:pif",
+      "n_datasets_total": 2,
+      "n_datasets_with_data": 2,
+      "datasets_with_data": [
+        "van_de_Schoot_2018",
+        "Brouwer_2019"
+      ],
+      "n_records_pooled": 42614,
+      "pooled_sens": 1.0,
+      "pooled_sens_ci": [
+        1.0,
+        1.0
+      ],
+      "pooled_wss95": 0.5716743610489743,
+      "pooled_auroc": 0.7907550927913746,
+      "mean_sens": 1.0,
+      "mean_sens_ci": [
+        1.0,
+        1.0
+      ],
+      "mean_auto": 0.22472174252316504,
+      "mean_auto_ci": [
+        0.03217276333186426,
+        0.41727072171446583
+      ],
+      "mean_wss95": 0.4166249263939562,
+      "mean_auroc": 0.8805951476990606,
+      "total_fn": 0
+    },
+    {
+      "label": "framework:spider",
+      "n_datasets_total": 1,
+      "n_datasets_with_data": 1,
+      "datasets_with_data": [
+        "van_der_Waal_2022"
+      ],
+      "n_records_pooled": 1970,
+      "pooled_sens": 1.0,
+      "pooled_sens_ci": [
+        1.0,
+        1.0
+      ],
+      "pooled_wss95": 0.5750661025912216,
+      "pooled_auroc": 0.8293538180513422,
+      "mean_sens": 1.0,
+      "mean_sens_ci": [
+        1.0,
+        1.0
+      ],
+      "mean_auto": 0.9598984771573604,
+      "mean_auto_ci": [
+        0.9598984771573604,
+        0.9598984771573604
+      ],
+      "mean_wss95": 0.5750661025912216,
+      "mean_auroc": 0.8293538180513422,
+      "total_fn": 0
+    }
+  ],
+  "by_topic": [
+    {
+      "label": "topic:animal",
+      "n_datasets_total": 3,
+      "n_datasets_with_data": 3,
+      "datasets_with_data": [
+        "Leenaars_2019",
+        "Leenaars_2020",
+        "Wassenaar_2017"
+      ],
+      "n_records_pooled": 20593,
+      "pooled_sens": 1.0,
+      "pooled_sens_ci": [
+        1.0,
+        1.0
+      ],
+      "pooled_wss95": 0.6882757103036823,
+      "pooled_auroc": 0.923556782204958,
+      "mean_sens": 1.0,
+      "mean_sens_ci": [
+        1.0,
+        1.0
+      ],
+      "mean_auto": 0.6955343032324961,
+      "mean_auto_ci": [
+        0.09168081494057727,
+        0.9975723946592683
+      ],
+      "mean_wss95": 0.4597821138657328,
+      "mean_auroc": 0.9031244827509158,
+      "total_fn": 0
+    },
+    {
+      "label": "topic:biomedical",
+      "n_datasets_total": 17,
+      "n_datasets_with_data": 17,
+      "datasets_with_data": [
+        "Donners_2021",
+        "Sep_2021",
+        "Nelson_2002",
+        "van_der_Valk_2021",
+        "Meijboom_2021",
+        "Menon_2022",
+        "Jeyaraman_2020",
+        "Chou_2004",
+        "Chou_2003",
+        "van_der_Waal_2022",
+        "Smid_2020",
+        "Muthu_2021",
+        "Appenzeller-Herzog_2019",
+        "Wolters_2018",
+        "Bos_2018",
+        "Moran_2021",
+        "Walker_2018"
+      ],
+      "n_records_pooled": 80857,
+      "pooled_sens": 0.9166666666666666,
+      "pooled_sens_ci": [
+        0.9044655548913332,
+        0.9297424551021356
+      ],
+      "pooled_wss95": 0.23210598066193738,
+      "pooled_auroc": 0.8295697268297045,
+      "mean_sens": 0.9300235801431956,
+      "mean_sens_ci": [
+        0.8062346356181578,
+        0.9955891106442577
+      ],
+      "mean_auto": 0.5976544934869769,
+      "mean_auto_ci": [
+        0.41489853250124387,
+        0.785061684545529
+      ],
+      "mean_wss95": 0.4057292791731425,
+      "mean_auroc": 0.8197697338835017,
+      "total_fn": 148
+    },
+    {
+      "label": "topic:psychology",
+      "n_datasets_total": 4,
+      "n_datasets_with_data": 4,
+      "datasets_with_data": [
+        "Oud_2018",
+        "van_de_Schoot_2018",
+        "van_Dis_2020",
+        "Brouwer_2019"
+      ],
+      "n_records_pooled": 52678,
+      "pooled_sens": 1.0,
+      "pooled_sens_ci": [
+        1.0,
+        1.0
+      ],
+      "pooled_wss95": 0.5195847038682747,
+      "pooled_auroc": 0.8228105793673779,
+      "mean_sens": 1.0,
+      "mean_sens_ci": [
+        1.0,
+        1.0
+      ],
+      "mean_auto": 0.5971851439248074,
+      "mean_auto_ci": [
+        0.22472174252316504,
+        0.9696485453264498
+      ],
+      "mean_wss95": 0.5361007868404135,
+      "mean_auroc": 0.8847838222488926,
+      "total_fn": 0
+    },
+    {
+      "label": "topic:software",
+      "n_datasets_total": 2,
+      "n_datasets_with_data": 2,
+      "datasets_with_data": [
+        "Radjenovic_2013",
+        "Hall_2012"
+      ],
+      "n_records_pooled": 14728,
+      "pooled_sens": 0.993421052631579,
+      "pooled_sens_ci": [
+        0.9775902464422076,
+        1.0
+      ],
+      "pooled_wss95": 0.900178194777802,
+      "pooled_auroc": 0.9749712413882446,
+      "mean_sens": 0.9951923076923077,
+      "mean_sens_ci": [
+        0.9903846153846154,
+        1.0
+      ],
+      "mean_auto": 0.32357343490758284,
+      "mean_auto_ci": [
+        0.21210053451609234,
+        0.4350463352990733
+      ],
+      "mean_wss95": 0.8855749194015217,
+      "mean_auroc": 0.9763002899693827,
+      "total_fn": 1
+    }
+  ],
+  "topic_mapping_used": {
+    "Donners_2021": "biomedical",
+    "Sep_2021": "biomedical",
+    "Nelson_2002": "biomedical",
+    "van_der_Valk_2021": "biomedical",
+    "Meijboom_2021": "biomedical",
+    "Oud_2018": "psychology",
+    "Menon_2022": "biomedical",
+    "Jeyaraman_2020": "biomedical",
+    "Chou_2004": "biomedical",
+    "Chou_2003": "biomedical",
+    "van_der_Waal_2022": "biomedical",
+    "Smid_2020": "biomedical",
+    "Muthu_2021": "biomedical",
+    "Appenzeller-Herzog_2019": "biomedical",
+    "Wolters_2018": "biomedical",
+    "van_de_Schoot_2018": "psychology",
+    "Bos_2018": "biomedical",
+    "Moran_2021": "biomedical",
+    "Leenaars_2019": "animal",
+    "Radjenovic_2013": "software",
+    "Leenaars_2020": "animal",
+    "Wassenaar_2017": "animal",
+    "Hall_2012": "software",
+    "van_Dis_2020": "psychology",
+    "Brouwer_2019": "psychology",
+    "Walker_2018": "biomedical"
+  },
+  "datasets_missing_topic": []
+}

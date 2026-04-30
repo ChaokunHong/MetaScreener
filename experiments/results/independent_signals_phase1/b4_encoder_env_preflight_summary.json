@@ -1,0 +1,13 @@
+{
+  "scope": "B4_encoder_environment_preflight",
+  "module_status": {
+    "transformers": false,
+    "torch": false,
+    "sentence_transformers": false
+  },
+  "huggingface_cache_exists": true,
+  "cached_model_count": 6,
+  "candidate_pubmedbert_scibert_cached_models": [],
+  "b4_correlation_runnable": false,
+  "note": "B4 correlation requires transformers, torch, and a cached or downloadable PubMedBERT/SciBERT model. This preflight does not download models."
+}

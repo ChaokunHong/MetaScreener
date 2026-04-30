@@ -1,0 +1,292 @@
+{
+  "scope": "B3_seed_protocol_synergy_sample_diagnostic",
+  "datasets": [
+    "Donners_2021",
+    "Sep_2021",
+    "Nelson_2002",
+    "van_der_Valk_2021",
+    "Meijboom_2021",
+    "Oud_2018",
+    "Menon_2022",
+    "Jeyaraman_2020",
+    "Chou_2004",
+    "Chou_2003",
+    "van_der_Waal_2022",
+    "Smid_2020",
+    "Muthu_2021",
+    "Appenzeller-Herzog_2019",
+    "Wolters_2018",
+    "van_de_Schoot_2018",
+    "Bos_2018",
+    "Moran_2021",
+    "Leenaars_2019",
+    "Radjenovic_2013",
+    "Leenaars_2020",
+    "Wassenaar_2017",
+    "Hall_2012",
+    "van_Dis_2020",
+    "Brouwer_2019",
+    "Walker_2018"
+  ],
+  "n_sampled": 467,
+  "n_openalex_found": 462,
+  "pos_per_dataset": 10,
+  "neg_per_dataset": 10,
+  "seed_counts": [
+    1,
+    3,
+    5
+  ],
+  "seed_protocol": "For each held dataset, choose deterministic known true-INCLUDE OpenAlex seed papers from that dataset. Each evaluated record is excluded from its own seed set, so the score cannot label a record by knowing itself.",
+  "seed_summary_by_dataset": [
+    {
+      "dataset": "Donners_2021",
+      "seed_pool_size": 15,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Sep_2021",
+      "seed_pool_size": 40,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Nelson_2002",
+      "seed_pool_size": 80,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "van_der_Valk_2021",
+      "seed_pool_size": 89,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Meijboom_2021",
+      "seed_pool_size": 37,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Oud_2018",
+      "seed_pool_size": 20,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Menon_2022",
+      "seed_pool_size": 74,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Jeyaraman_2020",
+      "seed_pool_size": 96,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Chou_2004",
+      "seed_pool_size": 9,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Chou_2003",
+      "seed_pool_size": 15,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "van_der_Waal_2022",
+      "seed_pool_size": 33,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Smid_2020",
+      "seed_pool_size": 27,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Muthu_2021",
+      "seed_pool_size": 336,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Appenzeller-Herzog_2019",
+      "seed_pool_size": 26,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Wolters_2018",
+      "seed_pool_size": 19,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "van_de_Schoot_2018",
+      "seed_pool_size": 38,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Bos_2018",
+      "seed_pool_size": 10,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Moran_2021",
+      "seed_pool_size": 111,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Leenaars_2019",
+      "seed_pool_size": 17,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Radjenovic_2013",
+      "seed_pool_size": 48,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Leenaars_2020",
+      "seed_pool_size": 582,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Wassenaar_2017",
+      "seed_pool_size": 111,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Hall_2012",
+      "seed_pool_size": 104,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "van_Dis_2020",
+      "seed_pool_size": 72,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Brouwer_2019",
+      "seed_pool_size": 62,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    },
+    {
+      "dataset": "Walker_2018",
+      "seed_pool_size": 759,
+      "max_seed_count": 5,
+      "seed_payloads_found": 6
+    }
+  ],
+  "metadata_diagnostic": {
+    "n": 462,
+    "n_pos": 205,
+    "n_neg": 257,
+    "auc": 0.6672107810572271,
+    "pr_auc": 0.615915342872181
+  },
+  "b1_lexical_diagnostic_on_same_sample": {
+    "n": 462,
+    "n_pos": 205,
+    "n_neg": 257,
+    "auc": 0.7566290215431339,
+    "pr_auc": 0.7478198545623979
+  },
+  "b3_deployable_seed_diagnostics": {
+    "b3_seed1_direct": {
+      "n": 462,
+      "n_pos": 205,
+      "n_neg": 257,
+      "auc": 0.5258707411976844,
+      "pr_auc": 0.467108805828318
+    },
+    "b3_seed1_neighbor_count": {
+      "n": 462,
+      "n_pos": 205,
+      "n_neg": 257,
+      "auc": 0.6225965644870457,
+      "pr_auc": 0.5487055033225535
+    },
+    "b3_seed1_neighbor_jaccard": {
+      "n": 462,
+      "n_pos": 205,
+      "n_neg": 257,
+      "auc": 0.6226440163234317,
+      "pr_auc": 0.553445117759564
+    },
+    "b3_seed3_direct": {
+      "n": 462,
+      "n_pos": 205,
+      "n_neg": 257,
+      "auc": 0.5646294011578248,
+      "pr_auc": 0.5051655661411758
+    },
+    "b3_seed3_neighbor_count": {
+      "n": 462,
+      "n_pos": 205,
+      "n_neg": 257,
+      "auc": 0.7082756002657301,
+      "pr_auc": 0.6413114257804026
+    },
+    "b3_seed3_neighbor_jaccard": {
+      "n": 462,
+      "n_pos": 205,
+      "n_neg": 257,
+      "auc": 0.7074404479453353,
+      "pr_auc": 0.6505112570582678
+    },
+    "b3_seed5_direct": {
+      "n": 462,
+      "n_pos": 205,
+      "n_neg": 257,
+      "auc": 0.5926734364619911,
+      "pr_auc": 0.5333122162390456
+    },
+    "b3_seed5_neighbor_count": {
+      "n": 462,
+      "n_pos": 205,
+      "n_neg": 257,
+      "auc": 0.7308911454873304,
+      "pr_auc": 0.674392432246831
+    },
+    "b3_seed5_neighbor_jaccard": {
+      "n": 462,
+      "n_pos": 205,
+      "n_neg": 257,
+      "auc": 0.7292588023156497,
+      "pr_auc": 0.675996722734862
+    }
+  },
+  "best_b3_deployable_score": "b3_seed5_neighbor_count",
+  "b1_b2_b3_deployable_lodo_combined_diagnostic": {
+    "n": 462,
+    "n_pos": 205,
+    "n_neg": 257,
+    "auc": 0.7601784189048116,
+    "pr_auc": 0.764915149492321
+  },
+  "deployable_feature_correlations": {
+    "b1_lexical_score__metadata_score": 0.5823602286592405,
+    "b1_lexical_score__b3_seed5_neighbor_count": 0.5193788985093403,
+    "metadata_score__b3_seed5_neighbor_count": 0.36546703113941015
+  },
+  "note": "SYNERGY sampled HR records only. This B3 protocol uses only a small known-seed set per dataset, not the full ground-truth include set."
+}

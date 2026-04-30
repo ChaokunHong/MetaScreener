@@ -1,0 +1,22 @@
+dataset,rid,title,p_main,lex_score,lex_rank_pct
+CLEF_CD011977,pubmed:19781467,Feasibility of spherical aberration correction with aspheric intraocular lenses in cataract surgery based on individual ,0.0,0.04265279847992565,0.8051282051282052
+Cohen_ACEInhibitors,pubmed:10080457,Effect of angiotensin converting enzyme inhibition on sudden cardiac death in patients following acute myocardial infarc,0.0,0.07194582141256314,0.14386792452830188
+Cohen_AtypicalAntipsychotics,pubmed:10868465,Atypical antipsychotics and weight gain--a systematic review.,0.0,0.07678830215696497,0.13839285714285715
+Cohen_AtypicalAntipsychotics,pubmed:11440294,Meta-analysis comparing newer antipsychotic drugs for the treatment of schizophrenia: evaluating the indirect approach.,0.0,0.08457736838541619,0.08303571428571428
+Cohen_AtypicalAntipsychotics,pubmed:12084413,Newer atypical antipsychotic medication in comparison to clozapine: a systematic review of randomized trials.,0.0,0.07200513280785825,0.17142857142857143
+Cohen_AtypicalAntipsychotics,pubmed:12747876,New generation antipsychotics versus low-potency conventional antipsychotics: a systematic review and meta-analysis.,0.0,0.08966073954163148,0.06696428571428571
+Cohen_AtypicalAntipsychotics,pubmed:12796218,A meta-analysis of the efficacy of second-generation antipsychotics.,0.0,0.13950313185403873,0.0026785714285714286
+Cohen_AtypicalAntipsychotics,pubmed:12832232,Relapse prevention in schizophrenia with new-generation antipsychotics: a systematic review and exploratory meta-analysi,0.0,0.13238251110592653,0.00625
+Cohen_AtypicalAntipsychotics,pubmed:9988841,"Efficacy and extrapyramidal side-effects of the new antipsychotics olanzapine, quetiapine, risperidone, and sertindole c",0.0,0.07656199435914089,0.14107142857142857
+Cohen_BetaBlockers,pubmed:10826501,Endothelin-1 induces interleukin-6 release via activation of the transcription factor NF-kappaB in human vascular smooth,0.002280846330292972,0.0027816817666771135,0.9888996138996139
+Cohen_CalciumChannelBlockers,pubmed:11130522,Health outcomes associated with calcium antagonists compared with other first-line antihypertensive therapies: a meta-an,0.0,0.11214427864248633,0.020525451559934318
+Cohen_CalciumChannelBlockers,pubmed:9231814,Safety of nifedipine in patients with hypertension: a meta-analysis.,0.0,0.03520011985029203,0.7298850574712644
+Cohen_CalciumChannelBlockers,pubmed:9416985,Risk of serious adverse events in hypertensive patients receiving isradipine: a meta-analysis.,0.0,0.08954539948386939,0.08784893267651889
+Cohen_CalciumChannelBlockers,pubmed:9931077,Safety of nifedipine in angina pectoris: a meta-analysis.,0.0,0.06994624340418495,0.21921182266009853
+Cohen_Estrogens,pubmed:7824251,Hormone replacement therapy and endometrial cancer risk: a meta-analysis.,0.0,0.08882724158649957,0.3016304347826087
+Cohen_OralHypoglycemics,pubmed:9551006,Modeling all-cause mortality: projections of the impact of smoking cessation based on the NHEFS. NHANES I Epidemiologic ,0.00630028530581298,0.06449885569710803,0.3717693836978131
+Cohen_ProtonPumpInhibitors,pubmed:10383518,Evaluation of treatment regimens to cure Helicobacter pylori infection--a meta-analysis.,0.0,0.05966859949883981,0.3563390847711928
+Cohen_ProtonPumpInhibitors,pubmed:11421865,Proton pump inhibitors versus H2-antagonists: a meta-analysis of their efficacy in treating bleeding peptic ulcer.,0.0,0.065957130429158,0.26406601650412603
+Cohen_ProtonPumpInhibitors,pubmed:9731991,Efficacy of lansoprazole in eradicating Helicobacter pylori: a meta-analysis.,0.0,0.05207149225944383,0.495873968492123
+Cohen_Statins,pubmed:10612322,Effect of statins on risk of coronary disease: a meta-analysis of randomized controlled trials.,0.0,0.06997714499063966,0.12157089228992203
+Cohen_Statins,pubmed:14568856,Effects of statins on nonlipid serum markers associated with cardiovascular disease: a systematic review.,0.0,0.03734978856030784,0.5209356049667918

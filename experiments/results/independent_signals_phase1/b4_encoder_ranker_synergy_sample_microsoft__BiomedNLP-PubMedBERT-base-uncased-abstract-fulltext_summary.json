@@ -1,0 +1,49 @@
+{
+  "scope": "B4_encoder_ranker_synergy_sample_diagnostic",
+  "model_name": "microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext",
+  "device": "mps",
+  "n_sampled": 467,
+  "pos_per_dataset": 10,
+  "neg_per_dataset": 10,
+  "batch_size": 16,
+  "max_length": 256,
+  "c_values": [
+    0.1,
+    1.0,
+    10.0
+  ],
+  "c_grid_metrics": {
+    "c_0.1": {
+      "n": 467,
+      "n_pos": 207,
+      "n_neg": 260,
+      "auc": 0.5907840951319212,
+      "pr_auc": 0.5186846586478804
+    },
+    "c_1.0": {
+      "n": 467,
+      "n_pos": 207,
+      "n_neg": 260,
+      "auc": 0.5732441471571907,
+      "pr_auc": 0.49946355897691963
+    },
+    "c_10.0": {
+      "n": 467,
+      "n_pos": 207,
+      "n_neg": 260,
+      "auc": 0.5655611296915645,
+      "pr_auc": 0.4875920611935778
+    }
+  },
+  "best_c_by_auc": 0.1,
+  "best_metric": {
+    "n": 467,
+    "n_pos": 207,
+    "n_neg": 260,
+    "auc": 0.5907840951319212,
+    "pr_auc": 0.5186846586478804
+  },
+  "spearman_best_ranker_p_include": 0.06988436743930582,
+  "spearman_best_ranker_final_score": 0.06988436743930582,
+  "note": "SYNERGY sampled HR records only. Encoder is frozen; classifier is trained under leave-one-dataset-out folds and never sees the held-out dataset."
+}

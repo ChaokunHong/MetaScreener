@@ -1,0 +1,286 @@
+{
+  "datasets": [
+    "CLEF_CD000996",
+    "CLEF_CD001261",
+    "CLEF_CD004414",
+    "CLEF_CD006468",
+    "CLEF_CD007867",
+    "CLEF_CD009069",
+    "CLEF_CD009642",
+    "CLEF_CD010038",
+    "CLEF_CD010239",
+    "CLEF_CD010558",
+    "CLEF_CD010753",
+    "CLEF_CD011140",
+    "CLEF_CD011571",
+    "CLEF_CD011768",
+    "CLEF_CD011977",
+    "CLEF_CD012069",
+    "CLEF_CD012164",
+    "CLEF_CD012342",
+    "CLEF_CD012455",
+    "CLEF_CD012551",
+    "Cohen_ACEInhibitors",
+    "Cohen_ADHD",
+    "Cohen_Antihistamines",
+    "Cohen_AtypicalAntipsychotics",
+    "Cohen_BetaBlockers",
+    "Cohen_CalciumChannelBlockers",
+    "Cohen_Estrogens",
+    "Cohen_NSAIDS",
+    "Cohen_Opiods",
+    "Cohen_OralHypoglycemics",
+    "Cohen_ProtonPumpInhibitors",
+    "Cohen_SkeletalMuscleRelaxants",
+    "Cohen_Statins",
+    "Cohen_Triptans",
+    "Cohen_UrinaryIncontinence"
+  ],
+  "base_config": "a13b_coverage_rule",
+  "baseline": {
+    "n": 60727,
+    "tp": 785,
+    "fn": 21,
+    "tn": 10564,
+    "fp": 4044,
+    "auto_rate": 0.253824493223772,
+    "hr_rate": 0.746175506776228,
+    "sens": 0.9739454094292804
+  },
+  "sweep": [
+    {
+      "top_pct": 0.005,
+      "veto_n": 23,
+      "fn_rescued": 1,
+      "te_moved_hr": 22,
+      "sens": 0.9751552795031055,
+      "delta_hr_pp": 0.0378744215917215
+    },
+    {
+      "top_pct": 0.01,
+      "veto_n": 53,
+      "fn_rescued": 2,
+      "te_moved_hr": 51,
+      "sens": 0.9763681592039801,
+      "delta_hr_pp": 0.08727584105916453
+    },
+    {
+      "top_pct": 0.025,
+      "veto_n": 105,
+      "fn_rescued": 3,
+      "te_moved_hr": 102,
+      "sens": 0.9775840597758406,
+      "delta_hr_pp": 0.17290496813608947
+    },
+    {
+      "top_pct": 0.05,
+      "veto_n": 221,
+      "fn_rescued": 3,
+      "te_moved_hr": 218,
+      "sens": 0.9775840597758406,
+      "delta_hr_pp": 0.36392379007690323
+    },
+    {
+      "top_pct": 0.1,
+      "veto_n": 502,
+      "fn_rescued": 6,
+      "te_moved_hr": 496,
+      "sens": 0.98125,
+      "delta_hr_pp": 0.8266504190887147
+    },
+    {
+      "top_pct": 0.15,
+      "veto_n": 813,
+      "fn_rescued": 10,
+      "te_moved_hr": 803,
+      "sens": 0.9861809045226131,
+      "delta_hr_pp": 1.3387784675679693
+    },
+    {
+      "top_pct": 0.25,
+      "veto_n": 1497,
+      "fn_rescued": 12,
+      "te_moved_hr": 1485,
+      "sens": 0.9886649874055415,
+      "delta_hr_pp": 2.465130831425888
+    },
+    {
+      "top_pct": 0.5,
+      "veto_n": 3818,
+      "fn_rescued": 17,
+      "te_moved_hr": 3801,
+      "sens": 0.9949302915082383,
+      "delta_hr_pp": 6.287153984224481
+    }
+  ],
+  "fn_records": [
+    {
+      "dataset": "CLEF_CD011977",
+      "rid": "pubmed:19781467",
+      "title": "Feasibility of spherical aberration correction with aspheric intraocular lenses in cataract surgery based on individual ",
+      "p_main": 0.0,
+      "lex_score": 0.04265279847992565,
+      "lex_rank_pct": 0.8051282051282052
+    },
+    {
+      "dataset": "Cohen_ACEInhibitors",
+      "rid": "pubmed:10080457",
+      "title": "Effect of angiotensin converting enzyme inhibition on sudden cardiac death in patients following acute myocardial infarc",
+      "p_main": 0.0,
+      "lex_score": 0.07194582141256314,
+      "lex_rank_pct": 0.14386792452830188
+    },
+    {
+      "dataset": "Cohen_AtypicalAntipsychotics",
+      "rid": "pubmed:10868465",
+      "title": "Atypical antipsychotics and weight gain--a systematic review.",
+      "p_main": 0.0,
+      "lex_score": 0.07678830215696497,
+      "lex_rank_pct": 0.13839285714285715
+    },
+    {
+      "dataset": "Cohen_AtypicalAntipsychotics",
+      "rid": "pubmed:11440294",
+      "title": "Meta-analysis comparing newer antipsychotic drugs for the treatment of schizophrenia: evaluating the indirect approach.",
+      "p_main": 0.0,
+      "lex_score": 0.08457736838541619,
+      "lex_rank_pct": 0.08303571428571428
+    },
+    {
+      "dataset": "Cohen_AtypicalAntipsychotics",
+      "rid": "pubmed:12084413",
+      "title": "Newer atypical antipsychotic medication in comparison to clozapine: a systematic review of randomized trials.",
+      "p_main": 0.0,
+      "lex_score": 0.07200513280785825,
+      "lex_rank_pct": 0.17142857142857143
+    },
+    {
+      "dataset": "Cohen_AtypicalAntipsychotics",
+      "rid": "pubmed:12747876",
+      "title": "New generation antipsychotics versus low-potency conventional antipsychotics: a systematic review and meta-analysis.",
+      "p_main": 0.0,
+      "lex_score": 0.08966073954163148,
+      "lex_rank_pct": 0.06696428571428571
+    },
+    {
+      "dataset": "Cohen_AtypicalAntipsychotics",
+      "rid": "pubmed:12796218",
+      "title": "A meta-analysis of the efficacy of second-generation antipsychotics.",
+      "p_main": 0.0,
+      "lex_score": 0.13950313185403873,
+      "lex_rank_pct": 0.0026785714285714286
+    },
+    {
+      "dataset": "Cohen_AtypicalAntipsychotics",
+      "rid": "pubmed:12832232",
+      "title": "Relapse prevention in schizophrenia with new-generation antipsychotics: a systematic review and exploratory meta-analysi",
+      "p_main": 0.0,
+      "lex_score": 0.13238251110592653,
+      "lex_rank_pct": 0.00625
+    },
+    {
+      "dataset": "Cohen_AtypicalAntipsychotics",
+      "rid": "pubmed:9988841",
+      "title": "Efficacy and extrapyramidal side-effects of the new antipsychotics olanzapine, quetiapine, risperidone, and sertindole c",
+      "p_main": 0.0,
+      "lex_score": 0.07656199435914089,
+      "lex_rank_pct": 0.14107142857142857
+    },
+    {
+      "dataset": "Cohen_BetaBlockers",
+      "rid": "pubmed:10826501",
+      "title": "Endothelin-1 induces interleukin-6 release via activation of the transcription factor NF-kappaB in human vascular smooth",
+      "p_main": 0.002280846330292972,
+      "lex_score": 0.0027816817666771135,
+      "lex_rank_pct": 0.9888996138996139
+    },
+    {
+      "dataset": "Cohen_CalciumChannelBlockers",
+      "rid": "pubmed:11130522",
+      "title": "Health outcomes associated with calcium antagonists compared with other first-line antihypertensive therapies: a meta-an",
+      "p_main": 0.0,
+      "lex_score": 0.11214427864248633,
+      "lex_rank_pct": 0.020525451559934318
+    },
+    {
+      "dataset": "Cohen_CalciumChannelBlockers",
+      "rid": "pubmed:9231814",
+      "title": "Safety of nifedipine in patients with hypertension: a meta-analysis.",
+      "p_main": 0.0,
+      "lex_score": 0.03520011985029203,
+      "lex_rank_pct": 0.7298850574712644
+    },
+    {
+      "dataset": "Cohen_CalciumChannelBlockers",
+      "rid": "pubmed:9416985",
+      "title": "Risk of serious adverse events in hypertensive patients receiving isradipine: a meta-analysis.",
+      "p_main": 0.0,
+      "lex_score": 0.08954539948386939,
+      "lex_rank_pct": 0.08784893267651889
+    },
+    {
+      "dataset": "Cohen_CalciumChannelBlockers",
+      "rid": "pubmed:9931077",
+      "title": "Safety of nifedipine in angina pectoris: a meta-analysis.",
+      "p_main": 0.0,
+      "lex_score": 0.06994624340418495,
+      "lex_rank_pct": 0.21921182266009853
+    },
+    {
+      "dataset": "Cohen_Estrogens",
+      "rid": "pubmed:7824251",
+      "title": "Hormone replacement therapy and endometrial cancer risk: a meta-analysis.",
+      "p_main": 0.0,
+      "lex_score": 0.08882724158649957,
+      "lex_rank_pct": 0.3016304347826087
+    },
+    {
+      "dataset": "Cohen_OralHypoglycemics",
+      "rid": "pubmed:9551006",
+      "title": "Modeling all-cause mortality: projections of the impact of smoking cessation based on the NHEFS. NHANES I Epidemiologic ",
+      "p_main": 0.00630028530581298,
+      "lex_score": 0.06449885569710803,
+      "lex_rank_pct": 0.3717693836978131
+    },
+    {
+      "dataset": "Cohen_ProtonPumpInhibitors",
+      "rid": "pubmed:10383518",
+      "title": "Evaluation of treatment regimens to cure Helicobacter pylori infection--a meta-analysis.",
+      "p_main": 0.0,
+      "lex_score": 0.05966859949883981,
+      "lex_rank_pct": 0.3563390847711928
+    },
+    {
+      "dataset": "Cohen_ProtonPumpInhibitors",
+      "rid": "pubmed:11421865",
+      "title": "Proton pump inhibitors versus H2-antagonists: a meta-analysis of their efficacy in treating bleeding peptic ulcer.",
+      "p_main": 0.0,
+      "lex_score": 0.065957130429158,
+      "lex_rank_pct": 0.26406601650412603
+    },
+    {
+      "dataset": "Cohen_ProtonPumpInhibitors",
+      "rid": "pubmed:9731991",
+      "title": "Efficacy of lansoprazole in eradicating Helicobacter pylori: a meta-analysis.",
+      "p_main": 0.0,
+      "lex_score": 0.05207149225944383,
+      "lex_rank_pct": 0.495873968492123
+    },
+    {
+      "dataset": "Cohen_Statins",
+      "rid": "pubmed:10612322",
+      "title": "Effect of statins on risk of coronary disease: a meta-analysis of randomized controlled trials.",
+      "p_main": 0.0,
+      "lex_score": 0.06997714499063966,
+      "lex_rank_pct": 0.12157089228992203
+    },
+    {
+      "dataset": "Cohen_Statins",
+      "rid": "pubmed:14568856",
+      "title": "Effects of statins on nonlipid serum markers associated with cardiovascular disease: a systematic review.",
+      "p_main": 0.0,
+      "lex_score": 0.03734978856030784,
+      "lex_rank_pct": 0.5209356049667918
+    }
+  ]
+}

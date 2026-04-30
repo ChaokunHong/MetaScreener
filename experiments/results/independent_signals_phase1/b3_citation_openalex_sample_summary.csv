@@ -1,0 +1,4 @@
+cohort,sampled,openalex_found_rate,referenced_works_available_rate,related_works_available_rate
+clef,20,1.0,0.75,0.95
+cohen,20,1.0,0.85,1.0
+synergy,20,1.0,0.9,0.95

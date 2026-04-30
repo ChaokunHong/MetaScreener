@@ -1,0 +1,63 @@
+{
+  "scope": "B3_citation_coverage_preflight",
+  "sample_size_per_cohort": 20,
+  "cohort_summary": [
+    {
+      "cohort": "clef",
+      "n_records": 39354,
+      "n_datasets": 18,
+      "openalex": 0,
+      "pmid": 39354,
+      "doi": 0,
+      "unknown": 0,
+      "missing": 0,
+      "queryable_rate": 1.0
+    },
+    {
+      "cohort": "cohen",
+      "n_records": 18731,
+      "n_datasets": 15,
+      "openalex": 0,
+      "pmid": 18731,
+      "doi": 0,
+      "unknown": 0,
+      "missing": 0,
+      "queryable_rate": 1.0
+    },
+    {
+      "cohort": "synergy",
+      "n_records": 169288,
+      "n_datasets": 26,
+      "openalex": 169288,
+      "pmid": 0,
+      "doi": 0,
+      "unknown": 0,
+      "missing": 0,
+      "queryable_rate": 1.0
+    }
+  ],
+  "sample_summary": [
+    {
+      "cohort": "clef",
+      "sampled": 20,
+      "openalex_found_rate": 1.0,
+      "referenced_works_available_rate": 0.75,
+      "related_works_available_rate": 0.95
+    },
+    {
+      "cohort": "cohen",
+      "sampled": 20,
+      "openalex_found_rate": 1.0,
+      "referenced_works_available_rate": 0.85,
+      "related_works_available_rate": 1.0
+    },
+    {
+      "cohort": "synergy",
+      "sampled": 20,
+      "openalex_found_rate": 1.0,
+      "referenced_works_available_rate": 0.9,
+      "related_works_available_rate": 0.95
+    }
+  ],
+  "note": "Identifier coverage is full-cohort; OpenAlex availability is sampled only."
+}

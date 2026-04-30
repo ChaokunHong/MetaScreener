@@ -1,0 +1,27 @@
+{
+  "scope": "B4_encoder_synergy_sample_diagnostic",
+  "model_name": "microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext",
+  "device": "mps",
+  "n_sampled": 467,
+  "pos_per_dataset": 10,
+  "neg_per_dataset": 10,
+  "batch_size": 16,
+  "max_length": 256,
+  "encoder_delta_diagnostic": {
+    "n": 467,
+    "n_pos": 207,
+    "n_neg": 260,
+    "auc": 0.5429394277220365,
+    "pr_auc": 0.47476088971311226
+  },
+  "encoder_include_diagnostic": {
+    "n": 467,
+    "n_pos": 207,
+    "n_neg": 260,
+    "auc": 0.5427722036417688,
+    "pr_auc": 0.4692228585428789
+  },
+  "spearman_encoder_delta_p_include": 0.2532976697880517,
+  "spearman_encoder_delta_final_score": 0.2532976697880517,
+  "note": "SYNERGY sampled HR records only; no external data used."
+}

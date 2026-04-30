@@ -1,0 +1,117 @@
+{
+  "scope": "B1_lexical_synergy_lodo_diagnostic",
+  "datasets": [
+    "Donners_2021",
+    "Sep_2021",
+    "Nelson_2002",
+    "van_der_Valk_2021",
+    "Meijboom_2021",
+    "Oud_2018",
+    "Menon_2022",
+    "Jeyaraman_2020",
+    "Chou_2004",
+    "Chou_2003",
+    "van_der_Waal_2022",
+    "Smid_2020",
+    "Muthu_2021",
+    "Appenzeller-Herzog_2019",
+    "Wolters_2018",
+    "van_de_Schoot_2018",
+    "Bos_2018",
+    "Moran_2021",
+    "Leenaars_2019",
+    "Radjenovic_2013",
+    "Leenaars_2020",
+    "Wassenaar_2017",
+    "Hall_2012",
+    "van_Dis_2020",
+    "Brouwer_2019",
+    "Walker_2018"
+  ],
+  "n_datasets": 26,
+  "pooled_hr_diagnostic": {
+    "n": 142362,
+    "n_pos": 1778,
+    "n_neg": 140584,
+    "auc": 0.6161318706405937,
+    "pr_auc": 0.029236489252547744
+  },
+  "mean_dataset_auc": 0.7786398365162894,
+  "median_dataset_auc": 0.7638646114730653,
+  "n_datasets_with_auc": 25,
+  "diagnostic_gate_auc_ge_065": false,
+  "spearman_lexical_p_include_hr_pooled": 0.323391300817333,
+  "auto_exclude_fn_count": 22,
+  "auto_exclude_fn_median_lexical_percentile": 0.3938280065624156,
+  "decision_sweep": [
+    {
+      "action": "rescue_auto_exclude_to_hr",
+      "fraction": 0.01,
+      "n_moved": 213,
+      "fn_rescued": 3,
+      "new_fn": 0,
+      "precision_true_include": 0.014084507042253521,
+      "efficiency_fn_rescued_per_hr_added": 0.014084507042253521
+    },
+    {
+      "action": "rescue_auto_exclude_to_hr",
+      "fraction": 0.05,
+      "n_moved": 1061,
+      "fn_rescued": 5,
+      "new_fn": 0,
+      "precision_true_include": 0.00471253534401508,
+      "efficiency_fn_rescued_per_hr_added": 0.00471253534401508
+    },
+    {
+      "action": "rescue_auto_exclude_to_hr",
+      "fraction": 0.1,
+      "n_moved": 2122,
+      "fn_rescued": 5,
+      "new_fn": 0,
+      "precision_true_include": 0.00235626767200754,
+      "efficiency_fn_rescued_per_hr_added": 0.00235626767200754
+    },
+    {
+      "action": "rescue_auto_exclude_to_hr",
+      "fraction": 0.25,
+      "n_moved": 5304,
+      "fn_rescued": 9,
+      "new_fn": 0,
+      "precision_true_include": 0.0016968325791855204,
+      "efficiency_fn_rescued_per_hr_added": 0.0016968325791855204
+    },
+    {
+      "action": "release_hr_to_exclude",
+      "fraction": 0.01,
+      "n_moved": 1424,
+      "fn_rescued": 0,
+      "new_fn": 24,
+      "precision_true_exclude": 0.9831460674157303
+    },
+    {
+      "action": "release_hr_to_exclude",
+      "fraction": 0.05,
+      "n_moved": 7119,
+      "fn_rescued": 0,
+      "new_fn": 80,
+      "precision_true_exclude": 0.9887624666385728
+    },
+    {
+      "action": "release_hr_to_exclude",
+      "fraction": 0.1,
+      "n_moved": 14237,
+      "fn_rescued": 0,
+      "new_fn": 136,
+      "precision_true_exclude": 0.9904474257217111
+    },
+    {
+      "action": "release_hr_to_exclude",
+      "fraction": 0.25,
+      "n_moved": 35591,
+      "fn_rescued": 0,
+      "new_fn": 298,
+      "precision_true_exclude": 0.9916270967379394
+    }
+  ],
+  "note": "SYNERGY only; no external tuning or evaluation."
+}

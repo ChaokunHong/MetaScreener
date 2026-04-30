@@ -1,0 +1,27 @@
+{
+  "scope": "B4_encoder_synergy_sample_diagnostic",
+  "model_name": "allenai/scibert_scivocab_uncased",
+  "device": "mps",
+  "n_sampled": 467,
+  "pos_per_dataset": 10,
+  "neg_per_dataset": 10,
+  "batch_size": 16,
+  "max_length": 256,
+  "encoder_delta_diagnostic": {
+    "n": 467,
+    "n_pos": 207,
+    "n_neg": 260,
+    "auc": 0.5812894834633965,
+    "pr_auc": 0.5089393077968616
+  },
+  "encoder_include_diagnostic": {
+    "n": 467,
+    "n_pos": 207,
+    "n_neg": 260,
+    "auc": 0.6407840951319212,
+    "pr_auc": 0.5523173674765134
+  },
+  "spearman_encoder_delta_p_include": 0.33237670715049206,
+  "spearman_encoder_delta_final_score": 0.33237670715049206,
+  "note": "SYNERGY sampled HR records only; no external data used."
+}

@@ -1,0 +1,77 @@
+{
+  "scope": "B2_B3_openalex_synergy_sample_diagnostic",
+  "datasets": [
+    "Donners_2021",
+    "Sep_2021",
+    "Nelson_2002",
+    "van_der_Valk_2021",
+    "Meijboom_2021",
+    "Oud_2018",
+    "Menon_2022",
+    "Jeyaraman_2020",
+    "Chou_2004",
+    "Chou_2003",
+    "van_der_Waal_2022",
+    "Smid_2020",
+    "Muthu_2021",
+    "Appenzeller-Herzog_2019",
+    "Wolters_2018",
+    "van_de_Schoot_2018",
+    "Bos_2018",
+    "Moran_2021",
+    "Leenaars_2019",
+    "Radjenovic_2013",
+    "Leenaars_2020",
+    "Wassenaar_2017",
+    "Hall_2012",
+    "van_Dis_2020",
+    "Brouwer_2019",
+    "Walker_2018"
+  ],
+  "n_sampled": 467,
+  "n_openalex_found": 462,
+  "pos_per_dataset": 10,
+  "neg_per_dataset": 10,
+  "metadata_diagnostic": {
+    "n": 462,
+    "n_pos": 205,
+    "n_neg": 257,
+    "auc": 0.6672107810572271,
+    "pr_auc": 0.615915342872181
+  },
+  "citation_oracle_seed_diagnostic": {
+    "n": 462,
+    "n_pos": 205,
+    "n_neg": 257,
+    "auc": 0.7126221884786942,
+    "pr_auc": 0.6543141750126757
+  },
+  "citation_count_diagnostic": {
+    "n": 462,
+    "n_pos": 205,
+    "n_neg": 257,
+    "auc": 0.6083799943057797,
+    "pr_auc": 0.5272797107415716
+  },
+  "b1_lexical_diagnostic_on_same_sample": {
+    "n": 462,
+    "n_pos": 205,
+    "n_neg": 257,
+    "auc": 0.7566290215431339,
+    "pr_auc": 0.7478198545623979
+  },
+  "b1_b2_b3_lodo_combined_diagnostic": {
+    "n": 462,
+    "n_pos": 205,
+    "n_neg": 257,
+    "auc": 0.7830691847774509,
+    "pr_auc": 0.7819676915739793
+  },
+  "feature_correlations": {
+    "b1_lexical_score__metadata_score": 0.5823602286592405,
+    "b1_lexical_score__citation_oracle_seed_score": 0.396168754275225,
+    "metadata_score__citation_oracle_seed_score": 0.2631025499531789
+  },
+  "spearman_metadata_p_include": 0.23480032808791224,
+  "note": "SYNERGY sampled HR records only. Citation oracle seed overlap uses ground-truth include IDs as an upper-bound diagnostic, not a deployable feature."
+}

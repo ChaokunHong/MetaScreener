@@ -1,0 +1,38 @@
+{
+  "started_at": "2026-04-29T06:41:27.137587+00:00",
+  "finished_at": "2026-04-29T06:49:26.462090+00:00",
+  "wall_time_seconds": 479.32,
+  "datasets": [
+    "Walker_2018"
+  ],
+  "configs": [
+    "a13b_coverage_rule"
+  ],
+  "n_pairs_expected": 1,
+  "n_pairs_completed": 1,
+  "n_errors": 0,
+  "cache_stats": {
+    "hits": 97780,
+    "misses": 0,
+    "size": 1013698
+  },
+  "rows": [
+    {
+      "dataset": "Walker_2018",
+      "config": "a13b_coverage_rule",
+      "n_valid": 48153,
+      "n_errors": 0,
+      "sensitivity": 0.9762845849802372,
+      "specificity": 0.19774655019622736,
+      "decision_auto_rate": 0.20551159844661807,
+      "human_review_rate": 0.794488401553382,
+      "auto_exclude_rate": 0.19500342657778333,
+      "fn": 18,
+      "fp": 38022,
+      "sprt_early_stop_rate": 0.9826179054264532,
+      "avg_models_per_record": 2.030610761530953,
+      "wall_time_seconds": 477.72
+    }
+  ],
+  "errors": []
+}

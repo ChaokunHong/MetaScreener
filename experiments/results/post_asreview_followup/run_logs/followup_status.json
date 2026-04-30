@@ -1,0 +1,21 @@
+{
+  "updated_at": "2026-04-27T15:11:46.284890+00:00",
+  "step": "wait_for_asreview",
+  "status": "waiting",
+  "asreview_status": {
+    "updated_at": "2026-04-27T15:06:38.945222+00:00",
+    "step": "run_other26_asreview",
+    "status": "running",
+    "command": [
+      "/Users/hongchaokun/Documents/PhD/MetaScreener/.venv/bin/python3",
+      "experiments/scripts/run_asreview_external33.py",
+      "--scope",
+      "other",
+      "--out-dir",
+      "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/asreview_other26_full",
+      "--timeout",
+      "7200"
+    ]
+  },
+  "elapsed_seconds": 0.0
+}

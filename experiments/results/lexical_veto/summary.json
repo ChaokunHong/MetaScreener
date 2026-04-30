@@ -1,0 +1,225 @@
+{
+  "datasets": [
+    "Jeyaraman_2020",
+    "Chou_2003",
+    "van_der_Waal_2022",
+    "Smid_2020",
+    "Muthu_2021",
+    "Appenzeller-Herzog_2019",
+    "van_de_Schoot_2018",
+    "Moran_2021",
+    "Radjenovic_2013",
+    "Leenaars_2020",
+    "Wassenaar_2017",
+    "Hall_2012",
+    "van_Dis_2020"
+  ],
+  "base_config": "a11_rule_exclude",
+  "baseline_pooled": {
+    "n": 61663,
+    "tp": 1343,
+    "fn": 9,
+    "tn": 8470,
+    "fp": 24414,
+    "auto_rate": 0.5552113909475699,
+    "hr_rate": 0.4447886090524301,
+    "sens": 0.9933431952662722,
+    "spec": 0.25757207152414546
+  },
+  "sweep": [
+    {
+      "top_pct": 0.001,
+      "records_veto": 1,
+      "fn_rescued": 0,
+      "te_moved_to_hr": 1,
+      "sens": 0.9933431952662722,
+      "spec": 0.25754949365933766,
+      "delta_auto_pp": -0.0016217180481059579,
+      "delta_hr_pp": 0.0016217180481004068,
+      "n_total": 61663,
+      "tp": 1343,
+      "fn": 9,
+      "tn": 8469,
+      "fp": 24414
+    },
+    {
+      "top_pct": 0.005,
+      "records_veto": 1,
+      "fn_rescued": 0,
+      "te_moved_to_hr": 1,
+      "sens": 0.9933431952662722,
+      "spec": 0.25754949365933766,
+      "delta_auto_pp": -0.0016217180481059579,
+      "delta_hr_pp": 0.0016217180481004068,
+      "n_total": 61663,
+      "tp": 1343,
+      "fn": 9,
+      "tn": 8469,
+      "fp": 24414
+    },
+    {
+      "top_pct": 0.01,
+      "records_veto": 6,
+      "fn_rescued": 0,
+      "te_moved_to_hr": 6,
+      "sens": 0.9933431952662722,
+      "spec": 0.25743658373380374,
+      "delta_auto_pp": -0.00973030828860244,
+      "delta_hr_pp": 0.00973030828860244,
+      "n_total": 61663,
+      "tp": 1343,
+      "fn": 9,
+      "tn": 8464,
+      "fp": 24414
+    },
+    {
+      "top_pct": 0.025,
+      "records_veto": 36,
+      "fn_rescued": 1,
+      "te_moved_to_hr": 35,
+      "sens": 0.9940784603997039,
+      "spec": 0.25678102834180644,
+      "delta_auto_pp": -0.05838184973160354,
+      "delta_hr_pp": 0.05838184973160909,
+      "n_total": 61663,
+      "tp": 1343,
+      "fn": 8,
+      "tn": 8435,
+      "fp": 24414
+    },
+    {
+      "top_pct": 0.05,
+      "records_veto": 95,
+      "fn_rescued": 1,
+      "te_moved_to_hr": 94,
+      "sens": 0.9940784603997039,
+      "spec": 0.2554437328453797,
+      "delta_auto_pp": -0.154063214569522,
+      "delta_hr_pp": 0.15406321456951644,
+      "n_total": 61663,
+      "tp": 1343,
+      "fn": 8,
+      "tn": 8376,
+      "fp": 24414
+    },
+    {
+      "top_pct": 0.1,
+      "records_veto": 270,
+      "fn_rescued": 2,
+      "te_moved_to_hr": 268,
+      "sens": 0.9948148148148148,
+      "spec": 0.25147167034584256,
+      "delta_auto_pp": -0.4378638729870432,
+      "delta_hr_pp": 0.4378638729870432,
+      "n_total": 61663,
+      "tp": 1343,
+      "fn": 7,
+      "tn": 8202,
+      "fp": 24414
+    },
+    {
+      "top_pct": 0.25,
+      "records_veto": 1102,
+      "fn_rescued": 6,
+      "te_moved_to_hr": 1096,
+      "sens": 0.9977711738484398,
+      "spec": 0.23197432993582484,
+      "delta_auto_pp": -1.7871332890063707,
+      "delta_hr_pp": 1.7871332890063762,
+      "n_total": 61663,
+      "tp": 1343,
+      "fn": 3,
+      "tn": 7374,
+      "fp": 24414
+    },
+    {
+      "top_pct": 0.5,
+      "records_veto": 3133,
+      "fn_rescued": 7,
+      "te_moved_to_hr": 3126,
+      "sens": 0.9985130111524163,
+      "spec": 0.17958196115330333,
+      "delta_auto_pp": -5.080842644697792,
+      "delta_hr_pp": 5.080842644697797,
+      "n_total": 61663,
+      "tp": 1343,
+      "fn": 2,
+      "tn": 5344,
+      "fp": 24414
+    }
+  ],
+  "fn_records": [
+    {
+      "dataset": "Muthu_2021",
+      "rid": "https://openalex.org/W2085626304",
+      "title": "Safety of balloon kyphoplasty in the treatment of osteoporotic vertebral compression fractures in Europe: a meta-analysi",
+      "p_main": 0.0,
+      "lex_score": 0.023916686866563275,
+      "lex_rank_pct": 0.8256712026480324
+    },
+    {
+      "dataset": "Muthu_2021",
+      "rid": "https://openalex.org/W2081494650",
+      "title": "Randomized Clinical Study to Compare the Accuracy of Navigated and Non-Navigated Thoracic Pedicle Screws in Deformity Co",
+      "p_main": 0.0,
+      "lex_score": 0.06595259234774666,
+      "lex_rank_pct": 0.10334681868333946
+    },
+    {
+      "dataset": "Muthu_2021",
+      "rid": "https://openalex.org/W2424326616",
+      "title": "Anterior cervical discectomy and fusion (ACDF) versus cervical disc arthroplasty (CDA) for two contiguous levels cervica",
+      "p_main": 0.0,
+      "lex_score": 0.06832099738702054,
+      "lex_rank_pct": 0.0831187936741449
+    },
+    {
+      "dataset": "Muthu_2021",
+      "rid": "https://openalex.org/W2011922368",
+      "title": "Comparison of artificial total disc replacement versus fusion for lumbar degenerative disc disease: a meta-analysis of r",
+      "p_main": 0.0,
+      "lex_score": 0.06576588625145877,
+      "lex_rank_pct": 0.1044501655020228
+    },
+    {
+      "dataset": "Moran_2021",
+      "rid": "https://openalex.org/W2895967873",
+      "title": "Environmental variability, the value of information, and learning in winter residents",
+      "p_main": 0.0008099449291661308,
+      "lex_score": 0.011939509454649904,
+      "lex_rank_pct": 0.6705135603000577
+    },
+    {
+      "dataset": "Moran_2021",
+      "rid": "https://openalex.org/W2896861612",
+      "title": "Effectiveness of interventions aimed at improving dietary behaviours among people at higher risk of or with chronic non-",
+      "p_main": 0.0,
+      "lex_score": 0.032539297954836094,
+      "lex_rank_pct": 0.15849201769571072
+    },
+    {
+      "dataset": "Moran_2021",
+      "rid": "https://openalex.org/W2903635703",
+      "title": "A Meta-Analysis of Food Labeling Effects on Consumer Diet Behaviors and Industry Practices",
+      "p_main": 0.0,
+      "lex_score": 0.022272530184092296,
+      "lex_rank_pct": 0.3216003077514907
+    },
+    {
+      "dataset": "Moran_2021",
+      "rid": "https://openalex.org/W2136823874",
+      "title": "Systematic review of sedentary behaviour and health indicators in school-aged children and youth",
+      "p_main": 0.0,
+      "lex_score": 0.03710474758762563,
+      "lex_rank_pct": 0.11598384304673975
+    },
+    {
+      "dataset": "Hall_2012",
+      "rid": "https://openalex.org/W2120484483",
+      "title": "Software defect association mining and defect correction effort prediction",
+      "p_main": 0.0,
+      "lex_score": 0.06928144263659046,
+      "lex_rank_pct": 0.016831570567496873
+    }
+  ]
+}

@@ -1,0 +1,1954 @@
+{
+  "external_35_v1": {
+    "n": 60727,
+    "baseline": {
+      "n": 60727,
+      "tp": 785,
+      "fn": 21,
+      "tn": 10564,
+      "fp": 4044,
+      "auto_rate": 0.253824493223772,
+      "hr_rate": 0.746175506776228,
+      "sens": 0.9739454094292804,
+      "spec": 0.7231653888280394
+    },
+    "sweep": [
+      {
+        "top_pct": 0.005,
+        "veto": 23,
+        "fn_rescued": 1,
+        "te_to_hr": 22,
+        "sens": 0.9751552795031055,
+        "delta_hr_pp": 0.0378744215917215,
+        "fn_remaining": 20,
+        "tp": 785
+      },
+      {
+        "top_pct": 0.01,
+        "veto": 53,
+        "fn_rescued": 2,
+        "te_to_hr": 51,
+        "sens": 0.9763681592039801,
+        "delta_hr_pp": 0.08727584105916453,
+        "fn_remaining": 19,
+        "tp": 785
+      },
+      {
+        "top_pct": 0.025,
+        "veto": 105,
+        "fn_rescued": 3,
+        "te_to_hr": 102,
+        "sens": 0.9775840597758406,
+        "delta_hr_pp": 0.17290496813608947,
+        "fn_remaining": 18,
+        "tp": 785
+      },
+      {
+        "top_pct": 0.05,
+        "veto": 221,
+        "fn_rescued": 3,
+        "te_to_hr": 218,
+        "sens": 0.9775840597758406,
+        "delta_hr_pp": 0.36392379007690323,
+        "fn_remaining": 18,
+        "tp": 785
+      },
+      {
+        "top_pct": 0.1,
+        "veto": 502,
+        "fn_rescued": 6,
+        "te_to_hr": 496,
+        "sens": 0.98125,
+        "delta_hr_pp": 0.8266504190887147,
+        "fn_remaining": 15,
+        "tp": 785
+      },
+      {
+        "top_pct": 0.15,
+        "veto": 813,
+        "fn_rescued": 10,
+        "te_to_hr": 803,
+        "sens": 0.9861809045226131,
+        "delta_hr_pp": 1.3387784675679693,
+        "fn_remaining": 11,
+        "tp": 785
+      },
+      {
+        "top_pct": 0.25,
+        "veto": 1497,
+        "fn_rescued": 12,
+        "te_to_hr": 1485,
+        "sens": 0.9886649874055415,
+        "delta_hr_pp": 2.465130831425888,
+        "fn_remaining": 9,
+        "tp": 785
+      },
+      {
+        "top_pct": 0.5,
+        "veto": 3818,
+        "fn_rescued": 17,
+        "te_to_hr": 3801,
+        "sens": 0.9949302915082383,
+        "delta_hr_pp": 6.287153984224481,
+        "fn_remaining": 4,
+        "tp": 785
+      }
+    ],
+    "fn_records": [
+      {
+        "dataset": "CLEF_CD011977",
+        "rid": "pubmed:19781467",
+        "title": "Feasibility of spherical aberration correction with aspheric intraocular lenses in cataract surgery based on individual ",
+        "p_main": 0.0,
+        "lex_score": 0.04265279847992565,
+        "lex_rank_pct": 0.8051282051282052
+      },
+      {
+        "dataset": "Cohen_ACEInhibitors",
+        "rid": "pubmed:10080457",
+        "title": "Effect of angiotensin converting enzyme inhibition on sudden cardiac death in patients following acute myocardial infarc",
+        "p_main": 0.0,
+        "lex_score": 0.07194582141256314,
+        "lex_rank_pct": 0.14386792452830188
+      },
+      {
+        "dataset": "Cohen_AtypicalAntipsychotics",
+        "rid": "pubmed:10868465",
+        "title": "Atypical antipsychotics and weight gain--a systematic review.",
+        "p_main": 0.0,
+        "lex_score": 0.07678830215696497,
+        "lex_rank_pct": 0.13839285714285715
+      },
+      {
+        "dataset": "Cohen_AtypicalAntipsychotics",
+        "rid": "pubmed:11440294",
+        "title": "Meta-analysis comparing newer antipsychotic drugs for the treatment of schizophrenia: evaluating the indirect approach.",
+        "p_main": 0.0,
+        "lex_score": 0.08457736838541619,
+        "lex_rank_pct": 0.08303571428571428
+      },
+      {
+        "dataset": "Cohen_AtypicalAntipsychotics",
+        "rid": "pubmed:12084413",
+        "title": "Newer atypical antipsychotic medication in comparison to clozapine: a systematic review of randomized trials.",
+        "p_main": 0.0,
+        "lex_score": 0.07200513280785825,
+        "lex_rank_pct": 0.17142857142857143
+      },
+      {
+        "dataset": "Cohen_AtypicalAntipsychotics",
+        "rid": "pubmed:12747876",
+        "title": "New generation antipsychotics versus low-potency conventional antipsychotics: a systematic review and meta-analysis.",
+        "p_main": 0.0,
+        "lex_score": 0.08966073954163148,
+        "lex_rank_pct": 0.06696428571428571
+      },
+      {
+        "dataset": "Cohen_AtypicalAntipsychotics",
+        "rid": "pubmed:12796218",
+        "title": "A meta-analysis of the efficacy of second-generation antipsychotics.",
+        "p_main": 0.0,
+        "lex_score": 0.13950313185403873,
+        "lex_rank_pct": 0.0026785714285714286
+      },
+      {
+        "dataset": "Cohen_AtypicalAntipsychotics",
+        "rid": "pubmed:12832232",
+        "title": "Relapse prevention in schizophrenia with new-generation antipsychotics: a systematic review and exploratory meta-analysi",
+        "p_main": 0.0,
+        "lex_score": 0.13238251110592653,
+        "lex_rank_pct": 0.00625
+      },
+      {
+        "dataset": "Cohen_AtypicalAntipsychotics",
+        "rid": "pubmed:9988841",
+        "title": "Efficacy and extrapyramidal side-effects of the new antipsychotics olanzapine, quetiapine, risperidone, and sertindole c",
+        "p_main": 0.0,
+        "lex_score": 0.07656199435914089,
+        "lex_rank_pct": 0.14107142857142857
+      },
+      {
+        "dataset": "Cohen_BetaBlockers",
+        "rid": "pubmed:10826501",
+        "title": "Endothelin-1 induces interleukin-6 release via activation of the transcription factor NF-kappaB in human vascular smooth",
+        "p_main": 0.002280846330292972,
+        "lex_score": 0.0027816817666771135,
+        "lex_rank_pct": 0.9888996138996139
+      },
+      {
+        "dataset": "Cohen_CalciumChannelBlockers",
+        "rid": "pubmed:11130522",
+        "title": "Health outcomes associated with calcium antagonists compared with other first-line antihypertensive therapies: a meta-an",
+        "p_main": 0.0,
+        "lex_score": 0.11214427864248633,
+        "lex_rank_pct": 0.020525451559934318
+      },
+      {
+        "dataset": "Cohen_CalciumChannelBlockers",
+        "rid": "pubmed:9231814",
+        "title": "Safety of nifedipine in patients with hypertension: a meta-analysis.",
+        "p_main": 0.0,
+        "lex_score": 0.03520011985029203,
+        "lex_rank_pct": 0.7298850574712644
+      },
+      {
+        "dataset": "Cohen_CalciumChannelBlockers",
+        "rid": "pubmed:9416985",
+        "title": "Risk of serious adverse events in hypertensive patients receiving isradipine: a meta-analysis.",
+        "p_main": 0.0,
+        "lex_score": 0.08954539948386939,
+        "lex_rank_pct": 0.08784893267651889
+      },
+      {
+        "dataset": "Cohen_CalciumChannelBlockers",
+        "rid": "pubmed:9931077",
+        "title": "Safety of nifedipine in angina pectoris: a meta-analysis.",
+        "p_main": 0.0,
+        "lex_score": 0.06994624340418495,
+        "lex_rank_pct": 0.21921182266009853
+      },
+      {
+        "dataset": "Cohen_Estrogens",
+        "rid": "pubmed:7824251",
+        "title": "Hormone replacement therapy and endometrial cancer risk: a meta-analysis.",
+        "p_main": 0.0,
+        "lex_score": 0.08882724158649957,
+        "lex_rank_pct": 0.3016304347826087
+      },
+      {
+        "dataset": "Cohen_OralHypoglycemics",
+        "rid": "pubmed:9551006",
+        "title": "Modeling all-cause mortality: projections of the impact of smoking cessation based on the NHEFS. NHANES I Epidemiologic ",
+        "p_main": 0.00630028530581298,
+        "lex_score": 0.06449885569710803,
+        "lex_rank_pct": 0.3717693836978131
+      },
+      {
+        "dataset": "Cohen_ProtonPumpInhibitors",
+        "rid": "pubmed:10383518",
+        "title": "Evaluation of treatment regimens to cure Helicobacter pylori infection--a meta-analysis.",
+        "p_main": 0.0,
+        "lex_score": 0.05966859949883981,
+        "lex_rank_pct": 0.3563390847711928
+      },
+      {
+        "dataset": "Cohen_ProtonPumpInhibitors",
+        "rid": "pubmed:11421865",
+        "title": "Proton pump inhibitors versus H2-antagonists: a meta-analysis of their efficacy in treating bleeding peptic ulcer.",
+        "p_main": 0.0,
+        "lex_score": 0.065957130429158,
+        "lex_rank_pct": 0.26406601650412603
+      },
+      {
+        "dataset": "Cohen_ProtonPumpInhibitors",
+        "rid": "pubmed:9731991",
+        "title": "Efficacy of lansoprazole in eradicating Helicobacter pylori: a meta-analysis.",
+        "p_main": 0.0,
+        "lex_score": 0.05207149225944383,
+        "lex_rank_pct": 0.495873968492123
+      },
+      {
+        "dataset": "Cohen_Statins",
+        "rid": "pubmed:10612322",
+        "title": "Effect of statins on risk of coronary disease: a meta-analysis of randomized controlled trials.",
+        "p_main": 0.0,
+        "lex_score": 0.06997714499063966,
+        "lex_rank_pct": 0.12157089228992203
+      },
+      {
+        "dataset": "Cohen_Statins",
+        "rid": "pubmed:14568856",
+        "title": "Effects of statins on nonlipid serum markers associated with cardiovascular disease: a systematic review.",
+        "p_main": 0.0,
+        "lex_score": 0.03734978856030784,
+        "lex_rank_pct": 0.5209356049667918
+      }
+    ]
+  },
+  "external_35_v2": {
+    "n": 60727,
+    "baseline": {
+      "n": 60727,
+      "tp": 818,
+      "fn": 3,
+      "tn": 9053,
+      "fp": 4646,
+      "auto_rate": 0.23910287022247106,
+      "hr_rate": 0.760897129777529,
+      "sens": 0.9963459196102314,
+      "spec": 0.6608511570187605
+    },
+    "sweep": [
+      {
+        "top_pct": 0.005,
+        "veto": 8,
+        "fn_rescued": 0,
+        "te_to_hr": 8,
+        "sens": 0.9963459196102314,
+        "delta_hr_pp": 0.013173711857983328,
+        "fn_remaining": 3,
+        "tp": 818
+      },
+      {
+        "top_pct": 0.01,
+        "veto": 25,
+        "fn_rescued": 0,
+        "te_to_hr": 25,
+        "sens": 0.9963459196102314,
+        "delta_hr_pp": 0.041167849556200675,
+        "fn_remaining": 3,
+        "tp": 818
+      },
+      {
+        "top_pct": 0.025,
+        "veto": 58,
+        "fn_rescued": 0,
+        "te_to_hr": 58,
+        "sens": 0.9963459196102314,
+        "delta_hr_pp": 0.09550941097040688,
+        "fn_remaining": 3,
+        "tp": 818
+      },
+      {
+        "top_pct": 0.05,
+        "veto": 138,
+        "fn_rescued": 0,
+        "te_to_hr": 138,
+        "sens": 0.9963459196102314,
+        "delta_hr_pp": 0.22724652955027347,
+        "fn_remaining": 3,
+        "tp": 818
+      },
+      {
+        "top_pct": 0.1,
+        "veto": 335,
+        "fn_rescued": 0,
+        "te_to_hr": 335,
+        "sens": 0.9963459196102314,
+        "delta_hr_pp": 0.5516491840532156,
+        "fn_remaining": 3,
+        "tp": 818
+      },
+      {
+        "top_pct": 0.15,
+        "veto": 561,
+        "fn_rescued": 0,
+        "te_to_hr": 561,
+        "sens": 0.9963459196102314,
+        "delta_hr_pp": 0.9238065440413612,
+        "fn_remaining": 3,
+        "tp": 818
+      },
+      {
+        "top_pct": 0.25,
+        "veto": 1120,
+        "fn_rescued": 0,
+        "te_to_hr": 1120,
+        "sens": 0.9963459196102314,
+        "delta_hr_pp": 1.8443196601182321,
+        "fn_remaining": 3,
+        "tp": 818
+      },
+      {
+        "top_pct": 0.5,
+        "veto": 3105,
+        "fn_rescued": 1,
+        "te_to_hr": 3104,
+        "sens": 0.9975609756097561,
+        "delta_hr_pp": 5.113046914881347,
+        "fn_remaining": 2,
+        "tp": 818
+      }
+    ],
+    "fn_records": [
+      {
+        "dataset": "CLEF_CD011977",
+        "rid": "pubmed:19781467",
+        "title": "Feasibility of spherical aberration correction with aspheric intraocular lenses in cataract surgery based on individual ",
+        "p_main": 0.0,
+        "lex_score": 0.04265279847992565,
+        "lex_rank_pct": 0.8051282051282052
+      },
+      {
+        "dataset": "Cohen_BetaBlockers",
+        "rid": "pubmed:10826501",
+        "title": "Endothelin-1 induces interleukin-6 release via activation of the transcription factor NF-kappaB in human vascular smooth",
+        "p_main": 0.002280846330292972,
+        "lex_score": 0.0027816817666771135,
+        "lex_rank_pct": 0.9888996138996139
+      },
+      {
+        "dataset": "Cohen_OralHypoglycemics",
+        "rid": "pubmed:9551006",
+        "title": "Modeling all-cause mortality: projections of the impact of smoking cessation based on the NHEFS. NHANES I Epidemiologic ",
+        "p_main": 0.00630028530581298,
+        "lex_score": 0.06449885569710803,
+        "lex_rank_pct": 0.3717693836978131
+      }
+    ]
+  },
+  "synergy_26_v1": {
+    "n": 168856,
+    "baseline": {
+      "n": 168856,
+      "tp": 1847,
+      "fn": 149,
+      "tn": 23725,
+      "fp": 50698,
+      "auto_rate": 0.45256905292083194,
+      "hr_rate": 0.5474309470791681,
+      "sens": 0.9253507014028056,
+      "spec": 0.3187858592101904
+    },
+    "sweep": [
+      {
+        "top_pct": 0.005,
+        "veto": 28,
+        "fn_rescued": 2,
+        "te_to_hr": 26,
+        "sens": 0.9262788365095286,
+        "delta_hr_pp": 0.01658217652911187,
+        "fn_remaining": 147,
+        "tp": 1847
+      },
+      {
+        "top_pct": 0.01,
+        "veto": 70,
+        "fn_rescued": 4,
+        "te_to_hr": 66,
+        "sens": 0.9272088353413654,
+        "delta_hr_pp": 0.041455441322779674,
+        "fn_remaining": 145,
+        "tp": 1847
+      },
+      {
+        "top_pct": 0.025,
+        "veto": 259,
+        "fn_rescued": 18,
+        "te_to_hr": 241,
+        "sens": 0.9337714863498483,
+        "delta_hr_pp": 0.15338513289430145,
+        "fn_remaining": 131,
+        "tp": 1847
+      },
+      {
+        "top_pct": 0.05,
+        "veto": 590,
+        "fn_rescued": 29,
+        "te_to_hr": 561,
+        "sens": 0.9389933909506863,
+        "delta_hr_pp": 0.34941014829203976,
+        "fn_remaining": 120,
+        "tp": 1847
+      },
+      {
+        "top_pct": 0.1,
+        "veto": 1346,
+        "fn_rescued": 54,
+        "te_to_hr": 1292,
+        "sens": 0.951081359423275,
+        "delta_hr_pp": 0.7971289145781046,
+        "fn_remaining": 95,
+        "tp": 1847
+      },
+      {
+        "top_pct": 0.15,
+        "veto": 2225,
+        "fn_rescued": 71,
+        "te_to_hr": 2154,
+        "sens": 0.9594805194805195,
+        "delta_hr_pp": 1.3176908134742038,
+        "fn_remaining": 78,
+        "tp": 1847
+      },
+      {
+        "top_pct": 0.25,
+        "veto": 4187,
+        "fn_rescued": 90,
+        "te_to_hr": 4097,
+        "sens": 0.9690451206715635,
+        "delta_hr_pp": 2.479627611692803,
+        "fn_remaining": 59,
+        "tp": 1847
+      },
+      {
+        "top_pct": 0.5,
+        "veto": 9844,
+        "fn_rescued": 126,
+        "te_to_hr": 9718,
+        "sens": 0.9877005347593583,
+        "delta_hr_pp": 5.829819491164068,
+        "fn_remaining": 23,
+        "tp": 1847
+      }
+    ],
+    "fn_records": [
+      {
+        "dataset": "Sep_2021",
+        "rid": "https://openalex.org/W2947070139",
+        "title": "Sustained correction of associative learning deficits after brief, early treatment in a rat model of Fragile X Syndrome",
+        "p_main": 0.0,
+        "lex_score": 0.10889493321275691,
+        "lex_rank_pct": 0.05904059040590406
+      },
+      {
+        "dataset": "Nelson_2002",
+        "rid": "https://openalex.org/W2079450135",
+        "title": "Hormone replacement therapy and endometrial cancer risk: A meta-analysis",
+        "p_main": 0.0,
+        "lex_score": 0.1038404177751508,
+        "lex_rank_pct": 0.0684931506849315
+      },
+      {
+        "dataset": "van_der_Valk_2021",
+        "rid": "https://openalex.org/W2053805480",
+        "title": "Increased Hair Cortisol Concentrations and BMI in Patients With Pituitary-Adrenal Disease on Hydrocortisone Replacement",
+        "p_main": 0.005365817793030142,
+        "lex_score": 0.08862100702331184,
+        "lex_rank_pct": 0.0703448275862069
+      },
+      {
+        "dataset": "van_der_Valk_2021",
+        "rid": "https://openalex.org/W2894772130",
+        "title": "Placental FKBP51 mediates a link between second trimester maternal anxiety and birthweight in female infants",
+        "p_main": 0.005363826864419751,
+        "lex_score": 0.021090068338767164,
+        "lex_rank_pct": 0.8731034482758621
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3015707181",
+        "title": "Maternal air pollution exposure and congenital heart defects in offspring: A systematic review and meta-analysis",
+        "p_main": 0.0,
+        "lex_score": 0.08520353515741687,
+        "lex_rank_pct": 0.02564102564102564
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3007571091",
+        "title": "The banned sunscreen ingredients and their impact on human health: a systematic review",
+        "p_main": 0.0,
+        "lex_score": 0.039665718651738846,
+        "lex_rank_pct": 0.3435897435897436
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3016252286",
+        "title": "Association between Female Reproductive Health and Mancozeb: Systematic Review of Experimental Models",
+        "p_main": 0.0,
+        "lex_score": 0.0650679298913576,
+        "lex_rank_pct": 0.07179487179487179
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3032254257",
+        "title": "Traffic-related metrics and adverse birth outcomes: A systematic review and meta-analysis",
+        "p_main": 0.0,
+        "lex_score": 0.052147222064747714,
+        "lex_rank_pct": 0.15282051282051282
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3021612513",
+        "title": "Exposure to heavy metals and the risk of osteopenia or osteoporosis: a systematic review and meta-analysis",
+        "p_main": 0.0,
+        "lex_score": 0.0625222401717449,
+        "lex_rank_pct": 0.08615384615384615
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3008803419",
+        "title": "Environmental exposure to nonylphenol and cancer progression Risk\u2013A systematic review",
+        "p_main": 0.0,
+        "lex_score": 0.08727095674617825,
+        "lex_rank_pct": 0.020512820512820513
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3012478040",
+        "title": "Evaluating health risks associated with exposure to ambient surface waters during recreational activities: A systematic ",
+        "p_main": 0.0,
+        "lex_score": 0.055441482465346074,
+        "lex_rank_pct": 0.13025641025641024
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3003500060",
+        "title": "Effect modification of the short-term effects of air pollution on morbidity by season: A systematic review and meta-anal",
+        "p_main": 0.0,
+        "lex_score": 0.08147194543235453,
+        "lex_rank_pct": 0.028717948717948718
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2985113252",
+        "title": "Food Insecurity and Cognitive Function in Middle to Older Adulthood: A Systematic Review",
+        "p_main": 0.0,
+        "lex_score": 0.040279436567909985,
+        "lex_rank_pct": 0.3282051282051282
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3019298116",
+        "title": "Influence of polychlorinated biphenyls and organochlorine pesticides on the inflammatory milieu. A systematic review of ",
+        "p_main": 0.0,
+        "lex_score": 0.07411142449304582,
+        "lex_rank_pct": 0.038974358974358976
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3015482342",
+        "title": "Positive Association of Cardiovascular Disease (CVD) with Chronic Exposure to Drinking Water Arsenic (As) at Concentrati",
+        "p_main": 0.0,
+        "lex_score": 0.03496460975301045,
+        "lex_rank_pct": 0.4246153846153846
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2968397684",
+        "title": "Maternal Exposure to Cadmium and Fetal Growth: a Systematic Review and Meta-Analysis",
+        "p_main": 0.0,
+        "lex_score": 0.032100255458450085,
+        "lex_rank_pct": 0.4748717948717949
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2999401301",
+        "title": "A systematic review on the effect of work-related stressors on mental health of young workers",
+        "p_main": 0.0,
+        "lex_score": 0.039146123280937924,
+        "lex_rank_pct": 0.3517948717948718
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3026006037",
+        "title": "Pesticides used in Europe and autism spectrum disorder risk: can novel exposure hypotheses be formulated beyond organoph",
+        "p_main": 0.0,
+        "lex_score": 0.07268935337397985,
+        "lex_rank_pct": 0.043076923076923075
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2991407476",
+        "title": "Index-based dietary patterns in relation to gastric cancer risk: a systematic review and meta-analysis",
+        "p_main": 0.0,
+        "lex_score": 0.030274615872154582,
+        "lex_rank_pct": 0.5241025641025641
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3027315947",
+        "title": "Transgenerational epigenetic effects from male exposure to endocrine-disrupting compounds: a systematic review on resear",
+        "p_main": 0.0,
+        "lex_score": 0.0900116792306594,
+        "lex_rank_pct": 0.017435897435897435
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2986024018",
+        "title": "Long-term exposure to outdoor air pollution and the risk of development of rheumatoid arthritis: A systematic review and",
+        "p_main": 0.0,
+        "lex_score": 0.08599312685396192,
+        "lex_rank_pct": 0.02358974358974359
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3015473841",
+        "title": "Bisphenol A and the Risk of Obesity a Systematic Review With Meta-Analysis of the Epidemiological Evidence",
+        "p_main": 0.0,
+        "lex_score": 0.034472975596902745,
+        "lex_rank_pct": 0.4358974358974359
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3002131152",
+        "title": "Maternal mycotoxin exposure and adverse pregnancy outcomes: a systematic review",
+        "p_main": 0.0,
+        "lex_score": 0.04035146178961588,
+        "lex_rank_pct": 0.3230769230769231
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2887232568",
+        "title": "Talc exposure and risk of stomach cancer: Systematic review and meta-analysis of occupational cohort studies",
+        "p_main": 0.0,
+        "lex_score": 0.034032667106580816,
+        "lex_rank_pct": 0.4461538461538462
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2989222914",
+        "title": "The effects of neck muscle vibration on postural orientation and spatial perception: A systematic review",
+        "p_main": 0.0,
+        "lex_score": 0.03452521753409516,
+        "lex_rank_pct": 0.4328205128205128
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3004885607",
+        "title": "Mouthwash With Alcohol and Oral Carcinogenesis: Systematic Review and Meta-analysis",
+        "p_main": 0.0,
+        "lex_score": 0.045473614039955264,
+        "lex_rank_pct": 0.23897435897435898
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3012482498",
+        "title": "A time\u2010to\u2010event analysis on air pollutants with the risk of cardiovascular disease and mortality: A systematic review an",
+        "p_main": 0.0,
+        "lex_score": 0.051276554445250665,
+        "lex_rank_pct": 0.16205128205128205
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3008712479",
+        "title": "Health effects of living near an incinerator: A systematic review of epidemiological studies, with focus on last generat",
+        "p_main": 0.0,
+        "lex_score": 0.05841327978680551,
+        "lex_rank_pct": 0.10666666666666667
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3021545254",
+        "title": "Impact of shift work on blood pressure among emergency medical services clinicians and related shift workers: A systemat",
+        "p_main": 0.0,
+        "lex_score": 0.04420666611258903,
+        "lex_rank_pct": 0.2553846153846154
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3011085354",
+        "title": "Dietary Intake of Acrylamide and Risk of Breast, Endometrial, and Ovarian Cancers: A Systematic Review and Dose\u2013Response",
+        "p_main": 0.0,
+        "lex_score": 0.041189590697860226,
+        "lex_rank_pct": 0.3046153846153846
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3004623156",
+        "title": "Food environment near schools and body weight\u2014A systematic review of associations by race/ethnicity, gender, grade, and ",
+        "p_main": 0.0,
+        "lex_score": 0.015771542067580604,
+        "lex_rank_pct": 0.884102564102564
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3010778131",
+        "title": "Quiet, clean, green, and active: A Navigation Guide systematic review of the impacts of spatially correlated urban expos",
+        "p_main": 0.0,
+        "lex_score": 0.06685927065730798,
+        "lex_rank_pct": 0.06461538461538462
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3006585406",
+        "title": "Foetal and childhood exposure to famine and the risks of cardiometabolic conditions in adulthood: A systematic review an",
+        "p_main": 0.0,
+        "lex_score": 0.011020174268184144,
+        "lex_rank_pct": 0.958974358974359
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3021472548",
+        "title": "Effects of prenatal exposure to NO2 on children\u2019s neurodevelopment: a systematic review and meta-analysis",
+        "p_main": 0.0,
+        "lex_score": 0.04233206943972677,
+        "lex_rank_pct": 0.2841025641025641
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3028697666",
+        "title": "Effect of Food Environment Interventions on Anthropometric Outcomes in School-Aged Children and Adolescents in Low- and ",
+        "p_main": 0.0,
+        "lex_score": 0.048172100845838964,
+        "lex_rank_pct": 0.20307692307692307
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3012247440",
+        "title": "Occupational lifting and adverse pregnancy outcome: a systematic review and meta-analysis",
+        "p_main": 0.0,
+        "lex_score": 0.06477614202688982,
+        "lex_rank_pct": 0.07384615384615385
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3007444100",
+        "title": "Toxicity of polybrominated diphenyl ethers (PBDEs) on rodent male reproductive system: A systematic review and meta-anal",
+        "p_main": 0.0,
+        "lex_score": 0.03327878400796067,
+        "lex_rank_pct": 0.4564102564102564
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3020882052",
+        "title": "Systematic review and meta-analysis of case-crossover and time-series studies of short term outdoor nitrogen dioxide exp",
+        "p_main": 0.0,
+        "lex_score": 0.0731317905733291,
+        "lex_rank_pct": 0.041025641025641026
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3022929316",
+        "title": "Dose-related effect of secondhand smoke on cardiovascular disease in nonsmokers: Systematic review and meta-analysis",
+        "p_main": 0.0,
+        "lex_score": 0.02512924297054854,
+        "lex_rank_pct": 0.6615384615384615
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3027152297",
+        "title": "The association between exposure to second-hand smoke and sleep disturbances: A systematic review and meta-analysis",
+        "p_main": 0.0,
+        "lex_score": 0.03514893418439131,
+        "lex_rank_pct": 0.42153846153846153
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3007492384",
+        "title": "Association between indoor formaldehyde exposure and asthma: A systematic review and meta\u2010analysis of observational stud",
+        "p_main": 0.0,
+        "lex_score": 0.03500303021857946,
+        "lex_rank_pct": 0.4235897435897436
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3008117379",
+        "title": "Influence of residential greenness on adverse pregnancy outcomes: A systematic review and dose-response meta-analysis",
+        "p_main": 0.0,
+        "lex_score": 0.016777378347731523,
+        "lex_rank_pct": 0.8635897435897436
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3020494631",
+        "title": "Oral radiation\u2010induced sarcomas: Systematic review",
+        "p_main": 0.0,
+        "lex_score": 0.00860836371092482,
+        "lex_rank_pct": 0.9753846153846154
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3025831035",
+        "title": "Exposure to light at night (LAN) and risk of obesity: A systematic review and meta-analysis of observational studies",
+        "p_main": 0.0,
+        "lex_score": 0.06923808223324404,
+        "lex_rank_pct": 0.05641025641025641
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3015335149",
+        "title": "The association between environmental endocrine disruptors and cardiovascular diseases: A systematic review and meta-ana",
+        "p_main": 0.0,
+        "lex_score": 0.06789009433887287,
+        "lex_rank_pct": 0.059487179487179485
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3004398067",
+        "title": "Occupational exposure to formaldehyde and risk of lung cancer: A systematic review and meta\u2010analysis",
+        "p_main": 0.0,
+        "lex_score": 0.043674319028693794,
+        "lex_rank_pct": 0.2635897435897436
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3014686162",
+        "title": "A Systematic Review of the Effects of Perinatal Alcohol Exposure and Perinatal Marijuana Exposure on Adult Neurogenesis ",
+        "p_main": 0.0,
+        "lex_score": 0.019105253496835364,
+        "lex_rank_pct": 0.8194871794871795
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3017296821",
+        "title": "Global evidence on occupational sun exposure and keratinocyte cancers: a systematic review",
+        "p_main": 0.0,
+        "lex_score": 0.045210819350998084,
+        "lex_rank_pct": 0.24102564102564103
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3014254929",
+        "title": "Association between exposure to air pollutants and attention-deficit hyperactivity disorder (ADHD) in children: a system",
+        "p_main": 0.0,
+        "lex_score": 0.04473500355009601,
+        "lex_rank_pct": 0.24615384615384617
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3026681838",
+        "title": "A systematic review and meta-analysis of haematological malignancies in residents living near petrochemical facilities",
+        "p_main": 0.0,
+        "lex_score": 0.044576821880249154,
+        "lex_rank_pct": 0.2512820512820513
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3003486551",
+        "title": "Association of phthalate exposure with precocious and delayed pubertal timing in girls and boys: a systematic review and",
+        "p_main": 0.0,
+        "lex_score": 0.015560322167803325,
+        "lex_rank_pct": 0.8943589743589744
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3014766384",
+        "title": "Dietary factors and risk of mortality among patients with esophageal cancer: a systematic review",
+        "p_main": 0.0,
+        "lex_score": 0.019566519548835065,
+        "lex_rank_pct": 0.8164102564102564
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3021999181",
+        "title": "Relationship between gestational acrylamide exposure and offspring\u2019s growth: a systematic review and meta-analysis of co",
+        "p_main": 0.0,
+        "lex_score": 0.03682392300532978,
+        "lex_rank_pct": 0.39384615384615385
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2991834073",
+        "title": "Alterations in circadian rhythms following alcohol use: A systematic review",
+        "p_main": 0.0,
+        "lex_score": 0.006503970196913358,
+        "lex_rank_pct": 0.9856410256410256
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3008896481",
+        "title": "Air pollution exposure and adverse sleep health across the life course: A systematic review",
+        "p_main": 0.0,
+        "lex_score": 0.08721989389101091,
+        "lex_rank_pct": 0.021538461538461538
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2944161315",
+        "title": "Short and Long Term Exposure to Ambient Air Pollution and Impact on Health in India: A Systematic Review",
+        "p_main": 0.0,
+        "lex_score": 0.065772352722023,
+        "lex_rank_pct": 0.07076923076923076
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3020889606",
+        "title": "The association between road traffic noise and myocardial infarction: A systematic review and meta-analysis",
+        "p_main": 0.0,
+        "lex_score": 0.05271397302499151,
+        "lex_rank_pct": 0.15076923076923077
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3023242713",
+        "title": "Arsenic Exposure and Risk of Urothelial Cancer: Systematic Review and Meta-Analysis",
+        "p_main": 0.0,
+        "lex_score": 0.03919217550259589,
+        "lex_rank_pct": 0.3507692307692308
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3017013680",
+        "title": "Risk factors for development of lower limb osteoarthritis in physically demanding occupations: A systematic review and m",
+        "p_main": 0.0,
+        "lex_score": 0.028929976948634643,
+        "lex_rank_pct": 0.558974358974359
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2994822050",
+        "title": "Environmental temperature and human epigenetic modifications: A systematic review",
+        "p_main": 0.0,
+        "lex_score": 0.06638576296086414,
+        "lex_rank_pct": 0.06769230769230769
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2986709363",
+        "title": "Neurodevelopmental Outcomes of Children Born to Opioid-Dependent Mothers: A Systematic Review and Meta-Analysis",
+        "p_main": 0.0,
+        "lex_score": 0.035645785638461526,
+        "lex_rank_pct": 0.4123076923076923
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3020012671",
+        "title": "A Systematic Review and Meta-Analysis of Associations between Green and Blue Spaces and Birth Outcomes",
+        "p_main": 0.0,
+        "lex_score": 0.028208644516644274,
+        "lex_rank_pct": 0.5743589743589743
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3001609204",
+        "title": "microRNAs expression in relation to particulate matter exposure: A systematic review",
+        "p_main": 0.0,
+        "lex_score": 0.059698921795893825,
+        "lex_rank_pct": 0.09641025641025641
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2974051163",
+        "title": "The association between pesticide use and cutaneous melanoma: a systematic review and meta\u2010analysis",
+        "p_main": 0.0,
+        "lex_score": 0.059988137014590326,
+        "lex_rank_pct": 0.09333333333333334
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2922284256",
+        "title": "Indoor Nature Interventions for Health and Wellbeing of Older Adults in Residential Settings: A Systematic Review",
+        "p_main": 0.0,
+        "lex_score": 0.060025399447875785,
+        "lex_rank_pct": 0.09230769230769231
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3003014008",
+        "title": "Systematic review and meta-analysis of epidemiological literature evaluating the association between exposure to man-mad",
+        "p_main": 0.0,
+        "lex_score": 0.053127541493722785,
+        "lex_rank_pct": 0.14974358974358976
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3008143010",
+        "title": "Is job strain a risk factor for musculoskeletal pain? A systematic review and meta-analysis of 21 longitudinal studies",
+        "p_main": 0.0,
+        "lex_score": 0.040275152715347,
+        "lex_rank_pct": 0.3292307692307692
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3011703283",
+        "title": "Environmental exposures and breast cancer risk in the context of underlying susceptibility: A systematic review of the e",
+        "p_main": 0.0,
+        "lex_score": 0.07061802594965819,
+        "lex_rank_pct": 0.052307692307692305
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2998109480",
+        "title": "Effect of greenness on asthma in children: A systematic review",
+        "p_main": 0.0,
+        "lex_score": 0.046975355488312165,
+        "lex_rank_pct": 0.2205128205128205
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3014639602",
+        "title": "Association between ambient air pollution and pregnancy complications: A systematic review and meta-analysis of cohort s",
+        "p_main": 0.0,
+        "lex_score": 0.08337145265565064,
+        "lex_rank_pct": 0.027692307692307693
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2999709636",
+        "title": "The effects of postnatal exposure of endocrine disruptors on testicular function: a systematic review and a meta-analysi",
+        "p_main": 0.0,
+        "lex_score": 0.05613244031601772,
+        "lex_rank_pct": 0.12512820512820513
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3029275367",
+        "title": "Work-relatedness of inguinal hernia: a systematic review including meta-analysis and GRADE",
+        "p_main": 0.0,
+        "lex_score": 0.05729967056147435,
+        "lex_rank_pct": 0.11487179487179487
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3017158562",
+        "title": "Respiratory and Allergic Effects in Children Exposed to Pesticides\u2014A Systematic Review",
+        "p_main": 0.0,
+        "lex_score": 0.05435858662597266,
+        "lex_rank_pct": 0.13641025641025642
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3008453743",
+        "title": "Relationship of chronic kidney disease with major air pollutants - A systematic review and meta-analysis of observationa",
+        "p_main": 0.0,
+        "lex_score": 0.06406398811356458,
+        "lex_rank_pct": 0.07692307692307693
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3023872435",
+        "title": "Association between pesticide exposure and paraoxonase-1 (PON1) polymorphisms, and neurobehavioural outcomes in children",
+        "p_main": 0.0,
+        "lex_score": 0.04842648385289891,
+        "lex_rank_pct": 0.19487179487179487
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2913324897",
+        "title": "Neurodevelopmental effects of prenatal vitamin D in humans: systematic review and meta-analysis",
+        "p_main": 0.0,
+        "lex_score": 0.043580529920220656,
+        "lex_rank_pct": 0.26666666666666666
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W2985765771",
+        "title": "Prevalence of respiratory conditions among people who use illicit opioids: a systematic review",
+        "p_main": 0.0,
+        "lex_score": 0.03748759788010562,
+        "lex_rank_pct": 0.37948717948717947
+      },
+      {
+        "dataset": "Menon_2022",
+        "rid": "https://openalex.org/W3022597286",
+        "title": "Association between exposure to polychlorinated biphenyls and risk of hypertension: A systematic review and meta-analysi",
+        "p_main": 0.0,
+        "lex_score": 0.051016630071505156,
+        "lex_rank_pct": 0.1671794871794872
+      },
+      {
+        "dataset": "Muthu_2021",
+        "rid": "https://openalex.org/W2085626304",
+        "title": "Safety of balloon kyphoplasty in the treatment of osteoporotic vertebral compression fractures in Europe: a meta-analysi",
+        "p_main": 0.0,
+        "lex_score": 0.023916686866563275,
+        "lex_rank_pct": 0.8256712026480324
+      },
+      {
+        "dataset": "Muthu_2021",
+        "rid": "https://openalex.org/W2081494650",
+        "title": "Randomized Clinical Study to Compare the Accuracy of Navigated and Non-Navigated Thoracic Pedicle Screws in Deformity Co",
+        "p_main": 0.0,
+        "lex_score": 0.06595259234774666,
+        "lex_rank_pct": 0.10334681868333946
+      },
+      {
+        "dataset": "Muthu_2021",
+        "rid": "https://openalex.org/W2424326616",
+        "title": "Anterior cervical discectomy and fusion (ACDF) versus cervical disc arthroplasty (CDA) for two contiguous levels cervica",
+        "p_main": 0.0,
+        "lex_score": 0.06832099738702054,
+        "lex_rank_pct": 0.0831187936741449
+      },
+      {
+        "dataset": "Muthu_2021",
+        "rid": "https://openalex.org/W2011922368",
+        "title": "Comparison of artificial total disc replacement versus fusion for lumbar degenerative disc disease: a meta-analysis of r",
+        "p_main": 0.0,
+        "lex_score": 0.06576588625145877,
+        "lex_rank_pct": 0.1044501655020228
+      },
+      {
+        "dataset": "Moran_2021",
+        "rid": "https://openalex.org/W2895967873",
+        "title": "Environmental variability, the value of information, and learning in winter residents",
+        "p_main": 0.0008060624988607885,
+        "lex_score": 0.011939509454649904,
+        "lex_rank_pct": 0.6705135603000577
+      },
+      {
+        "dataset": "Moran_2021",
+        "rid": "https://openalex.org/W2896861612",
+        "title": "Effectiveness of interventions aimed at improving dietary behaviours among people at higher risk of or with chronic non-",
+        "p_main": 0.0,
+        "lex_score": 0.032539297954836094,
+        "lex_rank_pct": 0.15849201769571072
+      },
+      {
+        "dataset": "Moran_2021",
+        "rid": "https://openalex.org/W2903635703",
+        "title": "A Meta-Analysis of Food Labeling Effects on Consumer Diet Behaviors and Industry Practices",
+        "p_main": 0.0,
+        "lex_score": 0.022272530184092296,
+        "lex_rank_pct": 0.3216003077514907
+      },
+      {
+        "dataset": "Moran_2021",
+        "rid": "https://openalex.org/W2136823874",
+        "title": "Systematic review of sedentary behaviour and health indicators in school-aged children and youth",
+        "p_main": 0.0,
+        "lex_score": 0.03710474758762563,
+        "lex_rank_pct": 0.11598384304673975
+      },
+      {
+        "dataset": "Hall_2012",
+        "rid": "https://openalex.org/W2120484483",
+        "title": "Software defect association mining and defect correction effort prediction",
+        "p_main": 0.0,
+        "lex_score": 0.06928144263659046,
+        "lex_rank_pct": 0.016831570567496873
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W1975821225",
+        "title": "Influence of paternal immunity on idiotype expression in offspring",
+        "p_main": 0.007543793988065841,
+        "lex_score": 0.019138893127317348,
+        "lex_rank_pct": 0.10364878616077919
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2068921113",
+        "title": "Male-biased sex-ratio distortion caused by Octosporea bayeri, a vertically and horizontally-transmitted parasite of Daph",
+        "p_main": 0.007532588003541521,
+        "lex_score": 0.008985924225424106,
+        "lex_rank_pct": 0.4351338442049301
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2983632226",
+        "title": "Directional selection for growth at two ambient temperatures inCoturnix coturnix japonica1",
+        "p_main": 0.007533315163773078,
+        "lex_score": 0.013419347987699348,
+        "lex_rank_pct": 0.22972608144871556
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2413787478",
+        "title": "Triploid F2 progeny of water frogs (Rana esculenta complex).",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.00829112282879137,
+        "lex_rank_pct": 0.477872614375013
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W1995916301",
+        "title": "Conditioned visual flight orientation in Drosophila: dependence on age, practice, and diet.",
+        "p_main": 0.007533315163773078,
+        "lex_score": 0.01030411840763129,
+        "lex_rank_pct": 0.3610366955329886
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W267097153",
+        "title": "Effects of Irradiated Diets on Production of Progeny by Several Successive Generations of the Indian-Meal Moth, Plodia i",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.011808535891312043,
+        "lex_rank_pct": 0.2911552758914294
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W1608428859",
+        "title": "Tetracycline treatment influences mitochondrial metabolism and mtDNA density two generations after treatment in Drosophi",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.0060843998129382045,
+        "lex_rank_pct": 0.6307602849251345
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2410803379",
+        "title": "Growth, Reproductive Productivity and Longevity of Mice Fed Polyunsaturated Ruminant-Derived Foodstuffs",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.017346911333117727,
+        "lex_rank_pct": 0.13168442256972568
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2078782991",
+        "title": "Controlling for the Effects of History and Nonequilibrium Conditions in Gene Flow Estimates in Northern Bullfrog (Rana c",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.00488277177543592,
+        "lex_rank_pct": 0.7171931136170124
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2592790518",
+        "title": "Editorial",
+        "p_main": 0.0,
+        "lex_score": 0.0,
+        "lex_rank_pct": 0.9999792328619193
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2135802673",
+        "title": "Transmission Dynamics of Heritable Silencing Induced by Double-Stranded RNA in <i>Caenorhabditis elegans</i>",
+        "p_main": 0.007534333305023912,
+        "lex_score": 0.04968829206123873,
+        "lex_rank_pct": 0.006271675700371732
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2045641744",
+        "title": "Transgenerational memory effect of ageing inDrosophila",
+        "p_main": 0.007534333305023912,
+        "lex_score": 0.03430891691862487,
+        "lex_rank_pct": 0.020123356800199364
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2133804211",
+        "title": "Persistence of dengue-3 virus through transovarial transmission passage in successive generations of Aedes aegypti mosqu",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.013393934637603728,
+        "lex_rank_pct": 0.2304944655577015
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W1507693955",
+        "title": "What maintains noncytoplasmic incompatibility inducing<i>Wolbachia</i>in their hosts: a case study from a natural<i>Dros",
+        "p_main": 0.0075321517408103965,
+        "lex_score": 0.014832615060974027,
+        "lex_rank_pct": 0.1868627084501485
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2095102047",
+        "title": "Transgenerational epigenetic inheritance of longevity in Caenorhabditis elegans",
+        "p_main": 0.007533315163773078,
+        "lex_score": 0.08685070043726617,
+        "lex_rank_pct": 0.00029073993312981537
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2126025473",
+        "title": "Effects of human contraceptive on reproduction and offspring in Chrysomya megacephala",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.03018904943849599,
+        "lex_rank_pct": 0.029364733246111354
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2001603328",
+        "title": "Transgenerational Inheritance of an Acquired Small RNA-Based Antiviral Response in C. elegans",
+        "p_main": 0.0075321517408103965,
+        "lex_score": 0.039663877103406124,
+        "lex_rank_pct": 0.013124831267003095
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2395874879",
+        "title": "Harming future people.",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.008871829144016095,
+        "lex_rank_pct": 0.4415924241480282
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W1978759717",
+        "title": "Interspecific Transfer of the \"Sex-Ratio\" Agent of Drosophila willistoni in Drosophila bifasciata and Drosophila melanog",
+        "p_main": 0.007532588003541521,
+        "lex_score": 0.013679781297060536,
+        "lex_rank_pct": 0.2209831163167404
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W1978188427",
+        "title": "Transgenerational effects of parent and grandparent gender on offspring development in a biparental beetle species",
+        "p_main": 0.007533315163773078,
+        "lex_score": 0.03928764600641137,
+        "lex_rank_pct": 0.01341557120013291
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2074008668",
+        "title": "Hsp90 Affecting Chromatin Remodeling Might Explain Transgenerational Epigenetic Inheritance in Drosophila",
+        "p_main": 0.0075321517408103965,
+        "lex_score": 0.05822435496603386,
+        "lex_rank_pct": 0.0034681120594770836
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2113166762",
+        "title": "Transgenerational effects of food availability on age at maturity and reproductive output in an asexual collembolan spec",
+        "p_main": 0.007535642544219033,
+        "lex_score": 0.0184112329785477,
+        "lex_rank_pct": 0.11415695802961394
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2463936533",
+        "title": "Reduction in susceptibility to Brugia malayi of F2 progeny of Aedes togoi treated with ethyl methanesulfonate.",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.008940428312854062,
+        "lex_rank_pct": 0.43791664070774405
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2002468696",
+        "title": "Effects of Removal of &lt;I&gt;Cardinium&lt;/I&gt; Infection on Fitness of the Stored-Product Pest &lt;I&gt;Liposcelis b",
+        "p_main": 0.007532588003541521,
+        "lex_score": 0.013741871995471892,
+        "lex_rank_pct": 0.2191971424418001
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2105641593",
+        "title": "Production and progeny testing of androgenetic rosy barbPuntius conchonius",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.019134682138687412,
+        "lex_rank_pct": 0.10371108757502129
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2005585761",
+        "title": "Behavior and Development of Preschool Children Born to Adolescent Mothers: Risk and 3-Generation Households",
+        "p_main": 0.007534333305023912,
+        "lex_score": 0.01942834944520338,
+        "lex_rank_pct": 0.09988993416817228
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W1976129214",
+        "title": "The inheritance of radiation induced semi-sterility in Rhodnius prolixus",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.025006419521497604,
+        "lex_rank_pct": 0.05058874836458788
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2119887133",
+        "title": "The Promoter Targeting Sequence mediates epigenetically heritable transcription memory",
+        "p_main": 0.007535642544219033,
+        "lex_score": 0.005453071891252526,
+        "lex_rank_pct": 0.6769671671546944
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2126613986",
+        "title": "Effects of Ginsenosides, Active Ingredients of Panax ginseng, on Development, Growth, and Life Span of Caenorhabditis el",
+        "p_main": 0.0075321517408103965,
+        "lex_score": 0.0175486516889686,
+        "lex_rank_pct": 0.12784250202479597
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2162038905",
+        "title": "Some second-generation effects of survival of the Nazi persecution.",
+        "p_main": 0.007535642544219033,
+        "lex_score": 0.022451158927170055,
+        "lex_rank_pct": 0.06851078852823292
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2131821766",
+        "title": "Biomphalaria tenagophila (Orbigny, 1835) (Mollusca): adaptation to desiccation and susceptibility to infection with Schi",
+        "p_main": 0.007532588003541521,
+        "lex_score": 0.01612988194417165,
+        "lex_rank_pct": 0.15641808402384066
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2080376636",
+        "title": "The effect of Emblica officinalis diet on lifespan, sexual behavior, and fitness characters in Drosophila melanogaster",
+        "p_main": 0.0075321517408103965,
+        "lex_score": 0.04169582523484062,
+        "lex_rank_pct": 0.011068884597013686
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W4253895676",
+        "title": "Retraction",
+        "p_main": 0.0,
+        "lex_score": 0.0,
+        "lex_rank_pct": 0.9999792328619193
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2163858599",
+        "title": "Germ line imprinting in Drosophila: Epigenetics in search of function",
+        "p_main": 0.007532588003541521,
+        "lex_score": 0.037384748712669745,
+        "lex_rank_pct": 0.015845326355574937
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2087501214",
+        "title": "Context\u2010Dependent Intergenerational Effects: The Interaction between Past and Present Environments and Its Effect on Pop",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.011013592477435677,
+        "lex_rank_pct": 0.32594023217660373
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2037819077",
+        "title": "Plastic and Heritable Components of Phenotypic Variation in Nucella lapillus: An Assessment Using Reciprocal Transplant ",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.01266056140682412,
+        "lex_rank_pct": 0.25605881253504453
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2091325618",
+        "title": "Preclinical toxicity profile of oral bilastine",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.02352212448119297,
+        "lex_rank_pct": 0.05997549477706477
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2131957245",
+        "title": "Obtention du cycle de vie complet d'Helix aperta Born de sites tunisiens en conditions contr\u00f4l\u00e9es. Influence de la photo",
+        "p_main": 0.007534333305023912,
+        "lex_score": 0.003500507353116992,
+        "lex_rank_pct": 0.8113097833987498
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2144327573",
+        "title": "Verification of epigenetic inheritance in a unicellular model system: multigenerational effects of hormonal imprinting",
+        "p_main": 0.007533315163773078,
+        "lex_score": 0.0370896779543272,
+        "lex_rank_pct": 0.016136066288704752
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2082464418",
+        "title": "Aberrations of holokinetic chromosomes and associated lethality after x-irradiation of meiotic stages in Tetranychus urt",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.00429643695069197,
+        "lex_rank_pct": 0.7588104583307375
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2029210691",
+        "title": "Transcriptomic and proteomic analyses of seasonal photoperiodism in the pea aphid",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.0285654008465154,
+        "lex_rank_pct": 0.034245010695076114
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2184998178",
+        "title": "Sudden death due to ischemic heart disease among adolescents and young adults before and after the socio-economic change",
+        "p_main": 0.007532588003541521,
+        "lex_score": 0.015069030259843704,
+        "lex_rank_pct": 0.18059103274977675
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2013197402",
+        "title": "Genetic activities of 4-chloromethylbiphenyl, the 4-hydroxy derivative and benzyl chloride in the soma and germ line of ",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.01769524390369469,
+        "lex_rank_pct": 0.1251220069362241
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2419306274",
+        "title": "[Analysis of mutations induced by alkylating compounds in Drosophila sperm. I. Character of visible changes induced by N",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.01954301671185015,
+        "lex_rank_pct": 0.0982493302597969
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2057651886",
+        "title": "Plastic and Heritable Variation in Shell Thickness of the Intertidal Gastropod Nucella lapillus Associated with Risks of",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.022365447636347062,
+        "lex_rank_pct": 0.06907150125641186
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2008035850",
+        "title": "Timing of inter-generational prevention of adiposity and type 2 diabetes",
+        "p_main": 0.007539134951163914,
+        "lex_score": 0.04849213867930518,
+        "lex_rank_pct": 0.006977758395115569
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W1983320873",
+        "title": "Sublethal effects of Beauveria bassiana (Balsamo) Vuillemin (Deuteromycotina: Hyphomycetes) on the whitefly Bemisia taba",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.006483966285770111,
+        "lex_rank_pct": 0.6026831142400266
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2136130473",
+        "title": "From father to son: transgenerational effect of tetracycline on sperm viability",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.040335554481379765,
+        "lex_rank_pct": 0.01229414574377505
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W1976672898",
+        "title": "Role of cholesterol in germ-line development ofCaenorhabditis elegans",
+        "p_main": 0.0075321517408103965,
+        "lex_score": 0.03980699774004953,
+        "lex_rank_pct": 0.013041762714680289
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2138149454",
+        "title": "Thermal legacies: transgenerational effects of temperature on growth in a vertebrate",
+        "p_main": 0.007535642544219033,
+        "lex_score": 0.021320744860184333,
+        "lex_rank_pct": 0.07908126181130978
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2044948622",
+        "title": "Induction of mosaic sex-linked recessive lethals in the different germ cell stages of Drosophila melanogaster by bleomyc",
+        "p_main": 0.007534333305023912,
+        "lex_score": 0.02629125276969347,
+        "lex_rank_pct": 0.0434863871409881
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2400805927",
+        "title": "The effect of chronic irradiation on the biology of Musca domestica L. (Diptera, Muscidae) through successive generation",
+        "p_main": 0.0075321517408103965,
+        "lex_score": 0.010768073935194699,
+        "lex_rank_pct": 0.33744522667331217
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2265892381",
+        "title": "Effects of thiotepa on the productivity of male Aedes aegypti",
+        "p_main": 0.007532588003541521,
+        "lex_score": 0.019353356736303402,
+        "lex_rank_pct": 0.10084522251988454
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2132507417",
+        "title": "Male attractiveness regulates daughter fecundity non-genetically via maternal investment",
+        "p_main": 0.007543793988065841,
+        "lex_score": 0.03531339727469894,
+        "lex_rank_pct": 0.018441218615662575
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2039919507",
+        "title": "Immigration Measures and Reproductive Health Among Hispanic Youth: Findings from the National Longitudinal Survey of You",
+        "p_main": 0.007534333305023912,
+        "lex_score": 0.00974305105724012,
+        "lex_rank_pct": 0.3913774842688929
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2419147530",
+        "title": "The effects of microgravity on the character of progeny of Drosophila melanogaster.",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.026821525229631642,
+        "lex_rank_pct": 0.04120200195211098
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W1977414551",
+        "title": "Longevity and the long arm of epigenetics: Acquired parental marks influence lifespan across several generations",
+        "p_main": 0.0075321517408103965,
+        "lex_score": 0.022545914257839073,
+        "lex_rank_pct": 0.06774240441924699
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2161902597",
+        "title": "Understanding the increased risk of neural tube defect-affected pregnancies among Mexico-born women in California: immig",
+        "p_main": 0.007532588003541521,
+        "lex_score": 0.016259373437204464,
+        "lex_rank_pct": 0.15367682179718814
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2068774006",
+        "title": "The inheritance of aggressiveness in the convict cichlid fish, Cichlasoma nigrofasciatum (Pisces: Cichlidae)",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.01929405466413282,
+        "lex_rank_pct": 0.10165514090503187
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2150173639",
+        "title": "What Do We Need to Know prior to Thinking about Incorporating an Epigenetic Evaluation into Safety Assessments?2",
+        "p_main": 0.0075321517408103965,
+        "lex_score": 0.02693338169871637,
+        "lex_rank_pct": 0.04064128922393205
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2142664378",
+        "title": "Irradiation of Adult Epiphyas postvittana (Lepidoptera: Tortricidae): Egg Sterility in Parental and F1 Generations",
+        "p_main": 0.007533315163773078,
+        "lex_score": 0.010388151814910318,
+        "lex_rank_pct": 0.357049405021494
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2093015813",
+        "title": "A family study of coronary risk factors in Geelong",
+        "p_main": 0.007543793988065841,
+        "lex_score": 0.0080477385668056,
+        "lex_rank_pct": 0.4938010092829107
+      }
+    ]
+  },
+  "synergy_26_v2": {
+    "n": 168856,
+    "baseline": {
+      "n": 168856,
+      "tp": 1030,
+      "fn": 22,
+      "tn": 21192,
+      "fp": 4250,
+      "auto_rate": 0.15690292320083385,
+      "hr_rate": 0.8430970767991661,
+      "sens": 0.9790874524714829,
+      "spec": 0.8329533841679113
+    },
+    "sweep": [
+      {
+        "top_pct": 0.005,
+        "veto": 10,
+        "fn_rescued": 2,
+        "te_to_hr": 8,
+        "sens": 0.9809523809523809,
+        "delta_hr_pp": 0.005922205903252653,
+        "fn_remaining": 20,
+        "tp": 1030
+      },
+      {
+        "top_pct": 0.01,
+        "veto": 22,
+        "fn_rescued": 2,
+        "te_to_hr": 20,
+        "sens": 0.9809523809523809,
+        "delta_hr_pp": 0.013028852987162498,
+        "fn_remaining": 20,
+        "tp": 1030
+      },
+      {
+        "top_pct": 0.025,
+        "veto": 65,
+        "fn_rescued": 7,
+        "te_to_hr": 58,
+        "sens": 0.9856459330143541,
+        "delta_hr_pp": 0.03849433837116445,
+        "fn_remaining": 15,
+        "tp": 1030
+      },
+      {
+        "top_pct": 0.05,
+        "veto": 201,
+        "fn_rescued": 7,
+        "te_to_hr": 194,
+        "sens": 0.9856459330143541,
+        "delta_hr_pp": 0.11903633865542051,
+        "fn_remaining": 15,
+        "tp": 1030
+      },
+      {
+        "top_pct": 0.1,
+        "veto": 595,
+        "fn_rescued": 10,
+        "te_to_hr": 585,
+        "sens": 0.9884836852207294,
+        "delta_hr_pp": 0.3523712512436661,
+        "fn_remaining": 12,
+        "tp": 1030
+      },
+      {
+        "top_pct": 0.15,
+        "veto": 1162,
+        "fn_rescued": 13,
+        "te_to_hr": 1149,
+        "sens": 0.9913378248315688,
+        "delta_hr_pp": 0.6881603259582203,
+        "fn_remaining": 9,
+        "tp": 1030
+      },
+      {
+        "top_pct": 0.25,
+        "veto": 2577,
+        "fn_rescued": 15,
+        "te_to_hr": 2562,
+        "sens": 0.9932497589199615,
+        "delta_hr_pp": 1.5261524612687816,
+        "fn_remaining": 7,
+        "tp": 1030
+      },
+      {
+        "top_pct": 0.5,
+        "veto": 7323,
+        "fn_rescued": 17,
+        "te_to_hr": 7306,
+        "sens": 0.9951690821256038,
+        "delta_hr_pp": 4.336831382953521,
+        "fn_remaining": 5,
+        "tp": 1030
+      }
+    ],
+    "fn_records": [
+      {
+        "dataset": "Sep_2021",
+        "rid": "https://openalex.org/W2947070139",
+        "title": "Sustained correction of associative learning deficits after brief, early treatment in a rat model of Fragile X Syndrome",
+        "p_main": 0.0,
+        "lex_score": 0.10889493321275691,
+        "lex_rank_pct": 0.05904059040590406
+      },
+      {
+        "dataset": "Muthu_2021",
+        "rid": "https://openalex.org/W2081494650",
+        "title": "Randomized Clinical Study to Compare the Accuracy of Navigated and Non-Navigated Thoracic Pedicle Screws in Deformity Co",
+        "p_main": 0.0,
+        "lex_score": 0.06595259234774666,
+        "lex_rank_pct": 0.10334681868333946
+      },
+      {
+        "dataset": "Moran_2021",
+        "rid": "https://openalex.org/W2895967873",
+        "title": "Environmental variability, the value of information, and learning in winter residents",
+        "p_main": 0.0008099449291661308,
+        "lex_score": 0.011939509454649904,
+        "lex_rank_pct": 0.6705135603000577
+      },
+      {
+        "dataset": "Hall_2012",
+        "rid": "https://openalex.org/W2120484483",
+        "title": "Software defect association mining and defect correction effort prediction",
+        "p_main": 0.0,
+        "lex_score": 0.06928144263659046,
+        "lex_rank_pct": 0.016831570567496873
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W1608428859",
+        "title": "Tetracycline treatment influences mitochondrial metabolism and mtDNA density two generations after treatment in Drosophi",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.0060843998129382045,
+        "lex_rank_pct": 0.6307602849251345
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2410803379",
+        "title": "Growth, Reproductive Productivity and Longevity of Mice Fed Polyunsaturated Ruminant-Derived Foodstuffs",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.017346911333117727,
+        "lex_rank_pct": 0.13168442256972568
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2078782991",
+        "title": "Controlling for the Effects of History and Nonequilibrium Conditions in Gene Flow Estimates in Northern Bullfrog (Rana c",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.00488277177543592,
+        "lex_rank_pct": 0.7171931136170124
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2592790518",
+        "title": "Editorial",
+        "p_main": 0.0,
+        "lex_score": 0.0,
+        "lex_rank_pct": 0.9999792328619193
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2045641744",
+        "title": "Transgenerational memory effect of ageing inDrosophila",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.03430891691862487,
+        "lex_rank_pct": 0.020123356800199364
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2133804211",
+        "title": "Persistence of dengue-3 virus through transovarial transmission passage in successive generations of Aedes aegypti mosqu",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.013393934637603728,
+        "lex_rank_pct": 0.2304944655577015
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2095102047",
+        "title": "Transgenerational epigenetic inheritance of longevity in Caenorhabditis elegans",
+        "p_main": 0.007533315163773078,
+        "lex_score": 0.08685070043726617,
+        "lex_rank_pct": 0.00029073993312981537
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2001603328",
+        "title": "Transgenerational Inheritance of an Acquired Small RNA-Based Antiviral Response in C. elegans",
+        "p_main": 0.0075321517408103965,
+        "lex_score": 0.039663877103406124,
+        "lex_rank_pct": 0.013124831267003095
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2395874879",
+        "title": "Harming future people.",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.008871829144016095,
+        "lex_rank_pct": 0.4415924241480282
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2074008668",
+        "title": "Hsp90 Affecting Chromatin Remodeling Might Explain Transgenerational Epigenetic Inheritance in Drosophila",
+        "p_main": 0.0075321517408103965,
+        "lex_score": 0.05822435496603386,
+        "lex_rank_pct": 0.0034681120594770836
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2005585761",
+        "title": "Behavior and Development of Preschool Children Born to Adolescent Mothers: Risk and 3-Generation Households",
+        "p_main": 0.007534333305023912,
+        "lex_score": 0.01942834944520338,
+        "lex_rank_pct": 0.09988993416817228
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W4253895676",
+        "title": "Retraction",
+        "p_main": 0.0,
+        "lex_score": 0.0,
+        "lex_rank_pct": 0.9999792328619193
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2163858599",
+        "title": "Germ line imprinting in Drosophila: Epigenetics in search of function",
+        "p_main": 0.007532588003541521,
+        "lex_score": 0.037384748712669745,
+        "lex_rank_pct": 0.015845326355574937
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2091325618",
+        "title": "Preclinical toxicity profile of oral bilastine",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.02352212448119297,
+        "lex_rank_pct": 0.05997549477706477
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2013197402",
+        "title": "Genetic activities of 4-chloromethylbiphenyl, the 4-hydroxy derivative and benzyl chloride in the soma and germ line of ",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.01769524390369469,
+        "lex_rank_pct": 0.1251220069362241
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2136130473",
+        "title": "From father to son: transgenerational effect of tetracycline on sperm viability",
+        "p_main": 0.0075320063254680145,
+        "lex_score": 0.040335554481379765,
+        "lex_rank_pct": 0.01229414574377505
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2161902597",
+        "title": "Understanding the increased risk of neural tube defect-affected pregnancies among Mexico-born women in California: immig",
+        "p_main": 0.007532588003541521,
+        "lex_score": 0.016259373437204464,
+        "lex_rank_pct": 0.15367682179718814
+      },
+      {
+        "dataset": "Walker_2018",
+        "rid": "https://openalex.org/W2093015813",
+        "title": "A family study of coronary risk factors in Geelong",
+        "p_main": 0.007543793988065841,
+        "lex_score": 0.0080477385668056,
+        "lex_rank_pct": 0.4938010092829107
+      }
+    ]
+  }
+}

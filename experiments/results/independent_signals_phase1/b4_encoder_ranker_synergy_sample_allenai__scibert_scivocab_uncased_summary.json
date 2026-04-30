@@ -1,0 +1,49 @@
+{
+  "scope": "B4_encoder_ranker_synergy_sample_diagnostic",
+  "model_name": "allenai/scibert_scivocab_uncased",
+  "device": "mps",
+  "n_sampled": 467,
+  "pos_per_dataset": 10,
+  "neg_per_dataset": 10,
+  "batch_size": 16,
+  "max_length": 256,
+  "c_values": [
+    0.1,
+    1.0,
+    10.0
+  ],
+  "c_grid_metrics": {
+    "c_0.1": {
+      "n": 467,
+      "n_pos": 207,
+      "n_neg": 260,
+      "auc": 0.5793756967670012,
+      "pr_auc": 0.4989499618961625
+    },
+    "c_1.0": {
+      "n": 467,
+      "n_pos": 207,
+      "n_neg": 260,
+      "auc": 0.5500929022668153,
+      "pr_auc": 0.4760986161274509
+    },
+    "c_10.0": {
+      "n": 467,
+      "n_pos": 207,
+      "n_neg": 260,
+      "auc": 0.5421590486807878,
+      "pr_auc": 0.4691693625018424
+    }
+  },
+  "best_c_by_auc": 0.1,
+  "best_metric": {
+    "n": 467,
+    "n_pos": 207,
+    "n_neg": 260,
+    "auc": 0.5793756967670012,
+    "pr_auc": 0.4989499618961625
+  },
+  "spearman_best_ranker_p_include": 0.12043112901841707,
+  "spearman_best_ranker_final_score": 0.12043112901841707,
+  "note": "SYNERGY sampled HR records only. Encoder is frozen; classifier is trained under leave-one-dataset-out folds and never sees the held-out dataset."
+}

@@ -1,0 +1,242 @@
+{
+  "config": "a13b_coverage_rule",
+  "datasets": [
+    "Menon_2022",
+    "Walker_2018",
+    "Cohen_ACEInhibitors",
+    "Cohen_AtypicalAntipsychotics",
+    "Cohen_BetaBlockers",
+    "Cohen_CalciumChannelBlockers",
+    "Cohen_Estrogens",
+    "Cohen_OralHypoglycemics",
+    "Cohen_ProtonPumpInhibitors",
+    "Cohen_Statins"
+  ],
+  "n_false_negative_rows": 156,
+  "dataset_summaries": [
+    {
+      "dataset": "Menon_2022",
+      "n_records": 975,
+      "fn": 74,
+      "metrics_fn": 74,
+      "sensitivity": 0.0,
+      "tier_counts_among_fn": {
+        "0": 74
+      },
+      "inferred_path_counts_among_fn": {
+        "metadata_publication_hard_rule_precheck": 74
+      },
+      "publication_hard_keyword_counts_among_fn": {
+        "systematic review": 74
+      },
+      "title_pattern_counts_among_fn": {
+        "meta-analysis": 41,
+        "systematic review": 74
+      }
+    },
+    {
+      "dataset": "Walker_2018",
+      "n_records": 48153,
+      "fn": 62,
+      "metrics_fn": 62,
+      "sensitivity": 0.9183135704874835,
+      "tier_counts_among_fn": {
+        "2": 60,
+        "0": 2
+      },
+      "inferred_path_counts_among_fn": {
+        "post_llm_router_or_output_mutation": 60,
+        "metadata_publication_hard_rule_precheck": 2
+      },
+      "publication_hard_keyword_counts_among_fn": {
+        "none": 60,
+        "editorial": 1,
+        "retraction": 1
+      },
+      "title_pattern_counts_among_fn": {
+        "editorial": 1,
+        "retraction": 1
+      }
+    },
+    {
+      "dataset": "Cohen_ACEInhibitors",
+      "n_records": 2544,
+      "fn": 1,
+      "metrics_fn": 1,
+      "sensitivity": 0.975609756097561,
+      "tier_counts_among_fn": {
+        "0": 1
+      },
+      "inferred_path_counts_among_fn": {
+        "metadata_publication_hard_rule_precheck": 1
+      },
+      "publication_hard_keyword_counts_among_fn": {
+        "meta-analysis": 1
+      },
+      "title_pattern_counts_among_fn": {
+        "meta-analysis": 1
+      }
+    },
+    {
+      "dataset": "Cohen_AtypicalAntipsychotics",
+      "n_records": 1120,
+      "fn": 7,
+      "metrics_fn": 7,
+      "sensitivity": 0.952054794520548,
+      "tier_counts_among_fn": {
+        "0": 7
+      },
+      "inferred_path_counts_among_fn": {
+        "metadata_publication_hard_rule_precheck": 7
+      },
+      "publication_hard_keyword_counts_among_fn": {
+        "systematic review": 4,
+        "meta-analysis": 3
+      },
+      "title_pattern_counts_among_fn": {
+        "systematic review": 4,
+        "meta-analysis": 5
+      }
+    },
+    {
+      "dataset": "Cohen_BetaBlockers",
+      "n_records": 2072,
+      "fn": 1,
+      "metrics_fn": 1,
+      "sensitivity": 0.9761904761904762,
+      "tier_counts_among_fn": {
+        "1": 1
+      },
+      "inferred_path_counts_among_fn": {
+        "post_llm_router_or_output_mutation": 1
+      },
+      "publication_hard_keyword_counts_among_fn": {
+        "none": 1
+      },
+      "title_pattern_counts_among_fn": {}
+    },
+    {
+      "dataset": "Cohen_CalciumChannelBlockers",
+      "n_records": 1218,
+      "fn": 4,
+      "metrics_fn": 4,
+      "sensitivity": 0.96,
+      "tier_counts_among_fn": {
+        "0": 4
+      },
+      "inferred_path_counts_among_fn": {
+        "metadata_publication_hard_rule_precheck": 4
+      },
+      "publication_hard_keyword_counts_among_fn": {
+        "meta-analysis": 4
+      },
+      "title_pattern_counts_among_fn": {
+        "meta-analysis": 4
+      }
+    },
+    {
+      "dataset": "Cohen_Estrogens",
+      "n_records": 368,
+      "fn": 1,
+      "metrics_fn": 1,
+      "sensitivity": 0.9875,
+      "tier_counts_among_fn": {
+        "0": 1
+      },
+      "inferred_path_counts_among_fn": {
+        "metadata_publication_hard_rule_precheck": 1
+      },
+      "publication_hard_keyword_counts_among_fn": {
+        "meta-analysis": 1
+      },
+      "title_pattern_counts_among_fn": {
+        "meta-analysis": 1
+      }
+    },
+    {
+      "dataset": "Cohen_OralHypoglycemics",
+      "n_records": 503,
+      "fn": 1,
+      "metrics_fn": 1,
+      "sensitivity": 0.9926470588235294,
+      "tier_counts_among_fn": {
+        "2": 1
+      },
+      "inferred_path_counts_among_fn": {
+        "post_llm_router_or_output_mutation": 1
+      },
+      "publication_hard_keyword_counts_among_fn": {
+        "none": 1
+      },
+      "title_pattern_counts_among_fn": {}
+    },
+    {
+      "dataset": "Cohen_ProtonPumpInhibitors",
+      "n_records": 1333,
+      "fn": 3,
+      "metrics_fn": 3,
+      "sensitivity": 0.9411764705882353,
+      "tier_counts_among_fn": {
+        "0": 3
+      },
+      "inferred_path_counts_among_fn": {
+        "metadata_publication_hard_rule_precheck": 3
+      },
+      "publication_hard_keyword_counts_among_fn": {
+        "meta-analysis": 3
+      },
+      "title_pattern_counts_among_fn": {
+        "meta-analysis": 3
+      }
+    },
+    {
+      "dataset": "Cohen_Statins",
+      "n_records": 3463,
+      "fn": 2,
+      "metrics_fn": 2,
+      "sensitivity": 0.9764705882352941,
+      "tier_counts_among_fn": {
+        "0": 2
+      },
+      "inferred_path_counts_among_fn": {
+        "metadata_publication_hard_rule_precheck": 2
+      },
+      "publication_hard_keyword_counts_among_fn": {
+        "meta-analysis": 1,
+        "systematic review": 1
+      },
+      "title_pattern_counts_among_fn": {
+        "meta-analysis": 1,
+        "systematic review": 1
+      }
+    }
+  ],
+  "group_summaries": {
+    "Menon_2022": {
+      "fn": 74,
+      "path:metadata_publication_hard_rule_precheck": 74,
+      "pub_keyword:systematic review": 74,
+      "any_publication_hard_keyword": 74,
+      "sr_ma_title_pattern": 74
+    },
+    "Walker_2018": {
+      "fn": 62,
+      "path:post_llm_router_or_output_mutation": 60,
+      "pub_keyword:none": 60,
+      "path:metadata_publication_hard_rule_precheck": 2,
+      "pub_keyword:editorial": 1,
+      "any_publication_hard_keyword": 2,
+      "pub_keyword:retraction": 1
+    },
+    "cohen": {
+      "fn": 20,
+      "path:metadata_publication_hard_rule_precheck": 18,
+      "pub_keyword:meta-analysis": 13,
+      "any_publication_hard_keyword": 18,
+      "sr_ma_title_pattern": 18,
+      "pub_keyword:systematic review": 5,
+      "path:post_llm_router_or_output_mutation": 2,
+      "pub_keyword:none": 2
+    }
+  }
+}

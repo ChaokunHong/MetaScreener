@@ -1,0 +1,1572 @@
+{
+  "generated_at": "2026-04-24T14:03:59.617877Z",
+  "datasets_requested": [
+    "Donners_2021",
+    "Sep_2021",
+    "Nelson_2002",
+    "van_der_Valk_2021",
+    "Meijboom_2021",
+    "Oud_2018",
+    "Menon_2022",
+    "Jeyaraman_2020",
+    "Chou_2004",
+    "Chou_2003",
+    "van_der_Waal_2022",
+    "Smid_2020",
+    "Muthu_2021",
+    "Appenzeller-Herzog_2019",
+    "Wolters_2018",
+    "van_de_Schoot_2018",
+    "Bos_2018",
+    "Moran_2021",
+    "Leenaars_2019",
+    "Radjenovic_2013",
+    "Leenaars_2020",
+    "Wassenaar_2017",
+    "Hall_2012",
+    "van_Dis_2020",
+    "Brouwer_2019",
+    "Walker_2018"
+  ],
+  "datasets_missing_a13b": [],
+  "n_boot": 1000,
+  "a13b_per_dataset": [
+    {
+      "dataset": "Donners_2021",
+      "n": 258,
+      "n_valid": 257,
+      "inc_pct": 5.836575875486381,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.04132231404958678,
+      "wss95": 0.23346456692913392,
+      "wss_ci": [
+        0.1453125,
+        0.6480687040441175
+      ],
+      "auroc": 0.8076708507670851,
+      "auroc_ci": [
+        0.6597023502066116,
+        0.9186123776082563
+      ],
+      "auto_rate": 0.7821011673151751,
+      "auto_ci": [
+        0.7276264591439688,
+        0.8326848249027238
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Sep_2021",
+      "n": 271,
+      "n_valid": 271,
+      "inc_pct": 14.760147601476014,
+      "sensitivity": 0.975,
+      "sens_ci": [
+        0.9142857142857143,
+        1.0
+      ],
+      "specificity": 0.0,
+      "wss95": 0.08703703703703707,
+      "wss_ci": [
+        0.03517732677326769,
+        0.3981990569905699
+      ],
+      "auroc": 0.7913752913752914,
+      "auroc_ci": [
+        0.7048365936663809,
+        0.8627472670484123
+      ],
+      "auto_rate": 0.9298892988929889,
+      "auto_ci": [
+        0.9003690036900369,
+        0.959409594095941
+      ],
+      "fn": 1
+    },
+    {
+      "dataset": "Nelson_2002",
+      "n": 366,
+      "n_valid": 365,
+      "inc_pct": 21.91780821917808,
+      "sensitivity": 0.9875,
+      "sens_ci": [
+        0.9565217391304348,
+        1.0
+      ],
+      "specificity": 0.05964912280701754,
+      "wss95": 0.2888888888888889,
+      "wss_ci": [
+        0.20279128505334715,
+        0.3877035241612804
+      ],
+      "auroc": 0.794855624127213,
+      "auroc_ci": [
+        0.7435081062030076,
+        0.8385569810848987
+      ],
+      "auto_rate": 0.958904109589041,
+      "auto_ci": [
+        0.9397260273972603,
+        0.9780821917808219
+      ],
+      "fn": 1
+    },
+    {
+      "dataset": "van_der_Valk_2021",
+      "n": 725,
+      "n_valid": 725,
+      "inc_pct": 12.275862068965518,
+      "sensitivity": 0.9775280898876404,
+      "sens_ci": [
+        0.941813953488372,
+        1.0
+      ],
+      "specificity": 0.13679245283018868,
+      "wss95": 0.3209902370990237,
+      "wss_ci": [
+        0.174809857456311,
+        0.46754972855634525
+      ],
+      "auroc": 0.8163153939740929,
+      "auroc_ci": [
+        0.7706437673601529,
+        0.8545366317755024
+      ],
+      "auto_rate": 0.21793103448275863,
+      "auto_ci": [
+        0.1889655172413793,
+        0.24689655172413794
+      ],
+      "fn": 2
+    },
+    {
+      "dataset": "Meijboom_2021",
+      "n": 882,
+      "n_valid": 882,
+      "inc_pct": 4.195011337868481,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.03905325443786982,
+      "wss95": 0.3834112149532711,
+      "wss_ci": [
+        0.24833916083916086,
+        0.500973200312989
+      ],
+      "auroc": 0.7341682341682342,
+      "auroc_ci": [
+        0.6840628311875915,
+        0.7859008202664732
+      ],
+      "auto_rate": 0.13945578231292516,
+      "auto_ci": [
+        0.1145124716553288,
+        0.1621315192743764
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Oud_2018",
+      "n": 952,
+      "n_valid": 950,
+      "inc_pct": 2.1052631578947367,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.10215053763440861,
+      "wss95": 0.7875576036866359,
+      "wss_ci": [
+        0.5628873581242533,
+        0.8220392924060399
+      ],
+      "auroc": 0.9250294811320755,
+      "auroc_ci": [
+        0.884032080675444,
+        0.9527101024735622
+      ],
+      "auto_rate": 0.9410526315789474,
+      "auto_ci": [
+        0.9252631578947368,
+        0.9547631578947368
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Menon_2022",
+      "n": 975,
+      "n_valid": 975,
+      "inc_pct": 7.58974358974359,
+      "sensitivity": 0.0,
+      "sens_ci": [
+        0.0,
+        0.0
+      ],
+      "specificity": 0.9644839067702553,
+      "wss95": 0.0,
+      "wss_ci": [
+        0.0,
+        0.0
+      ],
+      "auroc": NaN,
+      "auroc_ci": [
+        NaN,
+        NaN
+      ],
+      "auto_rate": 0.9682051282051282,
+      "auto_ci": [
+        0.9569230769230769,
+        0.9794871794871794
+      ],
+      "fn": 74
+    },
+    {
+      "dataset": "Jeyaraman_2020",
+      "n": 1175,
+      "n_valid": 1173,
+      "inc_pct": 8.184143222506394,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.06592386258124419,
+      "wss95": 0.3303071364046974,
+      "wss_ci": [
+        0.13608173626619569,
+        0.5375702727924413
+      ],
+      "auroc": 0.8696010550609956,
+      "auroc_ci": [
+        0.8329584845480714,
+        0.906454416305271
+      ],
+      "auto_rate": 0.9838022165387894,
+      "auto_ci": [
+        0.9761082693947144,
+        0.9906223358908781
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Chou_2004",
+      "n": 1630,
+      "n_valid": 1622,
+      "inc_pct": 0.5548705302096177,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.11221326720396776,
+      "wss95": 0.4061294337274424,
+      "wss_ci": [
+        0.3512428515971285,
+        0.7385770994874948
+      ],
+      "auroc": 0.813586427478793,
+      "auroc_ci": [
+        0.6532608635613735,
+        0.9669228503433208
+      ],
+      "auto_rate": 0.12638717632552404,
+      "auto_ci": [
+        0.11035758323057954,
+        0.14241676942046855
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Chou_2003",
+      "n": 1908,
+      "n_valid": 1906,
+      "inc_pct": 0.7869884575026233,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.053410893707033315,
+      "wss95": 0.4626448893572182,
+      "wss_ci": [
+        0.44315159581823715,
+        0.7515245323505078
+      ],
+      "auroc": 0.8904230837316339,
+      "auroc_ci": [
+        0.8091478057841706,
+        0.957497870549926
+      ],
+      "auto_rate": 0.972193074501574,
+      "auto_ci": [
+        0.9648478488982162,
+        0.9790136411332634
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "van_der_Waal_2022",
+      "n": 1970,
+      "n_valid": 1970,
+      "inc_pct": 1.6751269035532996,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.04078471863706763,
+      "wss95": 0.5750661025912216,
+      "wss_ci": [
+        0.3037055054465056,
+        0.6515867922961979
+      ],
+      "auroc": 0.8293538180513422,
+      "auroc_ci": [
+        0.7838886189417447,
+        0.8749411150144459
+      ],
+      "auto_rate": 0.9598984771573604,
+      "auto_ci": [
+        0.9517766497461929,
+        0.9685279187817258
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Smid_2020",
+      "n": 2627,
+      "n_valid": 2622,
+      "inc_pct": 1.0297482837528604,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.08631984585741811,
+      "wss95": 0.8584030266825965,
+      "wss_ci": [
+        0.7534127987594561,
+        0.9113983356081286
+      ],
+      "auroc": 0.9749284308463052,
+      "auroc_ci": [
+        0.9614665889992434,
+        0.9867293170800819
+      ],
+      "auto_rate": 0.8546910755148741,
+      "auto_ci": [
+        0.8413424866514111,
+        0.868421052631579
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Muthu_2021",
+      "n": 2719,
+      "n_valid": 2719,
+      "inc_pct": 12.357484369253402,
+      "sensitivity": 0.9880952380952381,
+      "sens_ci": [
+        0.9751366155487857,
+        0.9971590909090909
+      ],
+      "specificity": 0.03147293327738145,
+      "wss95": 0.25528301886792454,
+      "wss_ci": [
+        0.13567531451665477,
+        0.3400483989428817
+      ],
+      "auroc": 0.7495536503217355,
+      "auroc_ci": [
+        0.7251532576943122,
+        0.7742598200654144
+      ],
+      "auto_rate": 0.9937477013607944,
+      "auto_ci": [
+        0.9908054431776389,
+        0.9963221772710555
+      ],
+      "fn": 4
+    },
+    {
+      "dataset": "Appenzeller-Herzog_2019",
+      "n": 2873,
+      "n_valid": 2868,
+      "inc_pct": 0.906555090655509,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.011611541168191415,
+      "wss95": 0.5048161120840631,
+      "wss_ci": [
+        0.31987188841175385,
+        0.6489930290297936
+      ],
+      "auroc": 0.8422519509476032,
+      "auroc_ci": [
+        0.7749068937342308,
+        0.9021797392021116
+      ],
+      "auto_rate": 0.4790794979079498,
+      "auto_ci": [
+        0.46127963737796374,
+        0.49721059972105996
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Wolters_2018",
+      "n": 4280,
+      "n_valid": 4272,
+      "inc_pct": 0.4447565543071161,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.03456383729132377,
+      "wss95": 0.5185076380728555,
+      "wss_ci": [
+        0.4697126701023426,
+        0.6026910865185221
+      ],
+      "auroc": 0.8460501466129915,
+      "auroc_ci": [
+        0.7723587549793611,
+        0.9120653940548161
+      ],
+      "auto_rate": 0.0552434456928839,
+      "auto_ci": [
+        0.04845505617977528,
+        0.062037687265917595
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "van_de_Schoot_2018",
+      "n": 4544,
+      "n_valid": 4538,
+      "inc_pct": 0.8373732921992068,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.023333333333333334,
+      "wss95": 0.256789984209339,
+      "wss_ci": [
+        0.022096881503974895,
+        0.8028543190952704
+      ],
+      "auroc": 0.8727830668822225,
+      "auroc_ci": [
+        0.812955907355452,
+        0.924994900769078
+      ],
+      "auto_rate": 0.03217276333186426,
+      "auto_ci": [
+        0.027104451300132216,
+        0.0374614367562803
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Bos_2018",
+      "n": 4878,
+      "n_valid": 4878,
+      "inc_pct": 0.2050020500205002,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.2867707477403451,
+      "wss95": 0.8076725025746653,
+      "wss_ci": [
+        0.7906809677000264,
+        0.9382645418220361
+      ],
+      "auroc": 0.9700412796697627,
+      "auroc_ci": [
+        0.9330741513777228,
+        0.9961238155514794
+      ],
+      "auto_rate": 0.34337843378433786,
+      "auto_ci": [
+        0.33005330053300536,
+        0.35507892578925787
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Moran_2021",
+      "n": 5214,
+      "n_valid": 5199,
+      "inc_pct": 2.1350259665320253,
+      "sensitivity": 0.963963963963964,
+      "sens_ci": [
+        0.9285571428571429,
+        0.9919462570795371
+      ],
+      "specificity": 0.01474056603773585,
+      "wss95": 0.013104916763453309,
+      "wss_ci": [
+        -0.028523239366349835,
+        0.06371835504663433
+      ],
+      "auroc": 0.5045701345869396,
+      "auroc_ci": [
+        0.4573284606440401,
+        0.553293242386636
+      ],
+      "auto_rate": 0.04770148105404885,
+      "auto_ci": [
+        0.042315829967301405,
+        0.053861319484516244
+      ],
+      "fn": 4
+    },
+    {
+      "dataset": "Leenaars_2019",
+      "n": 5812,
+      "n_valid": 5767,
+      "inc_pct": 0.29478064851742675,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.012869565217391304,
+      "wss95": 0.432207950008679,
+      "wss_ci": [
+        0.42110804473417013,
+        0.9276003750470277
+      ],
+      "auroc": 0.9532504505980666,
+      "auroc_ci": [
+        0.8987309148235118,
+        0.9869520006853614
+      ],
+      "auto_rate": 0.9975723946592683,
+      "auto_ci": [
+        0.9961851916074216,
+        0.9987861973296341
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Radjenovic_2013",
+      "n": 5935,
+      "n_valid": 5935,
+      "inc_pct": 0.8087615838247683,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.29607609988109396,
+      "wss95": 0.8774699203524826,
+      "wss_ci": [
+        0.8687859215805753,
+        0.8860715327323927
+      ],
+      "auroc": 0.96544507090381,
+      "auroc_ci": [
+        0.9617267375360997,
+        0.9689090218781777
+      ],
+      "auto_rate": 0.4350463352990733,
+      "auto_ci": [
+        0.42291491154170174,
+        0.44718197135636056
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Leenaars_2020",
+      "n": 7216,
+      "n_valid": 7169,
+      "inc_pct": 8.118287069326266,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.020191285866099893,
+      "wss95": 0.5784455811310031,
+      "wss_ci": [
+        0.4757195254668192,
+        0.6056098044597618
+      ],
+      "auroc": 0.894847277047484,
+      "auroc_ci": [
+        0.8832212329040259,
+        0.9057988387808463
+      ],
+      "auto_rate": 0.9973497000976427,
+      "auto_ci": [
+        0.9960942948807365,
+        0.9984656158460036
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Wassenaar_2017",
+      "n": 7668,
+      "n_valid": 7657,
+      "inc_pct": 1.4496539114535718,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.0060959448714550755,
+      "wss95": 0.3686928104575164,
+      "wss_ci": [
+        0.11579389545218367,
+        0.6905555713833469
+      ],
+      "auroc": 0.861275720607197,
+      "auroc_ci": [
+        0.8265996681160479,
+        0.8931609462942076
+      ],
+      "auto_rate": 0.09168081494057725,
+      "auto_ci": [
+        0.08528144181794436,
+        0.09808018806321013
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Hall_2012",
+      "n": 8793,
+      "n_valid": 8793,
+      "inc_pct": 1.1827590128511316,
+      "sensitivity": 0.9903846153846154,
+      "sens_ci": [
+        0.9687417763157895,
+        1.0
+      ],
+      "specificity": 0.17251697548624698,
+      "wss95": 0.8936799184505606,
+      "wss_ci": [
+        0.7876631085546941,
+        0.9286493763850927
+      ],
+      "auroc": 0.9871555090349553,
+      "auroc_ci": [
+        0.9809041950169625,
+        0.992650366268076
+      ],
+      "auto_rate": 0.21210053451609234,
+      "auto_ci": [
+        0.20368474923234392,
+        0.22086318662572502
+      ],
+      "fn": 1
+    },
+    {
+      "dataset": "van_Dis_2020",
+      "n": 9128,
+      "n_valid": 9114,
+      "inc_pct": 0.7899934167215273,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.00519796505197965,
+      "wss95": 0.5235956908871056,
+      "wss_ci": [
+        0.3022504180278228,
+        0.6507399480432728
+      ],
+      "auroc": 0.8529155124653739,
+      "auroc_ci": [
+        0.8158053899602168,
+        0.8862856572581771
+      ],
+      "auto_rate": 0.9982444590739522,
+      "auto_ci": [
+        0.9973666886109283,
+        0.999012508229098
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Brouwer_2019",
+      "n": 38114,
+      "n_valid": 38076,
+      "inc_pct": 0.1628322302762895,
+      "sensitivity": 1.0,
+      "sens_ci": [
+        1.0,
+        1.0
+      ],
+      "specificity": 0.012811069605934656,
+      "wss95": 0.5764598685785735,
+      "wss_ci": [
+        0.536203715279762,
+        0.583060461665931
+      ],
+      "auroc": 0.8884072285158986,
+      "auroc_ci": [
+        0.8482973611664142,
+        0.9247560294623404
+      ],
+      "auto_rate": 0.41727072171446583,
+      "auto_ci": [
+        0.4121756487025948,
+        0.4221832650488497
+      ],
+      "fn": 0
+    },
+    {
+      "dataset": "Walker_2018",
+      "n": 48375,
+      "n_valid": 48153,
+      "inc_pct": 1.5762257803252133,
+      "sensitivity": 0.9183135704874835,
+      "sens_ci": [
+        0.8977119784656796,
+        0.9356561231561232
+      ],
+      "specificity": 0.33966324851246993,
+      "wss95": 0.4459417447367872,
+      "wss_ci": [
+        0.3673588256146938,
+        0.4850183366131205
+      ],
+      "auroc": 0.8815703704160085,
+      "auroc_ci": [
+        0.8687557056207487,
+        0.8934473636780943
+      ],
+      "auto_rate": 0.3475172886424522,
+      "auto_ci": [
+        0.3430923306959068,
+        0.3520237576059643
+      ],
+      "fn": 62
+    }
+  ],
+  "asreview_nb_per_dataset": [
+    {
+      "dataset": "Donners_2021",
+      "n_seeds": 5,
+      "wss_95": 0.6686,
+      "wss_95_sd": 0.031894905549319334,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 72.6
+    },
+    {
+      "dataset": "Sep_2021",
+      "n_seeds": 5,
+      "wss_95": 0.2142,
+      "wss_95_sd": 0.04614861861421207,
+      "recall_50pct": 0.86,
+      "recall_50pct_sd": 0.028504385627478476,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 199.4
+    },
+    {
+      "dataset": "Nelson_2002",
+      "n_seeds": 5,
+      "wss_95": 0.38552000000000003,
+      "wss_95_sd": 0.004565851508754974,
+      "recall_50pct": 0.9175,
+      "recall_50pct_sd": 0.006846531968814613,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 206.6
+    },
+    {
+      "dataset": "van_der_Valk_2021",
+      "n_seeds": 5,
+      "wss_95": 0.36986,
+      "wss_95_sd": 0.007306709245618033,
+      "recall_50pct": 0.90112,
+      "recall_50pct_sd": 0.009406487123257038,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 420.6
+    },
+    {
+      "dataset": "Meijboom_2021",
+      "n_seeds": 5,
+      "wss_95": 0.63684,
+      "wss_95_sd": 0.02770149815443204,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 276.2
+    },
+    {
+      "dataset": "Oud_2018",
+      "n_seeds": 5,
+      "wss_95": 0.75084,
+      "wss_95_sd": 0.02300767263327605,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 189.6
+    },
+    {
+      "dataset": "Menon_2022",
+      "n_seeds": 5,
+      "wss_95": 0.65546,
+      "wss_95_sd": 0.03449656504639269,
+      "recall_50pct": 0.973,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 287.2
+    },
+    {
+      "dataset": "Jeyaraman_2020",
+      "n_seeds": 5,
+      "wss_95": 0.53282,
+      "wss_95_sd": 0.004663903944122328,
+      "recall_50pct": 0.9812799999999999,
+      "recall_50pct_sd": 0.004651021393199596,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 490.2
+    },
+    {
+      "dataset": "Chou_2004",
+      "n_seeds": 5,
+      "wss_95": 0.28188,
+      "wss_95_sd": 0.05661909571867074,
+      "recall_50pct": 0.68892,
+      "recall_50pct_sd": 0.049685430460045366,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 1089.0
+    },
+    {
+      "dataset": "Chou_2003",
+      "n_seeds": 5,
+      "wss_95": 0.22242,
+      "wss_95_sd": 0.008291682579549214,
+      "recall_50pct": 0.89334,
+      "recall_50pct_sd": 0.03647832232984406,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 1388.2
+    },
+    {
+      "dataset": "van_der_Waal_2022",
+      "n_seeds": 5,
+      "wss_95": 0.6921200000000001,
+      "wss_95_sd": 0.007974145722270167,
+      "recall_50pct": 0.9697,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 508.0
+    },
+    {
+      "dataset": "Smid_2020",
+      "n_seeds": 5,
+      "wss_95": 0.77322,
+      "wss_95_sd": 0.013956611336567315,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 464.4
+    },
+    {
+      "dataset": "Muthu_2021",
+      "n_seeds": 5,
+      "wss_95": 0.28652,
+      "wss_95_sd": 0.011684904792081107,
+      "recall_50pct": 0.85178,
+      "recall_50pct_sd": 0.003245304300061868,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 1804.0
+    },
+    {
+      "dataset": "Appenzeller-Herzog_2019",
+      "n_seeds": 5,
+      "wss_95": 0.77534,
+      "wss_95_sd": 0.17203478717980267,
+      "recall_50pct": 0.9692000000000001,
+      "recall_50pct_sd": 0.01721772342674837,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 501.8
+    },
+    {
+      "dataset": "Wolters_2018",
+      "n_seeds": 5,
+      "wss_95": 0.50714,
+      "wss_95_sd": 0.0020695410119154346,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 1895.4
+    },
+    {
+      "dataset": "van_de_Schoot_2018",
+      "n_seeds": 5,
+      "wss_95": 0.88918,
+      "wss_95_sd": 0.0037864231142332714,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 276.4
+    },
+    {
+      "dataset": "Bos_2018",
+      "n_seeds": 5,
+      "wss_95": 0.77822,
+      "wss_95_sd": 0.00682583328246449,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 838.0
+    },
+    {
+      "dataset": "Moran_2021",
+      "n_seeds": 5,
+      "wss_95": 0.14822,
+      "wss_95_sd": 0.0030548322376196036,
+      "recall_50pct": 0.6756599999999999,
+      "recall_50pct_sd": 0.025508880806495625,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 4180.6
+    },
+    {
+      "dataset": "Leenaars_2019",
+      "n_seeds": 5,
+      "wss_95": 0.92108,
+      "wss_95_sd": 0.0005263078946776234,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 168.2
+    },
+    {
+      "dataset": "Radjenovic_2013",
+      "n_seeds": 5,
+      "wss_95": 0.84692,
+      "wss_95_sd": 0.01957797231584518,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 611.8
+    },
+    {
+      "dataset": "Leenaars_2020",
+      "n_seeds": 5,
+      "wss_95": 0.5958,
+      "wss_95_sd": 0.0015668439615992426,
+      "recall_50pct": 0.9863,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 2555.8
+    },
+    {
+      "dataset": "Wassenaar_2017",
+      "n_seeds": 5,
+      "wss_95": 0.83748,
+      "wss_95_sd": 0.0043268926494656745,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 862.8
+    },
+    {
+      "dataset": "Hall_2012",
+      "n_seeds": 5,
+      "wss_95": 0.91462,
+      "wss_95_sd": 0.0019992498593222417,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 311.0
+    },
+    {
+      "dataset": "van_Dis_2020",
+      "n_seeds": 5,
+      "wss_95": 0.6217199999999999,
+      "wss_95_sd": 0.001510629008062537,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 2996.4
+    },
+    {
+      "dataset": "Brouwer_2019",
+      "n_seeds": 5,
+      "wss_95": 0.84884,
+      "wss_95_sd": 0.0027107194616927937,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 3855.2
+    },
+    {
+      "dataset": "Walker_2018",
+      "n_seeds": 5,
+      "wss_95": 0.65558,
+      "wss_95_sd": 0.0003834057902536059,
+      "recall_50pct": 0.9974,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 14241.2
+    }
+  ],
+  "asreview_elas_u4_per_dataset": [
+    {
+      "dataset": "Donners_2021",
+      "n_seeds": 5,
+      "wss_95": 0.56784,
+      "wss_95_sd": 0.008007683809941546,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 98.6
+    },
+    {
+      "dataset": "Sep_2021",
+      "n_seeds": 5,
+      "wss_95": 0.44151999999999997,
+      "wss_95_sd": 0.007989180183222798,
+      "recall_50pct": 0.925,
+      "recall_50pct_sd": 0.024999999999999967,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 137.8
+    },
+    {
+      "dataset": "Nelson_2002",
+      "n_seeds": 5,
+      "wss_95": 0.35602,
+      "wss_95_sd": 0.01818108907629022,
+      "recall_50pct": 0.925,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 217.4
+    },
+    {
+      "dataset": "van_der_Valk_2021",
+      "n_seeds": 5,
+      "wss_95": 0.46226,
+      "wss_95_sd": 0.0015962455951388072,
+      "recall_50pct": 0.9663,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 353.6
+    },
+    {
+      "dataset": "Meijboom_2021",
+      "n_seeds": 5,
+      "wss_95": 0.73388,
+      "wss_95_sd": 0.04186815018603042,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 190.6
+    },
+    {
+      "dataset": "Oud_2018",
+      "n_seeds": 5,
+      "wss_95": 0.83466,
+      "wss_95_sd": 0.015729526375577896,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 109.8
+    },
+    {
+      "dataset": "Menon_2022",
+      "n_seeds": 5,
+      "wss_95": 0.55738,
+      "wss_95_sd": 0.007800769192842444,
+      "recall_50pct": 0.973,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 382.8
+    },
+    {
+      "dataset": "Jeyaraman_2020",
+      "n_seeds": 5,
+      "wss_95": 0.63612,
+      "wss_95_sd": 0.0009311283477588015,
+      "recall_50pct": 0.9896,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 368.8
+    },
+    {
+      "dataset": "Chou_2004",
+      "n_seeds": 5,
+      "wss_95": 0.28164,
+      "wss_95_sd": 0.008750028571381923,
+      "recall_50pct": 0.7778,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 1089.4
+    },
+    {
+      "dataset": "Chou_2003",
+      "n_seeds": 5,
+      "wss_95": 0.25356,
+      "wss_95_sd": 0.028614471863027617,
+      "recall_50pct": 0.89334,
+      "recall_50pct_sd": 0.03647832232984406,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 1328.8
+    },
+    {
+      "dataset": "van_der_Waal_2022",
+      "n_seeds": 5,
+      "wss_95": 0.7171,
+      "wss_95_sd": 0.0014747881203752658,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 458.8
+    },
+    {
+      "dataset": "Smid_2020",
+      "n_seeds": 5,
+      "wss_95": 0.8275,
+      "wss_95_sd": 0.0027037011669191423,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 321.8
+    },
+    {
+      "dataset": "Muthu_2021",
+      "n_seeds": 5,
+      "wss_95": 0.40776,
+      "wss_95_sd": 0.0101083134102579,
+      "recall_50pct": 0.9214399999999999,
+      "recall_50pct_sd": 0.009540859500066038,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 1474.4
+    },
+    {
+      "dataset": "Appenzeller-Herzog_2019",
+      "n_seeds": 5,
+      "wss_95": 0.75994,
+      "wss_95_sd": 0.09400028191447088,
+      "recall_50pct": 0.9692000000000001,
+      "recall_50pct_sd": 0.01721772342674837,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 546.0
+    },
+    {
+      "dataset": "Wolters_2018",
+      "n_seeds": 5,
+      "wss_95": 0.80116,
+      "wss_95_sd": 0.0007893034904268477,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 637.0
+    },
+    {
+      "dataset": "van_de_Schoot_2018",
+      "n_seeds": 5,
+      "wss_95": 0.90068,
+      "wss_95_sd": 0.0018992103622295449,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 224.0
+    },
+    {
+      "dataset": "Bos_2018",
+      "n_seeds": 5,
+      "wss_95": 0.86694,
+      "wss_95_sd": 0.0008590692637965544,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 405.2
+    },
+    {
+      "dataset": "Moran_2021",
+      "n_seeds": 5,
+      "wss_95": 0.17393999999999998,
+      "wss_95_sd": 0.006519432490639033,
+      "recall_50pct": 0.7333000000000001,
+      "recall_50pct_sd": 0.004929503017546499,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 4046.4
+    },
+    {
+      "dataset": "Leenaars_2019",
+      "n_seeds": 5,
+      "wss_95": 0.93724,
+      "wss_95_sd": 0.002860594343838378,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 74.2
+    },
+    {
+      "dataset": "Radjenovic_2013",
+      "n_seeds": 5,
+      "wss_95": 0.887,
+      "wss_95_sd": 0.0014628738838327587,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 373.8
+    },
+    {
+      "dataset": "Leenaars_2020",
+      "n_seeds": 5,
+      "wss_95": 0.67124,
+      "wss_95_sd": 0.0026745093007877283,
+      "recall_50pct": 0.9949,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 2011.4
+    },
+    {
+      "dataset": "Wassenaar_2017",
+      "n_seeds": 5,
+      "wss_95": 0.8335,
+      "wss_95_sd": 0.0027404379212089404,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 893.2
+    },
+    {
+      "dataset": "Hall_2012",
+      "n_seeds": 5,
+      "wss_95": 0.92284,
+      "wss_95_sd": 0.0007368853370776391,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 239.0
+    },
+    {
+      "dataset": "van_Dis_2020",
+      "n_seeds": 5,
+      "wss_95": 0.75856,
+      "wss_95_sd": 0.0006188699378706097,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 1747.4
+    },
+    {
+      "dataset": "Brouwer_2019",
+      "n_seeds": 5,
+      "wss_95": 0.93102,
+      "wss_95_sd": 0.0002588435821109251,
+      "recall_50pct": 1.0,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 723.0
+    },
+    {
+      "dataset": "Walker_2018",
+      "n_seeds": 5,
+      "wss_95": 0.75398,
+      "wss_95_sd": 0.0008258329128824988,
+      "recall_50pct": 0.9974,
+      "recall_50pct_sd": 0.0,
+      "final_recall": 1.0,
+      "records_at_recall_95_mean": 9483.0
+    }
+  ],
+  "head_to_head": {
+    "per_dataset": [
+      {
+        "dataset": "Donners_2021",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.7821011673151751,
+        "a13b_wss95": 0.23346456692913392,
+        "nb_wss95": 0.6686,
+        "elas_u4_wss95": 0.56784,
+        "winner_wss95": "NB"
+      },
+      {
+        "dataset": "Sep_2021",
+        "a13b_sens": 0.975,
+        "a13b_auto_rate": 0.9298892988929889,
+        "a13b_wss95": 0.08703703703703707,
+        "nb_wss95": 0.2142,
+        "elas_u4_wss95": 0.44151999999999997,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "Nelson_2002",
+        "a13b_sens": 0.9875,
+        "a13b_auto_rate": 0.958904109589041,
+        "a13b_wss95": 0.2888888888888889,
+        "nb_wss95": 0.38552000000000003,
+        "elas_u4_wss95": 0.35602,
+        "winner_wss95": "NB"
+      },
+      {
+        "dataset": "van_der_Valk_2021",
+        "a13b_sens": 0.9775280898876404,
+        "a13b_auto_rate": 0.21793103448275863,
+        "a13b_wss95": 0.3209902370990237,
+        "nb_wss95": 0.36986,
+        "elas_u4_wss95": 0.46226,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "Meijboom_2021",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.13945578231292516,
+        "a13b_wss95": 0.3834112149532711,
+        "nb_wss95": 0.63684,
+        "elas_u4_wss95": 0.73388,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "Oud_2018",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.9410526315789474,
+        "a13b_wss95": 0.7875576036866359,
+        "nb_wss95": 0.75084,
+        "elas_u4_wss95": 0.83466,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "Menon_2022",
+        "a13b_sens": 0.0,
+        "a13b_auto_rate": 0.9682051282051282,
+        "a13b_wss95": 0.0,
+        "nb_wss95": 0.65546,
+        "elas_u4_wss95": 0.55738,
+        "winner_wss95": "NB"
+      },
+      {
+        "dataset": "Jeyaraman_2020",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.9838022165387894,
+        "a13b_wss95": 0.3303071364046974,
+        "nb_wss95": 0.53282,
+        "elas_u4_wss95": 0.63612,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "Chou_2004",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.12638717632552404,
+        "a13b_wss95": 0.4061294337274424,
+        "nb_wss95": 0.28188,
+        "elas_u4_wss95": 0.28164,
+        "winner_wss95": "A13b"
+      },
+      {
+        "dataset": "Chou_2003",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.972193074501574,
+        "a13b_wss95": 0.4626448893572182,
+        "nb_wss95": 0.22242,
+        "elas_u4_wss95": 0.25356,
+        "winner_wss95": "A13b"
+      },
+      {
+        "dataset": "van_der_Waal_2022",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.9598984771573604,
+        "a13b_wss95": 0.5750661025912216,
+        "nb_wss95": 0.6921200000000001,
+        "elas_u4_wss95": 0.7171,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "Smid_2020",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.8546910755148741,
+        "a13b_wss95": 0.8584030266825965,
+        "nb_wss95": 0.77322,
+        "elas_u4_wss95": 0.8275,
+        "winner_wss95": "A13b"
+      },
+      {
+        "dataset": "Muthu_2021",
+        "a13b_sens": 0.9880952380952381,
+        "a13b_auto_rate": 0.9937477013607944,
+        "a13b_wss95": 0.25528301886792454,
+        "nb_wss95": 0.28652,
+        "elas_u4_wss95": 0.40776,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "Appenzeller-Herzog_2019",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.4790794979079498,
+        "a13b_wss95": 0.5048161120840631,
+        "nb_wss95": 0.77534,
+        "elas_u4_wss95": 0.75994,
+        "winner_wss95": "NB"
+      },
+      {
+        "dataset": "Wolters_2018",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.0552434456928839,
+        "a13b_wss95": 0.5185076380728555,
+        "nb_wss95": 0.50714,
+        "elas_u4_wss95": 0.80116,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "van_de_Schoot_2018",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.03217276333186426,
+        "a13b_wss95": 0.256789984209339,
+        "nb_wss95": 0.88918,
+        "elas_u4_wss95": 0.90068,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "Bos_2018",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.34337843378433786,
+        "a13b_wss95": 0.8076725025746653,
+        "nb_wss95": 0.77822,
+        "elas_u4_wss95": 0.86694,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "Moran_2021",
+        "a13b_sens": 0.963963963963964,
+        "a13b_auto_rate": 0.04770148105404885,
+        "a13b_wss95": 0.013104916763453309,
+        "nb_wss95": 0.14822,
+        "elas_u4_wss95": 0.17393999999999998,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "Leenaars_2019",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.9975723946592683,
+        "a13b_wss95": 0.432207950008679,
+        "nb_wss95": 0.92108,
+        "elas_u4_wss95": 0.93724,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "Radjenovic_2013",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.4350463352990733,
+        "a13b_wss95": 0.8774699203524826,
+        "nb_wss95": 0.84692,
+        "elas_u4_wss95": 0.887,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "Leenaars_2020",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.9973497000976427,
+        "a13b_wss95": 0.5784455811310031,
+        "nb_wss95": 0.5958,
+        "elas_u4_wss95": 0.67124,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "Wassenaar_2017",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.09168081494057725,
+        "a13b_wss95": 0.3686928104575164,
+        "nb_wss95": 0.83748,
+        "elas_u4_wss95": 0.8335,
+        "winner_wss95": "NB"
+      },
+      {
+        "dataset": "Hall_2012",
+        "a13b_sens": 0.9903846153846154,
+        "a13b_auto_rate": 0.21210053451609234,
+        "a13b_wss95": 0.8936799184505606,
+        "nb_wss95": 0.91462,
+        "elas_u4_wss95": 0.92284,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "van_Dis_2020",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.9982444590739522,
+        "a13b_wss95": 0.5235956908871056,
+        "nb_wss95": 0.6217199999999999,
+        "elas_u4_wss95": 0.75856,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "Brouwer_2019",
+        "a13b_sens": 1.0,
+        "a13b_auto_rate": 0.41727072171446583,
+        "a13b_wss95": 0.5764598685785735,
+        "nb_wss95": 0.84884,
+        "elas_u4_wss95": 0.93102,
+        "winner_wss95": "elas_u4"
+      },
+      {
+        "dataset": "Walker_2018",
+        "a13b_sens": 0.9183135704874835,
+        "a13b_auto_rate": 0.3475172886424522,
+        "a13b_wss95": 0.4459417447367872,
+        "nb_wss95": 0.65558,
+        "elas_u4_wss95": 0.75398,
+        "winner_wss95": "elas_u4"
+      }
+    ],
+    "wins": {
+      "a13b": 3,
+      "nb": 5,
+      "elas_u4": 18,
+      "tie": 0
+    }
+  },
+  "aggregates": {
+    "a13b_pooled": {
+      "sensitivity": 0.9473498233215548,
+      "sens_ci": [
+        0.9389394486013837,
+        0.9557290365946159
+      ],
+      "wss95": 0.4258807063788111,
+      "wss_ci": [
+        0.3535977658200551,
+        0.4467460296417405
+      ],
+      "auroc": 0.8579025335680781,
+      "auroc_ci": [
+        0.8505511123558631,
+        0.8650919681276594
+      ],
+      "auto_rate": 0.45256905292083194,
+      "auto_ci": [
+        0.45010511915478274,
+        0.45481371701331313
+      ],
+      "n_total": 168856
+    },
+    "a13b_macro_mean": {
+      "sensitivity": 0.9538763645314977,
+      "wss95": 0.4533295305589298,
+      "auroc": NaN,
+      "auto_rate": 0.5877929517111726
+    },
+    "asreview_nb_mean": {
+      "wss95": 0.6080938461538462,
+      "recall_50pct": 0.9486615384615384,
+      "final_recall": 1.0
+    },
+    "asreview_elas_u4_mean": {
+      "wss95": 0.6644338461538462,
+      "recall_50pct": 0.9640876923076923,
+      "final_recall": 1.0
+    }
+  }
+}

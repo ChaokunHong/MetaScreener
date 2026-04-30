@@ -1,0 +1,2167 @@
+{
+  "base_config": "a11_rule_exclude",
+  "criteria_suffix": "criteria_v2",
+  "datasets": [
+    "Jeyaraman_2020",
+    "Chou_2003",
+    "van_der_Waal_2022",
+    "Smid_2020",
+    "Muthu_2021",
+    "Appenzeller-Herzog_2019",
+    "van_de_Schoot_2018",
+    "Moran_2021",
+    "Radjenovic_2013",
+    "Leenaars_2020",
+    "Wassenaar_2017",
+    "Hall_2012",
+    "van_Dis_2020"
+  ],
+  "pooled": [
+    {
+      "variant": "auto_exclude_veto_any_include",
+      "n": 61663,
+      "tp": 1590,
+      "fn": 9,
+      "tn": 8470,
+      "fp": 51594,
+      "sensitivity": 0.9943714821763602,
+      "specificity": 0.1410162493340437,
+      "auto_rate": 0.5552113909475699,
+      "human_review_rate": 0.4447886090524301,
+      "auto_include_rate": 0.41770591764915754,
+      "auto_exclude_rate": 0.13750547329841234,
+      "delta_auto_rate": 0.0,
+      "delta_hr_rate": 0.0,
+      "delta_fn": 0
+    },
+    {
+      "variant": "auto_exclude_veto_both_include",
+      "n": 61663,
+      "tp": 1590,
+      "fn": 9,
+      "tn": 8470,
+      "fp": 51594,
+      "sensitivity": 0.9943714821763602,
+      "specificity": 0.1410162493340437,
+      "auto_rate": 0.5552113909475699,
+      "human_review_rate": 0.4447886090524301,
+      "auto_include_rate": 0.41770591764915754,
+      "auto_exclude_rate": 0.13750547329841234,
+      "delta_auto_rate": 0.0,
+      "delta_hr_rate": 0.0,
+      "delta_fn": 0
+    },
+    {
+      "variant": "base",
+      "n": 61663,
+      "tp": 1590,
+      "fn": 9,
+      "tn": 8470,
+      "fp": 51594,
+      "sensitivity": 0.9943714821763602,
+      "specificity": 0.1410162493340437,
+      "auto_rate": 0.5552113909475699,
+      "human_review_rate": 0.4447886090524301,
+      "auto_include_rate": 0.41770591764915754,
+      "auto_exclude_rate": 0.13750547329841234,
+      "delta_auto_rate": 0.0,
+      "delta_hr_rate": 0.0,
+      "delta_fn": 0
+    },
+    {
+      "variant": "hr_include_only_both_include",
+      "n": 61663,
+      "tp": 1590,
+      "fn": 9,
+      "tn": 8470,
+      "fp": 51594,
+      "sensitivity": 0.9943714821763602,
+      "specificity": 0.1410162493340437,
+      "auto_rate": 0.5558762953472909,
+      "human_review_rate": 0.44412370465270906,
+      "auto_include_rate": 0.4183708220488786,
+      "auto_exclude_rate": 0.13750547329841234,
+      "delta_auto_rate": 0.0006649043997210002,
+      "delta_hr_rate": -0.0006649043997210557,
+      "delta_fn": 0
+    },
+    {
+      "variant": "include_only_plus_veto_any_include",
+      "n": 61663,
+      "tp": 1590,
+      "fn": 9,
+      "tn": 8470,
+      "fp": 51594,
+      "sensitivity": 0.9943714821763602,
+      "specificity": 0.1410162493340437,
+      "auto_rate": 0.5558762953472909,
+      "human_review_rate": 0.44412370465270906,
+      "auto_include_rate": 0.4183708220488786,
+      "auto_exclude_rate": 0.13750547329841234,
+      "delta_auto_rate": 0.0006649043997210002,
+      "delta_hr_rate": -0.0006649043997210557,
+      "delta_fn": 0
+    },
+    {
+      "variant": "old_hr_both_include_or_exclude",
+      "n": 61663,
+      "tp": 1462,
+      "fn": 137,
+      "tn": 19404,
+      "fp": 40660,
+      "sensitivity": 0.9143214509068167,
+      "specificity": 0.32305540756526374,
+      "auto_rate": 0.7352707458281303,
+      "human_review_rate": 0.26472925417186965,
+      "auto_include_rate": 0.4183708220488786,
+      "auto_exclude_rate": 0.31689992377925175,
+      "delta_auto_rate": 0.18005935488056046,
+      "delta_hr_rate": -0.18005935488056046,
+      "delta_fn": 128
+    }
+  ],
+  "dataset_payloads": [
+    {
+      "dataset": "Jeyaraman_2020",
+      "base_config": "a11_rule_exclude",
+      "criteria_suffix": "criteria_v2",
+      "coverage": {
+        "all": {
+          "one_available": 9,
+          "missing": 1155,
+          "both_exclude": 9
+        },
+        "hr": {
+          "one_available": 9,
+          "both_exclude": 9,
+          "missing": 1
+        },
+        "exclude": {
+          "missing": 71
+        }
+      },
+      "rows": [
+        {
+          "dataset": "Jeyaraman_2020",
+          "variant": "base",
+          "n": 1173,
+          "sensitivity": 1.0,
+          "specificity": 0.06592386258124419,
+          "auto_rate": 0.9838022165387894,
+          "human_review_rate": 0.01619778346121057,
+          "auto_include_rate": 0.9232736572890026,
+          "auto_exclude_rate": 0.060528559249786874,
+          "tp": 96,
+          "fn": 0,
+          "tn": 71,
+          "fp": 1006,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1083,
+            "EXCLUDE": 71,
+            "HUMAN_REVIEW": 19
+          }
+        },
+        {
+          "dataset": "Jeyaraman_2020",
+          "variant": "old_hr_both_include_or_exclude",
+          "n": 1173,
+          "sensitivity": 1.0,
+          "specificity": 0.07428040854224698,
+          "auto_rate": 0.9914748508098892,
+          "human_review_rate": 0.008525149190110827,
+          "auto_include_rate": 0.9232736572890026,
+          "auto_exclude_rate": 0.06820119352088662,
+          "tp": 96,
+          "fn": 0,
+          "tn": 80,
+          "fp": 997,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1083,
+            "EXCLUDE": 80,
+            "HUMAN_REVIEW": 10
+          }
+        },
+        {
+          "dataset": "Jeyaraman_2020",
+          "variant": "hr_include_only_both_include",
+          "n": 1173,
+          "sensitivity": 1.0,
+          "specificity": 0.06592386258124419,
+          "auto_rate": 0.9838022165387894,
+          "human_review_rate": 0.01619778346121057,
+          "auto_include_rate": 0.9232736572890026,
+          "auto_exclude_rate": 0.060528559249786874,
+          "tp": 96,
+          "fn": 0,
+          "tn": 71,
+          "fp": 1006,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1083,
+            "EXCLUDE": 71,
+            "HUMAN_REVIEW": 19
+          }
+        },
+        {
+          "dataset": "Jeyaraman_2020",
+          "variant": "auto_exclude_veto_any_include",
+          "n": 1173,
+          "sensitivity": 1.0,
+          "specificity": 0.06592386258124419,
+          "auto_rate": 0.9838022165387894,
+          "human_review_rate": 0.01619778346121057,
+          "auto_include_rate": 0.9232736572890026,
+          "auto_exclude_rate": 0.060528559249786874,
+          "tp": 96,
+          "fn": 0,
+          "tn": 71,
+          "fp": 1006,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1083,
+            "EXCLUDE": 71,
+            "HUMAN_REVIEW": 19
+          }
+        },
+        {
+          "dataset": "Jeyaraman_2020",
+          "variant": "auto_exclude_veto_both_include",
+          "n": 1173,
+          "sensitivity": 1.0,
+          "specificity": 0.06592386258124419,
+          "auto_rate": 0.9838022165387894,
+          "human_review_rate": 0.01619778346121057,
+          "auto_include_rate": 0.9232736572890026,
+          "auto_exclude_rate": 0.060528559249786874,
+          "tp": 96,
+          "fn": 0,
+          "tn": 71,
+          "fp": 1006,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1083,
+            "EXCLUDE": 71,
+            "HUMAN_REVIEW": 19
+          }
+        },
+        {
+          "dataset": "Jeyaraman_2020",
+          "variant": "include_only_plus_veto_any_include",
+          "n": 1173,
+          "sensitivity": 1.0,
+          "specificity": 0.06592386258124419,
+          "auto_rate": 0.9838022165387894,
+          "human_review_rate": 0.01619778346121057,
+          "auto_include_rate": 0.9232736572890026,
+          "auto_exclude_rate": 0.060528559249786874,
+          "tp": 96,
+          "fn": 0,
+          "tn": 71,
+          "fp": 1006,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1083,
+            "EXCLUDE": 71,
+            "HUMAN_REVIEW": 19
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "Chou_2003",
+      "base_config": "a11_rule_exclude",
+      "criteria_suffix": "criteria_v2",
+      "coverage": {
+        "all": {
+          "missing": 458,
+          "both_exclude": 940,
+          "one_available": 500,
+          "split": 3,
+          "both_include": 5
+        },
+        "hr": {
+          "both_exclude": 940,
+          "one_available": 500,
+          "split": 3,
+          "missing": 63,
+          "both_include": 3
+        },
+        "exclude": {
+          "missing": 86
+        }
+      },
+      "rows": [
+        {
+          "dataset": "Chou_2003",
+          "variant": "base",
+          "n": 1906,
+          "sensitivity": 1.0,
+          "specificity": 0.04547858276044421,
+          "auto_rate": 0.20828961175236096,
+          "human_review_rate": 0.7917103882476391,
+          "auto_include_rate": 0.16316894018887723,
+          "auto_exclude_rate": 0.04512067156348373,
+          "tp": 15,
+          "fn": 0,
+          "tn": 86,
+          "fp": 1805,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 311,
+            "EXCLUDE": 86,
+            "HUMAN_REVIEW": 1509
+          }
+        },
+        {
+          "dataset": "Chou_2003",
+          "variant": "old_hr_both_include_or_exclude",
+          "n": 1906,
+          "sensitivity": 0.8,
+          "specificity": 0.5409836065573771,
+          "auto_rate": 0.7030430220356768,
+          "human_review_rate": 0.2969569779643232,
+          "auto_include_rate": 0.16474291710388247,
+          "auto_exclude_rate": 0.5383001049317944,
+          "tp": 12,
+          "fn": 3,
+          "tn": 1023,
+          "fp": 868,
+          "fn_added_vs_base": 3,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 314,
+            "EXCLUDE": 1026,
+            "HUMAN_REVIEW": 566
+          }
+        },
+        {
+          "dataset": "Chou_2003",
+          "variant": "hr_include_only_both_include",
+          "n": 1906,
+          "sensitivity": 1.0,
+          "specificity": 0.04547858276044421,
+          "auto_rate": 0.2098635886673662,
+          "human_review_rate": 0.7901364113326338,
+          "auto_include_rate": 0.16474291710388247,
+          "auto_exclude_rate": 0.04512067156348373,
+          "tp": 15,
+          "fn": 0,
+          "tn": 86,
+          "fp": 1805,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 314,
+            "EXCLUDE": 86,
+            "HUMAN_REVIEW": 1506
+          }
+        },
+        {
+          "dataset": "Chou_2003",
+          "variant": "auto_exclude_veto_any_include",
+          "n": 1906,
+          "sensitivity": 1.0,
+          "specificity": 0.04547858276044421,
+          "auto_rate": 0.20828961175236096,
+          "human_review_rate": 0.7917103882476391,
+          "auto_include_rate": 0.16316894018887723,
+          "auto_exclude_rate": 0.04512067156348373,
+          "tp": 15,
+          "fn": 0,
+          "tn": 86,
+          "fp": 1805,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 311,
+            "EXCLUDE": 86,
+            "HUMAN_REVIEW": 1509
+          }
+        },
+        {
+          "dataset": "Chou_2003",
+          "variant": "auto_exclude_veto_both_include",
+          "n": 1906,
+          "sensitivity": 1.0,
+          "specificity": 0.04547858276044421,
+          "auto_rate": 0.20828961175236096,
+          "human_review_rate": 0.7917103882476391,
+          "auto_include_rate": 0.16316894018887723,
+          "auto_exclude_rate": 0.04512067156348373,
+          "tp": 15,
+          "fn": 0,
+          "tn": 86,
+          "fp": 1805,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 311,
+            "EXCLUDE": 86,
+            "HUMAN_REVIEW": 1509
+          }
+        },
+        {
+          "dataset": "Chou_2003",
+          "variant": "include_only_plus_veto_any_include",
+          "n": 1906,
+          "sensitivity": 1.0,
+          "specificity": 0.04547858276044421,
+          "auto_rate": 0.2098635886673662,
+          "human_review_rate": 0.7901364113326338,
+          "auto_include_rate": 0.16474291710388247,
+          "auto_exclude_rate": 0.04512067156348373,
+          "tp": 15,
+          "fn": 0,
+          "tn": 86,
+          "fp": 1805,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 314,
+            "EXCLUDE": 86,
+            "HUMAN_REVIEW": 1506
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "van_der_Waal_2022",
+      "base_config": "a11_rule_exclude",
+      "criteria_suffix": "criteria_v2",
+      "coverage": {
+        "all": {
+          "both_exclude": 36,
+          "both_include": 3,
+          "split": 5,
+          "missing": 1899,
+          "one_available": 27
+        },
+        "hr": {
+          "both_exclude": 36,
+          "both_include": 3,
+          "split": 5,
+          "missing": 8,
+          "one_available": 27
+        },
+        "exclude": {
+          "missing": 81
+        }
+      },
+      "rows": [
+        {
+          "dataset": "van_der_Waal_2022",
+          "variant": "base",
+          "n": 1970,
+          "sensitivity": 1.0,
+          "specificity": 0.041817243159525036,
+          "auto_rate": 0.9598984771573604,
+          "human_review_rate": 0.04010152284263959,
+          "auto_include_rate": 0.9187817258883249,
+          "auto_exclude_rate": 0.04111675126903553,
+          "tp": 33,
+          "fn": 0,
+          "tn": 81,
+          "fp": 1856,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1810,
+            "EXCLUDE": 81,
+            "HUMAN_REVIEW": 79
+          }
+        },
+        {
+          "dataset": "van_der_Waal_2022",
+          "variant": "old_hr_both_include_or_exclude",
+          "n": 1970,
+          "sensitivity": 1.0,
+          "specificity": 0.06040268456375839,
+          "auto_rate": 0.9796954314720813,
+          "human_review_rate": 0.02030456852791878,
+          "auto_include_rate": 0.9203045685279188,
+          "auto_exclude_rate": 0.05939086294416244,
+          "tp": 33,
+          "fn": 0,
+          "tn": 117,
+          "fp": 1820,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1813,
+            "EXCLUDE": 117,
+            "HUMAN_REVIEW": 40
+          }
+        },
+        {
+          "dataset": "van_der_Waal_2022",
+          "variant": "hr_include_only_both_include",
+          "n": 1970,
+          "sensitivity": 1.0,
+          "specificity": 0.041817243159525036,
+          "auto_rate": 0.9614213197969543,
+          "human_review_rate": 0.03857868020304569,
+          "auto_include_rate": 0.9203045685279188,
+          "auto_exclude_rate": 0.04111675126903553,
+          "tp": 33,
+          "fn": 0,
+          "tn": 81,
+          "fp": 1856,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1813,
+            "EXCLUDE": 81,
+            "HUMAN_REVIEW": 76
+          }
+        },
+        {
+          "dataset": "van_der_Waal_2022",
+          "variant": "auto_exclude_veto_any_include",
+          "n": 1970,
+          "sensitivity": 1.0,
+          "specificity": 0.041817243159525036,
+          "auto_rate": 0.9598984771573604,
+          "human_review_rate": 0.04010152284263959,
+          "auto_include_rate": 0.9187817258883249,
+          "auto_exclude_rate": 0.04111675126903553,
+          "tp": 33,
+          "fn": 0,
+          "tn": 81,
+          "fp": 1856,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1810,
+            "EXCLUDE": 81,
+            "HUMAN_REVIEW": 79
+          }
+        },
+        {
+          "dataset": "van_der_Waal_2022",
+          "variant": "auto_exclude_veto_both_include",
+          "n": 1970,
+          "sensitivity": 1.0,
+          "specificity": 0.041817243159525036,
+          "auto_rate": 0.9598984771573604,
+          "human_review_rate": 0.04010152284263959,
+          "auto_include_rate": 0.9187817258883249,
+          "auto_exclude_rate": 0.04111675126903553,
+          "tp": 33,
+          "fn": 0,
+          "tn": 81,
+          "fp": 1856,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1810,
+            "EXCLUDE": 81,
+            "HUMAN_REVIEW": 79
+          }
+        },
+        {
+          "dataset": "van_der_Waal_2022",
+          "variant": "include_only_plus_veto_any_include",
+          "n": 1970,
+          "sensitivity": 1.0,
+          "specificity": 0.041817243159525036,
+          "auto_rate": 0.9614213197969543,
+          "human_review_rate": 0.03857868020304569,
+          "auto_include_rate": 0.9203045685279188,
+          "auto_exclude_rate": 0.04111675126903553,
+          "tp": 33,
+          "fn": 0,
+          "tn": 81,
+          "fp": 1856,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1813,
+            "EXCLUDE": 81,
+            "HUMAN_REVIEW": 76
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "Smid_2020",
+      "base_config": "a11_rule_exclude",
+      "criteria_suffix": "criteria_v2",
+      "coverage": {
+        "all": {
+          "both_exclude": 159,
+          "one_available": 1444,
+          "missing": 1013,
+          "split": 4,
+          "both_include": 2
+        },
+        "hr": {
+          "both_exclude": 159,
+          "one_available": 1444,
+          "split": 4,
+          "missing": 194,
+          "both_include": 2
+        },
+        "exclude": {
+          "missing": 518
+        }
+      },
+      "rows": [
+        {
+          "dataset": "Smid_2020",
+          "variant": "base",
+          "n": 2622,
+          "sensitivity": 1.0,
+          "specificity": 0.19961464354527939,
+          "auto_rate": 0.3123569794050343,
+          "human_review_rate": 0.6876430205949656,
+          "auto_include_rate": 0.11479786422578185,
+          "auto_exclude_rate": 0.19755911517925248,
+          "tp": 27,
+          "fn": 0,
+          "tn": 518,
+          "fp": 2077,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 301,
+            "EXCLUDE": 518,
+            "HUMAN_REVIEW": 1803
+          }
+        },
+        {
+          "dataset": "Smid_2020",
+          "variant": "old_hr_both_include_or_exclude",
+          "n": 2622,
+          "sensitivity": 1.0,
+          "specificity": 0.2608863198458574,
+          "auto_rate": 0.37376048817696417,
+          "human_review_rate": 0.6262395118230358,
+          "auto_include_rate": 0.11556064073226545,
+          "auto_exclude_rate": 0.2581998474446987,
+          "tp": 27,
+          "fn": 0,
+          "tn": 677,
+          "fp": 1918,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 303,
+            "EXCLUDE": 677,
+            "HUMAN_REVIEW": 1642
+          }
+        },
+        {
+          "dataset": "Smid_2020",
+          "variant": "hr_include_only_both_include",
+          "n": 2622,
+          "sensitivity": 1.0,
+          "specificity": 0.19961464354527939,
+          "auto_rate": 0.3131197559115179,
+          "human_review_rate": 0.686880244088482,
+          "auto_include_rate": 0.11556064073226545,
+          "auto_exclude_rate": 0.19755911517925248,
+          "tp": 27,
+          "fn": 0,
+          "tn": 518,
+          "fp": 2077,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 303,
+            "EXCLUDE": 518,
+            "HUMAN_REVIEW": 1801
+          }
+        },
+        {
+          "dataset": "Smid_2020",
+          "variant": "auto_exclude_veto_any_include",
+          "n": 2622,
+          "sensitivity": 1.0,
+          "specificity": 0.19961464354527939,
+          "auto_rate": 0.3123569794050343,
+          "human_review_rate": 0.6876430205949656,
+          "auto_include_rate": 0.11479786422578185,
+          "auto_exclude_rate": 0.19755911517925248,
+          "tp": 27,
+          "fn": 0,
+          "tn": 518,
+          "fp": 2077,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 301,
+            "EXCLUDE": 518,
+            "HUMAN_REVIEW": 1803
+          }
+        },
+        {
+          "dataset": "Smid_2020",
+          "variant": "auto_exclude_veto_both_include",
+          "n": 2622,
+          "sensitivity": 1.0,
+          "specificity": 0.19961464354527939,
+          "auto_rate": 0.3123569794050343,
+          "human_review_rate": 0.6876430205949656,
+          "auto_include_rate": 0.11479786422578185,
+          "auto_exclude_rate": 0.19755911517925248,
+          "tp": 27,
+          "fn": 0,
+          "tn": 518,
+          "fp": 2077,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 301,
+            "EXCLUDE": 518,
+            "HUMAN_REVIEW": 1803
+          }
+        },
+        {
+          "dataset": "Smid_2020",
+          "variant": "include_only_plus_veto_any_include",
+          "n": 2622,
+          "sensitivity": 1.0,
+          "specificity": 0.19961464354527939,
+          "auto_rate": 0.3131197559115179,
+          "human_review_rate": 0.686880244088482,
+          "auto_include_rate": 0.11556064073226545,
+          "auto_exclude_rate": 0.19755911517925248,
+          "tp": 27,
+          "fn": 0,
+          "tn": 518,
+          "fp": 2077,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 303,
+            "EXCLUDE": 518,
+            "HUMAN_REVIEW": 1801
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "Muthu_2021",
+      "base_config": "a11_rule_exclude",
+      "criteria_suffix": "criteria_v2",
+      "coverage": {
+        "all": {
+          "one_available": 7,
+          "missing": 2704,
+          "both_exclude": 8
+        },
+        "hr": {
+          "one_available": 7,
+          "both_exclude": 8,
+          "missing": 2
+        },
+        "exclude": {
+          "missing": 79
+        }
+      },
+      "rows": [
+        {
+          "dataset": "Muthu_2021",
+          "variant": "base",
+          "n": 2719,
+          "sensitivity": 0.9880952380952381,
+          "specificity": 0.03147293327738145,
+          "auto_rate": 0.9937477013607944,
+          "human_review_rate": 0.00625229863920559,
+          "auto_include_rate": 0.9646929018021332,
+          "auto_exclude_rate": 0.029054799558661273,
+          "tp": 332,
+          "fn": 4,
+          "tn": 75,
+          "fp": 2308,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 2623,
+            "EXCLUDE": 79,
+            "HUMAN_REVIEW": 17
+          }
+        },
+        {
+          "dataset": "Muthu_2021",
+          "variant": "old_hr_both_include_or_exclude",
+          "n": 2719,
+          "sensitivity": 0.9851190476190477,
+          "specificity": 0.03441040704993705,
+          "auto_rate": 0.99668995954395,
+          "human_review_rate": 0.0033100404560500183,
+          "auto_include_rate": 0.9646929018021332,
+          "auto_exclude_rate": 0.031997057741816846,
+          "tp": 331,
+          "fn": 5,
+          "tn": 82,
+          "fp": 2301,
+          "fn_added_vs_base": 1,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 2623,
+            "EXCLUDE": 87,
+            "HUMAN_REVIEW": 9
+          }
+        },
+        {
+          "dataset": "Muthu_2021",
+          "variant": "hr_include_only_both_include",
+          "n": 2719,
+          "sensitivity": 0.9880952380952381,
+          "specificity": 0.03147293327738145,
+          "auto_rate": 0.9937477013607944,
+          "human_review_rate": 0.00625229863920559,
+          "auto_include_rate": 0.9646929018021332,
+          "auto_exclude_rate": 0.029054799558661273,
+          "tp": 332,
+          "fn": 4,
+          "tn": 75,
+          "fp": 2308,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 2623,
+            "EXCLUDE": 79,
+            "HUMAN_REVIEW": 17
+          }
+        },
+        {
+          "dataset": "Muthu_2021",
+          "variant": "auto_exclude_veto_any_include",
+          "n": 2719,
+          "sensitivity": 0.9880952380952381,
+          "specificity": 0.03147293327738145,
+          "auto_rate": 0.9937477013607944,
+          "human_review_rate": 0.00625229863920559,
+          "auto_include_rate": 0.9646929018021332,
+          "auto_exclude_rate": 0.029054799558661273,
+          "tp": 332,
+          "fn": 4,
+          "tn": 75,
+          "fp": 2308,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 2623,
+            "EXCLUDE": 79,
+            "HUMAN_REVIEW": 17
+          }
+        },
+        {
+          "dataset": "Muthu_2021",
+          "variant": "auto_exclude_veto_both_include",
+          "n": 2719,
+          "sensitivity": 0.9880952380952381,
+          "specificity": 0.03147293327738145,
+          "auto_rate": 0.9937477013607944,
+          "human_review_rate": 0.00625229863920559,
+          "auto_include_rate": 0.9646929018021332,
+          "auto_exclude_rate": 0.029054799558661273,
+          "tp": 332,
+          "fn": 4,
+          "tn": 75,
+          "fp": 2308,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 2623,
+            "EXCLUDE": 79,
+            "HUMAN_REVIEW": 17
+          }
+        },
+        {
+          "dataset": "Muthu_2021",
+          "variant": "include_only_plus_veto_any_include",
+          "n": 2719,
+          "sensitivity": 0.9880952380952381,
+          "specificity": 0.03147293327738145,
+          "auto_rate": 0.9937477013607944,
+          "human_review_rate": 0.00625229863920559,
+          "auto_include_rate": 0.9646929018021332,
+          "auto_exclude_rate": 0.029054799558661273,
+          "tp": 332,
+          "fn": 4,
+          "tn": 75,
+          "fp": 2308,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 2623,
+            "EXCLUDE": 79,
+            "HUMAN_REVIEW": 17
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "Appenzeller-Herzog_2019",
+      "base_config": "a11_rule_exclude",
+      "criteria_suffix": "criteria_v2",
+      "coverage": {
+        "all": {
+          "missing": 1838,
+          "both_exclude": 263,
+          "one_available": 745,
+          "both_include": 10,
+          "split": 12
+        },
+        "hr": {
+          "both_exclude": 263,
+          "one_available": 744,
+          "both_include": 9,
+          "split": 12,
+          "missing": 55
+        },
+        "exclude": {
+          "missing": 20
+        }
+      },
+      "rows": [
+        {
+          "dataset": "Appenzeller-Herzog_2019",
+          "variant": "base",
+          "n": 2868,
+          "sensitivity": 1.0,
+          "specificity": 0.007037297677691766,
+          "auto_rate": 0.6223849372384938,
+          "human_review_rate": 0.3776150627615063,
+          "auto_include_rate": 0.6154114365411436,
+          "auto_exclude_rate": 0.00697350069735007,
+          "tp": 26,
+          "fn": 0,
+          "tn": 20,
+          "fp": 2822,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1765,
+            "EXCLUDE": 20,
+            "HUMAN_REVIEW": 1083
+          }
+        },
+        {
+          "dataset": "Appenzeller-Herzog_2019",
+          "variant": "old_hr_both_include_or_exclude",
+          "n": 2868,
+          "sensitivity": 0.9615384615384616,
+          "specificity": 0.0992258972554539,
+          "auto_rate": 0.7172245467224547,
+          "human_review_rate": 0.28277545327754533,
+          "auto_include_rate": 0.6185495118549512,
+          "auto_exclude_rate": 0.09867503486750348,
+          "tp": 25,
+          "fn": 1,
+          "tn": 282,
+          "fp": 2560,
+          "fn_added_vs_base": 1,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1774,
+            "EXCLUDE": 283,
+            "HUMAN_REVIEW": 811
+          }
+        },
+        {
+          "dataset": "Appenzeller-Herzog_2019",
+          "variant": "hr_include_only_both_include",
+          "n": 2868,
+          "sensitivity": 1.0,
+          "specificity": 0.007037297677691766,
+          "auto_rate": 0.6255230125523012,
+          "human_review_rate": 0.37447698744769875,
+          "auto_include_rate": 0.6185495118549512,
+          "auto_exclude_rate": 0.00697350069735007,
+          "tp": 26,
+          "fn": 0,
+          "tn": 20,
+          "fp": 2822,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1774,
+            "EXCLUDE": 20,
+            "HUMAN_REVIEW": 1074
+          }
+        },
+        {
+          "dataset": "Appenzeller-Herzog_2019",
+          "variant": "auto_exclude_veto_any_include",
+          "n": 2868,
+          "sensitivity": 1.0,
+          "specificity": 0.007037297677691766,
+          "auto_rate": 0.6223849372384938,
+          "human_review_rate": 0.3776150627615063,
+          "auto_include_rate": 0.6154114365411436,
+          "auto_exclude_rate": 0.00697350069735007,
+          "tp": 26,
+          "fn": 0,
+          "tn": 20,
+          "fp": 2822,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1765,
+            "EXCLUDE": 20,
+            "HUMAN_REVIEW": 1083
+          }
+        },
+        {
+          "dataset": "Appenzeller-Herzog_2019",
+          "variant": "auto_exclude_veto_both_include",
+          "n": 2868,
+          "sensitivity": 1.0,
+          "specificity": 0.007037297677691766,
+          "auto_rate": 0.6223849372384938,
+          "human_review_rate": 0.3776150627615063,
+          "auto_include_rate": 0.6154114365411436,
+          "auto_exclude_rate": 0.00697350069735007,
+          "tp": 26,
+          "fn": 0,
+          "tn": 20,
+          "fp": 2822,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1765,
+            "EXCLUDE": 20,
+            "HUMAN_REVIEW": 1083
+          }
+        },
+        {
+          "dataset": "Appenzeller-Herzog_2019",
+          "variant": "include_only_plus_veto_any_include",
+          "n": 2868,
+          "sensitivity": 1.0,
+          "specificity": 0.007037297677691766,
+          "auto_rate": 0.6255230125523012,
+          "human_review_rate": 0.37447698744769875,
+          "auto_include_rate": 0.6185495118549512,
+          "auto_exclude_rate": 0.00697350069735007,
+          "tp": 26,
+          "fn": 0,
+          "tn": 20,
+          "fp": 2822,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 1774,
+            "EXCLUDE": 20,
+            "HUMAN_REVIEW": 1074
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "van_de_Schoot_2018",
+      "base_config": "a11_rule_exclude",
+      "criteria_suffix": "criteria_v2",
+      "coverage": {
+        "all": {
+          "missing": 433,
+          "both_exclude": 2280,
+          "one_available": 1816,
+          "both_include": 5,
+          "split": 4
+        },
+        "hr": {
+          "both_exclude": 2280,
+          "one_available": 1816,
+          "both_include": 5,
+          "missing": 287,
+          "split": 4
+        },
+        "exclude": {
+          "missing": 105
+        }
+      },
+      "rows": [
+        {
+          "dataset": "van_de_Schoot_2018",
+          "variant": "base",
+          "n": 4538,
+          "sensitivity": 1.0,
+          "specificity": 0.023333333333333334,
+          "auto_rate": 0.03217276333186426,
+          "human_review_rate": 0.9678272366681357,
+          "auto_include_rate": 0.009034817100044073,
+          "auto_exclude_rate": 0.023137946231820184,
+          "tp": 38,
+          "fn": 0,
+          "tn": 105,
+          "fp": 4395,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 41,
+            "EXCLUDE": 105,
+            "HUMAN_REVIEW": 4392
+          }
+        },
+        {
+          "dataset": "van_de_Schoot_2018",
+          "variant": "old_hr_both_include_or_exclude",
+          "n": 4538,
+          "sensitivity": 0.7368421052631579,
+          "specificity": 0.5277777777777778,
+          "auto_rate": 0.5356985456148082,
+          "human_review_rate": 0.4643014543851917,
+          "auto_include_rate": 0.010136624063464082,
+          "auto_exclude_rate": 0.5255619215513442,
+          "tp": 28,
+          "fn": 10,
+          "tn": 2375,
+          "fp": 2125,
+          "fn_added_vs_base": 10,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 46,
+            "EXCLUDE": 2385,
+            "HUMAN_REVIEW": 2107
+          }
+        },
+        {
+          "dataset": "van_de_Schoot_2018",
+          "variant": "hr_include_only_both_include",
+          "n": 4538,
+          "sensitivity": 1.0,
+          "specificity": 0.023333333333333334,
+          "auto_rate": 0.033274570295284266,
+          "human_review_rate": 0.9667254297047158,
+          "auto_include_rate": 0.010136624063464082,
+          "auto_exclude_rate": 0.023137946231820184,
+          "tp": 38,
+          "fn": 0,
+          "tn": 105,
+          "fp": 4395,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 46,
+            "EXCLUDE": 105,
+            "HUMAN_REVIEW": 4387
+          }
+        },
+        {
+          "dataset": "van_de_Schoot_2018",
+          "variant": "auto_exclude_veto_any_include",
+          "n": 4538,
+          "sensitivity": 1.0,
+          "specificity": 0.023333333333333334,
+          "auto_rate": 0.03217276333186426,
+          "human_review_rate": 0.9678272366681357,
+          "auto_include_rate": 0.009034817100044073,
+          "auto_exclude_rate": 0.023137946231820184,
+          "tp": 38,
+          "fn": 0,
+          "tn": 105,
+          "fp": 4395,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 41,
+            "EXCLUDE": 105,
+            "HUMAN_REVIEW": 4392
+          }
+        },
+        {
+          "dataset": "van_de_Schoot_2018",
+          "variant": "auto_exclude_veto_both_include",
+          "n": 4538,
+          "sensitivity": 1.0,
+          "specificity": 0.023333333333333334,
+          "auto_rate": 0.03217276333186426,
+          "human_review_rate": 0.9678272366681357,
+          "auto_include_rate": 0.009034817100044073,
+          "auto_exclude_rate": 0.023137946231820184,
+          "tp": 38,
+          "fn": 0,
+          "tn": 105,
+          "fp": 4395,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 41,
+            "EXCLUDE": 105,
+            "HUMAN_REVIEW": 4392
+          }
+        },
+        {
+          "dataset": "van_de_Schoot_2018",
+          "variant": "include_only_plus_veto_any_include",
+          "n": 4538,
+          "sensitivity": 1.0,
+          "specificity": 0.023333333333333334,
+          "auto_rate": 0.033274570295284266,
+          "human_review_rate": 0.9667254297047158,
+          "auto_include_rate": 0.010136624063464082,
+          "auto_exclude_rate": 0.023137946231820184,
+          "tp": 38,
+          "fn": 0,
+          "tn": 105,
+          "fp": 4395,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 46,
+            "EXCLUDE": 105,
+            "HUMAN_REVIEW": 4387
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "Moran_2021",
+      "base_config": "a11_rule_exclude",
+      "criteria_suffix": "criteria_v2",
+      "coverage": {
+        "all": {
+          "missing": 438,
+          "both_exclude": 3085,
+          "one_available": 1670,
+          "split": 3,
+          "both_include": 3
+        },
+        "hr": {
+          "missing": 180,
+          "both_exclude": 3085,
+          "one_available": 1670,
+          "split": 3,
+          "both_include": 3
+        },
+        "exclude": {
+          "missing": 70
+        }
+      },
+      "rows": [
+        {
+          "dataset": "Moran_2021",
+          "variant": "base",
+          "n": 5199,
+          "sensitivity": 0.963963963963964,
+          "specificity": 0.012971698113207548,
+          "auto_rate": 0.04962492787074437,
+          "human_review_rate": 0.9503750721292556,
+          "auto_include_rate": 0.036160800153875745,
+          "auto_exclude_rate": 0.013464127716868628,
+          "tp": 107,
+          "fn": 4,
+          "tn": 66,
+          "fp": 5022,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 188,
+            "EXCLUDE": 70,
+            "HUMAN_REVIEW": 4941
+          }
+        },
+        {
+          "dataset": "Moran_2021",
+          "variant": "old_hr_both_include_or_exclude",
+          "n": 5199,
+          "sensitivity": 0.40540540540540543,
+          "specificity": 0.6071147798742138,
+          "auto_rate": 0.6435853048663205,
+          "human_review_rate": 0.35641469513367957,
+          "auto_include_rate": 0.0367378341988844,
+          "auto_exclude_rate": 0.606847470667436,
+          "tp": 45,
+          "fn": 66,
+          "tn": 3089,
+          "fp": 1999,
+          "fn_added_vs_base": 62,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 191,
+            "EXCLUDE": 3155,
+            "HUMAN_REVIEW": 1853
+          }
+        },
+        {
+          "dataset": "Moran_2021",
+          "variant": "hr_include_only_both_include",
+          "n": 5199,
+          "sensitivity": 0.963963963963964,
+          "specificity": 0.012971698113207548,
+          "auto_rate": 0.05020196191575303,
+          "human_review_rate": 0.949798038084247,
+          "auto_include_rate": 0.0367378341988844,
+          "auto_exclude_rate": 0.013464127716868628,
+          "tp": 107,
+          "fn": 4,
+          "tn": 66,
+          "fp": 5022,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 191,
+            "EXCLUDE": 70,
+            "HUMAN_REVIEW": 4938
+          }
+        },
+        {
+          "dataset": "Moran_2021",
+          "variant": "auto_exclude_veto_any_include",
+          "n": 5199,
+          "sensitivity": 0.963963963963964,
+          "specificity": 0.012971698113207548,
+          "auto_rate": 0.04962492787074437,
+          "human_review_rate": 0.9503750721292556,
+          "auto_include_rate": 0.036160800153875745,
+          "auto_exclude_rate": 0.013464127716868628,
+          "tp": 107,
+          "fn": 4,
+          "tn": 66,
+          "fp": 5022,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 188,
+            "EXCLUDE": 70,
+            "HUMAN_REVIEW": 4941
+          }
+        },
+        {
+          "dataset": "Moran_2021",
+          "variant": "auto_exclude_veto_both_include",
+          "n": 5199,
+          "sensitivity": 0.963963963963964,
+          "specificity": 0.012971698113207548,
+          "auto_rate": 0.04962492787074437,
+          "human_review_rate": 0.9503750721292556,
+          "auto_include_rate": 0.036160800153875745,
+          "auto_exclude_rate": 0.013464127716868628,
+          "tp": 107,
+          "fn": 4,
+          "tn": 66,
+          "fp": 5022,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 188,
+            "EXCLUDE": 70,
+            "HUMAN_REVIEW": 4941
+          }
+        },
+        {
+          "dataset": "Moran_2021",
+          "variant": "include_only_plus_veto_any_include",
+          "n": 5199,
+          "sensitivity": 0.963963963963964,
+          "specificity": 0.012971698113207548,
+          "auto_rate": 0.05020196191575303,
+          "human_review_rate": 0.949798038084247,
+          "auto_include_rate": 0.0367378341988844,
+          "auto_exclude_rate": 0.013464127716868628,
+          "tp": 107,
+          "fn": 4,
+          "tn": 66,
+          "fp": 5022,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 191,
+            "EXCLUDE": 70,
+            "HUMAN_REVIEW": 4938
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "Radjenovic_2013",
+      "base_config": "a11_rule_exclude",
+      "criteria_suffix": "criteria_v2",
+      "coverage": {
+        "all": {
+          "one_available": 2893,
+          "both_exclude": 233,
+          "missing": 2803,
+          "both_include": 3,
+          "split": 3
+        },
+        "hr": {
+          "one_available": 2893,
+          "both_exclude": 233,
+          "missing": 234,
+          "both_include": 3,
+          "split": 3
+        },
+        "exclude": {
+          "missing": 1675
+        }
+      },
+      "rows": [
+        {
+          "dataset": "Radjenovic_2013",
+          "variant": "base",
+          "n": 5935,
+          "sensitivity": 1.0,
+          "specificity": 0.28452522507219297,
+          "auto_rate": 0.4328559393428812,
+          "human_review_rate": 0.5671440606571188,
+          "auto_include_rate": 0.1506318449873631,
+          "auto_exclude_rate": 0.2822240943555181,
+          "tp": 48,
+          "fn": 0,
+          "tn": 1675,
+          "fp": 4212,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 894,
+            "EXCLUDE": 1675,
+            "HUMAN_REVIEW": 3366
+          }
+        },
+        {
+          "dataset": "Radjenovic_2013",
+          "variant": "old_hr_both_include_or_exclude",
+          "n": 5935,
+          "sensitivity": 1.0,
+          "specificity": 0.3241039578732801,
+          "auto_rate": 0.472620050547599,
+          "human_review_rate": 0.527379949452401,
+          "auto_include_rate": 0.15113732097725358,
+          "auto_exclude_rate": 0.3214827295703454,
+          "tp": 48,
+          "fn": 0,
+          "tn": 1908,
+          "fp": 3979,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 897,
+            "EXCLUDE": 1908,
+            "HUMAN_REVIEW": 3130
+          }
+        },
+        {
+          "dataset": "Radjenovic_2013",
+          "variant": "hr_include_only_both_include",
+          "n": 5935,
+          "sensitivity": 1.0,
+          "specificity": 0.28452522507219297,
+          "auto_rate": 0.43336141533277167,
+          "human_review_rate": 0.5666385846672283,
+          "auto_include_rate": 0.15113732097725358,
+          "auto_exclude_rate": 0.2822240943555181,
+          "tp": 48,
+          "fn": 0,
+          "tn": 1675,
+          "fp": 4212,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 897,
+            "EXCLUDE": 1675,
+            "HUMAN_REVIEW": 3363
+          }
+        },
+        {
+          "dataset": "Radjenovic_2013",
+          "variant": "auto_exclude_veto_any_include",
+          "n": 5935,
+          "sensitivity": 1.0,
+          "specificity": 0.28452522507219297,
+          "auto_rate": 0.4328559393428812,
+          "human_review_rate": 0.5671440606571188,
+          "auto_include_rate": 0.1506318449873631,
+          "auto_exclude_rate": 0.2822240943555181,
+          "tp": 48,
+          "fn": 0,
+          "tn": 1675,
+          "fp": 4212,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 894,
+            "EXCLUDE": 1675,
+            "HUMAN_REVIEW": 3366
+          }
+        },
+        {
+          "dataset": "Radjenovic_2013",
+          "variant": "auto_exclude_veto_both_include",
+          "n": 5935,
+          "sensitivity": 1.0,
+          "specificity": 0.28452522507219297,
+          "auto_rate": 0.4328559393428812,
+          "human_review_rate": 0.5671440606571188,
+          "auto_include_rate": 0.1506318449873631,
+          "auto_exclude_rate": 0.2822240943555181,
+          "tp": 48,
+          "fn": 0,
+          "tn": 1675,
+          "fp": 4212,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 894,
+            "EXCLUDE": 1675,
+            "HUMAN_REVIEW": 3366
+          }
+        },
+        {
+          "dataset": "Radjenovic_2013",
+          "variant": "include_only_plus_veto_any_include",
+          "n": 5935,
+          "sensitivity": 1.0,
+          "specificity": 0.28452522507219297,
+          "auto_rate": 0.43336141533277167,
+          "human_review_rate": 0.5666385846672283,
+          "auto_include_rate": 0.15113732097725358,
+          "auto_exclude_rate": 0.2822240943555181,
+          "tp": 48,
+          "fn": 0,
+          "tn": 1675,
+          "fp": 4212,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 897,
+            "EXCLUDE": 1675,
+            "HUMAN_REVIEW": 3363
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "Leenaars_2020",
+      "base_config": "a11_rule_exclude",
+      "criteria_suffix": "criteria_v2",
+      "coverage": {
+        "all": {
+          "one_available": 12,
+          "missing": 7152,
+          "both_exclude": 5
+        },
+        "hr": {
+          "one_available": 12,
+          "missing": 2,
+          "both_exclude": 5
+        },
+        "exclude": {
+          "missing": 133
+        }
+      },
+      "rows": [
+        {
+          "dataset": "Leenaars_2020",
+          "variant": "base",
+          "n": 7169,
+          "sensitivity": 1.0,
+          "specificity": 0.020191285866099893,
+          "auto_rate": 0.9973497000976427,
+          "human_review_rate": 0.002650299902357372,
+          "auto_include_rate": 0.978797600781141,
+          "auto_exclude_rate": 0.018552099316501605,
+          "tp": 582,
+          "fn": 0,
+          "tn": 133,
+          "fp": 6454,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 7017,
+            "EXCLUDE": 133,
+            "HUMAN_REVIEW": 19
+          }
+        },
+        {
+          "dataset": "Leenaars_2020",
+          "variant": "old_hr_both_include_or_exclude",
+          "n": 7169,
+          "sensitivity": 0.9982817869415808,
+          "specificity": 0.020798542583877335,
+          "auto_rate": 0.9980471474403683,
+          "human_review_rate": 0.0019528525596317478,
+          "auto_include_rate": 0.978797600781141,
+          "auto_exclude_rate": 0.019249546659227228,
+          "tp": 581,
+          "fn": 1,
+          "tn": 137,
+          "fp": 6450,
+          "fn_added_vs_base": 1,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 7017,
+            "EXCLUDE": 138,
+            "HUMAN_REVIEW": 14
+          }
+        },
+        {
+          "dataset": "Leenaars_2020",
+          "variant": "hr_include_only_both_include",
+          "n": 7169,
+          "sensitivity": 1.0,
+          "specificity": 0.020191285866099893,
+          "auto_rate": 0.9973497000976427,
+          "human_review_rate": 0.002650299902357372,
+          "auto_include_rate": 0.978797600781141,
+          "auto_exclude_rate": 0.018552099316501605,
+          "tp": 582,
+          "fn": 0,
+          "tn": 133,
+          "fp": 6454,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 7017,
+            "EXCLUDE": 133,
+            "HUMAN_REVIEW": 19
+          }
+        },
+        {
+          "dataset": "Leenaars_2020",
+          "variant": "auto_exclude_veto_any_include",
+          "n": 7169,
+          "sensitivity": 1.0,
+          "specificity": 0.020191285866099893,
+          "auto_rate": 0.9973497000976427,
+          "human_review_rate": 0.002650299902357372,
+          "auto_include_rate": 0.978797600781141,
+          "auto_exclude_rate": 0.018552099316501605,
+          "tp": 582,
+          "fn": 0,
+          "tn": 133,
+          "fp": 6454,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 7017,
+            "EXCLUDE": 133,
+            "HUMAN_REVIEW": 19
+          }
+        },
+        {
+          "dataset": "Leenaars_2020",
+          "variant": "auto_exclude_veto_both_include",
+          "n": 7169,
+          "sensitivity": 1.0,
+          "specificity": 0.020191285866099893,
+          "auto_rate": 0.9973497000976427,
+          "human_review_rate": 0.002650299902357372,
+          "auto_include_rate": 0.978797600781141,
+          "auto_exclude_rate": 0.018552099316501605,
+          "tp": 582,
+          "fn": 0,
+          "tn": 133,
+          "fp": 6454,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 7017,
+            "EXCLUDE": 133,
+            "HUMAN_REVIEW": 19
+          }
+        },
+        {
+          "dataset": "Leenaars_2020",
+          "variant": "include_only_plus_veto_any_include",
+          "n": 7169,
+          "sensitivity": 1.0,
+          "specificity": 0.020191285866099893,
+          "auto_rate": 0.9973497000976427,
+          "human_review_rate": 0.002650299902357372,
+          "auto_include_rate": 0.978797600781141,
+          "auto_exclude_rate": 0.018552099316501605,
+          "tp": 582,
+          "fn": 0,
+          "tn": 133,
+          "fp": 6454,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 7017,
+            "EXCLUDE": 133,
+            "HUMAN_REVIEW": 19
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "Wassenaar_2017",
+      "base_config": "a11_rule_exclude",
+      "criteria_suffix": "criteria_v2",
+      "coverage": {
+        "all": {
+          "both_exclude": 3830,
+          "missing": 672,
+          "one_available": 3130,
+          "both_include": 11,
+          "split": 14
+        },
+        "hr": {
+          "both_exclude": 3830,
+          "one_available": 3130,
+          "both_include": 9,
+          "missing": 339,
+          "split": 14
+        },
+        "exclude": {
+          "missing": 47
+        }
+      },
+      "rows": [
+        {
+          "dataset": "Wassenaar_2017",
+          "variant": "base",
+          "n": 7657,
+          "sensitivity": 1.0,
+          "specificity": 0.006228465412138882,
+          "auto_rate": 0.04375081624657176,
+          "human_review_rate": 0.9562491837534283,
+          "auto_include_rate": 0.03761264202690349,
+          "auto_exclude_rate": 0.006138174219668277,
+          "tp": 111,
+          "fn": 0,
+          "tn": 47,
+          "fp": 7499,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 288,
+            "EXCLUDE": 47,
+            "HUMAN_REVIEW": 7322
+          }
+        },
+        {
+          "dataset": "Wassenaar_2017",
+          "variant": "old_hr_both_include_or_exclude",
+          "n": 7657,
+          "sensitivity": 0.5675675675675675,
+          "specificity": 0.5074211502782932,
+          "auto_rate": 0.545122110487136,
+          "human_review_rate": 0.45487788951286406,
+          "auto_include_rate": 0.03878803709024422,
+          "auto_exclude_rate": 0.5063340733968917,
+          "tp": 63,
+          "fn": 48,
+          "tn": 3829,
+          "fp": 3717,
+          "fn_added_vs_base": 48,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 297,
+            "EXCLUDE": 3877,
+            "HUMAN_REVIEW": 3483
+          }
+        },
+        {
+          "dataset": "Wassenaar_2017",
+          "variant": "hr_include_only_both_include",
+          "n": 7657,
+          "sensitivity": 1.0,
+          "specificity": 0.006228465412138882,
+          "auto_rate": 0.0449262113099125,
+          "human_review_rate": 0.9550737886900875,
+          "auto_include_rate": 0.03878803709024422,
+          "auto_exclude_rate": 0.006138174219668277,
+          "tp": 111,
+          "fn": 0,
+          "tn": 47,
+          "fp": 7499,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 297,
+            "EXCLUDE": 47,
+            "HUMAN_REVIEW": 7313
+          }
+        },
+        {
+          "dataset": "Wassenaar_2017",
+          "variant": "auto_exclude_veto_any_include",
+          "n": 7657,
+          "sensitivity": 1.0,
+          "specificity": 0.006228465412138882,
+          "auto_rate": 0.04375081624657176,
+          "human_review_rate": 0.9562491837534283,
+          "auto_include_rate": 0.03761264202690349,
+          "auto_exclude_rate": 0.006138174219668277,
+          "tp": 111,
+          "fn": 0,
+          "tn": 47,
+          "fp": 7499,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 288,
+            "EXCLUDE": 47,
+            "HUMAN_REVIEW": 7322
+          }
+        },
+        {
+          "dataset": "Wassenaar_2017",
+          "variant": "auto_exclude_veto_both_include",
+          "n": 7657,
+          "sensitivity": 1.0,
+          "specificity": 0.006228465412138882,
+          "auto_rate": 0.04375081624657176,
+          "human_review_rate": 0.9562491837534283,
+          "auto_include_rate": 0.03761264202690349,
+          "auto_exclude_rate": 0.006138174219668277,
+          "tp": 111,
+          "fn": 0,
+          "tn": 47,
+          "fp": 7499,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 288,
+            "EXCLUDE": 47,
+            "HUMAN_REVIEW": 7322
+          }
+        },
+        {
+          "dataset": "Wassenaar_2017",
+          "variant": "include_only_plus_veto_any_include",
+          "n": 7657,
+          "sensitivity": 1.0,
+          "specificity": 0.006228465412138882,
+          "auto_rate": 0.0449262113099125,
+          "human_review_rate": 0.9550737886900875,
+          "auto_include_rate": 0.03878803709024422,
+          "auto_exclude_rate": 0.006138174219668277,
+          "tp": 111,
+          "fn": 0,
+          "tn": 47,
+          "fp": 7499,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 297,
+            "EXCLUDE": 47,
+            "HUMAN_REVIEW": 7313
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "Hall_2012",
+      "base_config": "a11_rule_exclude",
+      "criteria_suffix": "criteria_v2",
+      "coverage": {
+        "all": {
+          "missing": 6118,
+          "both_exclude": 200,
+          "one_available": 2468,
+          "split": 3,
+          "both_include": 4
+        },
+        "hr": {
+          "both_exclude": 200,
+          "missing": 186,
+          "one_available": 2468,
+          "split": 3,
+          "both_include": 4
+        },
+        "exclude": {
+          "missing": 5550
+        }
+      },
+      "rows": [
+        {
+          "dataset": "Hall_2012",
+          "variant": "base",
+          "n": 8793,
+          "sensitivity": 0.9903846153846154,
+          "specificity": 0.6386235470134654,
+          "auto_rate": 0.6746275446377801,
+          "human_review_rate": 0.3253724553622199,
+          "auto_include_rate": 0.04344364835664733,
+          "auto_exclude_rate": 0.6311838962811327,
+          "tp": 103,
+          "fn": 1,
+          "tn": 5549,
+          "fp": 3140,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 382,
+            "EXCLUDE": 5550,
+            "HUMAN_REVIEW": 2861
+          }
+        },
+        {
+          "dataset": "Hall_2012",
+          "variant": "old_hr_both_include_or_exclude",
+          "n": 8793,
+          "sensitivity": 0.9903846153846154,
+          "specificity": 0.6616411554839452,
+          "auto_rate": 0.6978278175821676,
+          "human_review_rate": 0.3021721824178324,
+          "auto_include_rate": 0.043898555669282385,
+          "auto_exclude_rate": 0.6539292619128853,
+          "tp": 103,
+          "fn": 1,
+          "tn": 5749,
+          "fp": 2940,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 386,
+            "EXCLUDE": 5750,
+            "HUMAN_REVIEW": 2657
+          }
+        },
+        {
+          "dataset": "Hall_2012",
+          "variant": "hr_include_only_both_include",
+          "n": 8793,
+          "sensitivity": 0.9903846153846154,
+          "specificity": 0.6386235470134654,
+          "auto_rate": 0.675082451950415,
+          "human_review_rate": 0.3249175480495849,
+          "auto_include_rate": 0.043898555669282385,
+          "auto_exclude_rate": 0.6311838962811327,
+          "tp": 103,
+          "fn": 1,
+          "tn": 5549,
+          "fp": 3140,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 386,
+            "EXCLUDE": 5550,
+            "HUMAN_REVIEW": 2857
+          }
+        },
+        {
+          "dataset": "Hall_2012",
+          "variant": "auto_exclude_veto_any_include",
+          "n": 8793,
+          "sensitivity": 0.9903846153846154,
+          "specificity": 0.6386235470134654,
+          "auto_rate": 0.6746275446377801,
+          "human_review_rate": 0.3253724553622199,
+          "auto_include_rate": 0.04344364835664733,
+          "auto_exclude_rate": 0.6311838962811327,
+          "tp": 103,
+          "fn": 1,
+          "tn": 5549,
+          "fp": 3140,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 382,
+            "EXCLUDE": 5550,
+            "HUMAN_REVIEW": 2861
+          }
+        },
+        {
+          "dataset": "Hall_2012",
+          "variant": "auto_exclude_veto_both_include",
+          "n": 8793,
+          "sensitivity": 0.9903846153846154,
+          "specificity": 0.6386235470134654,
+          "auto_rate": 0.6746275446377801,
+          "human_review_rate": 0.3253724553622199,
+          "auto_include_rate": 0.04344364835664733,
+          "auto_exclude_rate": 0.6311838962811327,
+          "tp": 103,
+          "fn": 1,
+          "tn": 5549,
+          "fp": 3140,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 382,
+            "EXCLUDE": 5550,
+            "HUMAN_REVIEW": 2861
+          }
+        },
+        {
+          "dataset": "Hall_2012",
+          "variant": "include_only_plus_veto_any_include",
+          "n": 8793,
+          "sensitivity": 0.9903846153846154,
+          "specificity": 0.6386235470134654,
+          "auto_rate": 0.675082451950415,
+          "human_review_rate": 0.3249175480495849,
+          "auto_include_rate": 0.043898555669282385,
+          "auto_exclude_rate": 0.6311838962811327,
+          "tp": 103,
+          "fn": 1,
+          "tn": 5549,
+          "fp": 3140,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 386,
+            "EXCLUDE": 5550,
+            "HUMAN_REVIEW": 2857
+          }
+        }
+      ]
+    },
+    {
+      "dataset": "van_Dis_2020",
+      "base_config": "a11_rule_exclude",
+      "criteria_suffix": "criteria_v2",
+      "coverage": {
+        "all": {
+          "missing": 9098,
+          "one_available": 2,
+          "both_exclude": 14
+        },
+        "hr": {
+          "one_available": 2,
+          "both_exclude": 14
+        },
+        "exclude": {
+          "missing": 44
+        }
+      },
+      "rows": [
+        {
+          "dataset": "van_Dis_2020",
+          "variant": "base",
+          "n": 9114,
+          "sensitivity": 1.0,
+          "specificity": 0.004866180048661801,
+          "auto_rate": 0.9982444590739522,
+          "human_review_rate": 0.0017555409260478386,
+          "auto_include_rate": 0.9934167215273206,
+          "auto_exclude_rate": 0.0048277375466315555,
+          "tp": 72,
+          "fn": 0,
+          "tn": 44,
+          "fp": 8998,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 9054,
+            "EXCLUDE": 44,
+            "HUMAN_REVIEW": 16
+          }
+        },
+        {
+          "dataset": "van_Dis_2020",
+          "variant": "old_hr_both_include_or_exclude",
+          "n": 9114,
+          "sensitivity": 0.9722222222222222,
+          "specificity": 0.0061933200619332,
+          "auto_rate": 0.999780557384244,
+          "human_review_rate": 0.00021944261575597982,
+          "auto_include_rate": 0.9934167215273206,
+          "auto_exclude_rate": 0.006363835856923414,
+          "tp": 70,
+          "fn": 2,
+          "tn": 56,
+          "fp": 8986,
+          "fn_added_vs_base": 2,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 9054,
+            "EXCLUDE": 58,
+            "HUMAN_REVIEW": 2
+          }
+        },
+        {
+          "dataset": "van_Dis_2020",
+          "variant": "hr_include_only_both_include",
+          "n": 9114,
+          "sensitivity": 1.0,
+          "specificity": 0.004866180048661801,
+          "auto_rate": 0.9982444590739522,
+          "human_review_rate": 0.0017555409260478386,
+          "auto_include_rate": 0.9934167215273206,
+          "auto_exclude_rate": 0.0048277375466315555,
+          "tp": 72,
+          "fn": 0,
+          "tn": 44,
+          "fp": 8998,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 9054,
+            "EXCLUDE": 44,
+            "HUMAN_REVIEW": 16
+          }
+        },
+        {
+          "dataset": "van_Dis_2020",
+          "variant": "auto_exclude_veto_any_include",
+          "n": 9114,
+          "sensitivity": 1.0,
+          "specificity": 0.004866180048661801,
+          "auto_rate": 0.9982444590739522,
+          "human_review_rate": 0.0017555409260478386,
+          "auto_include_rate": 0.9934167215273206,
+          "auto_exclude_rate": 0.0048277375466315555,
+          "tp": 72,
+          "fn": 0,
+          "tn": 44,
+          "fp": 8998,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 9054,
+            "EXCLUDE": 44,
+            "HUMAN_REVIEW": 16
+          }
+        },
+        {
+          "dataset": "van_Dis_2020",
+          "variant": "auto_exclude_veto_both_include",
+          "n": 9114,
+          "sensitivity": 1.0,
+          "specificity": 0.004866180048661801,
+          "auto_rate": 0.9982444590739522,
+          "human_review_rate": 0.0017555409260478386,
+          "auto_include_rate": 0.9934167215273206,
+          "auto_exclude_rate": 0.0048277375466315555,
+          "tp": 72,
+          "fn": 0,
+          "tn": 44,
+          "fp": 8998,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 9054,
+            "EXCLUDE": 44,
+            "HUMAN_REVIEW": 16
+          }
+        },
+        {
+          "dataset": "van_Dis_2020",
+          "variant": "include_only_plus_veto_any_include",
+          "n": 9114,
+          "sensitivity": 1.0,
+          "specificity": 0.004866180048661801,
+          "auto_rate": 0.9982444590739522,
+          "human_review_rate": 0.0017555409260478386,
+          "auto_include_rate": 0.9934167215273206,
+          "auto_exclude_rate": 0.0048277375466315555,
+          "tp": 72,
+          "fn": 0,
+          "tn": 44,
+          "fp": 8998,
+          "fn_added_vs_base": 0,
+          "fn_rescued_vs_base": 0,
+          "decision_counts": {
+            "INCLUDE": 9054,
+            "EXCLUDE": 44,
+            "HUMAN_REVIEW": 16
+          }
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Historical cache primarily covers HR supplement prompts; base auto-EXCLUDE veto coverage may be sparse.",
+    "This is a development-cohort counterfactual, not a paper headline result.",
+    "The old auto-EXCLUDE reasoner rule bypassed current Phase 2 gates and should not be used as a production rule."
+  ]
+}

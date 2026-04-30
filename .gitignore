@@ -84,12 +84,63 @@ frontend/dist/
 /paper/FINDINGS_LEDGER.md
 /paper/NEXT_STEPS.md
 
-# Experiment data — too large for git (datasets: ~341MB, results: ~13GB)
+# Experiment data — too large for git
 experiments/datasets/
-experiments/results/
 experiments/results_v1_post_audit/
 experiments/.cache/
 external_sources/
+
+# Per-dataset raw result directories (large per-record JSONs, reproduced from LLM cache)
+experiments/results/CLEF_CD*/
+experiments/results/Cohen_*/
+experiments/results/Appenzeller-Herzog_2019/
+experiments/results/Bos_2018/
+experiments/results/Brouwer_2019/
+experiments/results/Chou_2003/
+experiments/results/Chou_2004/
+experiments/results/Donners_2021/
+experiments/results/Hall_2012/
+experiments/results/Jeyaraman_2020/
+experiments/results/Leenaars_2019/
+experiments/results/Leenaars_2020/
+experiments/results/Meijboom_2021/
+experiments/results/Menon_2022/
+experiments/results/Moran_2021/
+experiments/results/Muthu_2021/
+experiments/results/Nelson_2002/
+experiments/results/Oud_2018/
+experiments/results/Radjenovic_2013/
+experiments/results/Sep_2021/
+experiments/results/Smid_2020/
+experiments/results/van_Dis_2020/
+experiments/results/van_de_Schoot_2018/
+experiments/results/van_der_Valk_2021/
+experiments/results/van_der_Waal_2022/
+experiments/results/Walker_2018/
+experiments/results/Wassenaar_2017/
+experiments/results/Wolters_2018/
+
+# ASReview bulk run files (summary.json kept in each)
+experiments/results/asreview_external33_full/logs/
+experiments/results/asreview_external33_full/metrics/
+experiments/results/asreview_external33_full/projects/
+experiments/results/asreview_external33_full/rankings/
+experiments/results/asreview_external33_full/run_logs/
+experiments/results/asreview_other26_full/logs/
+experiments/results/asreview_other26_full/metrics/
+experiments/results/asreview_other26_full/projects/
+experiments/results/asreview_other26_full/rankings/
+experiments/results/asreview_other26_full/run_logs/
+experiments/results/asreview_benchmark/
+experiments/results/asreview_all_labelled/
+
+# Intermediate experiment bulk files (not paper-grade results)
+experiments/results/hr_plus3/
+experiments/results/_failed/
+
+# Independent signals — OpenAlex API cache (3.5GB) and large feature CSVs
+experiments/results/independent_signals_phase1/openalex_cache/
+experiments/results/independent_signals_phase1/b1_b2_b3_full_lodo_features/
 
 # OS / editor junk
 .DS_Store

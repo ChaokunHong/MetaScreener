@@ -1,0 +1,112 @@
+{
+  "datasets": [
+    "Jeyaraman_2020",
+    "Chou_2003",
+    "van_der_Waal_2022",
+    "Smid_2020",
+    "Muthu_2021",
+    "Appenzeller-Herzog_2019",
+    "van_de_Schoot_2018",
+    "Moran_2021",
+    "Radjenovic_2013",
+    "Leenaars_2020",
+    "Wassenaar_2017",
+    "Hall_2012",
+    "van_Dis_2020"
+  ],
+  "base_config": "a11_rule_exclude",
+  "baseline_pooled": {
+    "n": 61663,
+    "tp": 1343,
+    "fn": 9,
+    "tn": 8470,
+    "fp": 24414,
+    "auto_rate": 0.5552113909475699,
+    "hr_rate": 0.4447886090524301,
+    "sens": 0.9933431952662722,
+    "spec": 0.25757207152414546
+  },
+  "rules": [
+    {
+      "rule": "lex top 10%",
+      "veto_n": 270,
+      "fn_rescued": 2,
+      "te_moved_hr": 268,
+      "sens": 0.9948148148148148,
+      "spec": 0.25147167034584256,
+      "delta_hr_pp": 0.4378638729870432
+    },
+    {
+      "rule": "lex top 25%",
+      "veto_n": 1102,
+      "fn_rescued": 6,
+      "te_moved_hr": 1096,
+      "sens": 0.9977711738484398,
+      "spec": 0.23197432993582484,
+      "delta_hr_pp": 1.7871332890063762
+    },
+    {
+      "rule": "reasoner ANY = INCLUDE",
+      "veto_n": 1,
+      "fn_rescued": 1,
+      "te_moved_hr": 0,
+      "sens": 0.9940784603997039,
+      "spec": 0.25757207152414546,
+      "delta_hr_pp": 0.0016217180481004068
+    },
+    {
+      "rule": "reasoner \u22652 INCLUDE",
+      "veto_n": 0,
+      "fn_rescued": 0,
+      "te_moved_hr": 0,
+      "sens": 0.9933431952662722,
+      "spec": 0.25757207152414546,
+      "delta_hr_pp": 0.0
+    },
+    {
+      "rule": "hybrid OR: lex top 10% OR any reasoner INC",
+      "veto_n": 270,
+      "fn_rescued": 2,
+      "te_moved_hr": 268,
+      "sens": 0.9948148148148148,
+      "spec": 0.25147167034584256,
+      "delta_hr_pp": 0.4378638729870432
+    },
+    {
+      "rule": "hybrid OR: lex top 25% OR any reasoner INC",
+      "veto_n": 1102,
+      "fn_rescued": 6,
+      "te_moved_hr": 1096,
+      "sens": 0.9977711738484398,
+      "spec": 0.23197432993582484,
+      "delta_hr_pp": 1.7871332890063762
+    },
+    {
+      "rule": "hybrid AND: lex top 25% AND \u22651 reasoner INC (cached)",
+      "veto_n": 1,
+      "fn_rescued": 1,
+      "te_moved_hr": 0,
+      "sens": 0.9940784603997039,
+      "spec": 0.25757207152414546,
+      "delta_hr_pp": 0.0016217180481004068
+    },
+    {
+      "rule": "hybrid AND: lex top 50% AND \u22651 reasoner INC (cached)",
+      "veto_n": 1,
+      "fn_rescued": 1,
+      "te_moved_hr": 0,
+      "sens": 0.9940784603997039,
+      "spec": 0.25757207152414546,
+      "delta_hr_pp": 0.0016217180481004068
+    },
+    {
+      "rule": "hybrid SMART: lex top 25% OR (cached & any reasoner INC)",
+      "veto_n": 1102,
+      "fn_rescued": 6,
+      "te_moved_hr": 1096,
+      "sens": 0.9977711738484398,
+      "spec": 0.23197432993582484,
+      "delta_hr_pp": 1.7871332890063762
+    }
+  ]
+}

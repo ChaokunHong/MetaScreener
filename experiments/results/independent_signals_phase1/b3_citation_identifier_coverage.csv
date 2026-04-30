@@ -1,0 +1,4 @@
+cohort,n_records,n_datasets,openalex,pmid,doi,unknown,missing,queryable_rate
+clef,39354,18,0,39354,0,0,0,1.0
+cohen,18731,15,0,18731,0,0,0,1.0
+synergy,169288,26,169288,0,0,0,0,1.0
