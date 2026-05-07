@@ -1,0 +1,37 @@
+{
+  "base_seed": 42,
+  "code_commit": "1e9007772e07c4b8c2acc84f12e4d6e6b9569d83",
+  "config_hash": "46cd3ee0a50e7a759f3ca90b50d4fc17c65b2687c788cf39087c1826683ec33e",
+  "created_at_utc": "2026-04-30T13:17:52Z",
+  "dataset_count": 1,
+  "datasets": [
+    "Nelson_2002"
+  ],
+  "feature_keys": [],
+  "feature_set_id": "text_tfidf",
+  "inputs": [
+    {
+      "dataset": "Nelson_2002",
+      "records_csv_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/datasets/Nelson_2002/records.csv",
+      "result_json_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/Nelson_2002/a13b_coverage_rule.json"
+    }
+  ],
+  "output_files": {
+    "events": "events.jsonl.gz",
+    "manifest": "manifest.json",
+    "per_dataset_summary": "per_dataset_summary.jsonl"
+  },
+  "query_policy": "greedy_highest_predicted_include_probability",
+  "ranker_kind": "a1_tfidf",
+  "ranker_name": "tfidf_logistic",
+  "run_id": "synergy26-a1-Nelson_2002",
+  "seed_list": [
+    42,
+    123,
+    456,
+    789,
+    2024
+  ],
+  "stopping_rule": "none_full_corpus_completion",
+  "target_recall": 0.985
+}

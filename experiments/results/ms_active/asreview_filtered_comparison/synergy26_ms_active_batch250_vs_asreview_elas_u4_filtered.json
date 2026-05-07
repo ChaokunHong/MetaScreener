@@ -1,0 +1,248 @@
+{
+  "generated_at": "2026-05-05T08:26:15.383404+00:00",
+  "scope": "SYNERGY 26 internal comparison; Walker ASReview elas_u4 is old-project filtered to a13b/MS-Active valid-record subset.",
+  "target_recall": 0.985,
+  "n_datasets": 26,
+  "ms_wins": 8,
+  "asreview_wins": 18,
+  "macro_ms_wss": 0.57718159503183,
+  "macro_asreview_elas_u4_wss": 0.5937113168474563,
+  "pooled_ms_work": 44365.799999999996,
+  "pooled_asreview_elas_u4_work": 42638.40000000001,
+  "paired": [
+    {
+      "dataset": "Appenzeller-Herzog_2019",
+      "n_total": 2868,
+      "ms_mean_work": 2396.2,
+      "ms_mean_wss": 0.14950488145048815,
+      "asreview_elas_u4_mean_work": 2343.8,
+      "asreview_elas_u4_mean_wss": 0.16919770274973894,
+      "ms_wins": false
+    },
+    {
+      "dataset": "Bos_2018",
+      "n_total": 4878,
+      "ms_mean_work": 238.2,
+      "ms_mean_wss": 0.9361685116851168,
+      "asreview_elas_u4_mean_work": 405.2,
+      "asreview_elas_u4_mean_wss": 0.9019331693316932,
+      "ms_wins": true
+    },
+    {
+      "dataset": "Brouwer_2019",
+      "n_total": 38076,
+      "ms_mean_work": 1037.0,
+      "ms_mean_wss": 0.9577649963231432,
+      "asreview_elas_u4_mean_work": 970.8,
+      "asreview_elas_u4_mean_wss": 0.9595290444456106,
+      "ms_wins": false
+    },
+    {
+      "dataset": "Chou_2003",
+      "n_total": 1906,
+      "ms_mean_work": 1468.2,
+      "ms_mean_wss": 0.21469569779643227,
+      "asreview_elas_u4_mean_work": 1328.8,
+      "asreview_elas_u4_mean_wss": 0.28856394129979035,
+      "ms_wins": false
+    },
+    {
+      "dataset": "Chou_2004",
+      "n_total": 1622,
+      "ms_mean_work": 961.0,
+      "ms_mean_wss": 0.39252157829839707,
+      "asreview_elas_u4_mean_work": 1089.4,
+      "asreview_elas_u4_mean_wss": 0.31665644171779145,
+      "ms_wins": true
+    },
+    {
+      "dataset": "Donners_2021",
+      "n_total": 257,
+      "ms_mean_work": 66.6,
+      "ms_mean_wss": 0.7258560311284047,
+      "asreview_elas_u4_mean_work": 98.6,
+      "asreview_elas_u4_mean_wss": 0.6028294573643411,
+      "ms_wins": true
+    },
+    {
+      "dataset": "Hall_2012",
+      "n_total": 8793,
+      "ms_mean_work": 467.4,
+      "ms_mean_wss": 0.9318440805185944,
+      "asreview_elas_u4_mean_work": 358.4,
+      "asreview_elas_u4_mean_wss": 0.9442403047878996,
+      "ms_wins": false
+    },
+    {
+      "dataset": "Jeyaraman_2020",
+      "n_total": 1173,
+      "ms_mean_work": 561.4,
+      "ms_mean_wss": 0.5063981244671781,
+      "asreview_elas_u4_mean_work": 477.8,
+      "asreview_elas_u4_mean_wss": 0.5783617021276595,
+      "ms_wins": false
+    },
+    {
+      "dataset": "Leenaars_2019",
+      "n_total": 5767,
+      "ms_mean_work": 83.0,
+      "ms_mean_wss": 0.9706077683370904,
+      "asreview_elas_u4_mean_work": 74.2,
+      "asreview_elas_u4_mean_wss": 0.9722333103922918,
+      "ms_wins": false
+    },
+    {
+      "dataset": "Leenaars_2020",
+      "n_total": 7169,
+      "ms_mean_work": 2909.2,
+      "ms_mean_wss": 0.5791972381085227,
+      "asreview_elas_u4_mean_work": 2935.4,
+      "asreview_elas_u4_mean_wss": 0.578209534368071,
+      "ms_wins": true
+    },
+    {
+      "dataset": "Meijboom_2021",
+      "n_total": 882,
+      "ms_mean_work": 538.0,
+      "ms_mean_wss": 0.3750226757369614,
+      "asreview_elas_u4_mean_work": 392.0,
+      "asreview_elas_u4_mean_wss": 0.5405555555555555,
+      "ms_wins": false
+    },
+    {
+      "dataset": "Menon_2022",
+      "n_total": 975,
+      "ms_mean_work": 725.2,
+      "ms_mean_wss": 0.24120512820512818,
+      "asreview_elas_u4_mean_work": 724.2,
+      "asreview_elas_u4_mean_wss": 0.2422307692307692,
+      "ms_wins": false
+    },
+    {
+      "dataset": "Moran_2021",
+      "n_total": 5199,
+      "ms_mean_work": 4596.2,
+      "ms_mean_wss": 0.10094537411040583,
+      "asreview_elas_u4_mean_work": 4226.0,
+      "asreview_elas_u4_mean_wss": 0.1744898350594553,
+      "ms_wins": false
+    },
+    {
+      "dataset": "Muthu_2021",
+      "n_total": 2719,
+      "ms_mean_work": 1912.6,
+      "ms_mean_wss": 0.2815796248620816,
+      "asreview_elas_u4_mean_work": 1803.4,
+      "asreview_elas_u4_mean_wss": 0.3217414490621551,
+      "ms_wins": false
+    },
+    {
+      "dataset": "Nelson_2002",
+      "n_total": 365,
+      "ms_mean_work": 264.6,
+      "ms_mean_wss": 0.26006849315068487,
+      "asreview_elas_u4_mean_work": 266.4,
+      "asreview_elas_u4_mean_wss": 0.25713114754098354,
+      "ms_wins": true
+    },
+    {
+      "dataset": "Oud_2018",
+      "n_total": 950,
+      "ms_mean_work": 234.8,
+      "ms_mean_wss": 0.7378421052631579,
+      "asreview_elas_u4_mean_work": 139.0,
+      "asreview_elas_u4_mean_wss": 0.8389915966386553,
+      "ms_wins": false
+    },
+    {
+      "dataset": "Radjenovic_2013",
+      "n_total": 5935,
+      "ms_mean_work": 630.6,
+      "ms_mean_wss": 0.8787489469250209,
+      "asreview_elas_u4_mean_work": 570.4,
+      "asreview_elas_u4_mean_wss": 0.8888921651221567,
+      "ms_wins": false
+    },
+    {
+      "dataset": "Sep_2021",
+      "n_total": 271,
+      "ms_mean_work": 226.4,
+      "ms_mean_wss": 0.14957564575645757,
+      "asreview_elas_u4_mean_work": 223.6,
+      "asreview_elas_u4_mean_wss": 0.15990774907749078,
+      "ms_wins": false
+    },
+    {
+      "dataset": "Smid_2020",
+      "n_total": 2622,
+      "ms_mean_work": 340.4,
+      "ms_mean_wss": 0.8551754385964913,
+      "asreview_elas_u4_mean_work": 322.8,
+      "asreview_elas_u4_mean_wss": 0.8621221926151504,
+      "ms_wins": false
+    },
+    {
+      "dataset": "Walker_2018",
+      "n_total": 48153,
+      "ms_mean_work": 17568.6,
+      "ms_mean_wss": 0.6201504579153946,
+      "asreview_elas_u4_mean_work": 17813.2,
+      "asreview_elas_u4_mean_wss": 0.6150708159408552,
+      "ms_wins": true
+    },
+    {
+      "dataset": "Wassenaar_2017",
+      "n_total": 7657,
+      "ms_mean_work": 1794.8,
+      "ms_mean_wss": 0.7506001044795612,
+      "asreview_elas_u4_mean_work": 1656.0,
+      "asreview_elas_u4_mean_wss": 0.7690375586854461,
+      "ms_wins": false
+    },
+    {
+      "dataset": "Wolters_2018",
+      "n_total": 4272,
+      "ms_mean_work": 780.4,
+      "ms_mean_wss": 0.802322097378277,
+      "asreview_elas_u4_mean_work": 637.0,
+      "asreview_elas_u4_mean_wss": 0.8361682242990653,
+      "ms_wins": false
+    },
+    {
+      "dataset": "van_Dis_2020",
+      "n_total": 9114,
+      "ms_mean_work": 2959.0,
+      "ms_mean_wss": 0.6603346499890279,
+      "asreview_elas_u4_mean_work": 2248.8,
+      "asreview_elas_u4_mean_wss": 0.7386371603856265,
+      "ms_wins": false
+    },
+    {
+      "dataset": "van_de_Schoot_2018",
+      "n_total": 4538,
+      "ms_mean_work": 507.8,
+      "ms_mean_wss": 0.8731004847950639,
+      "asreview_elas_u4_mean_work": 270.8,
+      "asreview_elas_u4_mean_wss": 0.9254049295774649,
+      "ms_wins": false
+    },
+    {
+      "dataset": "van_der_Valk_2021",
+      "n_total": 725,
+      "ms_mean_work": 409.6,
+      "ms_mean_wss": 0.4200344827586207,
+      "asreview_elas_u4_mean_work": 430.0,
+      "asreview_elas_u4_mean_wss": 0.39189655172413795,
+      "ms_wins": true
+    },
+    {
+      "dataset": "van_der_Waal_2022",
+      "n_total": 1970,
+      "ms_mean_work": 688.6,
+      "ms_mean_wss": 0.6354568527918782,
+      "asreview_elas_u4_mean_work": 832.4,
+      "asreview_elas_u4_mean_wss": 0.5624619289340101,
+      "ms_wins": true
+    }
+  ]
+}

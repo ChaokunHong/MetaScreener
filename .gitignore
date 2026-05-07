@@ -138,6 +138,13 @@ experiments/results/asreview_all_labelled/
 experiments/results/hr_plus3/
 experiments/results/_failed/
 
+# MS-Active local logs / non-paper artifacts
+experiments/results/ms_active/*.log
+experiments/results/ms_active/walker_a1_capped_diagnostic*/
+experiments/results/ms_active/smoke_donners_*/
+experiments/results/ms_active/**/events.jsonl.gz
+experiments/results/ms_active/**/status.jsonl
+
 # Independent signals — OpenAlex API cache (3.5GB) and large feature CSVs
 experiments/results/independent_signals_phase1/openalex_cache/
 experiments/results/independent_signals_phase1/b1_b2_b3_full_lodo_features/

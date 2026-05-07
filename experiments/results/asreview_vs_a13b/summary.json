@@ -10,10 +10,10 @@
   "a13b_wins_pct": 0.1935483870967742,
   "pooled": {
     "a13b_hr_count": 42962,
-    "asr_nb_records": 24880.4,
-    "asr_u4_records": 17333.399999999998,
-    "asr_best": 17227.8,
-    "delta": 25734.2,
+    "asr_nb_records": 24880.399999999994,
+    "asr_u4_records": 17333.4,
+    "asr_best": 17227.800000000003,
+    "delta": 25734.199999999997,
     "n_total": 55818
   },
   "wilcoxon_workload": {

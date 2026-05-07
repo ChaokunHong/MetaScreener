@@ -1,0 +1,39 @@
+{
+  "generated_by": "experiments/scripts/summarize_ms_active_batch250_audit.py",
+  "source": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/ms_active/asreview_filtered_comparison/synergy26_ms_active_batch250_vs_asreview_elas_u4_filtered.json",
+  "target_recall": 0.985,
+  "n_datasets": 26,
+  "ms_wins": 8,
+  "asreview_wins": 18,
+  "ms_favourable_fraction": 0.3076923076923077,
+  "pre_registered_success_threshold_fraction": 0.6,
+  "macro_ms_wss": 0.57718159503183,
+  "macro_asreview_elas_u4_wss": 0.5937113168474563,
+  "pooled_ms_work": 44365.799999999996,
+  "pooled_asreview_elas_u4_work": 42638.40000000001,
+  "pooled_delta_ms_minus_asreview": 1727.399999999987,
+  "wilcoxon": {
+    "ms_less_workload": {
+      "alternative": "less",
+      "statistic": 246.0,
+      "p_value": 0.9645394682884216
+    },
+    "ms_greater_workload": {
+      "alternative": "greater",
+      "statistic": 246.0,
+      "p_value": 0.037574514746665955
+    },
+    "two_sided": {
+      "alternative": "two-sided",
+      "statistic": 105.0,
+      "p_value": 0.07514902949333191
+    }
+  },
+  "section_13_3_status": {
+    "criterion_1_reaches_R_0_985": "incomplete_for_confirmatory_use",
+    "criterion_1_note": "The available batch250 artifacts are post-hoc and outside the pre-registered batch-size ladder; they should not be used as a confirmatory safety gate.",
+    "criterion_2_at_least_60pct_favourable": false,
+    "criterion_3_one_sided_p_lt_0_0125_favouring_ms": false,
+    "criterion_4_pooled_work_lower_than_elas_u4": false
+  }
+}

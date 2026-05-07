@@ -1,0 +1,45 @@
+{
+  "generated_by": "experiments/scripts/summarize_ms_active_batch250_audit.py",
+  "purpose": "Document why Walker_2018 A1-batch250 is a post-hoc computational fallback rather than exact pre-registered A1.",
+  "exact_a1_definition": "query_batch_size=1",
+  "post_hoc_variant": "A1-batch250 uses query_batch_size=250",
+  "pre_registered_batch_sizes": {
+    "primary": 1,
+    "deployment_sensitivity": [
+      5,
+      10,
+      20
+    ],
+    "not_pre_registered": [
+      250
+    ]
+  },
+  "observed_exact_batch1_attempts": {
+    "target_stop_log": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/ms_active/synergy26_a1_label_free_prepared.target_stop.log",
+    "target_stop_elapsed_seconds": 93682.0,
+    "target_stop_done_marker_emitted": true,
+    "checkpoint_log": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/ms_active/synergy26_a1_label_free_prepared.walker_checkpoint.log",
+    "checkpoint_elapsed_seconds": 39299.0,
+    "checkpoint_done_marker_emitted": true,
+    "usable_walker_artifact_exists": false,
+    "capped_diagnostic_log": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/ms_active/walker_a1_capped_diagnostic.log",
+    "cap_500_elapsed_seconds": 494.0,
+    "cap_1000_started_without_done": true,
+    "batch250_summary_for_lower_bound": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/ms_active/walker_a1_batch250_formal/Walker_2018/per_dataset_summary.jsonl",
+    "mean_batch250_recall_work": 17568.6
+  },
+  "batch250_formal": {
+    "log": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/ms_active/walker_a1_batch250_formal.log",
+    "elapsed_seconds_for_five_seeds": 1100.0,
+    "elapsed_hours_for_five_seeds": 0.3055555555555556
+  },
+  "wallclock_interpretation": {
+    "max_observed_exact_batch1_no_artifact_hours": 26.022777777777776,
+    "upper_bound_serial_five_seed_hours": 130.11388888888888,
+    "upper_bound_basis": "Longest observed no-artifact batch=1 attempt elapsed time x 5 seeds. This treats the failed attempt as if it were a single Walker seed, although the logs do not prove that interpretation.",
+    "lower_bound_serial_five_seed_hours": 24.108023333333332,
+    "lower_bound_basis": "cap_500 diagnostic elapsed time per reviewed record, linearly extrapolated to the mean batch250 records-to-recall work x 5 seeds. This ignores logistic-regression refit cost growth as the labelled training set expands.",
+    "implication_for_pre_registered_ladder": "Even the upper-bound extrapolation does not justify skipping all pre-registered deployment batches {5, 10, 20}: those batches should be materially faster than batch=1. Their absence is a residual gap relative to ms_active_risk_preregistration.md Section 8.",
+    "caveat": "These logs provide feasibility evidence, not a benchmark-speed claim. The exact batch=1 Walker run did not leave a usable Walker_2018 artifact in synergy26_a1_label_free_prepared; therefore batch250 must remain post-hoc supplementary evidence."
+  }
+}

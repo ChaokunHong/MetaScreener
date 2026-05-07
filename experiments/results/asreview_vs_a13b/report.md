@@ -24,6 +24,10 @@ a13b requires 25,734 more human-reviewed records than ASReview best-per-dataset.
 
 `a13b_greater_workload` tests whether a13b requires more human work than ASReview: p = 2.80663e-05.
 Two-sided paired Wilcoxon: p = 5.61327e-05.
+The three Wilcoxon outputs in `summary.json` are descriptive views of the same paired workload vector, not independent evidence streams. Headline interpretation uses `a13b_greater_workload` only.
+No multiple-comparison correction is applied because these three directional views are not independent confirmatory tests.
+The ASReview-dominance threshold is pre-registered in §4.3 of `paper/asreview_comparison_preregistration.md`: ASReview dominates when median WSS@0.985 exceeds `1 - a13b pooled HR rate`.
+The dominance rules are asymmetric by design: a13b dominance requires recall qualification plus a favourable paired workload test, while ASReview dominance is evaluated against the pre-registered WSS threshold.
 
 ## Interpretation
 

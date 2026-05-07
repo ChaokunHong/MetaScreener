@@ -135,6 +135,28 @@ def write_markdown_report(
                 f"human work than ASReview: p = {greater_p:.6g}."
             ),
             f"Two-sided paired Wilcoxon: p = {two_sided_p:.6g}.",
+            (
+                "The three Wilcoxon outputs in `summary.json` are descriptive "
+                "views of the same paired workload vector, not independent "
+                "evidence streams. Headline interpretation uses "
+                "`a13b_greater_workload` only."
+            ),
+            (
+                "No multiple-comparison correction is applied because these "
+                "three directional views are not independent confirmatory tests."
+            ),
+            (
+                "The ASReview-dominance threshold is pre-registered in §4.3 "
+                "of `paper/asreview_comparison_preregistration.md`: ASReview "
+                "dominates when median WSS@0.985 exceeds "
+                "`1 - a13b pooled HR rate`."
+            ),
+            (
+                "The dominance rules are asymmetric by design: a13b dominance "
+                "requires recall qualification plus a favourable paired "
+                "workload test, while ASReview dominance is evaluated against "
+                "the pre-registered WSS threshold."
+            ),
         ])
     else:
         lines.append("Not enough paired datasets for Wilcoxon testing.")

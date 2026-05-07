@@ -1,0 +1,41 @@
+{
+  "base_seed": 42,
+  "checkpoint_after_each_seed": true,
+  "code_commit": "1e9007772e07c4b8c2acc84f12e4d6e6b9569d83",
+  "config_hash": "c26317204333c5febf80b034ab650ba2ebc5d3b0e3c62a65a495da13bc4ce0fa",
+  "created_at_utc": "2026-05-05T03:03:46Z",
+  "dataset_count": 1,
+  "datasets": [
+    "Walker_2018"
+  ],
+  "feature_keys": [],
+  "feature_set_id": "text_tfidf",
+  "inputs": [
+    {
+      "dataset": "Walker_2018",
+      "records_csv_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/datasets/Walker_2018/records.csv",
+      "result_json_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/Walker_2018/a13b_coverage_rule.json"
+    }
+  ],
+  "max_human_work": null,
+  "output_files": {
+    "events": "events.jsonl.gz",
+    "manifest": "manifest.json",
+    "per_dataset_summary": "per_dataset_summary.jsonl"
+  },
+  "query_batch_size": 250,
+  "query_policy": "greedy_highest_predicted_include_probability",
+  "ranker_kind": "a1_tfidf",
+  "ranker_name": "tfidf_logistic",
+  "run_id": "walker-a1-batch250-formal",
+  "seed_list": [
+    42,
+    123,
+    456,
+    789,
+    2024
+  ],
+  "stop_when_target_recall_reached": true,
+  "stopping_rule": "target_recall_reached",
+  "target_recall": 0.985
+}

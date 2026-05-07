@@ -1,0 +1,37 @@
+{
+  "base_seed": 42,
+  "code_commit": "1e9007772e07c4b8c2acc84f12e4d6e6b9569d83",
+  "config_hash": "0fc55f87b23a665cba5e18586f0381e18d8121f7eeeae48f7a7698420bb54a3a",
+  "created_at_utc": "2026-05-01T07:17:28Z",
+  "dataset_count": 1,
+  "datasets": [
+    "Moran_2021"
+  ],
+  "feature_keys": [],
+  "feature_set_id": "text_tfidf",
+  "inputs": [
+    {
+      "dataset": "Moran_2021",
+      "records_csv_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/datasets/Moran_2021/records.csv",
+      "result_json_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/Moran_2021/a13b_coverage_rule.json"
+    }
+  ],
+  "output_files": {
+    "events": "events.jsonl.gz",
+    "manifest": "manifest.json",
+    "per_dataset_summary": "per_dataset_summary.jsonl"
+  },
+  "query_policy": "greedy_highest_predicted_include_probability",
+  "ranker_kind": "a1_tfidf",
+  "ranker_name": "tfidf_logistic",
+  "run_id": "synergy26-a1-Moran_2021",
+  "seed_list": [
+    42,
+    123,
+    456,
+    789,
+    2024
+  ],
+  "stopping_rule": "none_full_corpus_completion",
+  "target_recall": 0.985
+}

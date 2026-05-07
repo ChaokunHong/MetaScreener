@@ -1,0 +1,37 @@
+{
+  "base_seed": 42,
+  "code_commit": "1e9007772e07c4b8c2acc84f12e4d6e6b9569d83",
+  "config_hash": "c28f0a7cf4d3d2313d9a542b94c6b9b0520e6a83a94aed34d47080b5a3eba292",
+  "created_at_utc": "2026-04-30T13:16:43Z",
+  "dataset_count": 1,
+  "datasets": [
+    "Donners_2021"
+  ],
+  "feature_keys": [],
+  "feature_set_id": "text_tfidf",
+  "inputs": [
+    {
+      "dataset": "Donners_2021",
+      "records_csv_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/datasets/Donners_2021/records.csv",
+      "result_json_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/Donners_2021/a13b_coverage_rule.json"
+    }
+  ],
+  "output_files": {
+    "events": "events.jsonl.gz",
+    "manifest": "manifest.json",
+    "per_dataset_summary": "per_dataset_summary.jsonl"
+  },
+  "query_policy": "greedy_highest_predicted_include_probability",
+  "ranker_kind": "a1_tfidf",
+  "ranker_name": "tfidf_logistic",
+  "run_id": "synergy26-a1-Donners_2021",
+  "seed_list": [
+    42,
+    123,
+    456,
+    789,
+    2024
+  ],
+  "stopping_rule": "none_full_corpus_completion",
+  "target_recall": 0.985
+}
