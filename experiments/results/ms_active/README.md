@@ -12,6 +12,7 @@ Use these files for the current paper-state audit:
 - `walker_a1_batch250_formal/Walker_2018/per_dataset_summary.jsonl`
 - `walker_a1_batch250_formal.log`
 - `asreview_filtered_comparison/walker_2018_elas_u4_filtered_to_a13b_valid.json`
+- `asreview_filtered_comparison/walker_2018_nb_filtered_to_a13b_valid.json`
 - `asreview_filtered_comparison/synergy26_ms_active_batch250_vs_asreview_elas_u4_filtered.json`
 - `asreview_filtered_comparison/synergy26_wilcoxon.json`
 - `asreview_filtered_comparison/walker_batch1_wallclock_estimate.json`
@@ -25,6 +26,9 @@ Interpretation constraints:
   and 20 as deployment sensitivity analyses.
 - Therefore these outputs are post-hoc pragmatic batched active-learning
   supplement evidence, not a confirmatory MS-Active headline.
+- `walker_2018_nb_filtered_to_a13b_valid.json` is a secondary ASReview NB
+  same-corpus completeness check. The primary ASReview comparator remains
+  `elas_u4`.
 
 ## Supporting / Diagnostic Outputs
 
