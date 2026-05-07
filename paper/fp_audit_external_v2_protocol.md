@@ -1,7 +1,8 @@
 # External v2 False-Positive Audit Protocol
 
 **Authored:** 2026-05-07
-**Status:** Draft for lock — do not sample, draw, or adjudicate before this document is signed off and time-stamped.
+**Protocol version:** v1.0 locked (2026-05-07)
+**Status:** Locked for public timestamp — do not sample, draw, or adjudicate until this exact v1.0 document is committed and publicly time-stamped.
 **Scope:** External 35-dataset FP audit for MetaScreener `a13b_coverage_rule` v2.
 **Pre-registration intent:** This document is the locked protocol for paper-ready FP audit. It must be locked before any record is sampled or shown to an adjudicator.
 
@@ -303,4 +304,5 @@ Reproducibility:
 ## 13. Version
 
 - **v0.1 (2026-05-07):** initial draft for lock review.
-- The version line must be updated and the document must be committed and time-stamped before any sampling occurs.
+- **v1.0 locked (2026-05-07):** locked after Codex preparation and external Claude audit review, before sampling, record draw, adjudicator packet creation, or adjudication.
+- This v1.0 document must be committed and publicly time-stamped (OSF or Zenodo) before any sampling occurs. Any later protocol change requires a numbered amendment dated before the affected action.
