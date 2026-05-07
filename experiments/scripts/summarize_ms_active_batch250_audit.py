@@ -19,6 +19,14 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MS_ACTIVE_DIR = PROJECT_ROOT / "experiments" / "results" / "ms_active"
 COMPARISON_DIR = MS_ACTIVE_DIR / "asreview_filtered_comparison"
 LOG_FORMAT = "%a %b %d %H:%M:%S CST %Y"
+MS_ACTIVE_BATCH250_CAVEAT = (
+    "MS-Active is reported here under query_batch_size=250, a post-hoc "
+    "out-of-pre-registration batched variant. The locked pre-registration "
+    "paper/ms_active_risk_preregistration.md Section 8 specifies batch=1 as "
+    "primary and {5, 10, 20} as deployment sensitivity; batch=250 was not "
+    "pre-specified. See experiments/results/ms_active/README.md and "
+    "synergy26_wilcoxon.json section_13_3_status for the full caveat."
+)
 
 
 def _parse_log_timestamp(line: str) -> datetime | None:
@@ -58,6 +66,14 @@ def _mean_jsonl_field(path: Path, field: str) -> float | None:
     if not values:
         return None
     return sum(values) / len(values)
+
+
+def _repo_relative_path(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(PROJECT_ROOT).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -136,27 +152,29 @@ def build_walker_wallclock_estimate() -> dict[str, Any]:
             "not_pre_registered": [250],
         },
         "observed_exact_batch1_attempts": {
-            "target_stop_log": target_stop_log.as_posix(),
+            "target_stop_log": _repo_relative_path(target_stop_log),
             "target_stop_elapsed_seconds": target_stop_seconds,
             "target_stop_done_marker_emitted": _contains_marker(
                 target_stop_log,
                 "DONE Walker_2018 target-stop",
             ),
-            "checkpoint_log": checkpoint_log.as_posix(),
+            "checkpoint_log": _repo_relative_path(checkpoint_log),
             "checkpoint_elapsed_seconds": checkpoint_seconds,
             "checkpoint_done_marker_emitted": _contains_marker(
                 checkpoint_log,
                 "DONE Walker_2018 checkpoint target-stop",
             ),
             "usable_walker_artifact_exists": walker_artifact_dir.exists(),
-            "capped_diagnostic_log": capped_log.as_posix(),
+            "capped_diagnostic_log": _repo_relative_path(capped_log),
             "cap_500_elapsed_seconds": cap500_seconds,
             "cap_1000_started_without_done": cap1000_started_without_done,
-            "batch250_summary_for_lower_bound": walker_batch250_summary_path.as_posix(),
+            "batch250_summary_for_lower_bound": _repo_relative_path(
+                walker_batch250_summary_path
+            ),
             "mean_batch250_recall_work": mean_batch250_recall_work,
         },
         "batch250_formal": {
-            "log": batch250_log.as_posix(),
+            "log": _repo_relative_path(batch250_log),
             "elapsed_seconds_for_five_seeds": batch250_formal_seconds,
             "elapsed_hours_for_five_seeds": batch250_formal_hours,
         },
@@ -211,7 +229,8 @@ def build_synergy26_wilcoxon() -> dict[str, Any]:
 
     return {
         "generated_by": "experiments/scripts/summarize_ms_active_batch250_audit.py",
-        "source": comparison_path.as_posix(),
+        "source": _repo_relative_path(comparison_path),
+        "ms_active_caveat": MS_ACTIVE_BATCH250_CAVEAT,
         "target_recall": comparison["target_recall"],
         "n_datasets": len(paired),
         "ms_wins": comparison["ms_wins"],

@@ -29,6 +29,7 @@ KNOWN_OUTPUT_FILES = frozenset(
 )
 OUTPUT_FILE_INSTALL_ORDER = ("events.jsonl.gz", "per_dataset_summary.jsonl", "manifest.json")
 PRIMARY_SEEDS = (42, 123, 456, 789, 2024)
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 
 
 @dataclass(frozen=True)
@@ -243,8 +244,8 @@ def _manifest(
         "inputs": [
             {
                 "dataset": item.dataset,
-                "result_json_path": str(item.result_json_path.resolve()),
-                "records_csv_path": str(item.records_csv_path.resolve()),
+                "result_json_path": _repo_relative_path(item.result_json_path),
+                "records_csv_path": _repo_relative_path(item.records_csv_path),
             }
             for item in inputs
         ],
@@ -270,12 +271,19 @@ def _config_hash(config_payload: dict[str, object]) -> str:
     return sha256(encoded).hexdigest()
 
 
+def _repo_relative_path(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(PROJECT_ROOT).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
 def _code_commit() -> str | None:
-    repo_root = Path(__file__).resolve().parents[4]
     try:
         completed = subprocess.run(
             ["git", "rev-parse", "HEAD"],
-            cwd=repo_root,
+            cwd=PROJECT_ROOT,
             check=True,
             capture_output=True,
             text=True,

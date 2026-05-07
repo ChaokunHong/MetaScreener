@@ -106,6 +106,32 @@ def test_batch_manifest_contains_preregistered_traceability_fields(
     }
 
 
+def test_batch_manifest_uses_repo_relative_paths_for_project_inputs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(batch_module, "PROJECT_ROOT", tmp_path)
+    output_dir = tmp_path / "out"
+    dataset = dataset_input(tmp_path)
+
+    summary = run_ms_active_batch(
+        [dataset],
+        output_dir=output_dir,
+        ranker_kind="a1_tfidf",
+        base_seed=42,
+        target_recall=0.985,
+        run_id="portable-paths",
+        created_at_utc="2026-04-30T00:00:00Z",
+    )
+
+    manifest = json.loads(summary.manifest_path.read_text(encoding="utf-8"))
+    input_row = manifest["inputs"][0]
+    assert input_row["result_json_path"] == "D1_a13b.json"
+    assert input_row["records_csv_path"] == "D1_records.csv"
+    assert not Path(input_row["result_json_path"]).is_absolute()
+    assert not Path(input_row["records_csv_path"]).is_absolute()
+
+
 def test_batch_manifest_records_target_recall_stopping_rule(tmp_path: Path) -> None:
     summary = run_ms_active_batch(
         [dataset_input(tmp_path, extra_exclude=True)],

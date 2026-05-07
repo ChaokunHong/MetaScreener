@@ -12,8 +12,8 @@
   "inputs": [
     {
       "dataset": "Menon_2022",
-      "records_csv_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/datasets/Menon_2022/records.csv",
-      "result_json_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/Menon_2022/a13b_coverage_rule.json"
+      "records_csv_path": "experiments/datasets/Menon_2022/records.csv",
+      "result_json_path": "experiments/results/Menon_2022/a13b_coverage_rule.json"
     }
   ],
   "output_files": {

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
 from experiments.scripts import summarize_ms_active_batch250_audit as audit
+
+ABSOLUTE_HOME_PREFIX = "/Users/hongchaokun/Documents/PhD/MetaScreener"
 
 
 def _write_log(path: Path, lines: list[str]) -> None:
@@ -17,6 +20,7 @@ def test_walker_wallclock_estimate_reports_bounds_and_marker_state(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     ms_active_dir = tmp_path / "ms_active"
+    monkeypatch.setattr(audit, "PROJECT_ROOT", tmp_path)
     monkeypatch.setattr(audit, "MS_ACTIVE_DIR", ms_active_dir)
 
     _write_log(
@@ -71,7 +75,13 @@ def test_walker_wallclock_estimate_reports_bounds_and_marker_state(
     assert attempts["checkpoint_done_marker_emitted"] is True
     assert attempts["usable_walker_artifact_exists"] is False
     assert attempts["cap_1000_started_without_done"] is True
+    assert attempts["target_stop_log"] == (
+        "ms_active/synergy26_a1_label_free_prepared.target_stop.log"
+    )
+    assert not Path(attempts["target_stop_log"]).is_absolute()
     assert attempts["mean_batch250_recall_work"] == pytest.approx(1500.0)
+    assert result["batch250_formal"]["log"] == "ms_active/walker_a1_batch250_formal.log"
+    assert not Path(result["batch250_formal"]["log"]).is_absolute()
 
     interpretation = result["wallclock_interpretation"]
     assert interpretation["upper_bound_serial_five_seed_hours"] == pytest.approx(5.0)
@@ -87,6 +97,7 @@ def test_synergy26_wilcoxon_locks_section_13_3_direction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     comparison_dir = tmp_path / "comparison"
+    monkeypatch.setattr(audit, "PROJECT_ROOT", tmp_path)
     monkeypatch.setattr(audit, "COMPARISON_DIR", comparison_dir)
     comparison_dir.mkdir(parents=True)
     comparison_path = (
@@ -115,6 +126,12 @@ def test_synergy26_wilcoxon_locks_section_13_3_direction(
 
     result = audit.build_synergy26_wilcoxon()
 
+    assert result["source"] == (
+        "comparison/synergy26_ms_active_batch250_vs_asreview_elas_u4_filtered.json"
+    )
+    assert not Path(result["source"]).is_absolute()
+    assert "query_batch_size=250" in result["ms_active_caveat"]
+    assert "not pre-specified" in result["ms_active_caveat"]
     assert result["wilcoxon"]["ms_less_workload"]["alternative"] == "less"
     assert result["wilcoxon"]["ms_greater_workload"]["alternative"] == "greater"
     assert result["wilcoxon"]["ms_less_workload"]["p_value"] > 0.95
@@ -125,3 +142,22 @@ def test_synergy26_wilcoxon_locks_section_13_3_direction(
         is False
     )
     assert result["section_13_3_status"]["criterion_4_pooled_work_lower_than_elas_u4"] is False
+
+
+def test_committed_ms_active_json_artifacts_do_not_contain_absolute_home_paths() -> None:
+    tracked = subprocess.run(
+        ["git", "ls-files", "experiments/results/ms_active"],
+        cwd=audit.PROJECT_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    offenders = [
+        relative_path
+        for relative_path in tracked.stdout.splitlines()
+        if relative_path.endswith(".json")
+        for path in [audit.PROJECT_ROOT / relative_path]
+        if ABSOLUTE_HOME_PREFIX in path.read_text(encoding="utf-8")
+    ]
+
+    assert offenders == []

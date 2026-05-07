@@ -12,8 +12,8 @@
   "inputs": [
     {
       "dataset": "Nelson_2002",
-      "records_csv_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/datasets/Nelson_2002/records.csv",
-      "result_json_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/Nelson_2002/a13b_coverage_rule.json"
+      "records_csv_path": "experiments/datasets/Nelson_2002/records.csv",
+      "result_json_path": "experiments/results/Nelson_2002/a13b_coverage_rule.json"
     }
   ],
   "output_files": {

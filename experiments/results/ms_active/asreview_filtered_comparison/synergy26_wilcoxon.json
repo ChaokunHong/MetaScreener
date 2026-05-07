@@ -1,6 +1,7 @@
 {
   "generated_by": "experiments/scripts/summarize_ms_active_batch250_audit.py",
-  "source": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/ms_active/asreview_filtered_comparison/synergy26_ms_active_batch250_vs_asreview_elas_u4_filtered.json",
+  "source": "experiments/results/ms_active/asreview_filtered_comparison/synergy26_ms_active_batch250_vs_asreview_elas_u4_filtered.json",
+  "ms_active_caveat": "MS-Active is reported here under query_batch_size=250, a post-hoc out-of-pre-registration batched variant. The locked pre-registration paper/ms_active_risk_preregistration.md Section 8 specifies batch=1 as primary and {5, 10, 20} as deployment sensitivity; batch=250 was not pre-specified. See experiments/results/ms_active/README.md and synergy26_wilcoxon.json section_13_3_status for the full caveat.",
   "target_recall": 0.985,
   "n_datasets": 26,
   "ms_wins": 8,

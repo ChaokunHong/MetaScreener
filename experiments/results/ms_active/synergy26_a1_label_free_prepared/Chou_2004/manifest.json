@@ -12,8 +12,8 @@
   "inputs": [
     {
       "dataset": "Chou_2004",
-      "records_csv_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/datasets/Chou_2004/records.csv",
-      "result_json_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/Chou_2004/a13b_coverage_rule.json"
+      "records_csv_path": "experiments/datasets/Chou_2004/records.csv",
+      "result_json_path": "experiments/results/Chou_2004/a13b_coverage_rule.json"
     }
   ],
   "output_files": {

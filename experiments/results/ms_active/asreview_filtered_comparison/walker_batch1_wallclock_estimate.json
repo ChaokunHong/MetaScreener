@@ -15,21 +15,21 @@
     ]
   },
   "observed_exact_batch1_attempts": {
-    "target_stop_log": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/ms_active/synergy26_a1_label_free_prepared.target_stop.log",
+    "target_stop_log": "experiments/results/ms_active/synergy26_a1_label_free_prepared.target_stop.log",
     "target_stop_elapsed_seconds": 93682.0,
     "target_stop_done_marker_emitted": true,
-    "checkpoint_log": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/ms_active/synergy26_a1_label_free_prepared.walker_checkpoint.log",
+    "checkpoint_log": "experiments/results/ms_active/synergy26_a1_label_free_prepared.walker_checkpoint.log",
     "checkpoint_elapsed_seconds": 39299.0,
     "checkpoint_done_marker_emitted": true,
     "usable_walker_artifact_exists": false,
-    "capped_diagnostic_log": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/ms_active/walker_a1_capped_diagnostic.log",
+    "capped_diagnostic_log": "experiments/results/ms_active/walker_a1_capped_diagnostic.log",
     "cap_500_elapsed_seconds": 494.0,
     "cap_1000_started_without_done": true,
-    "batch250_summary_for_lower_bound": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/ms_active/walker_a1_batch250_formal/Walker_2018/per_dataset_summary.jsonl",
+    "batch250_summary_for_lower_bound": "experiments/results/ms_active/walker_a1_batch250_formal/Walker_2018/per_dataset_summary.jsonl",
     "mean_batch250_recall_work": 17568.6
   },
   "batch250_formal": {
-    "log": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/ms_active/walker_a1_batch250_formal.log",
+    "log": "experiments/results/ms_active/walker_a1_batch250_formal.log",
     "elapsed_seconds_for_five_seeds": 1100.0,
     "elapsed_hours_for_five_seeds": 0.3055555555555556
   },

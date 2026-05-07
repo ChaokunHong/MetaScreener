@@ -1,5 +1,6 @@
 {
   "generated_at": "2026-05-05T08:26:15.383404+00:00",
+  "ms_active_caveat": "MS-Active is reported here under query_batch_size=250, a post-hoc out-of-pre-registration batched variant. The locked pre-registration paper/ms_active_risk_preregistration.md Section 8 specifies batch=1 as primary and {5, 10, 20} as deployment sensitivity; batch=250 was not pre-specified. See experiments/results/ms_active/README.md and synergy26_wilcoxon.json section_13_3_status for the full caveat.",
   "scope": "SYNERGY 26 internal comparison; Walker ASReview elas_u4 is old-project filtered to a13b/MS-Active valid-record subset.",
   "target_recall": 0.985,
   "n_datasets": 26,

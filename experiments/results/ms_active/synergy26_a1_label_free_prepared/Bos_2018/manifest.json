@@ -12,8 +12,8 @@
   "inputs": [
     {
       "dataset": "Bos_2018",
-      "records_csv_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/datasets/Bos_2018/records.csv",
-      "result_json_path": "/Users/hongchaokun/Documents/PhD/MetaScreener/experiments/results/Bos_2018/a13b_coverage_rule.json"
+      "records_csv_path": "experiments/datasets/Bos_2018/records.csv",
+      "result_json_path": "experiments/results/Bos_2018/a13b_coverage_rule.json"
     }
   ],
   "output_files": {
