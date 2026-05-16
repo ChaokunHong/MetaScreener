@@ -1,5 +1,16 @@
 # External v2 FP Audit Final Report
 
+> **STATUS BANNER (added 2026-05-16):** This is a **3-LLM-judge pre-audit**
+> using `nous-hermes4`, `glm5.1`, and `minimax-m2.7` (`n=289`, seed `42`,
+> Cohen + CLEF). It **does not satisfy** the locked protocol
+> `paper/fp_audit_external_v2_protocol.md` v1.0 (2026-05-07), which requires
+> `n=240`, seed `20260507`, and **3 human adjudicators with prior systematic-
+> review screening experience**. This file is a preliminary signal only and
+> **must not be cited as the paper-grade FP audit**. The decision on whether
+> to (a) run the protocol-compliant human audit, (b) amend protocol v1.0 to
+> elevate the LLM-judge result, or (c) hybrid is tracked in
+> `paper/FINDINGS_LEDGER.md` F9 and `PAPER_READY_HANDOFF.md` §G blocker #1.
+
 Date: 2026-04-29
 
 Scope: external held-out a13b v2 committed false positives only, sampled from

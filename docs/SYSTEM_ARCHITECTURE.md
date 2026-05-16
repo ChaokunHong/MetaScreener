@@ -1,8 +1,27 @@
 # MetaScreener 2.0 — 系统架构全景文档
 
 > **版本**: 2.0.0a5 | **许可证**: Apache-2.0 | **作者**: Chaokun Hong
-> **目标期刊**: The Lancet Digital Health
-> **生成日期**: 2026-03-30
+> **目标期刊**（2026-05-07 重估）: 方法学 / 数字健康类期刊（JAMIA、JBI、Systematic Reviews、J Med Internet Res）。Lancet Digital Health 在 ASReview workload 对照之后被降级为 stretch 目标，不再驱动 scope 决策。详见 `PAPER_READY_HANDOFF.md` §A 与 `paper/FINDINGS_LEDGER.md` F6 / F10 / F13。
+> **生成日期**: 2026-03-30（架构主体）
+> **最后修订**: 2026-05-16（目标期刊修订 + v2.1 + a13b headline 小节）
+
+---
+
+## 0. 当前 paper 配置摘要（2026-05-16 加入）
+
+本文件 2026-03-30 写就，描述的是 v2.0 系统结构。在此之后项目经历了 v2.1 数学审计、a13b/MS-Recall headline 锁定、ASReview 比较 reframing、MS-Active / MS-Route hybrid 探索。**架构主体仍然有效**，但下列论文层级状态在本文件中**未被覆盖**——请以以下文件为准：
+
+| 主题 | 真相来源 |
+|---|---|
+| 主叙事 / 禁止 claim / blocker | [`PAPER_READY_HANDOFF.md`](../PAPER_READY_HANDOFF.md) §A / §B / §G |
+| 已发现的 F1-F14 实证 | [`paper/FINDINGS_LEDGER.md`](../paper/FINDINGS_LEDGER.md) |
+| 论文 ablation 命名 | [`paper/config_naming_map.yaml`](../paper/config_naming_map.yaml)（含 MS-Base / MS-Recall / MS-Efficient + v3+ 命名 namespace） |
+| 当前 headline 配置 | `a13b_coverage_rule` = **MS-Recall**（4-LLM + GLAD + 几何 ECS + SPRT + IPW + 自适应风险控制 margin + ESAS + Bayesian router + 覆盖率规则） |
+| MS-Efficient (a14*) | F3 宣判 dead（Phase 5 后与 a13b 数值相同） |
+| MS-Route hybrid | F12 宣判 external 上失败 |
+| FP audit 状态 | F9：3-LLM-judge pre-audit 已完成；human-adjudicator audit pending |
+
+如果本文件后续小节与上表冲突，**以上表为准**。本文件的"架构层"描述（HCN 四层、模块边界、数据流）仍然准确。
 
 ---
 

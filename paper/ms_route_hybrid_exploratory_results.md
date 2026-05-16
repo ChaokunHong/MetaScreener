@@ -1,7 +1,19 @@
 # MS-Route Hybrid Exploratory Results
 
+> **STATUS UPDATE 2026-05-16:** The SYNERGY-26 nested result below (`-12.1%` work,
+> `74.2%` oracle recovery) **does not generalize to external 35**. On the held-out
+> external cohort the same router adds `+13.5%` workload vs V3 because V4 rank-all
+> is dominated by V3 on `29/31` datasets; the oracle gap on external is only `58`
+> records (`0.14%` of V3 pooled). Evidence:
+> `experiments/results/ms_route_hybrid/external_35_evaluation.json` and
+> `external_35_report.md`. See `paper/operating_point_and_router_reframe.md`
+> and `paper/FINDINGS_LEDGER.md` F12 for the post-mortem. This file is
+> **superseded as a paper-headline candidate** — keep for SYNERGY-side
+> traceability only; do not cite the 12.1% number without simultaneously
+> citing F12.
+
 **Generated:** 2026-04-29
-**Status:** Post-hoc exploratory SYNERGY nested result
+**Status:** Post-hoc exploratory SYNERGY nested result (and now SYNERGY-only after F12)
 **Plan:** `paper/ms_route_hybrid_exploratory_plan.md`
 
 ## Question

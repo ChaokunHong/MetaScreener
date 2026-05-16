@@ -85,6 +85,114 @@ supplementary_executed:
     solo_kimi-k2: "single-model baseline (kimi-k2 only)"
     solo_llama4-maverick: "single-model baseline (llama4-maverick only)"
 
+# 2026-05-16 addition: configs that exist as YAMLs in experiments/configs/
+# but were not part of the main external-35 campaign and were previously not
+# enumerated in this naming map.
+configs_in_codebase_not_external_campaign:
+  description: >-
+    These YAMLs exist under experiments/configs/ and may be invoked by
+    one-off scripts or future replays. They are NOT in
+    external_35_replay_v2_summary.json. Treat as side-experiments; do not
+    cite their results as ablation-campaign evidence without explaining
+    they sit outside the locked a0..a9 ladder.
+  configs:
+    a9_high_recall: >-
+      a9 with loss-matrix preset biased toward sensitivity. Used by
+      experiments/scripts/multi_operating_point.py on the 12-dataset
+      benchmark.
+    a9_high_throughput: >-
+      a9 with loss-matrix preset biased toward auto-decision throughput.
+      Same multi-operating-point campaign. Reports negative-result tension
+      with high_recall — see paper/binary_frontier_results.md.
+    a11_hr_plus3: >-
+      a11 with three additional reasoner models pushed onto the HR pool.
+      Results in experiments/results/hr_plus3/. F5 concludes this does not
+      safely release HR; keep as supplementary counterfactual only.
+    a15a_ec_override: >-
+      Wave-2 variant adding an exclude-certainty override layer. Not run on
+      external 35 in the main campaign.
+    a15b_low_hr_cost: >-
+      Wave-2 variant reweighting the HR cost in the router objective. Not
+      run on external 35.
+    a15c_wave2_margin: >-
+      Wave-2 variant adjusting the adaptive-margin schedule. Not run on
+      external 35.
+
+# 2026-05-16 addition: post-v2.1 methodology-facing names that appeared in
+# downstream paper/results docs but were never collected in one place.
+methodology_facing_v3plus:
+  description: >-
+    Names introduced after the original a0..a9 + paper_facing layer to talk
+    about new architecture variants (queue/rank routing, active learning,
+    hybrid routers). These are NOT new YAML configs — they are workflow
+    layers on top of existing a13b output. This namespace is the single
+    source of truth for what each name refers to and which downstream paper
+    document is authoritative.
+  equivalences:
+    - names: [MS-Screen, MS-Recall, a13b, a13b_coverage_rule]
+      meaning: >-
+        Identical referent. The 4-LLM v2.1 screener producing
+        INCLUDE / HUMAN_REVIEW / EXCLUDE per record. Paper-facing name is
+        MS-Recall; methodology docs (ms_rank_v3 / ms_route_hybrid /
+        operating_point_and_router_reframe) use V3 / MS-Screen / a13b
+        interchangeably. Pick MS-Recall for first mention in the paper.
+  entries:
+    V3:
+      synonyms: [MS-Queue, MS-Rank safety queue, MS-Recall safety-queue path]
+      definition: >-
+        Production a13b workflow: every auto-INCLUDE is verified first;
+        HUMAN_REVIEW pool then ranked (originally by p_include desc).
+        Auto-EXCLUDE never reviewed. This is what F6 / asreview_vs_a13b
+        and §A / F13 measure as a13b workload.
+      authoritative_doc: paper/ms_rank_v3_results.md
+    V4:
+      definition: >-
+        Post-hoc exploratory rank-all variant: rank INCLUDE + HUMAN_REVIEW
+        + EXCLUDE together by p_include and walk to recall R, ignoring the
+        safety-queue commitment.
+      status: dead per ms_rank_v4_exploratory_results AND F12 (external 35
+        confirms V4 is dominated by V3 on 29/31 datasets)
+      authoritative_doc: paper/ms_rank_v4_exploratory_results.md
+    MS-Rank-Lexical / MS-Rank-LLM / MS-Rank-Fusion:
+      definition: >-
+        Three candidate rankers for ordering the V3 HR pool. Lexical was
+        frozen as the v3 default after diagnostic gates.
+      authoritative_doc: paper/ms_rank_v3_results.md
+    MS-Route hybrid:
+      definition: >-
+        Label-free dataset-level router that selects V3 or V4 per dataset
+        from already-available a13b output features (e.g.
+        auto_exclude_count > 41 ⇒ V4).
+      status: SYNERGY-26 nested CV showed -12.1% workload; F12 (external
+        35) shows +13.5% workload — router does not generalize. SYNERGY
+        result is NOT a paper headline.
+      authoritative_docs:
+        - paper/ms_route_hybrid_exploratory_results.md  # banner: superseded as headline
+        - paper/operating_point_and_router_reframe.md   # external negative result
+    MS-Active:
+      definition: >-
+        Active-learning research line. The Walker_2018 run actually used
+        query_batch_size=250 (a post-hoc batched variant), not exact A1.
+        See F11.
+      authoritative_doc: paper/ms_active_risk_preregistration.md
+      caveat: >-
+        "MS-Active = exact A1" is forbidden (PAPER_READY §B forbidden #3).
+        Always disambiguate: MS-Active A1-batch250 vs exact A1
+        (batch_size=1, not yet successfully run).
+    MS-Active A1-batch250:
+      definition: >-
+        The specific post-hoc batched variant that was actually executed.
+        Must always carry the batch250 suffix.
+    MS-Active-Risk:
+      definition: >-
+        Next-generation MS-Active design (risk-controlled variant)
+        registered in paper/ms_active_risk_preregistration.md. Forward-
+        looking; not the same as the executed batch250 run.
+    MS-Safe:
+      status: deprecated. Renamed to MS-Recall on Codex recommendation
+        (regulatory-safety connotation). No remaining occurrences in the
+        repo as of 2026-05-16.
+
 planned_not_run:
   description: >-
     Defined in the codebase ALL_CONFIGS list but not executed on external 35
